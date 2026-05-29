@@ -1,7 +1,5 @@
 import { keyboard } from '@testing-library/user-event/dist/keyboard'
 import $ from 'jquery'
-require('jquery-confirm')(window, $)
-import 'jquery-confirm/css/jquery-confirm.css'
 
 import _ from 'lodash'
 import Vditor from 'vditor'
@@ -21,25 +19,30 @@ declare global {
   }
 }
 
-export function confirm(msg, onOk) {
-  $.confirm({
-    title: '',
-    animation: 'top',
-    closeAnimation: 'top',
-    animateFromElement: false,
-    boxWidth: '300px',
-    useBootstrap: false,
-    content: msg,
-    buttons: {
-      cancel: {
-        text: 'Cancel',
-      },
-      confirm: {
-        text: 'Confirm',
-        action: onOk,
-      },
-    },
+export function confirm(msg: string, onOk: () => void | Promise<void>) {
+  const dialog = document.createElement('dialog')
+  dialog.className = 'me-confirm'
+  // <form method="dialog"> closes the dialog on button click and sets
+  // returnValue to the clicked button's value — no per-button listeners needed
+  dialog.innerHTML = `
+    <form method="dialog" class="me-confirm__body">
+      <div class="me-confirm__content"></div>
+      <menu class="me-confirm__buttons">
+        <button value="cancel" class="me-confirm__btn">Cancel</button>
+        <button value="confirm" class="me-confirm__btn me-confirm__btn--primary">Confirm</button>
+      </menu>
+    </form>
+  `
+  // textContent (not innerHTML) keeps translated messages safe from injection
+  dialog.querySelector('.me-confirm__content')!.textContent = msg
+  document.body.appendChild(dialog)
+  dialog.addEventListener('close', async () => {
+    if (dialog.returnValue === 'confirm') {
+      await onOk()
+    }
+    dialog.remove()
   })
+  dialog.showModal()
 }
 // 切换 content-theme 时自动修改 vditor theme
 export function fixDarkTheme() {

@@ -222,14 +222,7 @@ has-flag@^4.0.0:
   resolved "https://registry.npmmirror.com/has-flag/-/has-flag-4.0.0.tgz"
   integrity sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==
 
-jquery-confirm@^3.3.4:
-  version "3.3.4"
-  resolved "https://registry.npmmirror.com/jquery-confirm/-/jquery-confirm-3.3.4.tgz"
-  integrity sha1-ST4p0zcT6G1usMW9F3Z3pDczENE=
-  dependencies:
-    jquery ">=1.6"
-
-jquery@^3.7.1, jquery@>=1.6:
+jquery@^3.7.1:
   version "3.7.1"
   resolved "https://registry.npmjs.org/jquery/-/jquery-3.7.1.tgz"
   integrity sha512-m4avr8yL8kmFN8psrbFFFmB/If14iN5o9nw/NgnnM+kybDJpRsAynV2BsfpTYrTRysYUdADVD7CkUUizgkpLfg==
