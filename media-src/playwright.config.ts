@@ -8,7 +8,7 @@ export default defineConfig({
   webServer: {
     command: 'node e2e/serve.mjs',
     url: 'http://localhost:9123',
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 })

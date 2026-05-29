@@ -42,6 +42,10 @@ const server = http.createServer((req, res) => {
     res.setHeader('content-type', 'text/javascript')
     return res.end(harnessJs)
   }
+  if (url === '/main.css') {
+    res.setHeader('content-type', 'text/css')
+    return res.end(fs.readFileSync(path.join(__dirname, '../src/main.css')))
+  }
   if (url.startsWith('/vditor/')) {
     const file = path.join(mediaVditor, url.slice('/vditor/'.length))
     if (file.startsWith(mediaVditor) && fs.existsSync(file) && fs.statSync(file).isFile()) {

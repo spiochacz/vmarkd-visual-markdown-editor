@@ -136,6 +136,13 @@ export function fixTableIr() {
         eventRoot.scrollTop -
         25 +
         'px'
+      // track the clicked cell horizontally too, so the panel stays visible
+      // regardless of the editor's left margin / full-width layout
+      tablePanel.style.left =
+        clickEl.getBoundingClientRect().left -
+        eventRoot.getBoundingClientRect().left +
+        eventRoot.scrollLeft +
+        'px'
     } else {
       if (tablePanel.style.display !== 'none') {
         tablePanel.style.display = 'none'

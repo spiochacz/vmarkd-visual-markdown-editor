@@ -57,12 +57,36 @@ test.describe('dispatch-level: dispatchTableHotkey triggers the Vditor action', 
   }
 })
 
+test('panel appears horizontally aligned with the clicked cell, not pinned far left', async ({
+  page,
+}) => {
+  await gotoEditor(page)
+  // click the second-column data cell, which sits well to the right
+  await page.locator('.vditor-ir td').nth(1).click()
+  await page.waitForTimeout(120)
+  const { panelLeft, cellLeft } = await page.evaluate(() => {
+    const cell = (window as any).vditor.vditor.ir.element.querySelectorAll(
+      'td'
+    )[1] as HTMLElement
+    const panel = document
+      .getElementById('fix-table-ir-wrapper')!
+      .querySelector('.vditor-panel') as HTMLElement
+    return {
+      panelLeft: panel.getBoundingClientRect().left,
+      cellLeft: cell.getBoundingClientRect().left,
+    }
+  })
+  expect(Math.abs(panelLeft - cellLeft)).toBeLessThan(30)
+})
+
 test.describe('icon click: full flow through the table panel', () => {
   for (const action of ACTIONS) {
     test(action, async ({ page }) => {
       await gotoEditor(page)
       const before = parseTable(await getValue(page))
-      await selectFirstCell(page) // also reveals the panel
+      await selectFirstCell(page) // reveals the collapsed "..." panel
+      // hover expands the panel from "..." to the full icon row
+      await page.locator('#fix-table-ir-wrapper .vditor-panel').hover()
       await page
         .locator(`#fix-table-ir-wrapper .vditor-icon[data-type="${action}"]`)
         .click()
