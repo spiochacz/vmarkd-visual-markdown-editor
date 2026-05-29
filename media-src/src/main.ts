@@ -13,7 +13,7 @@ import {
 
 import { deepMerge } from './deep-merge'
 import Vditor from 'vditor'
-import { format } from 'date-fns'
+import { formatTimestamp } from './format-timestamp'
 import 'vditor/dist/index.css'
 import { t, lang } from './lang'
 import { createToolbar } from './toolbar'
@@ -102,10 +102,9 @@ function initVditor(msg) {
         // console.log('files', files)
         let fileInfos = await Promise.all(
           files.map(async (f) => {
-            const d = new Date()
             return {
               base64: await fileToBase64(f),
-              name: `${format(new Date(), 'yyyyMMdd_HHmmss')}_${f.name}`.replace(
+              name: `${formatTimestamp(new Date())}_${f.name}`.replace(
                 /[^\w-_.]+/,
                 '_'
               ),

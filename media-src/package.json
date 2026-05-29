@@ -16,7 +16,6 @@
     "@babel/runtime-corejs3": "^7.29.2",
     "@testing-library/dom": "^7.30.4",
     "@testing-library/user-event": "^13.1.5",
-    "date-fns": "^2.30.0",
     "esbuild": "^0.11.23",
     "vditor": "^3.11.2"
   }
