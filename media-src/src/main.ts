@@ -11,7 +11,7 @@ import {
   saveVditorOptions,
 } from './utils'
 
-import { merge } from 'lodash'
+import { deepMerge } from './deep-merge'
 import Vditor from 'vditor'
 import { format } from 'date-fns'
 import 'vditor/dist/index.css'
@@ -29,7 +29,7 @@ function initVditor(msg) {
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
     // vditor.setTheme('dark', 'dark')
-    defaultOptions = merge(defaultOptions, {
+    defaultOptions = deepMerge(defaultOptions, {
       theme: 'dark',
       preview: {
         theme: {
@@ -41,7 +41,7 @@ function initVditor(msg) {
       }
     })
   }
-  defaultOptions = merge(defaultOptions, msg.options, {
+  defaultOptions = deepMerge(defaultOptions, msg.options, {
     preview: {
       math: {
         inlineDigit: true,

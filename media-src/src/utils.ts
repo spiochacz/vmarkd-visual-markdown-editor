@@ -1,6 +1,6 @@
 import { keyboard } from '@testing-library/user-event/dist/keyboard'
 
-import _ from 'lodash'
+import { debounce } from './debounce'
 import Vditor from 'vditor'
 window.vscode =
   (window as any).acquireVsCodeApi && (window as any).acquireVsCodeApi()
@@ -139,7 +139,7 @@ export function fixResponsiveTables() {
   responsiveTableCleanup?.()
 
   const root = document.querySelector('.vditor') ?? document.body
-  const syncTables = _.debounce(() => {
+  const syncTables = debounce(() => {
     normalizeResponsiveTables(root)
   }, 16)
 
