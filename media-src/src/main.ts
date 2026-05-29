@@ -65,6 +65,10 @@ function initVditor(msg) {
     }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
+    // Vditor 3.11.x calls this optional hook unconditionally while rendering
+    // the wysiwyg toolbar; without it the editor throws on init and never
+    // finishes (window.vditor stays undefined, table panel never mounts).
+    customWysiwygToolbar: () => {},
     after() {
       const wikiEnabled = Boolean(msg.wiki && msg.wiki.enabled)
       setupCustomRenderer(window.vditor, {
