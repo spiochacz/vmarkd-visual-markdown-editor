@@ -12,6 +12,12 @@ export function setupCustomRenderer(
   vditor: Vditor,
   options: WikiRendererOptions
 ) {
+  // Only override Lute's renderers when wiki links are actually enabled.
+  // For ordinary files this keeps Vditor's default rendering intact across
+  // all modes (registering custom renderers broke wysiwyg/sv rendering).
+  if (!options.enabled) {
+    return
+  }
   // Vditor 3.11.x exposes lute on the internal instance, not the public one
   const lute = (vditor as any).vditor.lute as Vditor['vditor']['lute']
   const renderText = (node: any, entering: boolean) => {

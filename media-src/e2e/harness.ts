@@ -16,7 +16,6 @@ const editor = new Vditor('app', {
   after() {
     ;(window as any).vditor = editor
     ;(window as any).vditorTest = editor
-    // exercise the same after() flow as the extension (custom renderer + lute)
     setupCustomRenderer(editor, { enabled: false })
     fixTableIr()
     const isMac = navigator.platform.toLowerCase().includes('mac')
