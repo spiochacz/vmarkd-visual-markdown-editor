@@ -148,9 +148,8 @@ class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return data
   }
 
-  static getWebviewOptions(
-    uri?: vscode.Uri
-  ): vscode.WebviewOptions & vscode.WebviewPanelOptions {
+  static getWebviewOptions(): vscode.WebviewOptions &
+    vscode.WebviewPanelOptions {
     return {
       // Enable javascript in the webview
       enableScripts: true,
@@ -184,9 +183,7 @@ class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     let lastSyncedContent = document.getText()
 
     webviewPanel.title = NodePath.basename(fsPath)
-    webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions(
-      document.uri
-    )
+    webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions()
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       document.uri
