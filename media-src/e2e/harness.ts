@@ -2,6 +2,7 @@ import '../src/preload'
 import Vditor from 'vditor'
 import { fixTableIr } from '../src/fix-table-ir'
 import { dispatchTableHotkey, TableAction } from '../src/table-hotkey'
+import { setupCustomRenderer } from '../src/custom-renderer'
 
 // Minimal page that instantiates Vditor in IR mode with a known table and
 // wires fix-table-ir, mirroring how main.ts sets things up. Exposed globals
@@ -15,6 +16,8 @@ const editor = new Vditor('app', {
   after() {
     ;(window as any).vditor = editor
     ;(window as any).vditorTest = editor
+    // exercise the same after() flow as the extension (custom renderer + lute)
+    setupCustomRenderer(editor, { enabled: false })
     fixTableIr()
     const isMac = navigator.platform.toLowerCase().includes('mac')
     ;(window as any).__dispatchTableHotkey = (type: TableAction) =>
