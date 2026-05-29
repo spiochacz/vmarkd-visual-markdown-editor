@@ -159,3 +159,43 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
   margin: 0 !important;
   padding: 10px 20px !important;
 }
+
+/* native <dialog> confirm modal (replaces jquery-confirm) */
+.me-confirm {
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  max-width: 300px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.me-confirm::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.me-confirm__body {
+  padding: 16px;
+  margin: 0;
+}
+.me-confirm__content {
+  margin-bottom: 16px;
+}
+.me-confirm__buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+.me-confirm__btn {
+  padding: 4px 12px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+.me-confirm__btn--primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}

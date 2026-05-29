@@ -2,7 +2,6 @@
  * ir 模式下支持 table 编辑
  */
 import { keyboard } from '@testing-library/user-event/dist/keyboard'
-import $ from 'jquery'
 import { t } from './lang'
 
 const tablePanelId = 'fix-table-ir-wrapper'
@@ -100,8 +99,12 @@ export function fixTableIr() {
     >
   </div>
   `
-      $(tablePanel).on('click', '.vditor-icon', (e) => {
-        let type = $(e.target).attr('data-type')
+      tablePanel.addEventListener('click', (e) => {
+        const icon = (e.target as HTMLElement).closest<HTMLElement>(
+          '.vditor-icon'
+        )
+        if (!icon || !tablePanel.contains(icon)) return
+        let type = icon.getAttribute('data-type')
         const handleMap = {
           left: [
             '{ctrl}{shift}l{/shift}{/ctrl}',

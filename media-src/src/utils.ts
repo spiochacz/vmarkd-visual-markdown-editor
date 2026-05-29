@@ -1,7 +1,4 @@
 import { keyboard } from '@testing-library/user-event/dist/keyboard'
-import $ from 'jquery'
-require('jquery-confirm')(window, $)
-import 'jquery-confirm/css/jquery-confirm.css'
 
 import _ from 'lodash'
 import Vditor from 'vditor'
@@ -21,25 +18,30 @@ declare global {
   }
 }
 
-export function confirm(msg, onOk) {
-  $.confirm({
-    title: '',
-    animation: 'top',
-    closeAnimation: 'top',
-    animateFromElement: false,
-    boxWidth: '300px',
-    useBootstrap: false,
-    content: msg,
-    buttons: {
-      cancel: {
-        text: 'Cancel',
-      },
-      confirm: {
-        text: 'Confirm',
-        action: onOk,
-      },
-    },
+export function confirm(msg: string, onOk: () => void | Promise<void>) {
+  const dialog = document.createElement('dialog')
+  dialog.className = 'me-confirm'
+  // <form method="dialog"> closes the dialog on button click and sets
+  // returnValue to the clicked button's value — no per-button listeners needed
+  dialog.innerHTML = `
+    <form method="dialog" class="me-confirm__body">
+      <div class="me-confirm__content"></div>
+      <menu class="me-confirm__buttons">
+        <button value="cancel" class="me-confirm__btn">Cancel</button>
+        <button value="confirm" class="me-confirm__btn me-confirm__btn--primary">Confirm</button>
+      </menu>
+    </form>
+  `
+  // textContent (not innerHTML) keeps translated messages safe from injection
+  dialog.querySelector('.me-confirm__content')!.textContent = msg
+  document.body.appendChild(dialog)
+  dialog.addEventListener('close', async () => {
+    if (dialog.returnValue === 'confirm') {
+      await onOk()
+    }
+    dialog.remove()
   })
+  dialog.showModal()
 }
 // 切换 content-theme 时自动修改 vditor theme
 export function fixDarkTheme() {
@@ -56,19 +58,17 @@ export function fixDarkTheme() {
 }
 // panel hover 加定时延迟
 export function fixPanelHover() {
-  $('.vditor-panel').each((i, e) => {
-    let timer
-    $(e)
-      .on('mouseenter', (e) => {
-        timer && clearTimeout(timer)
-        e.currentTarget.classList.add('vditor-panel_hover')
-      })
-      .on('mouseleave', (e) => {
-        let el = e.currentTarget
-        timer = setTimeout(() => {
-          el.classList.remove('vditor-panel_hover')
-        }, 2000)
-      })
+  document.querySelectorAll<HTMLElement>('.vditor-panel').forEach((el) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    el.addEventListener('mouseenter', () => {
+      timer && clearTimeout(timer)
+      el.classList.add('vditor-panel_hover')
+    })
+    el.addEventListener('mouseleave', () => {
+      timer = setTimeout(() => {
+        el.classList.remove('vditor-panel_hover')
+      }, 2000)
+    })
   })
 }
 // 文件转base64用于传输
@@ -96,10 +96,18 @@ export function saveVditorOptions() {
 }
 // toolbar 点击时保存配置
 export function handleToolbarClick() {
-  $('.vditor-toolbar').on('click', '.vditor-panel--left button, .vditor-panel--arrow button, .vditor-panel button', (e) => {
-    setTimeout(() => {
-      saveVditorOptions()
-    }, 500)
+  document.querySelectorAll('.vditor-toolbar').forEach((toolbar) => {
+    toolbar.addEventListener('click', (e) => {
+      if (
+        (e.target as HTMLElement).closest(
+          '.vditor-panel--left button, .vditor-panel--arrow button, .vditor-panel button'
+        )
+      ) {
+        setTimeout(() => {
+          saveVditorOptions()
+        }, 500)
+      }
+    })
   })
 }
 
