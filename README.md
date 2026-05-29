@@ -47,7 +47,7 @@ For the broader editing/rendering feature set exposed by Vditor, see [vditor](ht
 This fork is packaged independently. Install the generated VSIX directly:
 
 ```bash
-code --install-extension ./artifacts/markdown-editor-extended-settings-0.2.34.vsix
+code --install-extension ./artifacts/markdown-editor-extended-settings-0.2.35.vsix
 
 ```
 
