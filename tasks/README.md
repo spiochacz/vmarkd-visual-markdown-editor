@@ -9,19 +9,19 @@ fork, goal, steps with file refs, verification); the `> Source:` line names the
 upstream fork the task derives from.
 
 ## Quick wins (low risk, fast)
-- [ ] [01 — Search Ctrl+F keybinding](01-search-keybinding.md) — 🟢 manifest only, no rebuild
+- [x] [01 — Search Ctrl+F keybinding](01-search-keybinding.md) — ✅ done
 - [ ] [02 — Word count](02-word-count.md) — 🟢 one Vditor option
 - [ ] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md) — 🟢 additive
 - [ ] [04 — IR heading-level indicator CSS](04-ir-heading-level-indicator-css.md) — 🟡 cosmetic
 - [ ] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md) — 🟡 cosmetic
-- [ ] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md) — 🟢 small
+- [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md) — ✅ done
 
 ## Settings & polish
 - [ ] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [ ] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [ ] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
-- [ ] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
+- [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md) — ✅ done
 - [ ] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [ ] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md) — 🟢 fixes stale-theme bug
 - [ ] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — 🟡 pairs with 12
@@ -58,7 +58,7 @@ upstream fork the task derives from.
 - [ ] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md) — 🟥 HIGH memory; measure first
 - [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md) — 🟥 HIGH perceived latency
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md) — 🟧 MED; feeds VSIX trim
-- [ ] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — 🟧 biggest single VSIX cut; KaTeX-only
+- [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — ✅ done (KaTeX-only; guard in Foyfile + test)
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
 
 ## Infra / refactor
