@@ -33,19 +33,23 @@ Switch the manifest to the vMark identity under your own Marketplace publisher.
 
 ## Steps
 1. `package.json`:
-   - `name` → vMark slug (e.g. `vmark-visual-markdown-editor`).
-   - `displayName` → `vMark` (or chosen display name).
-   - `publisher` → your registered Marketplace publisher id.
-   - `author` → you.
-   - `repository.url` → `github.com/spiochacz/vmark-visual-markdown-editor`.
-   - Review `description`, `keywords`, `icon` for the new brand.
-2. The `viewType` (`markdown-editor.editor`) and command ids (`markdown-editor.*`)
-   are internal — **changing them is optional and breaks user keybindings/settings**;
-   keep them unless you deliberately rebrand the contribution surface.
-3. Confirm a Marketplace publisher exists (`vsce login <publisher>`); create one via
-   the Azure DevOps publisher portal if not.
-4. Check `.vscodeignore` excludes `sharp` and `node_modules` build cruft from the VSIX.
+   - [x] `name` → `vmarkd`
+   - [x] `displayName` → `vMarkd — Visual Markdown Editor`
+   - [x] `publisher` → `spiochacz`
+   - [x] `author` → `Sławomir Piochacz`
+   - [x] `repository.url` → `github.com/spiochacz/vmarkd-visual-markdown-editor`
+   - [x] `description` refreshed for the brand
+   - [x] `keywords` += `vmarkd`, `visual-markdown`
+   - [ ] `icon` → still `media/logo.png` (inherited); needs a vMarkd asset (design)
+2. [x] `viewType` (`markdown-editor.editor`) and command ids (`markdown-editor.*`)
+   kept unchanged (internal — changing them would break user keybindings/settings).
+   Note: `customEditors[0].displayName` (a label, not an id) was rebranded to
+   `Visual Markdown Editor`.
+3. [ ] Confirm a Marketplace publisher exists (`vsce login spiochacz`); create one
+   via the Azure DevOps publisher portal if not. **(operational)**
+4. [x] `.vscodeignore` excludes `node_modules` (so `sharp`, a devDep, is excluded too).
 
 ## Verify
-`vsce package` builds a VSIX with the new identity; `vsce ls` / inspecting the VSIX
-shows the correct publisher/name. (Do not publish until the security tasks 18/27 land.)
+- [ ] `vsce package` builds a VSIX with the new identity; `vsce ls` / inspecting the
+  VSIX shows the correct publisher/name. (Do not publish until the security tasks
+  18/27 land.)
