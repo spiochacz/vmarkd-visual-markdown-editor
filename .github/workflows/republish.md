@@ -8,7 +8,7 @@ Follow these steps to update the extension to a new version on the VS Code Marke
 Ensure your local repository is up to date and bump the version number:
 
 ```bash
-git pull origin master
+git pull origin main
 npm version patch
 ```
 *Note: This automatically updates `package.json` and `package-lock.json` and creates a git tag.*
@@ -38,5 +38,5 @@ npx @vscode/vsce publish -p <YOUR_VS_MARKETPLACE_PAT>
 Push the version bump and the new tag to GitHub:
 
 ```bash
-git push origin master --tags
+git push origin main --tags
 ```

@@ -36,7 +36,7 @@ Everything below was read in full; the bones exist but there are real gaps.
 
 ### Problems to solve
 1. **No PR validation** — both workflows are manual/tag deploys; nothing runs on
-   `pull_request`. Bad code can reach `master` and a release.
+   `pull_request`. Bad code can reach `main` and a release.
 2. **The `npm test` gate runs on deploy but not on PRs, and e2e is never run** — the
    root `test` script now exists (task 21, vitest), but no workflow runs on
    `pull_request` and Playwright e2e is still unwired in CI.
@@ -55,7 +55,7 @@ Publisher `oleksiiko`; build via `foy` (Foyfile.ts) → esbuild.
 ---
 
 ## Part A — CI workflow (`.github/workflows/ci.yml`)
-Trigger: `pull_request` + `push` to `master`.
+Trigger: `pull_request` + `push` to `main`.
 
 1. `actions/checkout@v4`, `actions/setup-node@v4` (node 20, cache).
 2. Install root + `media-src`.
@@ -65,7 +65,7 @@ Trigger: `pull_request` + `push` to `master`.
 5. **E2e** — `npx playwright install --with-deps chromium`, then
    `npm --prefix media-src run test:e2e` (harness already in `media-src/e2e/`).
 6. **Lint / type-check** — `tsc --noEmit` (eslint if adopted); wire as a `lint` script.
-7. Make these **required status checks** on `master` (branch protection).
+7. Make these **required status checks** on `main` (branch protection).
 
 ## Part B — Release workflow + version policy (the user's ask: bumping lives here)
 Consolidate to **one** release path and put the bump in it, done right.
@@ -129,7 +129,7 @@ Consolidate to **one** release path and put the bump in it, done right.
 ## Secrets / config
 - `VSCE_PAT` / `VS_MARKETPLACE_TOKEN` — VS Marketplace (publisher `oleksiiko`).
 - `OPEN_VSX_TOKEN` — Open VSX.
-- Branch protection on `master` requiring CI checks.
+- Branch protection on `main` requiring CI checks.
 
 ## Verify
 - Open a PR → CI runs build + unit + e2e + lint; merge blocked if red.

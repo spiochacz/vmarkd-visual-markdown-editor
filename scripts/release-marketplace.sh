@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-git pull --ff-only origin master
+git pull --ff-only origin main
 npm version patch
 
 version="$(node -p "require('./package.json').version")"
@@ -11,4 +11,4 @@ perl -0pi -e "s{code --install-extension ./artifacts/vmarkd-[0-9]+\.[0-9]+\.[0-9
 npm exec foy build
 npx @vscode/vsce package --out "artifacts/vmarkd-${version}.vsix"
 npm run publish:marketplace
-git push origin master --tags
+git push origin main --tags
