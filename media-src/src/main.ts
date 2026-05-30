@@ -178,6 +178,18 @@ window.addEventListener('message', (e) => {
       }
       break
     }
+    case 'set-theme': {
+      // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
+      // colors already follow via --vscode-* CSS vars.
+      if (window.vditor) {
+        if (msg.theme === 'dark') {
+          vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
+        } else {
+          vditor.setTheme('classic', 'light')
+        }
+      }
+      break
+    }
     case 'uploaded': {
       msg.files.forEach((f) => {
         if (f.endsWith('.wav')) {

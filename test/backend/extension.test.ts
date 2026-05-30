@@ -158,3 +158,27 @@ describe('resolveCustomTextEditor — editor → webview sync', () => {
     expect(panel.dispose).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('resolveCustomTextEditor — live theme switch', () => {
+  beforeEach(() => mock.reset())
+
+  it('posts set-theme dark when the active theme becomes dark', () => {
+    mock.setThemeKind(ColorThemeKind.Dark)
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'dark',
+    })
+  })
+
+  it('posts set-theme light otherwise', () => {
+    mock.setThemeKind(ColorThemeKind.Light)
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'light',
+    })
+  })
+})

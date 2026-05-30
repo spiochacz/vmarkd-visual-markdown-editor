@@ -290,6 +290,8 @@ export const window = {
   ),
   onDidChangeActiveTextEditor: (l: any) =>
     state.emitters.didChangeActiveTextEditor.event(l),
+  onDidChangeActiveColorTheme: (l: any) =>
+    state.emitters.didChangeActiveColorTheme.event(l),
 }
 
 export const workspace = {
@@ -490,6 +492,11 @@ export const mock = {
   },
   fireDidCloseTextDocument(document: MockTextDocument) {
     return state.emitters.didCloseTextDocument.fire(document)
+  },
+  fireDidChangeActiveColorTheme() {
+    return state.emitters.didChangeActiveColorTheme.fire({
+      kind: state.activeColorThemeKind,
+    })
   },
   createTextDocument,
   createWebviewPanel,

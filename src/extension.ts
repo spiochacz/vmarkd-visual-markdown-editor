@@ -27,6 +27,17 @@ function normalizeContent(content: string) {
   return content.replace(/\r\n/g, '\n')
 }
 
+// Map the active VS Code color theme to the webview's two-value theme. Used by
+// both the init payload and the live onDidChangeActiveColorTheme listener so
+// they stay in sync (task 25).
+function currentThemeKind(): 'dark' | 'light' {
+  const kind = vscode.window.activeColorTheme.kind
+  return kind === vscode.ColorThemeKind.Dark ||
+    kind === vscode.ColorThemeKind.HighContrast
+    ? 'dark'
+    : 'light'
+}
+
 // Gate filesystem-writing actions (image upload, wiki page creation) on the
 // declared capabilities (see package.json `capabilities`): not in virtual
 // workspaces (non-file scheme), and not in an untrusted workspace.
@@ -314,6 +325,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         }
         schedulePostUpdate()
       }),
+      vscode.window.onDidChangeActiveColorTheme(() => {
+        // Live re-theme this editor when the VS Code theme changes (task 25).
+        webviewPanel.webview.postMessage({
+          command: 'set-theme',
+          theme: currentThemeKind(),
+        })
+      }),
       vscode.workspace.onDidCloseTextDocument((closedDocument) => {
         if (closedDocument.uri.toString() !== document.uri.toString()) {
           return
@@ -356,13 +374,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
                 ...this._context.globalState.get(KeyVditorOptions),
               },
-              theme:
-                (vscode.window.activeColorTheme.kind ===
-                vscode.ColorThemeKind.Dark ||
-                vscode.window.activeColorTheme.kind ===
-                vscode.ColorThemeKind.HighContrast)
-                  ? 'dark'
-                  : 'light',
+              theme: currentThemeKind(),
               wiki: wikiInit,
             })
             break
