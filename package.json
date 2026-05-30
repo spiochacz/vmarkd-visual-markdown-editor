@@ -2,7 +2,7 @@
   "name": "vmarkd",
   "displayName": "vMarkd — Visual Markdown Editor",
   "icon": "media/logo.png",
-  "description": "A full-featured WYSIWYG editor for markdown.",
+  "description": "vMarkd — a full-featured visual markdown editor.",
   "version": "0.3.0",
   "publisher": "spiochacz",
   "author": "Sławomir Piochacz",
@@ -16,6 +16,8 @@
     "Other"
   ],
   "keywords": [
+    "vmarkd",
+    "visual-markdown",
     "markdown",
     "editor",
     "wysiwyg",
@@ -58,7 +60,7 @@
     "customEditors": [
       {
         "viewType": "markdown-editor.editor",
-        "displayName": "Markdown Editor",
+        "displayName": "Visual Markdown Editor",
         "selector": [
           {
             "filenamePattern": "*.md",
