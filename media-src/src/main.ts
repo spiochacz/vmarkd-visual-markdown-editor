@@ -23,6 +23,19 @@ import './main.css'
 
 let applyingExtensionUpdate = false
 
+// Apply Vditor's UI + content + code theme via setTheme — the proven path.
+// The constructor `theme`/`preview.theme.current` options alone do NOT reliably
+// apply the content/code theme at init, which left a dark VS Code showing light
+// content text + white tables. Used by both init (after()) and live switching.
+function applyVditorTheme(theme: 'dark' | 'light') {
+  if (!window.vditor) return
+  if (theme === 'dark') {
+    vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
+  } else {
+    vditor.setTheme('classic', 'light', 'github')
+  }
+}
+
 function initVditor(msg) {
   console.log('msg', msg)
   let inputTimer
@@ -80,6 +93,9 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
+      // Force the theme through setTheme at init (constructor options don't
+      // reliably apply content/code theme — see applyVditorTheme).
+      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
       const wikiEnabled = Boolean(msg.wiki && msg.wiki.enabled)
       setupCustomRenderer(window.vditor, {
         enabled: wikiEnabled,
@@ -182,15 +198,7 @@ window.addEventListener('message', (e) => {
     case 'set-theme': {
       // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
       // colors already follow via --vscode-* CSS vars.
-      if (window.vditor) {
-        if (msg.theme === 'dark') {
-          vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
-        } else {
-          // 3rd arg (code/hljs theme) is required — without it the code block
-          // keeps the dark highlight when switching back to light.
-          vditor.setTheme('classic', 'light', 'github')
-        }
-      }
+      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
       break
     }
     case 'uploaded': {
