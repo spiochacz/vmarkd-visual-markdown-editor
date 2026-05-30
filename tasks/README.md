@@ -60,7 +60,7 @@ upstream fork the task derives from.
 - [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md) — 🟥 HIGH perceived latency
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md) — 🟧 MED; feeds VSIX trim
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — ✅ done (KaTeX-only; guard in Foyfile + test)
-- [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — ✅ done (setting `profiling` → `vMarkd Perf` channel); **measurement run still manual** — confirms renderText regex / debounce / setValue hypotheses
+- [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — ✅ investigation done; **finding: ~650ms open = one-time 3.8MB Lute load (V8-cached after), not doc parse**; runtime harness removed, benchmark kept. Only real lever = shared webview.
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
 
 ## ⚠️ Performance / memory cautions (do carefully or defer)

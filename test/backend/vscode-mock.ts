@@ -222,7 +222,6 @@ function freshState() {
         | { viewType: string; provider: any; options: any }
         | undefined,
       setKeysForSync: [] as string[][],
-      outputChannels: new Map<string, string[]>(),
     },
     emitters: {
       didChangeActiveTextEditor: new EventEmitter(),
@@ -295,25 +294,6 @@ export const window = {
     state.emitters.didChangeActiveTextEditor.event(l),
   onDidChangeActiveColorTheme: (l: any) =>
     state.emitters.didChangeActiveColorTheme.event(l),
-  createOutputChannel: vi.fn((name: string) => {
-    const lines = state.calls.outputChannels.get(name) ?? []
-    state.calls.outputChannels.set(name, lines)
-    return {
-      name,
-      append: (value: string) => lines.push(value),
-      appendLine: (value: string) => lines.push(value),
-      replace: (value: string) => {
-        lines.length = 0
-        lines.push(value)
-      },
-      clear: () => {
-        lines.length = 0
-      },
-      show: () => {},
-      hide: () => {},
-      dispose: () => {},
-    }
-  }),
 }
 
 export const workspace = {

@@ -6,20 +6,56 @@
 > (inert when off; pure observation, no behaviour change).
 > **Engines:** none.
 >
-> **Status (2026-05-30):** ✅ **implemented** (branch `feat/profiling-harness`).
-> Dev profiling harness — **not** product telemetry (that is
-> [task 31](31-opt-in-telemetry.md)). Setting `markdown-editor.profiling`
-> (default off) → aggregated webview timings flushed to the **`vMarkd Perf`**
-> output channel. Code verified by 73 unit + 36 e2e (green); **the measurement
-> run itself (Verify §) is still manual** — flip the setting on and read the
-> channel to fill in the numbers.
->
-> **Files:** `media-src/src/perf-aggregator.ts` (pure, unit-tested),
-> `media-src/src/perf.ts` (singleton), instrumentation in
-> `media-src/src/main.ts` + `media-src/src/custom-renderer.ts`,
-> `src/perf-format.ts` (pure formatter) + handler/channel in `src/extension.ts`,
-> setting in `package.json`. Tests: `media-src/src/perf-aggregator.test.ts`,
-> `test/backend/perf.test.ts`.
+> **Status (2026-05-30):** ✅ **investigation done; runtime harness removed.**
+> A dev profiling harness (webview spans → a `vMarkd Perf` output channel, setting
+> `markdown-editor.profiling`) was built and used to reach the findings below,
+> then **removed** to keep the codebase clean — it had served its purpose and the
+> conclusions are captured here. The **reproducible Playwright benchmark**
+> (`media-src/e2e/bench-harness.ts` + `init-bench.spec.ts`, run with `BENCH=1`)
+> is **kept** as the standing evidence. Not product telemetry (that is
+> [task 31](31-opt-in-telemetry.md)).
+
+## Findings — editor-open latency (init.construct), measured 2026-05-30
+
+**The ~650 ms open cost is the one-time load+eval of the 3.8 MB GopherJS Lute
+engine, not document parsing.** Confirmed three independent ways:
+
+1. **Sub-span split.** `init.after` (our post-init wiring: theme, renderers,
+   fix* listeners) = **~1 ms**. The entire cost is `init.construct`
+   (`new Vditor` → `after()`), which is Vditor build + Lute's first parse.
+2. **Playwright matrix** (`init-bench.spec.ts`). Once Lute is resident, **warm**
+   construct is **4–17 ms regardless** of doc size (plain 50 k = 17 ms), content
+   type (math/code/tables ≈ 11–17 ms), toolbar (±4 ms) or mode. The cold/warm
+   delta IS the Lute load. → **document size & content do not drive open cost.**
+3. **V8 code cache.** In the real extension, the *first* markdown file opened in
+   a session costs ~670 ms; **every file after is ~80–130 ms construct** because
+   Electron caches Lute's compiled bytecode across webviews (e.g. CHANGELOG:
+   673 ms first open → 196 ms reopened). The painful number is **once per
+   session**, not per file.
+
+### Consequences for the backlog
+- ❌ **Task 39 (gate renderers on content) will NOT help init.** Renderers are
+  already lazy (loaded at render time, post-`after()`); they don't block
+  construct. The hypothesis is refuted by the benchmark.
+- ❌ Debounce / getValue / setValue tuning is about *typing*, not *opening*.
+- ⚠️ Cost is paid **per fresh webview**; `retainContextWhenHidden` (task 37)
+  only spares re-showing an already-open editor, not opening a new file.
+
+### Lute preload prototype — rejected (break-even)
+Tried preloading Lute (async `<script>` right after `ready`, awaited before
+construct) to overlap its eval with the host roundtrip. It fired correctly
+(`init.construct` dropped ~230→~130 ms, Lute moved to a `preload` span), **but
+`open.total` did not improve** (first open 806→796 ms; others within noise).
+The Lute eval (98–380 ms) is serial on the webview thread and far exceeds the
+~40 ms roundtrip it could overlap, so relocating it within one editor's open
+changes nothing end-to-end. **Removed** (code + `preloadLute` setting); the
+profiling/`open.total`/benchmark instrumentation stays.
+
+### The only real lever
+A **shared single webview** that swaps documents would pay Lute once per session
+(~0 for subsequent files) — but it is a significant refactor (per-doc state,
+undo, title, watcher, dispose). Not done; would need its own spec. Otherwise the
+~670 ms first-open is a structural floor of the GopherJS Lute engine.
 
 ## Why
 We have concrete hypotheses about where markdown rendering spends time, but no

@@ -161,16 +161,6 @@
           "type": "boolean",
           "default": true,
           "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
-        },
-        "markdown-editor.profiling": {
-          "type": "boolean",
-          "default": false,
-          "description": "Developer: collect rendering performance timings (init, getValue, setValue, renderText) into the 'vMarkd Perf' output channel. Off by default; intended for diagnosing render bottlenecks."
-        },
-        "markdown-editor.preloadLute": {
-          "type": "boolean",
-          "default": false,
-          "description": "Developer (experimental): preload the Lute parser as soon as the editor opens, overlapping its load with the editor startup roundtrip. May reduce open latency on the first file. Compare with the 'profiling' open.total timing on/off."
         }
       }
     },

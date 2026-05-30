@@ -61,20 +61,4 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     const { html } = resolveAndGetHtml(sentinel)
     expect(html).toContain(sentinel)
   })
-
-  it('stamps __openT0 for end-to-end open timing', () => {
-    const { html } = resolveAndGetHtml()
-    expect(html).toContain('window.__openT0=performance.now()')
-  })
-
-  it('omits the Lute preload by default', () => {
-    const { html } = resolveAndGetHtml()
-    expect(html).not.toContain('__vditorLutePreload')
-  })
-
-  it('embeds the Lute preload URL when preloadLute is enabled', () => {
-    mock.setConfig({ preloadLute: true })
-    const { html } = resolveAndGetHtml()
-    expect(html).toMatch(/__vditorLutePreload=.*lute\.min\.js/)
-  })
 })

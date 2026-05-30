@@ -1,5 +1,4 @@
 import Vditor from 'vditor'
-import { profiler } from './perf'
 
 const WalkContinue = 0
 const WikiLinkPattern = /\[\[([^[\]\n]+?)\]\]/g
@@ -27,22 +26,10 @@ export function setupCustomRenderer(
     }
 
     const text = node.TokensStr()
-    // Profiling (tasks/42): t0/hadBrackets are only computed when enabled, so
-    // there is no added cost on the shipped path. This observes how often a
-    // `text.indexOf('[[')` fast-path would skip the regex — without changing
-    // behaviour. recordRenderText is itself a no-op when disabled.
-    const t0 = profiler.start()
     WikiLinkPattern.lastIndex = 0
 
     if (!options.enabled || !WikiLinkPattern.test(text)) {
       WikiLinkPattern.lastIndex = 0
-      if (profiler.enabled) {
-        profiler.recordRenderText({
-          selfMs: performance.now() - t0,
-          hadBrackets: text.indexOf('[[') !== -1,
-          matched: false,
-        })
-      }
       return [escapeHTML(text), WalkContinue]
     }
 
@@ -78,13 +65,6 @@ export function setupCustomRenderer(
       fragments.push(escapeHTML(text.slice(lastIndex)))
     }
 
-    if (profiler.enabled) {
-      profiler.recordRenderText({
-        selfMs: performance.now() - t0,
-        hadBrackets: true, // reaching here means the regex matched a wiki link
-        matched: true,
-      })
-    }
     return [fragments.join(''), WalkContinue]
   }
 

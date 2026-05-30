@@ -19,13 +19,9 @@ import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
-import { profiler } from './perf'
 import './main.css'
 
 let applyingExtensionUpdate = false
-// Resolves once the preloaded Lute script has loaded+evaluated (or failed).
-// initVditor awaits it so `new Vditor` reuses the resident Lute (warm construct).
-let lutePreloadPromise: Promise<boolean> | null = null
 
 // Apply Vditor's UI + content + code theme via setTheme — the proven path.
 // The constructor `theme`/`preview.theme.current` options alone do NOT reliably
@@ -42,11 +38,6 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 
 function initVditor(msg) {
   console.log('msg', msg)
-  // Profiling harness (tasks/42) — enabled per the `profiling` setting. Must be
-  // set before `new Vditor` so the init span records.
-  profiler.setEnabled(msg.options?.profiling === true)
-  const docSize = typeof msg.content === 'string' ? msg.content.length : 0
-  const initToken = profiler.start()
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
@@ -102,12 +93,6 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
-      // Split the init cost (tasks/42): everything until `after()` fires is
-      // Vditor construction + Lute's first parse (the GopherJS cost); the
-      // `after()` body below is our own post-init wiring. Knowing the split
-      // tells us which to attack.
-      profiler.end('init.construct', initToken, docSize)
-      const afterToken = profiler.start()
       // Force the theme through setTheme at init (constructor options don't
       // reliably apply content/code theme — see applyVditorTheme).
       applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
@@ -121,9 +106,7 @@ function initVditor(msg) {
       if (wikiEnabled && typeof msg.content === 'string' && msg.content.includes('[[')) {
         applyingExtensionUpdate = true
         try {
-          const t = profiler.start()
           vditor.setValue(msg.content)
-          profiler.end('setValue', t, msg.content.length)
         } finally {
           setTimeout(() => { applyingExtensionUpdate = false }, 0)
         }
@@ -133,22 +116,6 @@ function initVditor(msg) {
       fixTableIr()
       fixResponsiveTables()
       fixPanelHover()
-      profiler.end('init.after', afterToken, docSize)
-      profiler.end('init', initToken, docSize)
-      // True end-to-end open: page-script start (window.__openT0, set by the
-      // first inline script in the webview HTML) -> editor ready. Captures icon
-      // + main.js eval, the ready roundtrip, any Lute preload, and construct —
-      // the number to compare with/without `preloadLute`.
-      const openT0 = (window as any).__openT0
-      if (typeof openT0 === 'number') {
-        profiler.end('open.total', openT0, docSize)
-      }
-      // Proof the preload fired + how long Lute's async load+eval took. Absence
-      // of this row (with preloadLute on) means the load failed / didn't run.
-      const preloadMs = (window as any).__lutePreloadMs
-      if (typeof preloadMs === 'number' && preloadMs >= 0) {
-        profiler.record('preload', preloadMs, docSize)
-      }
     },
     input() {
       if (applyingExtensionUpdate) {
@@ -156,10 +123,7 @@ function initVditor(msg) {
       }
       inputTimer && clearTimeout(inputTimer)
       inputTimer = setTimeout(() => {
-        const t = profiler.start()
-        const content = vditor.getValue()
-        profiler.end('getValue', t, content.length)
-        vscode.postMessage({ command: 'edit', content })
+        vscode.postMessage({ command: 'edit', content: vditor.getValue() })
       }, 250)
     },
     upload: {
@@ -186,17 +150,12 @@ function initVditor(msg) {
   })
 }
 
-window.addEventListener('message', async (e) => {
+window.addEventListener('message', (e) => {
   const msg = e.data
   // console.log('msg from vscode', msg)
   switch (msg.command) {
     case 'update': {
       if (msg.type === 'init') {
-        // Wait for the preloaded Lute (if any) so `new Vditor` constructs warm
-        // (tasks/42). Resolves immediately once the script has already loaded.
-        if (lutePreloadPromise) {
-          await lutePreloadPromise
-        }
         document.body.setAttribute(
           'data-wiki-file',
           msg.wiki && msg.wiki.enabled ? '1' : '0'
@@ -225,9 +184,7 @@ window.addEventListener('message', async (e) => {
         if (vditor.getValue() !== msg.content) {
           applyingExtensionUpdate = true
           try {
-            const t = profiler.start()
             vditor.setValue(msg.content)
-            profiler.end('setValue', t, msg.content.length)
           } finally {
             setTimeout(() => {
               applyingExtensionUpdate = false
@@ -283,40 +240,4 @@ window.addEventListener('keydown', (event) => {
   }
 })
 
-// Lute preload prototype (tasks/42). Vditor lazily loads the 3.8 MB GopherJS
-// Lute bundle inside `new Vditor` — ~95% of the ~650 ms init.construct cost,
-// and it sits idle-blocked behind the `ready` roundtrip. Here we post `ready`
-// first (so the host starts preparing the init reply on its own process), then
-// kick off an async <script> load of Lute so its download+eval overlaps that
-// roundtrip. We claim Vditor's dedup id (`vditorLuteScript`) on load, so
-// `new Vditor` reuses the resident Lute and constructs warm (~15 ms). The init
-// handler awaits lutePreloadPromise, so there is no load-vs-init race. Uses a
-// plain <script src> (CORS-safe — the same path Vditor itself uses), not XHR.
-// Gated by `preloadLute`; the extension embeds the URL as __vditorLutePreload.
-function startLutePreload() {
-  const url = (window as any).__vditorLutePreload
-  if (!url || document.getElementById('vditorLuteScript')) {
-    return
-  }
-  const start = performance.now()
-  lutePreloadPromise = new Promise<boolean>((resolve) => {
-    const script = document.createElement('script')
-    script.src = url
-    script.async = true
-    script.onload = () => {
-      if (!document.getElementById('vditorLuteScript')) {
-        script.id = 'vditorLuteScript' // claim Vditor's dedup id
-      }
-      ;(window as any).__lutePreloadMs = performance.now() - start
-      resolve(true)
-    }
-    script.onerror = () => {
-      ;(window as any).__lutePreloadMs = -1
-      resolve(false)
-    }
-    document.head.appendChild(script)
-  })
-}
-
 vscode.postMessage({ command: 'ready' })
-startLutePreload()

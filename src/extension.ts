@@ -8,17 +8,6 @@ import {
   isWikiFile,
   resolveWikiLink,
 } from './wiki'
-import { formatPerf } from './perf-format'
-
-// Lazy 'vMarkd Perf' output channel for the profiling harness (tasks/42).
-// Created on the first `perf` message so it never appears unless profiling is on.
-let _perfChannel: vscode.OutputChannel | undefined
-function getPerfChannel(): vscode.OutputChannel {
-  if (!_perfChannel) {
-    _perfChannel = vscode.window.createOutputChannel('vMarkd Perf')
-  }
-  return _perfChannel
-}
 
 const KeyVditorOptions = 'vditor.options'
 const MarkdownEditorViewType = 'markdown-editor.editor'
@@ -418,7 +407,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                   'codeBlockLineNumbers'
                 ),
                 showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
-                profiling: MarkdownEditorProvider.config.get<boolean>('profiling'),
                 ...this._context.globalState.get(KeyVditorOptions),
               },
               theme: currentThemeKind(),
@@ -429,18 +417,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           case 'save-options':
             await this._context.globalState.update(KeyVditorOptions, message.options)
             break
-          case 'perf': {
-            // Profiling harness (tasks/42): append the webview's aggregated
-            // timings to the 'vMarkd Perf' output channel, labelled by file.
-            getPerfChannel().appendLine(
-              formatPerf(
-                message.payload,
-                NodePath.basename(activeFsPath),
-                new Date().toLocaleTimeString()
-              )
-            )
-            break
-          }
           case 'info':
             vscode.window.showInformationMessage(message.content)
             break
@@ -655,26 +631,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const CssFiles = ['main.css'].map(toMediaPath).map(toUri)
     const iconScript = toUri('media/vditor/dist/js/icons/ant.js')
 
-    // Lute preload prototype (tasks/42). When enabled, the webview synchronously
-    // evaluates the 3.8 MB Lute bundle right after posting `ready`, overlapping
-    // its cost with the host roundtrip so `new Vditor` constructs warm.
-    const preloadLute = MarkdownEditorProvider.config.get<boolean>('preloadLute')
-    const luteUri = toUri('media/vditor/dist/js/lute/lute.min.js').toString()
-    const preloadScript = preloadLute
-      ? `<script>window.__vditorLutePreload=${JSON.stringify(luteUri)}</script>`
-      : ''
-
     return (
       `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
-				<script>window.__openT0=performance.now()</script>
 
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<base href="${baseHref}" />
 
-				${preloadScript}
 
 				${CssFiles.map((f) => `<link href="${f}" rel="stylesheet">`).join('\n')}
 
