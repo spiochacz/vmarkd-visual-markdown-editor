@@ -10,12 +10,16 @@
 > github.com/spiochacz/vmarkd-visual-markdown-editor`, `version → 0.3.0`.
 > `viewType` / command ids left unchanged (internal). VSIX filename convention
 > aligned to `vmarkd-<ver>.vsix` across the release tooling (`release-marketplace.sh`,
-> `republish.md`, `copilot-instructions.md`, `README.md`).
-> **Remaining before publish:** (a) register/login the `spiochacz` Marketplace
-> publisher (`vsce login spiochacz`); (b) the release tooling still pulls/pushes
-> `origin master` but the default branch is `main` — fix `master → main` in
-> `scripts/release-marketplace.sh` + `republish.md` + `copilot-instructions.md`
-> (release-process cleanup, → task 24); (c) security tasks 18/27.
+> `republish.md`, `copilot-instructions.md`, `README.md`). Brand text refreshed:
+> `description`, `keywords` (+`vmarkd`, `visual-markdown`), and
+> `customEditors[0].displayName → "Visual Markdown Editor"`.
+> **Remaining before publish:** (a) `icon` (`media/logo.png`) is still the
+> inherited logo — needs a vMarkd asset (design, not code); (b) register/login the
+> `spiochacz` Marketplace publisher (`vsce login spiochacz`); (c) the release
+> tooling still pulls/pushes `origin master` but the default branch is `main` —
+> fix `master → main` in `scripts/release-marketplace.sh` + `republish.md` +
+> `copilot-instructions.md` (release-process cleanup, → task 24); (d) verify with a
+> local `vsce package` once a publisher exists; (e) security tasks 18/27.
 
 ## Problem
 `package.json` still carries the **original author's** identity — you cannot publish
