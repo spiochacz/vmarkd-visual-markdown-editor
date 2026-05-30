@@ -25,6 +25,14 @@ async function syncVditorAssets() {
       NodePath.join(targetDir, 'index.css')
     ),
   ])
+  // Drop unused MathJax (~6.5 MB, the largest renderer asset). Vditor defaults
+  // to KaTeX (`preview.math.engine`) and never fetches MathJax at runtime — the
+  // webview sets no engine. If a `MathJax` engine option is ever introduced,
+  // REMOVE this exclusion. See tasks/40-drop-unused-mathjax.md.
+  await fsPromises.rm(NodePath.join(targetDir, 'js', 'mathjax'), {
+    recursive: true,
+    force: true,
+  })
   await removeMacMetadata(targetDir)
 }
 
