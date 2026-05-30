@@ -99,6 +99,12 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
+      // Split the init cost (tasks/42): everything until `after()` fires is
+      // Vditor construction + Lute's first parse (the GopherJS cost); the
+      // `after()` body below is our own post-init wiring. Knowing the split
+      // tells us which to attack.
+      profiler.end('init.construct', initToken, docSize)
+      const afterToken = profiler.start()
       // Force the theme through setTheme at init (constructor options don't
       // reliably apply content/code theme — see applyVditorTheme).
       applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
@@ -124,6 +130,7 @@ function initVditor(msg) {
       fixTableIr()
       fixResponsiveTables()
       fixPanelHover()
+      profiler.end('init.after', afterToken, docSize)
       profiler.end('init', initToken, docSize)
     },
     input() {
