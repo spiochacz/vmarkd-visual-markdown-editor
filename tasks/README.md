@@ -10,8 +10,8 @@ upstream fork the task derives from.
 
 ## Quick wins (low risk, fast)
 - [x] [01 — Search Ctrl+F keybinding](01-search-keybinding.md) — ✅ done
-- [ ] [02 — Word count](02-word-count.md) — 🟢 one Vditor option
-- [ ] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md) — 🟢 additive
+- [x] [02 — Word count](02-word-count.md) — ✅ done (setting `wordCount`)
+- [x] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md) — ✅ done
 - [ ] [04 — IR heading-level indicator CSS](04-ir-heading-level-indicator-css.md) — 🟡 cosmetic
 - [ ] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md) — 🟡 cosmetic
 - [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md) — ✅ done
@@ -19,7 +19,7 @@ upstream fork the task derives from.
 ## Settings & polish
 - [ ] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [ ] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
-- [ ] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
+- [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md) — ✅ done (`showToolbar`)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md) — ✅ done
 - [ ] [12 — External CSS files + live reload](12-external-css-live-reload.md)
@@ -44,14 +44,14 @@ upstream fork the task derives from.
 
 ## Marketplace / publication
 - [x] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — ✅ manifest done (vmarkd / spiochacz); publisher still needs `vsce login spiochacz`
-- [ ] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md) — 🟢 no engines bump
+- [x] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md) — ✅ done (+FS-write guards)
 
 ## Pro / i18n (engines bump — see note)
 - [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ⚠️ ~^1.73
 - [ ] [31 — Opt-in telemetry (createTelemetryLogger)](31-opt-in-telemetry.md) — ⚪ ~^1.75, only if metrics wanted
 
 ## Engines-bump features (tradeoff: cuts older VS Code)
-- [ ] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — ⚠️ ^1.110 (highest floor — dominates)
+- [x] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — ✅ done; **engines floor now ^1.110** (30/31/34 free)
 - [ ] [34 — Secondary-sidebar TOC](34-secondary-sidebar-toc.md) — ⚠️ ^1.106; overlaps 07/08/13 (decide outline home)
 
 ## Performance (open latency + memory)
