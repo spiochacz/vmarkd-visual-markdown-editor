@@ -23,6 +23,9 @@ import { profiler } from './perf'
 import './main.css'
 
 let applyingExtensionUpdate = false
+// Resolves once the preloaded Lute script has loaded+evaluated (or failed).
+// initVditor awaits it so `new Vditor` reuses the resident Lute (warm construct).
+let lutePreloadPromise: Promise<boolean> | null = null
 
 // Apply Vditor's UI + content + code theme via setTheme — the proven path.
 // The constructor `theme`/`preview.theme.current` options alone do NOT reliably
@@ -140,6 +143,12 @@ function initVditor(msg) {
       if (typeof openT0 === 'number') {
         profiler.end('open.total', openT0, docSize)
       }
+      // Proof the preload fired + how long Lute's async load+eval took. Absence
+      // of this row (with preloadLute on) means the load failed / didn't run.
+      const preloadMs = (window as any).__lutePreloadMs
+      if (typeof preloadMs === 'number' && preloadMs >= 0) {
+        profiler.record('preload', preloadMs, docSize)
+      }
     },
     input() {
       if (applyingExtensionUpdate) {
@@ -177,12 +186,17 @@ function initVditor(msg) {
   })
 }
 
-window.addEventListener('message', (e) => {
+window.addEventListener('message', async (e) => {
   const msg = e.data
   // console.log('msg from vscode', msg)
   switch (msg.command) {
     case 'update': {
       if (msg.type === 'init') {
+        // Wait for the preloaded Lute (if any) so `new Vditor` constructs warm
+        // (tasks/42). Resolves immediately once the script has already loaded.
+        if (lutePreloadPromise) {
+          await lutePreloadPromise
+        }
         document.body.setAttribute(
           'data-wiki-file',
           msg.wiki && msg.wiki.enabled ? '1' : '0'
@@ -273,31 +287,36 @@ window.addEventListener('keydown', (event) => {
 // Lute bundle inside `new Vditor` — ~95% of the ~650 ms init.construct cost,
 // and it sits idle-blocked behind the `ready` roundtrip. Here we post `ready`
 // first (so the host starts preparing the init reply on its own process), then
-// synchronously eval Lute so its cost overlaps that roundtrip. Vditor's
-// addScript dedupes on the `vditorLuteScript` element id, so it then reuses our
-// resident Lute and constructs warm (~13 ms). Gated by the `preloadLute`
-// setting; the extension embeds the URL as `window.__vditorLutePreload`.
-function maybePreloadLute() {
+// kick off an async <script> load of Lute so its download+eval overlaps that
+// roundtrip. We claim Vditor's dedup id (`vditorLuteScript`) on load, so
+// `new Vditor` reuses the resident Lute and constructs warm (~15 ms). The init
+// handler awaits lutePreloadPromise, so there is no load-vs-init race. Uses a
+// plain <script src> (CORS-safe — the same path Vditor itself uses), not XHR.
+// Gated by `preloadLute`; the extension embeds the URL as __vditorLutePreload.
+function startLutePreload() {
   const url = (window as any).__vditorLutePreload
   if (!url || document.getElementById('vditorLuteScript')) {
     return
   }
-  try {
-    const xhr = new XMLHttpRequest()
-    xhr.open('GET', url, false) // sync: eval must finish before init is handled
-    xhr.send('')
-    if (xhr.status >= 400) {
-      return
-    }
+  const start = performance.now()
+  lutePreloadPromise = new Promise<boolean>((resolve) => {
     const script = document.createElement('script')
-    script.type = 'text/javascript'
-    script.text = xhr.responseText
-    script.id = 'vditorLuteScript'
-    document.head.appendChild(script) // evaluates synchronously here
-  } catch (e) {
-    console.warn('lute preload failed', e)
-  }
+    script.src = url
+    script.async = true
+    script.onload = () => {
+      if (!document.getElementById('vditorLuteScript')) {
+        script.id = 'vditorLuteScript' // claim Vditor's dedup id
+      }
+      ;(window as any).__lutePreloadMs = performance.now() - start
+      resolve(true)
+    }
+    script.onerror = () => {
+      ;(window as any).__lutePreloadMs = -1
+      resolve(false)
+    }
+    document.head.appendChild(script)
+  })
 }
 
 vscode.postMessage({ command: 'ready' })
-maybePreloadLute()
+startLutePreload()

@@ -35,6 +35,14 @@ class Profiler {
     this.agg.recordSpan(op, performance.now() - token, docSize)
   }
 
+  /** Record an already-measured duration (vs end(), which derives it). */
+  record(op: string, ms: number, docSize?: number): void {
+    if (!this.enabled) {
+      return
+    }
+    this.agg.recordSpan(op, ms, docSize)
+  }
+
   recordRenderText(sample: {
     selfMs: number
     hadBrackets: boolean
