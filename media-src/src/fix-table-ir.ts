@@ -130,13 +130,21 @@ export function fixTableIr() {
   eventRoot.addEventListener('click', (e) => {
     if (vditor.getCurrentMode() !== 'ir') return
     const tablePanel = insertTablePanel()
-    let clickEl = window.getSelection().anchorNode.parentElement
-    if (['TD', 'TH', 'TR'].includes(clickEl.tagName)) {
+    const anchorNode = window.getSelection()?.anchorNode
+    const anchorEl =
+      anchorNode instanceof HTMLElement
+        ? anchorNode
+        : anchorNode?.parentElement ?? null
+    // Walk up to the enclosing cell — the caret may sit inside inline content
+    // (e.g. a <code> span when the cell is only inline code), so
+    // anchorNode.parentElement is not always the TD/TH/TR itself.
+    const cell = anchorEl?.closest<HTMLElement>('td, th, tr') ?? null
+    if (cell) {
       if (tablePanel.style.display !== 'block') {
         tablePanel.style.display = 'block'
       }
       tablePanel.style.top =
-        clickEl.getBoundingClientRect().top -
+        cell.getBoundingClientRect().top -
         eventRoot.getBoundingClientRect().top +
         eventRoot.scrollTop -
         25 +
@@ -144,7 +152,7 @@ export function fixTableIr() {
       // track the clicked cell horizontally too, so the panel stays visible
       // regardless of the editor's left margin / full-width layout
       tablePanel.style.left =
-        clickEl.getBoundingClientRect().left -
+        cell.getBoundingClientRect().left -
         eventRoot.getBoundingClientRect().left +
         eventRoot.scrollLeft +
         'px'

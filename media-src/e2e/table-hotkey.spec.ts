@@ -80,6 +80,29 @@ test('panel appears horizontally aligned with the clicked cell, not pinned far l
   expect(Math.abs(panelLeft - cellLeft)).toBeLessThan(30)
 })
 
+test('table panel shows for a cell containing only inline code', async ({
+  page,
+}) => {
+  await gotoEditor(page)
+  // A table whose first cell is only inline code — the caret lands inside the
+  // <code> span, not the cell, which used to hide the panel.
+  await page.evaluate(() => {
+    ;(window as any).vditor.setValue(
+      '| `a/b/*.spec.ts` | x |\n| - | - |\n| 1 | 2 |\n'
+    )
+  })
+  await page.waitForTimeout(100)
+  await page.locator('.vditor-ir code').first().click()
+  await page.waitForTimeout(100)
+  const display = await page.evaluate(() => {
+    const panel = document.querySelector(
+      '#fix-table-ir-wrapper .vditor-panel'
+    ) as HTMLElement | null
+    return panel?.style.display
+  })
+  expect(display).toBe('block')
+})
+
 test('the table panel is excluded from the editable region', async ({ page }) => {
   await gotoEditor(page)
   await page.locator('.vditor-ir td').nth(0).click()
