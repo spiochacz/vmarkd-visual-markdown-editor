@@ -27,6 +27,25 @@ function normalizeContent(content: string) {
   return content.replace(/\r\n/g, '\n')
 }
 
+// Gate filesystem-writing actions (image upload, wiki page creation) on the
+// declared capabilities (see package.json `capabilities`): not in virtual
+// workspaces (non-file scheme), and not in an untrusted workspace.
+function ensureCanWriteFiles(uri: vscode.Uri): boolean {
+  if (uri.scheme !== 'file') {
+    vscode.window.showInformationMessage(
+      `[markdown-editor] Image upload and wiki page creation are unavailable in virtual workspaces.`
+    )
+    return false
+  }
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage(
+      `[markdown-editor] Trust this workspace to upload images and create wiki pages.`
+    )
+    return false
+  }
+  return true
+}
+
 function isSupportedMarkdownUri(uri: vscode.Uri) {
   return (
     SupportedSchemes.has(uri.scheme) &&
@@ -399,6 +418,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             break
           }
           case 'upload': {
+            if (!ensureCanWriteFiles(document.uri)) {
+              break
+            }
             const assetsFolder = MarkdownEditorProvider.getAssetsFolder(document.uri)
             try {
               await vscode.workspace.fs.createDirectory(vscode.Uri.file(assetsFolder))
@@ -453,6 +475,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                   'Create Page'
                 )
                 if (createChoice === 'Create Page') {
+                  if (!ensureCanWriteFiles(document.uri)) {
+                    break
+                  }
                   const newFileName = resolution.key.replace(/\//g, '-') + '.md'
                   const newFileUri = vscode.Uri.joinPath(resolution.root, newFileName)
                   const heading = resolution.key.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())

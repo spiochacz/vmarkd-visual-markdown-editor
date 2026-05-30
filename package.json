@@ -11,6 +11,16 @@
   "engines": {
     "vscode": "^1.110.0"
   },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "vMark renders and edits markdown, but defers writing images and creating wiki pages until the workspace is trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Editing works; features that depend on the local filesystem (image upload, wiki page creation, asset resolution) are unavailable in virtual workspaces."
+    }
+  },
   "categories": [
     "Programming Languages",
     "Other"

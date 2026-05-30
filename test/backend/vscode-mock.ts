@@ -191,6 +191,7 @@ const DEFAULT_CONFIG: Record<string, any> = {
 function freshState() {
   return {
     config: { ...DEFAULT_CONFIG } as Record<string, any>,
+    isTrusted: true,
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
     activeTabInput: undefined as unknown,
@@ -292,6 +293,9 @@ export const window = {
 }
 
 export const workspace = {
+  get isTrusted() {
+    return state.isTrusted
+  },
   getConfiguration: vi.fn((_section?: string) => ({
     get: <T>(key: string, defaultValue?: T): T =>
       (key in state.config ? state.config[key] : defaultValue) as T,
@@ -462,6 +466,9 @@ export const mock = {
   },
   setActiveTab(input: unknown) {
     state.activeTabInput = input
+  },
+  setTrusted(value: boolean) {
+    state.isTrusted = value
   },
   setReadDirectory(fn: (uri: Uri) => Promise<[string, number][]>) {
     state.readDirectory = fn

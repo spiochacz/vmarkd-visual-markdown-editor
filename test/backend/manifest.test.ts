@@ -16,6 +16,11 @@ describe('package.json manifest', () => {
     expect(pkg.engines.vscode).toBe('^1.110.0')
   })
 
+  it('declares untrusted + virtual workspace capabilities as limited', () => {
+    expect(pkg.capabilities.untrustedWorkspaces.supported).toBe('limited')
+    expect(pkg.capabilities.virtualWorkspaces.supported).toBe('limited')
+  })
+
   it('registers exactly one custom editor with the expected view type', () => {
     expect(pkg.contributes.customEditors).toHaveLength(1)
     const editor = pkg.contributes.customEditors[0]
