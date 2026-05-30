@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { activate, MarkdownEditorProvider } from '../../src/extension'
-import { mock, ColorThemeKind } from './vscode-mock'
+import { mock, ColorThemeKind, Uri } from './vscode-mock'
 
 function resolveProvider(fsPath = '/workspace/note.md', text = 'old content\n') {
   mock.setWorkspaceFolder('/workspace')
@@ -156,5 +156,68 @@ describe('resolveCustomTextEditor — editor → webview sync', () => {
     const { panel, document } = resolveProvider()
     mock.fireDidCloseTextDocument(document)
     expect(panel.dispose).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('resolveCustomTextEditor — live theme switch', () => {
+  beforeEach(() => mock.reset())
+
+  it('posts set-theme dark when the active theme becomes dark', () => {
+    mock.setThemeKind(ColorThemeKind.Dark)
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'dark',
+    })
+  })
+
+  it('posts set-theme light otherwise', () => {
+    mock.setThemeKind(ColorThemeKind.Light)
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'light',
+    })
+  })
+})
+
+describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
+  beforeEach(() => mock.reset())
+
+  it('follows a direct rename: retitles, rebinds the watcher, guards close', () => {
+    const { panel, document } = resolveProvider('/workspace/old.md', 'x\n')
+    const firstWatcher = mock.state.watchers[0]
+
+    mock.fireDidRenameFiles(document.uri, Uri.file('/workspace/new.md'))
+
+    expect(panel.title).toBe('new.md')
+    expect(firstWatcher.disposed).toBe(true)
+    expect(mock.state.watchers).toHaveLength(2)
+
+    // The old document uri closing must NOT dispose the panel after a rename.
+    mock.fireDidCloseTextDocument(document)
+    expect(panel.dispose).not.toHaveBeenCalled()
+  })
+
+  it('directs subsequent webview edits to the renamed uri', async () => {
+    const { panel, document } = resolveProvider('/workspace/old.md', 'old\n')
+    mock.fireDidRenameFiles(document.uri, Uri.file('/workspace/new.md'))
+
+    await panel._receiveMessage({ command: 'edit', content: 'changed\n' })
+    expect(mock.calls.appliedEdits).toHaveLength(1)
+    expect(mock.calls.appliedEdits[0].replacements[0].uri.fsPath).toBe(
+      '/workspace/new.md'
+    )
+  })
+
+  it('ignores renames of other files', () => {
+    const { panel } = resolveProvider('/workspace/note.md', 'x\n')
+    mock.fireDidRenameFiles(
+      Uri.file('/workspace/other.md'),
+      Uri.file('/workspace/renamed.md')
+    )
+    expect(panel.title).toBe('note.md')
   })
 })

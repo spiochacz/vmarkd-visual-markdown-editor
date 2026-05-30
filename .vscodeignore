@@ -17,3 +17,4 @@ scripts
 yarn-error.log
 patch.css.js
 patch_extension.js
+media/vditor/dist/js/mathjax

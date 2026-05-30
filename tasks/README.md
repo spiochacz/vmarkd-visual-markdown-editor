@@ -9,19 +9,19 @@ fork, goal, steps with file refs, verification); the `> Source:` line names the
 upstream fork the task derives from.
 
 ## Quick wins (low risk, fast)
-- [ ] [01 — Search Ctrl+F keybinding](01-search-keybinding.md) — 🟢 manifest only, no rebuild
-- [ ] [02 — Word count](02-word-count.md) — 🟢 one Vditor option
-- [ ] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md) — 🟢 additive
+- [x] [01 — Search Ctrl+F keybinding](01-search-keybinding.md) — ✅ done
+- [x] [02 — Word count](02-word-count.md) — ✅ done (setting `wordCount`)
+- [x] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md) — ✅ done
 - [ ] [04 — IR heading-level indicator CSS](04-ir-heading-level-indicator-css.md) — 🟡 cosmetic
 - [ ] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md) — 🟡 cosmetic
-- [ ] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md) — 🟢 small
+- [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md) — ✅ done
 
 ## Settings & polish
 - [ ] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [ ] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
-- [ ] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
+- [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md) — ✅ done (`showToolbar`)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
-- [ ] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
+- [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md) — ✅ done
 - [ ] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [ ] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md) — 🟢 fixes stale-theme bug
 - [ ] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — 🟡 pairs with 12
@@ -44,22 +44,57 @@ upstream fork the task derives from.
 
 ## Marketplace / publication
 - [x] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — ✅ manifest done (vmarkd / spiochacz); publisher still needs `vsce login spiochacz`
-- [ ] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md) — 🟢 no engines bump
+- [x] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md) — ✅ done (+FS-write guards)
 
 ## Pro / i18n (engines bump — see note)
 - [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ⚠️ ~^1.73
 - [ ] [31 — Opt-in telemetry (createTelemetryLogger)](31-opt-in-telemetry.md) — ⚪ ~^1.75, only if metrics wanted
 
 ## Engines-bump features (tradeoff: cuts older VS Code)
-- [ ] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — ⚠️ ^1.110 (highest floor — dominates)
+- [x] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — ✅ done; **engines floor now ^1.110** (30/31/34 free)
 - [ ] [34 — Secondary-sidebar TOC](34-secondary-sidebar-toc.md) — ⚠️ ^1.106; overlaps 07/08/13 (decide outline home)
 
 ## Performance (open latency + memory)
-- [ ] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md) — 🟥 HIGH memory; measure first
+- [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md) — ✅ done as a **setting** `retainHiddenEditors` (default **on** — reload-on-reshow tested too disruptive for default)
+- [ ] [41 — Bounded retain-cache for hidden webviews (keep N)](41-retain-hidden-webview-cache.md) — the real memory fix (instant for hot set, no jarring reload); ⚠️ needs testing
 - [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md) — 🟥 HIGH perceived latency
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md) — 🟧 MED; feeds VSIX trim
-- [ ] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — 🟧 biggest single VSIX cut; KaTeX-only
+- [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — ✅ done (KaTeX-only; guard in Foyfile + test)
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
+
+## ⚠️ Performance / memory cautions (do carefully or defer)
+Grounded in the open-latency + memory research. **Key multiplier:**
+`retainContextWhenHidden` keeps *every hidden editor's* webview fully in memory,
+so any feature that retains per-editor state (indexes, candidate lists, diff
+state, outlines) is multiplied by the number of open editors. Until **37**
+(dispose-on-hide) lands, memory-heavy features hurt most. Also avoid synchronous
+work at open (`ready`) and continuous webview re-rendering.
+
+**🟥 Avoid by default / gate behind an off-by-default flag:**
+- **17 — Git gutters** — re-renders diff markers on every `update`, mode switch
+  **and window resize**, with absolute per-block positioning (reflow); per-editor
+  diff scheduler + `git HEAD` reads + `diff` dep. Steady CPU during edit/scroll.
+- **32 — Link/image autocomplete** — `workspace.findFiles('**/*.{md,…}')` at every
+  `ready` (open-latency hit) + a per-editor `FileSystemWatcher` + candidate lists
+  retained in memory (×open editors). If built: lazy on trigger (not on ready),
+  cap results, share one index.
+- **23 — Wikilinks resolution** — custom renderer runs a `[[…]]` regex on *every*
+  text token on *every* render, plus a workspace `.md` index kept fresh. Ongoing
+  render cost + index memory. (Partially already in `custom-renderer.ts`.)
+
+**🟧 Moderate — fine with mitigation:**
+- **34 — Secondary-sidebar TOC** — extra view synced on every doc change (double
+  outline render); overlaps 07/08/13 — pick one outline home first.
+- **13 — Outline + heading flash** — outline rebuild on change; **debounce** or it
+  costs per keystroke. The flash is cosmetic.
+- **22 — Image resize** — per-image handles/observers (only when images present).
+
+**🟦 These IMPROVE perf — prioritise, don't avoid:** **38** (inline init → fewer
+round-trips), **39** (lean init), **37** (dispose-on-hide → less memory; the cure
+for `retainContextWhenHidden`), **40** ✅ done.
+
+**🟩 Perf-neutral** (safe to batch): 02, 03, 09, 12, 14, 15/16 (on-demand only —
+**17** is what turns 15 into a continuous cost), 25, 26, 29, 30, 31, 33, 35.
 
 ## Infra / refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md) — ✅ done in 0.2.33

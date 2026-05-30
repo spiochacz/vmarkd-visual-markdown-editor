@@ -3,13 +3,23 @@
   "displayName": "vMarkd — Visual Markdown Editor",
   "icon": "media/logo.png",
   "description": "vMarkd — a full-featured visual markdown editor.",
-  "version": "0.3.0",
+  "version": "0.4.4",
   "publisher": "spiochacz",
   "author": "Sławomir Piochacz",
   "license": "MIT",
   "private": false,
   "engines": {
-    "vscode": "^1.64.0"
+    "vscode": "^1.110.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "vMark renders and edits markdown, but defers writing images and creating wiki pages until the workspace is trusted."
+    },
+    "virtualWorkspaces": {
+      "supported": "limited",
+      "description": "Editing works; features that depend on the local filesystem (image upload, wiki page creation, asset resolution) are unavailable in virtual workspaces."
+    }
   },
   "categories": [
     "Programming Languages",
@@ -26,7 +36,6 @@
     "markdown-editor"
   ],
   "activationEvents": [
-    "onLanguage:markdown",
     "onCommand:markdown-editor.openEditor",
     "onCommand:markdown-editor.openTextEditor",
     "onCustomEditor:markdown-editor.editor"
@@ -132,6 +141,26 @@
           "type": "boolean",
           "default": true,
           "description": "Enable full-width layout for the editor (removes max-width centering)."
+        },
+        "markdown-editor.wordCount": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
+        },
+        "markdown-editor.codeBlockLineNumbers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show line numbers in fenced code blocks (rendered preview). Off by default — adds a line-number gutter per code block."
+        },
+        "markdown-editor.showToolbar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
+        },
+        "markdown-editor.retainHiddenEditors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
         }
       }
     },
@@ -140,6 +169,12 @@
         "key": "ctrl+alt+e",
         "command": "markdown-editor.openTextEditor",
         "mac": "cmd+ctrl+e",
+        "when": "activeCustomEditorId == markdown-editor.editor"
+      },
+      {
+        "key": "ctrl+f",
+        "command": "editor.action.webvieweditor.showFind",
+        "mac": "cmd+f",
         "when": "activeCustomEditorId == markdown-editor.editor"
       }
     ]
@@ -156,7 +191,7 @@
   },
   "devDependencies": {
     "@types/node": "^12.12.0",
-    "@types/vscode": "^1.64.0",
+    "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.7",
     "foy": "^0.2.5",
     "jsdom": "^29.1.1",

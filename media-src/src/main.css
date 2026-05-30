@@ -40,14 +40,19 @@ body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
 .vditor-ir pre.vditor-reset {
   position: relative;
 }
-.vditor-panel {
+/* Collapse-to-"..." applies ONLY to the IR table panel (it sits near the cursor
+   and should be unobtrusive). Scoped to #fix-table-ir-wrapper so it does NOT
+   touch the toolbar dropdown panels (emoji, "more", code/content theme), which
+   must open fully on click — the global selector collapsed them to "..." and
+   the translate(-25px) put the arrow under the wrong icon. */
+#fix-table-ir-wrapper .vditor-panel {
   transform: translate(-25px, 0);
   max-width: 21px;
   max-height: 21px;
   overflow: hidden;
   transition: width 0.2s ease-in-out;
 }
-.vditor-panel::after {
+#fix-table-ir-wrapper .vditor-panel::after {
   content: '...';
   width: 21px;
   height: 21px;
@@ -59,16 +64,16 @@ body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
   text-align: center;
   font-family: none;
 }
-.vditor-panel:hover,
-.vditor-panel_hover {
+#fix-table-ir-wrapper .vditor-panel:hover,
+#fix-table-ir-wrapper .vditor-panel_hover {
   opacity: 0.86;
   max-width: none;
   max-height: none;
   overflow: visible;
 }
 
-.vditor-panel:hover:after,
-.vditor-panel_hover:after {
+#fix-table-ir-wrapper .vditor-panel:hover:after,
+#fix-table-ir-wrapper .vditor-panel_hover:after {
   display: none;
 }
 
@@ -198,4 +203,12 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
 .me-confirm__btn--primary {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
+}
+
+/* Vditor shows toolbar tooltips on :focus too (index.css), so they stay stuck
+   after a click leaves the button focused. Only show them on hover — hide the
+   tooltip pseudo-elements when a toolbar item is focused but not hovered. */
+.vditor-toolbar .vditor-tooltipped:focus:not(:hover)::before,
+.vditor-toolbar .vditor-tooltipped:focus:not(:hover)::after {
+  display: none;
 }

@@ -23,6 +23,19 @@ import './main.css'
 
 let applyingExtensionUpdate = false
 
+// Apply Vditor's UI + content + code theme via setTheme — the proven path.
+// The constructor `theme`/`preview.theme.current` options alone do NOT reliably
+// apply the content/code theme at init, which left a dark VS Code showing light
+// content text + white tables. Used by both init (after()) and live switching.
+function applyVditorTheme(theme: 'dark' | 'light') {
+  if (!window.vditor) return
+  if (theme === 'dark') {
+    vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
+  } else {
+    vditor.setTheme('classic', 'light', 'github')
+  }
+}
+
 function initVditor(msg) {
   console.log('msg', msg)
   let inputTimer
@@ -48,6 +61,13 @@ function initVditor(msg) {
       }
     }
   })
+  // Code-block line numbers (rendered preview only). deepMerge keeps the
+  // dark-theme hljs.style sibling intact.
+  if (msg.options && msg.options.codeBlockLineNumbers) {
+    defaultOptions = deepMerge(defaultOptions, {
+      preview: { hljs: { lineNumber: true } },
+    })
+  }
   if (window.vditor) {
     vditor.destroy()
     window.vditor = null
@@ -60,9 +80,12 @@ function initVditor(msg) {
     value: msg.content,
     mode: 'ir',
     cache: { enable: false },
-    toolbar: createToolbar({
-      wikiEnabled: Boolean(msg.wiki && msg.wiki.enabled),
-    }),
+    // Opt-in: the counter recomputes on every keystroke (perf cost on large docs).
+    counter: { enable: msg.options?.wordCount === true },
+    toolbar:
+      msg.options?.showToolbar === false
+        ? []
+        : createToolbar({ wikiEnabled: Boolean(msg.wiki && msg.wiki.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
@@ -70,6 +93,9 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
+      // Force the theme through setTheme at init (constructor options don't
+      // reliably apply content/code theme — see applyVditorTheme).
+      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
       const wikiEnabled = Boolean(msg.wiki && msg.wiki.enabled)
       setupCustomRenderer(window.vditor, {
         enabled: wikiEnabled,
@@ -98,7 +124,7 @@ function initVditor(msg) {
       inputTimer && clearTimeout(inputTimer)
       inputTimer = setTimeout(() => {
         vscode.postMessage({ command: 'edit', content: vditor.getValue() })
-      }, 100)
+      }, 250)
     },
     upload: {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409
@@ -167,6 +193,12 @@ window.addEventListener('message', (e) => {
           console.log('setValue')
         }
       }
+      break
+    }
+    case 'set-theme': {
+      // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
+      // colors already follow via --vscode-* CSS vars.
+      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
       break
     }
     case 'uploaded': {

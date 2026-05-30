@@ -136,6 +136,10 @@ export class EventEmitter<T = any> {
 }
 
 // Classes used purely for `instanceof` discrimination of tab inputs.
+export class ThemeIcon {
+  constructor(public readonly id: string, public readonly color?: unknown) {}
+}
+
 export class TabInputText {
   constructor(public readonly uri: Uri) {}
 }
@@ -182,11 +186,13 @@ const DEFAULT_CONFIG: Record<string, any> = {
   useVscodeThemeColor: true,
   customCss: '',
   enableFullWidth: true,
+  retainHiddenEditors: true,
 }
 
 function freshState() {
   return {
     config: { ...DEFAULT_CONFIG } as Record<string, any>,
+    isTrusted: true,
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
     activeTabInput: undefined as unknown,
@@ -226,6 +232,7 @@ function freshState() {
       didSaveTextDocument: new EventEmitter(),
       didChangeConfiguration: new EventEmitter(),
       didChangeActiveColorTheme: new EventEmitter(),
+      didRenameFiles: new EventEmitter(),
     },
   }
 }
@@ -285,9 +292,14 @@ export const window = {
   ),
   onDidChangeActiveTextEditor: (l: any) =>
     state.emitters.didChangeActiveTextEditor.event(l),
+  onDidChangeActiveColorTheme: (l: any) =>
+    state.emitters.didChangeActiveColorTheme.event(l),
 }
 
 export const workspace = {
+  get isTrusted() {
+    return state.isTrusted
+  },
   getConfiguration: vi.fn((_section?: string) => ({
     get: <T>(key: string, defaultValue?: T): T =>
       (key in state.config ? state.config[key] : defaultValue) as T,
@@ -329,6 +341,7 @@ export const workspace = {
   onDidChangeTextDocument: (l: any) => state.emitters.didChangeTextDocument.event(l),
   onDidSaveTextDocument: (l: any) => state.emitters.didSaveTextDocument.event(l),
   onDidChangeConfiguration: (l: any) => state.emitters.didChangeConfiguration.event(l),
+  onDidRenameFiles: (l: any) => state.emitters.didRenameFiles.event(l),
   fs: {
     createDirectory: vi.fn(async (uri: Uri) => {
       state.calls.fsDirsCreated.push(uri)
@@ -459,6 +472,9 @@ export const mock = {
   setActiveTab(input: unknown) {
     state.activeTabInput = input
   },
+  setTrusted(value: boolean) {
+    state.isTrusted = value
+  },
   setReadDirectory(fn: (uri: Uri) => Promise<[string, number][]>) {
     state.readDirectory = fn
   },
@@ -479,6 +495,16 @@ export const mock = {
   },
   fireDidCloseTextDocument(document: MockTextDocument) {
     return state.emitters.didCloseTextDocument.fire(document)
+  },
+  fireDidChangeActiveColorTheme() {
+    return state.emitters.didChangeActiveColorTheme.fire({
+      kind: state.activeColorThemeKind,
+    })
+  },
+  fireDidRenameFiles(oldUri: Uri, newUri: Uri) {
+    return state.emitters.didRenameFiles.fire({
+      files: [{ oldUri, newUri }],
+    })
   },
   createTextDocument,
   createWebviewPanel,

@@ -107,6 +107,17 @@ describe('message handler: upload', () => {
       files: ['assets/img.png'],
     })
   })
+
+  it('refuses to write and warns when the workspace is untrusted', async () => {
+    mock.setTrusted(false)
+    const { panel } = resolveProvider('/workspace/note.md')
+    await panel._receiveMessage({
+      command: 'upload',
+      files: [{ base64: 'aGk=', name: 'img.png' }],
+    })
+    expect(mock.calls.fsWrites).toHaveLength(0)
+    expect(mock.calls.showWarning.length).toBeGreaterThan(0)
+  })
 })
 
 describe('message handler: open-link', () => {

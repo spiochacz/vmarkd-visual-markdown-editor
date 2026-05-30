@@ -56,7 +56,11 @@ export function fixDarkTheme() {
 }
 // panel hover 加定时延迟
 export function fixPanelHover() {
-  document.querySelectorAll<HTMLElement>('.vditor-panel').forEach((el) => {
+  // Only the IR table panel uses the collapse-to-"..." + delayed-collapse
+  // behaviour; toolbar dropdown panels (emoji, "more", …) must not be touched.
+  document
+    .querySelectorAll<HTMLElement>('#fix-table-ir-wrapper .vditor-panel')
+    .forEach((el) => {
     let timer: ReturnType<typeof setTimeout> | undefined
     el.addEventListener('mouseenter', () => {
       timer && clearTimeout(timer)
