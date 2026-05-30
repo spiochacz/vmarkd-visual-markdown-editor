@@ -199,3 +199,11 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
 }
+
+/* Vditor shows toolbar tooltips on :focus too (index.css), so they stay stuck
+   after a click leaves the button focused. Only show them on hover — hide the
+   tooltip pseudo-elements when a toolbar item is focused but not hovered. */
+.vditor-toolbar .vditor-tooltipped:focus:not(:hover)::before,
+.vditor-toolbar .vditor-tooltipped:focus:not(:hover)::after {
+  display: none;
+}
