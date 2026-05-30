@@ -322,6 +322,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 enableFullWidth: MarkdownEditorProvider.config.get<boolean>(
                   'enableFullWidth'
                 ),
+                wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
+                codeBlockLineNumbers: MarkdownEditorProvider.config.get<boolean>(
+                  'codeBlockLineNumbers'
+                ),
+                showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
                 ...this._context.globalState.get(KeyVditorOptions),
               },
               theme:

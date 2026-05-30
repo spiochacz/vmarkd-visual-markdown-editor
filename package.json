@@ -131,6 +131,21 @@
           "type": "boolean",
           "default": true,
           "description": "Enable full-width layout for the editor (removes max-width centering)."
+        },
+        "markdown-editor.wordCount": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a live word/character count in the editor."
+        },
+        "markdown-editor.codeBlockLineNumbers": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show line numbers in fenced code blocks (rendered preview)."
+        },
+        "markdown-editor.showToolbar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
         }
       }
     },

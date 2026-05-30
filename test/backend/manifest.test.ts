@@ -94,4 +94,20 @@ describe('package.json manifest', () => {
     })
     expect(props['markdown-editor.customCss']).toMatchObject({ type: 'string' })
   })
+
+  it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
+    const props = pkg.contributes.configuration.properties
+    expect(props['markdown-editor.wordCount']).toMatchObject({
+      type: 'boolean',
+      default: true,
+    })
+    expect(props['markdown-editor.codeBlockLineNumbers']).toMatchObject({
+      type: 'boolean',
+      default: false,
+    })
+    expect(props['markdown-editor.showToolbar']).toMatchObject({
+      type: 'boolean',
+      default: true,
+    })
+  })
 })

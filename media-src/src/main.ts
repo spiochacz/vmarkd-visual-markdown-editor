@@ -48,6 +48,13 @@ function initVditor(msg) {
       }
     }
   })
+  // Code-block line numbers (rendered preview only). deepMerge keeps the
+  // dark-theme hljs.style sibling intact.
+  if (msg.options && msg.options.codeBlockLineNumbers) {
+    defaultOptions = deepMerge(defaultOptions, {
+      preview: { hljs: { lineNumber: true } },
+    })
+  }
   if (window.vditor) {
     vditor.destroy()
     window.vditor = null
@@ -60,9 +67,11 @@ function initVditor(msg) {
     value: msg.content,
     mode: 'ir',
     cache: { enable: false },
-    toolbar: createToolbar({
-      wikiEnabled: Boolean(msg.wiki && msg.wiki.enabled),
-    }),
+    counter: { enable: msg.options?.wordCount !== false },
+    toolbar:
+      msg.options?.showToolbar === false
+        ? []
+        : createToolbar({ wikiEnabled: Boolean(msg.wiki && msg.wiki.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
