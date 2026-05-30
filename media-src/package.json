@@ -5,7 +5,7 @@
   "scripts": {
     "start": "esbuild ./src/main.ts --bundle --watch --sourcemap --outfile=../media/dist/main.js",
     "build": "rm -rf ../media/dist; esbuild ./src/main.ts --bundle --minify --sourcemap --outfile=../media/dist/main.js",
-    "test": "node --test src/*.test.ts",
+    "test": "echo 'Unit tests are consolidated under vitest — run `npm test` from the repo root.' && exit 1",
     "test:e2e": "playwright test"
   },
   "browserslist": "> 0%",

@@ -3,6 +3,8 @@
 media-src
 node_modules
 src
+test
+coverage
 .gitignore
 .env
 .env.*

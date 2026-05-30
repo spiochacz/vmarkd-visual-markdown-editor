@@ -80,3 +80,6 @@ media-src/.cache/
 media-src/test-results/
 media-src/playwright-report/
 media-src/.last-run.json
+
+# Vitest coverage
+coverage/
