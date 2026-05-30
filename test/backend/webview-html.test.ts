@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MarkdownEditorProvider } from '../../src/extension'
-import { mock } from './vscode-mock'
+import { mock, ThemeIcon } from './vscode-mock'
 
 function resolveAndGetHtml(customCss = '') {
   mock.setConfig({ customCss })
@@ -19,6 +19,12 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
   it('sets the panel title to the file basename', () => {
     const { panel } = resolveAndGetHtml()
     expect(panel.title).toBe('note.md')
+  })
+
+  it('sets a markdown ThemeIcon on the editor tab', () => {
+    const { panel } = resolveAndGetHtml()
+    expect(panel.iconPath).toBeInstanceOf(ThemeIcon)
+    expect((panel.iconPath as ThemeIcon).id).toBe('markdown')
   })
 
   it('applies the scoped webview options', () => {

@@ -9,7 +9,7 @@
   "license": "MIT",
   "private": false,
   "engines": {
-    "vscode": "^1.64.0"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "Programming Languages",
@@ -176,7 +176,7 @@
   },
   "devDependencies": {
     "@types/node": "^12.12.0",
-    "@types/vscode": "^1.64.0",
+    "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.7",
     "foy": "^0.2.5",
     "jsdom": "^29.1.1",

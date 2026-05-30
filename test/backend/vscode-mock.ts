@@ -136,6 +136,10 @@ export class EventEmitter<T = any> {
 }
 
 // Classes used purely for `instanceof` discrimination of tab inputs.
+export class ThemeIcon {
+  constructor(public readonly id: string, public readonly color?: unknown) {}
+}
+
 export class TabInputText {
   constructor(public readonly uri: Uri) {}
 }

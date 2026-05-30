@@ -183,6 +183,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     let lastSyncedContent = document.getText()
 
     webviewPanel.title = NodePath.basename(fsPath)
+    webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
     webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions()
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,

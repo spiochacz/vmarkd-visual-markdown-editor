@@ -12,6 +12,10 @@ describe('package.json manifest', () => {
     expect(pkg.main).toBe('out/extension.js')
   })
 
+  it('declares a ^1.110 engines floor (ThemeIcon tab icon / l10n / telemetry)', () => {
+    expect(pkg.engines.vscode).toBe('^1.110.0')
+  })
+
   it('registers exactly one custom editor with the expected view type', () => {
     expect(pkg.contributes.customEditors).toHaveLength(1)
     const editor = pkg.contributes.customEditors[0]
