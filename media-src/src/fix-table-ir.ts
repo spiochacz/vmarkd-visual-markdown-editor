@@ -27,6 +27,11 @@ export function fixTableIr() {
     if (!tablePanel) {
       tablePanel = document.createElement('div')
       tablePanel.id = tablePanelId
+      // Exclude the panel subtree from the editable IR region — it is appended
+      // into the contenteditable element, so without this its markup is
+      // editable/selectable. Complementary to the mousedown preventDefault.
+      tablePanel.contentEditable = 'false'
+      tablePanel.style.userSelect = 'none'
       eventRoot.appendChild(tablePanel)
       tablePanel.innerHTML = `<div
     class="vditor-panel vditor-panel--none vditor-panel-ir"

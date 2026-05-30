@@ -80,6 +80,18 @@ test('panel appears horizontally aligned with the clicked cell, not pinned far l
   expect(Math.abs(panelLeft - cellLeft)).toBeLessThan(30)
 })
 
+test('the table panel is excluded from the editable region', async ({ page }) => {
+  await gotoEditor(page)
+  await page.locator('.vditor-ir td').nth(0).click()
+  await page.waitForTimeout(120)
+  const props = await page.evaluate(() => {
+    const el = document.getElementById('fix-table-ir-wrapper')!
+    return { contentEditable: el.contentEditable, userSelect: el.style.userSelect }
+  })
+  expect(props.contentEditable).toBe('false')
+  expect(props.userSelect).toBe('none')
+})
+
 test.describe('icon click: full flow through the table panel', () => {
   for (const action of ACTIONS) {
     test(action, async ({ page }) => {
