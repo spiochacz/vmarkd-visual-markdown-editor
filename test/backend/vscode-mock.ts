@@ -231,6 +231,7 @@ function freshState() {
       didSaveTextDocument: new EventEmitter(),
       didChangeConfiguration: new EventEmitter(),
       didChangeActiveColorTheme: new EventEmitter(),
+      didRenameFiles: new EventEmitter(),
     },
   }
 }
@@ -339,6 +340,7 @@ export const workspace = {
   onDidChangeTextDocument: (l: any) => state.emitters.didChangeTextDocument.event(l),
   onDidSaveTextDocument: (l: any) => state.emitters.didSaveTextDocument.event(l),
   onDidChangeConfiguration: (l: any) => state.emitters.didChangeConfiguration.event(l),
+  onDidRenameFiles: (l: any) => state.emitters.didRenameFiles.event(l),
   fs: {
     createDirectory: vi.fn(async (uri: Uri) => {
       state.calls.fsDirsCreated.push(uri)
@@ -496,6 +498,11 @@ export const mock = {
   fireDidChangeActiveColorTheme() {
     return state.emitters.didChangeActiveColorTheme.fire({
       kind: state.activeColorThemeKind,
+    })
+  },
+  fireDidRenameFiles(oldUri: Uri, newUri: Uri) {
+    return state.emitters.didRenameFiles.fire({
+      files: [{ oldUri, newUri }],
     })
   },
   createTextDocument,

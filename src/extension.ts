@@ -208,7 +208,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel: vscode.WebviewPanel
   ) {
     const disposables: vscode.Disposable[] = []
-    const fsPath = document.uri.fsPath
+    // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
+    // watcher, edits and asset paths follow a renamed file. (Wiki context below
+    // stays init-frozen — cross-folder wiki rename is a known Phase-1 limit.)
+    let activeUri = document.uri
+    let activeFsPath = document.uri.fsPath
+    let suppressCloseDispose = false
     const wiki = getWikiDocumentContext(document.uri)
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)
     const vditorBaseUri = webviewPanel.webview
@@ -219,7 +224,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     let pendingWebviewContent: string | undefined
     let lastSyncedContent = document.getText()
 
-    webviewPanel.title = NodePath.basename(fsPath)
+    webviewPanel.title = NodePath.basename(activeFsPath)
     webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
     webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions()
     webviewPanel.webview.html = this._getHtmlForWebview(
@@ -238,7 +243,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       pendingWebviewContent = content
       try {
         const edit = new vscode.WorkspaceEdit()
-        edit.replace(document.uri, this._documentRange(document), content)
+        edit.replace(activeUri, this._documentRange(document), content)
         await vscode.workspace.applyEdit(edit)
         lastSyncedContent = document.getText()
       } finally {
@@ -280,28 +285,32 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }, 75)
     }
 
-    if (workspaceFolder) {
+    // Extracted so it can be disposed + recreated when the file is renamed.
+    const setupFileWatcher = (uri: vscode.Uri): vscode.Disposable | undefined => {
+      if (!workspaceFolder) {
+        return undefined
+      }
       const relativePath = NodePath.relative(
         workspaceFolder.uri.fsPath,
-        fsPath
+        uri.fsPath
       ).replace(/\\/g, '/')
-      const fileWatcher = vscode.workspace.createFileSystemWatcher(
+      const watcher = vscode.workspace.createFileSystemWatcher(
         new vscode.RelativePattern(workspaceFolder, relativePath)
       )
-      disposables.push(
-        fileWatcher,
-        fileWatcher.onDidChange(() => {
-          schedulePostUpdate()
-        }),
-        fileWatcher.onDidCreate(() => {
-          schedulePostUpdate()
-        })
+      return vscode.Disposable.from(
+        watcher,
+        watcher.onDidChange(() => schedulePostUpdate()),
+        watcher.onDidCreate(() => schedulePostUpdate())
       )
+    }
+    let currentWatcher = setupFileWatcher(activeUri)
+    if (currentWatcher) {
+      disposables.push(currentWatcher)
     }
 
     disposables.push(
       vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.uri.toString() !== document.uri.toString()) {
+        if (event.document.uri.toString() !== activeUri.toString()) {
           return
         }
         const currentContent = event.document.getText()
@@ -320,10 +329,32 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         schedulePostUpdate()
       }),
       vscode.workspace.onDidSaveTextDocument((savedDocument) => {
-        if (savedDocument.uri.toString() !== document.uri.toString()) {
+        if (savedDocument.uri.toString() !== activeUri.toString()) {
           return
         }
         schedulePostUpdate()
+      }),
+      vscode.workspace.onDidRenameFiles((e) => {
+        // Phase 1: direct file rename only. Re-point identity, tab, watcher and
+        // suppress the old-uri close that would otherwise dispose the panel.
+        const hit = e.files.find(
+          (f) => f.oldUri.toString() === activeUri.toString()
+        )
+        if (!hit) {
+          return
+        }
+        suppressCloseDispose = true
+        activeUri = hit.newUri
+        activeFsPath = hit.newUri.fsPath
+        webviewPanel.title = NodePath.basename(activeFsPath)
+        currentWatcher?.dispose()
+        currentWatcher = setupFileWatcher(activeUri)
+        if (currentWatcher) {
+          disposables.push(currentWatcher)
+        }
+        setTimeout(() => {
+          suppressCloseDispose = false
+        }, 0)
       }),
       vscode.window.onDidChangeActiveColorTheme(() => {
         // Live re-theme this editor when the VS Code theme changes (task 25).
@@ -333,16 +364,19 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         })
       }),
       vscode.workspace.onDidCloseTextDocument((closedDocument) => {
-        if (closedDocument.uri.toString() !== document.uri.toString()) {
+        if (suppressCloseDispose) {
+          return
+        }
+        if (closedDocument.uri.toString() !== activeUri.toString()) {
           return
         }
         webviewPanel.dispose()
       }),
       vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.uri.toString() !== document.uri.toString()) {
+        if (event.document.uri.toString() !== activeUri.toString()) {
           return
         }
-        webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(fsPath)}`
+        webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(activeFsPath)}`
       }),
       webviewPanel.webview.onDidReceiveMessage(async (message) => {
         debug('msg from webview review', message, webviewPanel.active)
@@ -401,7 +435,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           case 'edit-in-vscode':
             await vscode.commands.executeCommand(
               'markdown-editor.openTextEditor',
-              document.uri
+              activeUri
             )
             break
           case 'navigate-back':
@@ -437,10 +471,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             break
           }
           case 'upload': {
-            if (!ensureCanWriteFiles(document.uri)) {
+            if (!ensureCanWriteFiles(activeUri)) {
               break
             }
-            const assetsFolder = MarkdownEditorProvider.getAssetsFolder(document.uri)
+            const assetsFolder = MarkdownEditorProvider.getAssetsFolder(activeUri)
             try {
               await vscode.workspace.fs.createDirectory(vscode.Uri.file(assetsFolder))
             } catch (error) {
@@ -460,7 +494,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               command: 'uploaded',
               files: message.files.map((file: any) =>
                 NodePath.relative(
-                  NodePath.dirname(fsPath),
+                  NodePath.dirname(activeFsPath),
                   NodePath.join(assetsFolder, file.name)
                 ).replace(/\\/g, '/')
               ),
@@ -470,7 +504,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           case 'open-link': {
             let url = message.href
             if (!/^https?:/i.test(url)) {
-              url = NodePath.resolve(NodePath.dirname(fsPath), url)
+              url = NodePath.resolve(NodePath.dirname(activeFsPath), url)
             }
             await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(url))
             break
