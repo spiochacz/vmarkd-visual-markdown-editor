@@ -3,6 +3,15 @@
 > **Source:** vMark Marketplace-publication audit (manifest identity)
 > **Value / Risk:** 🔴 hard blocker for publishing / trivial
 > **Engines:** none
+>
+> **Status (2026-05-30):** ✅ manifest identity set — `name: vmarkd`,
+> `displayName: vMarkd — Visual Markdown Editor`, `publisher: spiochacz`,
+> `author: Sławomir Piochacz`, `repository.url →
+> github.com/spiochacz/vmarkd-visual-markdown-editor`. `viewType` / command ids
+> left unchanged (internal). **Remaining before publish:** register/login the
+> `spiochacz` Marketplace publisher (`vsce login spiochacz`), and align the VSIX
+> filename convention (release tooling still hardcodes
+> `markdown-editor-extended-settings-<ver>.vsix` — see below).
 
 ## Problem
 `package.json` still carries the **original author's** identity — you cannot publish

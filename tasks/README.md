@@ -43,7 +43,7 @@ upstream fork the task derives from.
 - [ ] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — needs 18 §2a
 
 ## Marketplace / publication
-- [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — 🔴 hard blocker, trivial
+- [x] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — ✅ manifest done (vmarkd / spiochacz); publisher still needs `vsce login spiochacz`
 - [ ] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md) — 🟢 no engines bump
 
 ## Pro / i18n (engines bump — see note)
