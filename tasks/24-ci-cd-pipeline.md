@@ -95,11 +95,29 @@ Consolidate to **one** release path and put the bump in it, done right.
    **CI (ci.yml)** + **release/publish (one workflow)** + optional local helper script.
 4. Check `.vscode/launch.json` — it appears to contain corrupted/duplicated content
    (separate from CI, but worth cleaning while here).
-5. **VSIX hygiene:** verify `.vscodeignore` excludes `sharp` (a dev-only dependency,
-   `package.json:156`) and all build cruft (`node_modules/`, `media-src/` sources,
-   `out/` analysis docs, `tasks/`) from the packaged `.vsix`. After `vsce package`,
-   inspect the archive (`vsce ls` / unzip) to confirm only `out/extension.js` + runtime
-   `media/` assets ship. (Overlaps `28-extension-identity.md` step 4.)
+5b. **Vditor asset-sync hazard.** `Foyfile.ts` `syncVditorAssets()` copies
+   `media-src/node_modules/vditor/dist/{js,css,images}` → `media/vditor/dist`, and the
+   webview points Vditor's `cdn` option at that local dir (so renderer libs load
+   offline, never from unpkg). After any `vditor` version bump you **must** re-run the
+   sync (`foy build`) or the shipped assets drift from the installed version. Consider a
+   CI guard that fails if `media/vditor/dist` is out of sync with the `vditor` package
+   version. (Also: `git add -A` in the `build` task — see Part C #2 — auto-commits these
+   21 MB; remove it.)
+
+5. **VSIX hygiene (measured 2026-05-30 on the 0.2.32 artifact, 8.7 MB zip / 28 MB
+   unpacked).** `.vscodeignore` does **not** currently exclude these — fix it:
+   - **Source maps ship:** `media/dist/main.js.map` (1.1 MB fresh, was 3.2 MB),
+     `out/extension.js.map`, `out/wiki.js.map`. Add `**/*.map` (or stop emitting maps
+     in the production build). Easy ~1–3 MB cut, zero runtime value to users.
+   - **MathJax dead weight (6.5 MB):** the single biggest cut — tracked separately in
+     `40-drop-unused-mathjax.md` (exclude in `syncVditorAssets` + `.vscodeignore`).
+   - **Doc/cruft ships:** `AGENTS.md`, `publish_reminder.txt`,
+     `source_control_view_report.md`, `out/*.map` — add to `.vscodeignore`.
+     (`demo.gif`, 2.4 MB, stays — Marketplace listing asset.)
+   - Verify `sharp` (dev-only, `package.json:156`) and build sources (`media-src/`,
+     `src/`, `node_modules/`) are excluded. After `vsce package`, `vsce ls` / unzip to
+     confirm only `out/extension.js` + runtime `media/` assets ship.
+   (Overlaps `28-extension-identity.md` step 4.)
 
 ## Secrets / config
 - `VSCE_PAT` / `VS_MARKETPLACE_TOKEN` — VS Marketplace (publisher `oleksiiko`).

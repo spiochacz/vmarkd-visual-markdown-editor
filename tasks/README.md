@@ -54,6 +54,13 @@ upstream fork the task derives from.
 - [ ] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — ⚠️ ^1.110 (highest floor — dominates)
 - [ ] [34 — Secondary-sidebar TOC](34-secondary-sidebar-toc.md) — ⚠️ ^1.106; overlaps 07/08/13 (decide outline home)
 
+## Performance (open latency + memory)
+- [ ] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md) — 🟥 HIGH memory; measure first
+- [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md) — 🟥 HIGH perceived latency
+- [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md) — 🟧 MED; feeds VSIX trim
+- [ ] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — 🟧 biggest single VSIX cut; KaTeX-only
+- See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
+
 ## Infra / refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md) — ✅ done in 0.2.33
 - [ ] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — separate branch
@@ -74,6 +81,10 @@ upstream fork the task derives from.
 - **35 ↔ 02** — reading time derives from the word count; share it, don't recompute.
 - **36 vs 10** — both add "open beside"; resolve the overlap before building (fold reuse/dedup into 10 or layer it).
 - **33 → 30, 31, 34, 18 §2d** — taking ThemeIcon raises the engines floor to `^1.110`, making those bumps free (see Engines floor note).
+- **37 ↔ 38** — synchronous init (38) makes dispose-on-hide (37) affordable; pair them.
+- **39 → 40** — confirming MathJax is never fetched (KaTeX default) unlocks the 6.5 MB cut.
+- **40 ↔ 24 §5** — MathJax drop is the largest item in the VSIX-hygiene cleanup.
+- **18 §2a ↔ Vditor cdn** — narrowing roots must keep `media/` (Vditor's local asset base) or rendering breaks.
 
 ## Engines floor note
 Current `engines.vscode` / `@types/vscode` = `^1.64`. The bump-requiring tasks have

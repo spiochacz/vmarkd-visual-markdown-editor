@@ -22,7 +22,9 @@ roots.push(ws ? ws.uri : vscode.Uri.file(NodePath.dirname(document.uri.fsPath)))
 ```
 Make `getWebviewOptions` take the document URI. Drop `Uri.file("/")` and
 `getFolders()`. ⚠️ Verify images still load (base href + `asWebviewUri` paths must
-fall under a root).
+fall under a root). ⚠️ **Keep the extension `media` dir in the roots** — Vditor's local
+`cdn` base (`media/vditor`, where Mermaid/KaTeX/etc. are self-hosted) is served via
+`asWebviewUri` and silently 404s if narrowed out, breaking all diagram/math rendering.
 
 > **Side benefit (free, no engines bump):** narrowing the roots also unblocks the
 > automatic VS Code wins — resource **streaming** (1.118) for the heavy local assets

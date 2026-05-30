@@ -6,6 +6,14 @@
 
 Do this on a **separate branch**. Gain is bundle size only — not functionality.
 
+> **Measured baseline (2026-05-30, esbuild metafile of the current build):** the
+> minified `media/dist/main.js` is **~308 KB**, of which **`vditor/dist/index.js` is
+> 287.5 KB (94 %)** and all of vMark's own code is ~18 KB. (The "805 KB" above was the
+> older 0.2.32 artifact / unminified output.) So the *only* meaningful bundle lever is
+> trimming the Vditor portion via the source import below — and Vditor's core (lute
+> WASM loader, IR engine, base toolbar) is largely required, so set realistic
+> expectations: this is a moderate cut, not a halving of the current minified size.
+
 ## Feasibility on 3.11.2 — VERIFIED (2026-05-29)
 - ✅ `vditor/src/index.ts` source entry exists.
 - ✅ `VDITOR_VERSION` is `declare const` in `src/ts/constants.ts:1` (identical to 3.8.4).
