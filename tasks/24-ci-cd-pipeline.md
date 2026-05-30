@@ -95,6 +95,11 @@ Consolidate to **one** release path and put the bump in it, done right.
    **CI (ci.yml)** + **release/publish (one workflow)** + optional local helper script.
 4. Check `.vscode/launch.json` — it appears to contain corrupted/duplicated content
    (separate from CI, but worth cleaning while here).
+5. **VSIX hygiene:** verify `.vscodeignore` excludes `sharp` (a dev-only dependency,
+   `package.json:156`) and all build cruft (`node_modules/`, `media-src/` sources,
+   `out/` analysis docs, `tasks/`) from the packaged `.vsix`. After `vsce package`,
+   inspect the archive (`vsce ls` / unzip) to confirm only `out/extension.js` + runtime
+   `media/` assets ship. (Overlaps `28-extension-identity.md` step 4.)
 
 ## Secrets / config
 - `VSCE_PAT` / `VS_MARKETPLACE_TOKEN` — VS Marketplace (publisher `oleksiiko`).

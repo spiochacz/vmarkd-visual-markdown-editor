@@ -41,13 +41,13 @@ Work accumulated since 0.2.32 — not yet released under a version number.
 
 ### Documentation
 - Fork ecosystem analysis consolidated into an actionable task backlog in `tasks/`
-  — 23 independently-actionable tasks + `tasks/INDEX.md` (priority order,
+  — 23 independently-actionable tasks + `tasks/README.md` (priority order,
   dependencies, status). The intermediate per-fork plan documents were folded into
   these tasks and removed.
 
 > ⚠️ Most backlog features (image resize, Vditor tree-shake, word count, search
 > keybinding, code-block line numbers, git gutters, reveal-in-source, etc.) are
-> **planned, not yet implemented**. See `tasks/INDEX.md` for status.
+> **planned, not yet implemented**. See `tasks/README.md` for status.
 
 ## [0.2.32] — 2026-04-17
 
