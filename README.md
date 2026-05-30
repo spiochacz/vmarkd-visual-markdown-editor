@@ -32,7 +32,7 @@ For the broader editing/rendering feature set exposed by Vditor, see [vditor](ht
 This fork is packaged independently. Install the generated VSIX directly:
 
 ```bash
-code --install-extension ./artifacts/vmarkd-0.4.1.vsix
+code --install-extension ./artifacts/vmarkd-0.4.2.vsix
 
 ```
 
