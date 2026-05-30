@@ -61,6 +61,40 @@ upstream fork the task derives from.
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md) — ✅ done (KaTeX-only; guard in Foyfile + test)
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
 
+## ⚠️ Performance / memory cautions (do carefully or defer)
+Grounded in the open-latency + memory research. **Key multiplier:**
+`retainContextWhenHidden` keeps *every hidden editor's* webview fully in memory,
+so any feature that retains per-editor state (indexes, candidate lists, diff
+state, outlines) is multiplied by the number of open editors. Until **37**
+(dispose-on-hide) lands, memory-heavy features hurt most. Also avoid synchronous
+work at open (`ready`) and continuous webview re-rendering.
+
+**🟥 Avoid by default / gate behind an off-by-default flag:**
+- **17 — Git gutters** — re-renders diff markers on every `update`, mode switch
+  **and window resize**, with absolute per-block positioning (reflow); per-editor
+  diff scheduler + `git HEAD` reads + `diff` dep. Steady CPU during edit/scroll.
+- **32 — Link/image autocomplete** — `workspace.findFiles('**/*.{md,…}')` at every
+  `ready` (open-latency hit) + a per-editor `FileSystemWatcher` + candidate lists
+  retained in memory (×open editors). If built: lazy on trigger (not on ready),
+  cap results, share one index.
+- **23 — Wikilinks resolution** — custom renderer runs a `[[…]]` regex on *every*
+  text token on *every* render, plus a workspace `.md` index kept fresh. Ongoing
+  render cost + index memory. (Partially already in `custom-renderer.ts`.)
+
+**🟧 Moderate — fine with mitigation:**
+- **34 — Secondary-sidebar TOC** — extra view synced on every doc change (double
+  outline render); overlaps 07/08/13 — pick one outline home first.
+- **13 — Outline + heading flash** — outline rebuild on change; **debounce** or it
+  costs per keystroke. The flash is cosmetic.
+- **22 — Image resize** — per-image handles/observers (only when images present).
+
+**🟦 These IMPROVE perf — prioritise, don't avoid:** **38** (inline init → fewer
+round-trips), **39** (lean init), **37** (dispose-on-hide → less memory; the cure
+for `retainContextWhenHidden`), **40** ✅ done.
+
+**🟩 Perf-neutral** (safe to batch): 02, 03, 09, 12, 14, 15/16 (on-demand only —
+**17** is what turns 15 into a continuous cost), 25, 26, 29, 30, 31, 33, 35.
+
 ## Infra / refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md) — ✅ done in 0.2.33
 - [ ] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — separate branch
