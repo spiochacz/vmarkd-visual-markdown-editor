@@ -143,7 +143,12 @@ export function activate(context: vscode.ExtensionContext) {
       new MarkdownEditorProvider(context),
       {
         webviewOptions: {
-          retainContextWhenHidden: true,
+          // Free the webview when the editor is hidden (task 37). VS Code keeps
+          // every retained webview fully in memory, which dominates this
+          // extension's footprint. Trade-off: switching away and back reloads
+          // the webview (cursor/scroll reset). If that proves annoying, add the
+          // bounded retain-cache from tasks/41.
+          retainContextWhenHidden: false,
           enableFindWidget: true,
         },
       }
@@ -174,7 +179,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       enableScripts: true,
 
       localResourceRoots: [vscode.Uri.file("/"), ...this.getFolders()],
-      retainContextWhenHidden: true,
+      // Dispose-on-hide (task 37) — the effective panel-level option is set in
+      // registerCustomEditorProvider; kept here in sync for clarity.
+      retainContextWhenHidden: false,
       enableCommandUris: true,
     }
   }

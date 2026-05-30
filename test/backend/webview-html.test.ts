@@ -31,7 +31,7 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     const { panel } = resolveAndGetHtml()
     expect(panel.webview.options).toMatchObject({
       enableScripts: true,
-      retainContextWhenHidden: true,
+      retainContextWhenHidden: false,
       enableCommandUris: true,
     })
   })

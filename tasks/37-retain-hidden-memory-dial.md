@@ -3,6 +3,13 @@
 > **Source:** vMark performance audit (memory — highest-impact lever)
 > **Value / Risk:** 🟥 HIGH memory win across many tabs / medium (re-show latency tradeoff)
 > **Engines:** none
+>
+> **Status (2026-05-30):** ✅ Done — shipped **dispose-on-hide**
+> (`retainContextWhenHidden: false`) in both places. Memory is freed for hidden
+> editors. ⚠️ **Needs real-world testing:** confirm switching away/back reloads
+> acceptably (cursor/scroll reset is expected) and that nothing breaks on reload.
+> The bounded retain-cache (keep N most-recent) is deferred to **task 41** — only
+> build it if the reload proves annoying.
 
 ## Problem (measured)
 `retainContextWhenHidden: true` is set in **two** places — the
