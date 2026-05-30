@@ -53,6 +53,26 @@ Stop paying full webview memory for hidden tabs, without a jarring UX regression
 with `retain:true` vs the chosen alternative; record re-show latency when switching back
 to a disposed tab. Decide the default from real numbers.
 
+### How to measure the per-editor cost
+1. Install/run vMarkd (Extension Development Host or the packaged VSIX).
+2. `Developer: Open Process Explorer`.
+3. Open **10** `.md` files in the vMarkd editor; note the `window`/`webview`
+   process RSS. Then close all but one; note RSS again.
+4. Per-editor cost ≈ (RSS₁₀ − RSS₁) ÷ 9.
+5. Compare `retain:true` (build before task 37) vs `retain:false` (current) to
+   see how much hidden tabs now cost (~0 expected).
+6. Note: a doc that uses Mermaid/KaTeX loads lazy renderers and will read higher —
+   measure with plain text docs for the baseline Vditor cost.
+
+### Measured result (fill in after testing)
+| scenario | RSS (10 tabs) | RSS (1 tab) | per-editor | re-show latency |
+|---|---|---|---|---|
+| `retain:true` (pre-37) | _TBD_ | _TBD_ | _TBD_ | instant |
+| `retain:false` (current) | _TBD_ | _TBD_ | _TBD_ (hidden ≈0) | _TBD_ ms |
+
+> Once filled, replace the "no measured number" caveat in the status note with
+> the real per-editor figure.
+
 ## Tradeoff
 `retain:true` = instant re-show, high memory. `retain:false` = low memory, re-init cost
 on tab switch (mitigated by warm bundle cache + synchronous init from task 38).
