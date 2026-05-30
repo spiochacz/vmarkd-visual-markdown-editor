@@ -9,14 +9,14 @@
 Everything below was read in full; the bones exist but there are real gaps.
 
 - **`.github/workflows/main.yml` ("Deploy Extension")** — manual `workflow_dispatch`.
-  `yarn` install → `foy build` → **`npm test`** → publish to **Open VSX** and **VS
-  Marketplace** (HaaLeo action, tokens `OPEN_VSX_TOKEN` / `VS_MARKETPLACE_TOKEN`).
-  ⚠️ **`npm test` will fail** — root `package.json` has **no `test` script** (only
-  `watch`, `start`, `publish:marketplace`, `release:marketplace`, `pub`). Tests live
-  in `media-src` (`test`: `node --test src/*.test.ts`, `test:e2e`: `playwright test`).
-- **`.github/workflows/publish.yml` ("Publish Extension")** — on `v*` tags. `npm
-  install` (root + `media-src`) → `foy build` → `vsce publish` (`VSCE_PAT`, fallback
-  `VS_MARKETPLACE_TOKEN`). Clean, but **no test step**.
+  `npm ci` (root + `media-src`) → `foy build` → **`npm test`** → publish to **Open VSX**
+  and **VS Marketplace** (HaaLeo action, tokens `OPEN_VSX_TOKEN` / `VS_MARKETPLACE_TOKEN`).
+  ✅ The `npm test` gate now runs (task 21: root `test` = vitest, 41 tests). Install was
+  switched from `yarn` to `npm ci` when the package manager was consolidated (see below).
+- **`.github/workflows/publish.yml` ("Publish Extension")** — on `v*` tags. `npm ci`
+  (root + `media-src`) → `foy build` → `vsce publish` (`VSCE_PAT`, fallback
+  `VS_MARKETPLACE_TOKEN`). Clean, but **still no test step** — add the same `npm test`
+  gate here.
 - **`scripts/release-marketplace.sh`** (clean) — `git pull --ff-only`, **`npm version
   patch`** (hardcoded), patch the README vsix path, `foy build`, `vsce package`,
   `publish:marketplace`, `git push --tags`. ⚠️ **The hardcoded `npm version patch` is
@@ -28,11 +28,18 @@ Everything below was read in full; the bones exist but there are real gaps.
   on every update.
 - **`Foyfile.ts`** — `build` task ends with `git add -A` (a build side-effect that
   stages the whole tree; surprising in CI/local builds).
+- **Package manager — consolidated to npm (done 2026-05-30).** The repo previously
+  carried three root lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`)
+  plus `media-src/yarn.lock`, and `main.yml` installed via `yarn` while everything
+  else used npm. Now: npm only — stray lockfiles removed, the `packageManager: yarn`
+  field dropped, and both workflows install with `npm ci`.
 
 ### Problems to solve
 1. **No PR validation** — both workflows are manual/tag deploys; nothing runs on
    `pull_request`. Bad code can reach `master` and a release.
-2. **The deploy `npm test` is broken** (no root `test` script) and e2e is never run.
+2. **The `npm test` gate runs on deploy but not on PRs, and e2e is never run** — the
+   root `test` script now exists (task 21, vitest), but no workflow runs on
+   `pull_request` and Playwright e2e is still unwired in CI.
 3. **Version bumping is hardcoded to patch** and culturally per-change.
 4. **Two overlapping deploy paths** (`main.yml` manual dual-registry vs `publish.yml`
    tag-based vsce) plus two bash scripts — redundant and confusing.

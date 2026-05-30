@@ -64,7 +64,7 @@ upstream fork the task derives from.
 ## Infra / refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md) — ✅ done in 0.2.33
 - [ ] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — separate branch
-- [ ] [21 — Backend tests (vitest + vscode-mock)](21-backend-tests-vitest.md)
+- [x] [21 — Backend tests (vitest + vscode-mock)](21-backend-tests-vitest.md) — ✅ done (vitest + vscode-mock, 41 tests)
 - [ ] [24 — Proper CI/CD pipeline](24-ci-cd-pipeline.md) — PR test gate; one release path; deliberate version bump
 
 ## Dependencies between tasks

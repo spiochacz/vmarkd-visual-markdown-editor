@@ -8,15 +8,25 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const mediaVditor = path.resolve(__dirname, '../../media/vditor')
 const PORT = 9123
 
+// Two harness bundles: `harness` (table-IR feature) and `behaviors`
+// (message-contract + DOM-util coverage). Built in-memory with inline source
+// maps so monocart can map V8 coverage back to the original TypeScript.
 const built = await esbuild.build({
-  entryPoints: [path.join(__dirname, 'harness.ts')],
+  entryPoints: {
+    harness: path.join(__dirname, 'harness.ts'),
+    behaviors: path.join(__dirname, 'behaviors-harness.ts'),
+  },
   bundle: true,
   format: 'iife',
   sourcemap: 'inline',
   write: false,
+  outdir: __dirname,
 })
-const harnessJs = built.outputFiles[0].text
-const html = fs.readFileSync(path.join(__dirname, 'index.html'))
+const bundles = Object.fromEntries(
+  built.outputFiles.map((f) => ['/' + path.basename(f.path), f.text])
+)
+const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'))
+const behaviorsHtml = fs.readFileSync(path.join(__dirname, 'behaviors.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -36,11 +46,15 @@ const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0]
   if (url === '/' || url === '/index.html') {
     res.setHeader('content-type', 'text/html')
-    return res.end(html)
+    return res.end(indexHtml)
   }
-  if (url === '/harness.js') {
+  if (url === '/behaviors.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(behaviorsHtml)
+  }
+  if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')
-    return res.end(harnessJs)
+    return res.end(bundles[url])
   }
   if (url === '/main.css') {
     res.setHeader('content-type', 'text/css')

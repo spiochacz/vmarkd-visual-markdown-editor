@@ -12,8 +12,8 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-      - run: npm install
-      - run: npm --prefix media-src install
+      - run: npm ci
+      - run: npm --prefix media-src ci
       - run: npm exec foy build
       - name: Publish to Marketplace
         env:

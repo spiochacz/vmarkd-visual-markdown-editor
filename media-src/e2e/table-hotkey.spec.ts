@@ -1,4 +1,5 @@
-import { test, expect, Page } from '@playwright/test'
+import { test, expect } from './coverage-fixture'
+import type { Page } from '@playwright/test'
 import type { TableAction } from '../src/table-hotkey'
 
 const SEED = '| a | b |\n| - | - |\n| 1 | 2 |\n'

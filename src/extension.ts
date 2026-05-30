@@ -139,7 +139,7 @@ export function activate(context: vscode.ExtensionContext) {
   refreshContexts()
 }
 
-class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
+export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   private static getFolders(): vscode.Uri[] {
     const data = []
     for (let i = 65; i <= 90; i++) {

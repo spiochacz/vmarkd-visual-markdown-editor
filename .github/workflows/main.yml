@@ -12,9 +12,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
+          cache: 'npm'
       - name: Install
-        run: yarn; cd ./media-src; yarn
+        run: npm ci && npm --prefix media-src ci
       - name: Build
         run: npm exec foy build
       - name: Test
