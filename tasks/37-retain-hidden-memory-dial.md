@@ -4,12 +4,13 @@
 > **Value / Risk:** 🟥 HIGH memory win across many tabs / medium (re-show latency tradeoff)
 > **Engines:** none
 >
-> **Status (2026-05-30):** ✅ Done — shipped **dispose-on-hide**
-> (`retainContextWhenHidden: false`) in both places. Memory is freed for hidden
-> editors. ⚠️ **Needs real-world testing:** confirm switching away/back reloads
-> acceptably (cursor/scroll reset is expected) and that nothing breaks on reload.
-> The bounded retain-cache (keep N most-recent) is deferred to **task 41** — only
-> build it if the reload proves annoying.
+> **Status (2026-05-30):** ✅ Done, **revised after testing.** First shipped
+> dispose-on-hide (`retain:false`) — but the reload on re-show was **too
+> disruptive** (confirmed in manual testing of 0.4.0). Now a **setting**
+> `markdown-editor.retainHiddenEditors` (boolean, **default `true`** = instant
+> switching). Memory-conscious users with many tabs can turn it off. The bounded
+> retain-cache (keep N most-recent, instant for the hot set) is **task 41** — the
+> proper fix for "low memory AND no jarring reload".
 
 ## Problem (measured)
 `retainContextWhenHidden: true` is set in **two** places — the

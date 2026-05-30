@@ -118,5 +118,9 @@ describe('package.json manifest', () => {
       type: 'boolean',
       default: true,
     })
+    expect(props['markdown-editor.retainHiddenEditors']).toMatchObject({
+      type: 'boolean',
+      default: true,
+    })
   })
 })

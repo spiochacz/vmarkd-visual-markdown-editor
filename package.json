@@ -156,6 +156,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
+        },
+        "markdown-editor.retainHiddenEditors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
         }
       }
     },

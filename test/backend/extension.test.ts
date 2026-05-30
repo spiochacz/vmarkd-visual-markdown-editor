@@ -32,7 +32,7 @@ describe('activate()', () => {
     )
     expect(mock.calls.customEditor?.viewType).toBe('markdown-editor.editor')
     expect(mock.calls.customEditor?.options.webviewOptions).toMatchObject({
-      retainContextWhenHidden: false,
+      retainContextWhenHidden: true,
       enableFindWidget: true,
     })
   })

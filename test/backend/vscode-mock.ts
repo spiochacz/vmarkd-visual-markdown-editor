@@ -186,6 +186,7 @@ const DEFAULT_CONFIG: Record<string, any> = {
   useVscodeThemeColor: true,
   customCss: '',
   enableFullWidth: true,
+  retainHiddenEditors: true,
 }
 
 function freshState() {

@@ -186,7 +186,9 @@ window.addEventListener('message', (e) => {
         if (msg.theme === 'dark') {
           vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
         } else {
-          vditor.setTheme('classic', 'light')
+          // 3rd arg (code/hljs theme) is required — without it the code block
+          // keeps the dark highlight when switching back to light.
+          vditor.setTheme('classic', 'light', 'github')
         }
       }
       break
