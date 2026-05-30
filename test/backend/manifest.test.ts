@@ -74,6 +74,10 @@ describe('package.json manifest', () => {
     )
   })
 
+  it('does not eagerly activate on every markdown file (no onLanguage)', () => {
+    expect(pkg.activationEvents).not.toContain('onLanguage:markdown')
+  })
+
   it('declares the settings the provider reads, with matching types/defaults', () => {
     const props = pkg.contributes.configuration.properties
     expect(props['markdown-editor.imageSaveFolder']).toMatchObject({

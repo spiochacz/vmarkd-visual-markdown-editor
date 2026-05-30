@@ -26,7 +26,6 @@
     "markdown-editor"
   ],
   "activationEvents": [
-    "onLanguage:markdown",
     "onCommand:markdown-editor.openEditor",
     "onCommand:markdown-editor.openTextEditor",
     "onCustomEditor:markdown-editor.editor"
