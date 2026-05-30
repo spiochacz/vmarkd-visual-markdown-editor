@@ -54,6 +54,16 @@ describe('package.json manifest', () => {
     expect(binding.when).toBe(`activeCustomEditorId == ${VIEW_TYPE}`)
   })
 
+  it('binds Ctrl/Cmd+F to the webview find widget inside the custom editor', () => {
+    const binding = pkg.contributes.keybindings.find(
+      (k: any) => k.command === 'editor.action.webvieweditor.showFind'
+    )
+    expect(binding).toBeDefined()
+    expect(binding.key).toBe('ctrl+f')
+    expect(binding.mac).toBe('cmd+f')
+    expect(binding.when).toBe(`activeCustomEditorId == ${VIEW_TYPE}`)
+  })
+
   it('activates on the custom editor and the open commands', () => {
     expect(pkg.activationEvents).toEqual(
       expect.arrayContaining([

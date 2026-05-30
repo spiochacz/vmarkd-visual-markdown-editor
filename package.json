@@ -141,6 +141,12 @@
         "command": "markdown-editor.openTextEditor",
         "mac": "cmd+ctrl+e",
         "when": "activeCustomEditorId == markdown-editor.editor"
+      },
+      {
+        "key": "ctrl+f",
+        "command": "editor.action.webvieweditor.showFind",
+        "mac": "cmd+f",
+        "when": "activeCustomEditorId == markdown-editor.editor"
       }
     ]
   },
