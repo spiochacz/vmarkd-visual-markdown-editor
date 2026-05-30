@@ -1,5 +1,3 @@
-import { keyboard } from '@testing-library/user-event/dist/keyboard'
-
 import { debounce } from './debounce'
 import Vditor from 'vditor'
 window.vscode =

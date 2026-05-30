@@ -75,3 +75,8 @@ media-src/.cache/
 
 # OS metadata
 .DS_Store
+
+# Playwright e2e
+media-src/test-results/
+media-src/playwright-report/
+media-src/.last-run.json

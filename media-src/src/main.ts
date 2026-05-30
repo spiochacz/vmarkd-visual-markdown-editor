@@ -15,7 +15,7 @@ import { deepMerge } from './deep-merge'
 import Vditor from 'vditor'
 import { formatTimestamp } from './format-timestamp'
 import 'vditor/dist/index.css'
-import { t, lang } from './lang'
+import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
@@ -65,6 +65,10 @@ function initVditor(msg) {
     }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
+    // Vditor 3.11.x calls this optional hook unconditionally while rendering
+    // the wysiwyg toolbar; without it the editor throws on init and never
+    // finishes (window.vditor stays undefined, table panel never mounts).
+    customWysiwygToolbar: () => {},
     after() {
       const wikiEnabled = Boolean(msg.wiki && msg.wiki.enabled)
       setupCustomRenderer(window.vditor, {

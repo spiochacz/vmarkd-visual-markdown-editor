@@ -1,8 +1,8 @@
 /**
  * ir 模式下支持 table 编辑
  */
-import { keyboard } from '@testing-library/user-event/dist/keyboard'
 import { t } from './lang'
+import { dispatchTableHotkey, TableAction } from './table-hotkey'
 
 const tablePanelId = 'fix-table-ir-wrapper'
 let disableVscodeHotkeys = false
@@ -99,58 +99,22 @@ export function fixTableIr() {
     >
   </div>
   `
+      // Keep the editor selection when an icon is clicked, otherwise the
+      // button steals the caret and the table hotkey has no cell context.
+      tablePanel.addEventListener('mousedown', (e) => e.preventDefault())
       tablePanel.addEventListener('click', (e) => {
         const icon = (e.target as HTMLElement).closest<HTMLElement>(
           '.vditor-icon'
         )
         if (!icon || !tablePanel.contains(icon)) return
-        let type = icon.getAttribute('data-type')
-        const handleMap = {
-          left: [
-            '{ctrl}{shift}l{/shift}{/ctrl}',
-            '{meta}{shift}l{/shift}{/meta}',
-          ],
-          center: [
-            '{ctrl}{shift}c{/shift}{/ctrl}',
-            '{meta}{shift}c{/shift}{/meta}',
-          ],
-          right: [
-            '{ctrl}{shift}r{/shift}{/ctrl}',
-            '{meta}{shift}r{/shift}{/meta}',
-          ],
-          insertRowA: [
-            '{ctrl}{shift}f{/shift}{/ctrl}',
-            '{meta}{shift}f{/shift}{/meta}',
-          ],
-          insertRowB: ['{ctrl}={/ctrl}', '{meta}={/meta}'],
-          deleteRow: ['{ctrl}-{/ctrl}', '{meta}-{/meta}'],
-          insertColumnL: [
-            '{ctrl}{shift}g{/shift}{/ctrl}',
-            '{meta}{shift}g{/shift}{/meta}',
-          ],
-          insertColumnR: [
-            '{ctrl}{shift}+{/shift}{/ctrl}',
-            '{meta}{shift}={/shift}{/meta}',
-          ],
-          deleteColumn: [
-            '{ctrl}{shift}_{/shift}{/ctrl}',
-            '{meta}{shift}-{/shift}{/meta}',
-          ], // 有的是+ 有的是=; -/_ 都是为了fix不同平 bug
-        }
-        let k =
-          handleMap[type][
-            navigator.platform.toLowerCase().includes('mac') ? 1 : 0
-          ]
+        const type = icon.getAttribute('data-type') as TableAction
+        const isMac = navigator.platform.toLowerCase().includes('mac')
         disableVscodeHotkeys = true
-        Promise.resolve(
-          keyboard(k, {
-            document: {
-              body: eventRoot,
-            } as any,
-          })
-        ).finally(() => {
+        try {
+          dispatchTableHotkey(eventRoot, type, isMac)
+        } finally {
           disableVscodeHotkeys = false
-        })
+        }
         e.stopPropagation()
       })
     }
@@ -171,6 +135,13 @@ export function fixTableIr() {
         eventRoot.getBoundingClientRect().top +
         eventRoot.scrollTop -
         25 +
+        'px'
+      // track the clicked cell horizontally too, so the panel stays visible
+      // regardless of the editor's left margin / full-width layout
+      tablePanel.style.left =
+        clickEl.getBoundingClientRect().left -
+        eventRoot.getBoundingClientRect().left +
+        eventRoot.scrollLeft +
         'px'
     } else {
       if (tablePanel.style.display !== 'none') {

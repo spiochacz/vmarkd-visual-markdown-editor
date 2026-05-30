@@ -12,7 +12,14 @@ export function setupCustomRenderer(
   vditor: Vditor,
   options: WikiRendererOptions
 ) {
-  const lute = vditor.lute
+  // Only override Lute's renderers when wiki links are actually enabled.
+  // For ordinary files this keeps Vditor's default rendering intact across
+  // all modes (registering custom renderers broke wysiwyg/sv rendering).
+  if (!options.enabled) {
+    return
+  }
+  // Vditor 3.11.x exposes lute on the internal instance, not the public one
+  const lute = (vditor as any).vditor.lute as Vditor['vditor']['lute']
   const renderText = (node: any, entering: boolean) => {
     if (!entering) {
       return ['', WalkContinue]
@@ -81,9 +88,10 @@ export function setupCustomRenderer(
       Md2VditorDOM: { renderText },
       Md2VditorSVDOM: { renderText },
       Md2HTML: { renderText },
+      // Vditor 3.11's Lute dropped the JS *DOM2Md reverse renderers; only
+      // HTML2Md remains valid. Registering VditorIRDOM2Md/VditorDOM2Md throws
+      // "unknown ext renderer func" and aborts editor init.
       HTML2Md: { renderInlineHTML },
-      VditorIRDOM2Md: { renderInlineHTML },
-      VditorDOM2Md: { renderInlineHTML },
     },
   })
 }
