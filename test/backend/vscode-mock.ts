@@ -30,10 +30,19 @@ export class Uri {
   }
 
   static parse(value: string): Uri {
-    const match = /^(\w[\w+.-]*):/.exec(value)
-    const scheme = match ? match[1] : 'file'
-    const rest = value.slice(scheme.length).replace(/^:(\/\/)?/, '')
-    return new Uri(scheme, '', rest.startsWith('/') ? rest : `/${rest}`, '', '')
+    // scheme://authority/path
+    const full = /^([a-zA-Z][\w+.-]*):\/\/([^/?#]*)([^?#]*)/.exec(value)
+    if (full) {
+      return new Uri(full[1], full[2] || '', full[3] || '', '', '')
+    }
+    // scheme:path (e.g. untitled:Untitled-1) — but not a bare absolute path
+    const scoped = /^([a-zA-Z][\w+.-]*):(.*)$/.exec(value)
+    if (scoped && !value.startsWith('/')) {
+      const p = scoped[2]
+      return new Uri(scoped[1], '', p.startsWith('/') ? p : `/${p}`, '', '')
+    }
+    // bare filesystem path
+    return new Uri('file', '', value, '', '')
   }
 
   static joinPath(base: Uri, ...segments: string[]): Uri {
@@ -443,6 +452,12 @@ export const mock = {
   },
   setWorkspaceFolder(fsPath: string) {
     state.workspaceFolder = { uri: Uri.file(fsPath), name: NodePath.basename(fsPath), index: 0 }
+  },
+  setActiveTextEditor(uri: Uri | undefined) {
+    state.activeTextEditor = uri ? { document: { uri } } : undefined
+  },
+  setActiveTab(input: unknown) {
+    state.activeTabInput = input
   },
   setReadDirectory(fn: (uri: Uri) => Promise<[string, number][]>) {
     state.readDirectory = fn

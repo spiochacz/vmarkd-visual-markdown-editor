@@ -5,9 +5,12 @@
 > **Value / Risk:** 🟢 covers untested `extension.ts` / low-medium
 >
 > **Status (2026-05-30):** ✅ **Done** — shipped on `main` (PR #7). vitest +
-> `test/backend/vscode-mock.ts`; 41 unit tests green (`npm test`); `extension.ts`
-> ~51%, `wiki.ts` ~23%. `test:coverage` (v8) added. Playwright e2e untouched.
-> Only the "+rename" part of step 5 is deferred → handled in task 14.
+> `test/backend/vscode-mock.ts`; `test:coverage` (v8) added. Playwright e2e
+> untouched. Only the "+rename" part of step 5 is deferred → handled in task 14.
+> Follow-up coverage added (command handlers `openEditor`/`openTextEditor`,
+> `upload`, `open-link`): **50 unit tests**, `extension.ts` **~70%**. The rest
+> (`wiki.ts` ~23%, `extension.ts` `open-wikilink`/`list-wiki-pages`) is wiki
+> logic → task 23.
 
 ## Runner decision
 better-markdown-editor's suite assumes **vitest** (`vscode-mock.ts` imports `vi`).
