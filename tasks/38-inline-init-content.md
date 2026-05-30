@@ -18,11 +18,12 @@ slower machines / large files).
 ## Goal
 Initialize Vditor synchronously on first paint, with no roundtrip for the initial state.
 
-> **Verified (research):** each custom editor gets its own `WebviewPanel` and pays full
-> creation + init on every open (the `TextDocument` is shared, the view is not), so the
-> `ready` handshake is pure per-open latency worth removing. Flagged open risk: the
-> inlined JSON must satisfy the CSP `script-src` (nonce/hash) — verify against the policy
-> from `18-security-hardening.md` §2c, or the inline payload is blocked.
+> **Background (VS Code custom-editor docs):** each custom editor gets its own
+> `WebviewPanel` and pays full creation + init on every open (the `TextDocument` is
+> shared, the view is not), so the `ready` handshake is pure per-open latency worth
+> removing. Risk: the inlined JSON must satisfy the CSP `script-src` (nonce/hash) —
+> verify against the policy from `18-security-hardening.md` §2c, or the payload is
+> blocked.
 
 ## Steps
 1. `src/extension.ts` `_getHtmlForWebview`: embed the initial payload (content, options,

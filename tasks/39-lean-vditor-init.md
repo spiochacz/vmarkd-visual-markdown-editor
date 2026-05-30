@@ -15,7 +15,7 @@ workaround) worth revisiting.
 ## Goal
 Do the minimum work at init for the common case (plain prose), defer the rest.
 
-> **Verified (research, Vditor 3.11 source):** the heavy diagram/math renderers are
+> **Background (Vditor 3.11 source):** the heavy diagram/math renderers are
 > **alias-gated, not flag-gated** — there are no per-renderer enable/disable options for
 > Mermaid/ECharts/Graphviz/Flowchart/ABC/Mindmap/PlantUML. They load via runtime
 > `addScript(${cdn}/dist/js/<lib>...)` *only* when a matching code-block alias is

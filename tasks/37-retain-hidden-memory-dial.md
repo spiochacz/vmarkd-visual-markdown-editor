@@ -33,12 +33,13 @@ Stop paying full webview memory for hidden tabs, without a jarring UX regression
   hidden ones; re-create on demand.
 - Consolidate the duplicated option (set it once, not in both places).
 
-> **Verified (research, primary VS Code docs):** the flag is **binary** — `true` holds
-> memory *indefinitely*, `false` tears the webview down on hide; there is no
-> middle-ground auto-reclaim (vscode#113507). And a claim that custom editors silently
-> reload context despite `retain` was **refuted** (0-3) — so `true` genuinely costs the
-> memory; there is no free lunch. For users who keep only a few tabs open, `retain:true`
-> may still be the better UX → hence the setting, not a hard removal.
+> **Background (VS Code webview/custom-editor docs + microsoft/vscode#113507):** the
+> flag is **binary** — `true` holds memory *indefinitely*, `false` tears the webview
+> down on hide; there is no middle-ground auto-reclaim. Custom editors do **not**
+> silently reload context despite `retain` (a common assumption that's false) — so
+> `true` genuinely costs the memory; there is no free lunch. For users who keep only a
+> few tabs open, `retain:true` may still be the better UX → hence the setting, not a
+> hard removal.
 
 ## Measure first (Process Explorer)
 `Developer: Open Process Explorer` → open ~10 markdown tabs → record webview-process RSS
