@@ -76,6 +76,21 @@ body[data-use-vscode-theme-color="1"]
     rgba(127, 127, 127, 0.18)
   ) !important;
 }
+/* Task-list checkboxes are native form controls — default blue check + white
+   box, which clashes with a custom theme. Theme the accent and (in dark mode)
+   set color-scheme so the browser renders a dark control instead of white. */
+body[data-use-vscode-theme-color="1"] .vditor-reset input[type="checkbox"] {
+  accent-color: var(
+    --vscode-checkbox-background,
+    var(--vscode-button-background, var(--vscode-focusBorder))
+  );
+}
+body[data-use-vscode-theme-color="1"]
+  .vditor.vditor--dark
+  .vditor-reset
+  input[type="checkbox"] {
+  color-scheme: dark;
+}
 /* fix font family + size — follow VS Code by default (task 43). The base size
    is driven by --me-font-size (set from the `fontSize` setting); headings are
    em-relative so they scale with it. */

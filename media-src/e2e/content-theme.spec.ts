@@ -63,3 +63,23 @@ test('blockquote uses a translucent overlay (theme-following) when the option is
   // not the fixed --vscode-textBlockQuote-background; a translucent overlay
   expect(bg).toBe('rgba(127, 127, 127, 0.1)')
 })
+
+test('task-list checkbox accent follows the VS Code theme when the option is on', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const accent = await page.evaluate(() => {
+    document.documentElement.style.setProperty(
+      '--vscode-checkbox-background',
+      'rgb(10, 20, 30)'
+    )
+    document.body.setAttribute('data-use-vscode-theme-color', '1')
+    const reset = document.querySelector('.vditor-reset')!
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'
+    reset.appendChild(cb)
+    return getComputedStyle(cb).accentColor
+  })
+  expect(accent).toBe('rgb(10, 20, 30)') // themed accent, not the browser default
+})
