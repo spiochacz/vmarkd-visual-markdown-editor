@@ -198,6 +198,7 @@ function freshState() {
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
     activeTabInput: undefined as unknown,
+    tabGroups: [] as Array<{ viewColumn: number; tabs: Array<{ input: unknown; group: any }> }>,
     workspaceFolder: undefined as { uri: Uri; name: string; index: number } | undefined,
     documents: [] as MockTextDocument[],
     watchers: [] as MockWatcher[],
@@ -271,6 +272,7 @@ export const window = {
   },
   get tabGroups() {
     return {
+      all: state.tabGroups,
       activeTabGroup: { get activeTab() {
         return state.activeTabInput ? { input: state.activeTabInput } : undefined
       } },
@@ -527,6 +529,16 @@ export const mock = {
   },
   setActiveTab(input: unknown) {
     state.activeTabInput = input
+  },
+  // Build tab groups for findTabForUri (task 36). Each entry → one group with a
+  // viewColumn and its tab inputs; tabs get a back-ref to their group so
+  // `tab.group.viewColumn` works like the real API.
+  setTabGroups(groups: Array<{ viewColumn: number; inputs: unknown[] }>) {
+    state.tabGroups = groups.map((g) => {
+      const group: any = { viewColumn: g.viewColumn, tabs: [] as any[] }
+      group.tabs = g.inputs.map((input) => ({ input, group }))
+      return group
+    })
   },
   setTrusted(value: boolean) {
     state.isTrusted = value

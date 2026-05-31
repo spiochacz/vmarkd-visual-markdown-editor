@@ -67,6 +67,19 @@ describe('package.json manifest', () => {
     expect(inTitle).toBe(true)
   })
 
+  it('contributes an Open-source-to-the-side command in the custom-editor title (task 36)', () => {
+    const cmd = pkg.contributes.commands.find(
+      (c: any) => c.command === 'markdown-editor.openSourceToSide'
+    )
+    expect(cmd).toBeDefined()
+    const inTitle = pkg.contributes.menus['editor/title'].some(
+      (m: any) =>
+        m.command === 'markdown-editor.openSourceToSide' &&
+        m.when === `activeCustomEditorId == ${VIEW_TYPE}`
+    )
+    expect(inTitle).toBe(true)
+  })
+
   it('contributes an Open-Settings command shown in the editor title for the custom editor', () => {
     const cmd = pkg.contributes.commands.find(
       (c: any) => c.command === 'markdown-editor.openSettings'

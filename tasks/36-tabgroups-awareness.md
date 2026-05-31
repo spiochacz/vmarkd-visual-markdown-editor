@@ -1,5 +1,13 @@
 # Task: Tab-group awareness (open-beside-as-source, no duplicate tabs)
 
+> **Status:** ✅ Done (overlap with 10 resolved via option **a**). `findTabForUri`
+> scans `window.tabGroups.all` for a tab matching a uri + kind. (1) `openEditor`
+> now reveals an existing vMarkd tab in its own column instead of opening a
+> duplicate. (2) New `markdown-editor.openSourceToSide` opens the text view in
+> `ViewColumn.Beside`, reusing an existing source tab's column if one is open
+> (`$(go-to-file)` icon, editor/title navigation@19 inside the custom editor).
+> Task 10's `openInSplit` (visual editor beside) is kept separate — no competing
+> "open beside". Host-side → unit: +6 tests (116 total).
 > **Source:** vMark VS Code stable-API audit (`window.tabGroups` API)
 > **Value / Risk:** 🟡 multi-view UX polish / low–medium
 > **Engines:** none (`window.tabGroups` available since ~1.67, below current `^1.64`+

@@ -99,6 +99,37 @@ function getActiveTabInput() {
   return vscode.window.tabGroups.activeTabGroup.activeTab?.input
 }
 
+// Scan every tab group for a tab already showing `uri` in the given editor kind
+// — our custom (WYSIWYG) editor, or a plain text editor. Lets us reveal an
+// existing tab in its own column instead of opening a duplicate (task 36).
+function findTabForUri(
+  uri: vscode.Uri,
+  kind: 'custom' | 'text'
+): vscode.Tab | undefined {
+  const want = uri.toString()
+  for (const group of vscode.window.tabGroups.all) {
+    for (const tab of group.tabs) {
+      const input = tab.input
+      if (
+        kind === 'custom' &&
+        input instanceof vscode.TabInputCustom &&
+        input.viewType === MarkdownEditorViewType &&
+        input.uri.toString() === want
+      ) {
+        return tab
+      }
+      if (
+        kind === 'text' &&
+        input instanceof vscode.TabInputText &&
+        input.uri.toString() === want
+      ) {
+        return tab
+      }
+    }
+  }
+  return undefined
+}
+
 function getCommandTarget(uri?: vscode.Uri) {
   if (uri) {
     return uri
@@ -225,6 +256,18 @@ export function activate(context: vscode.ExtensionContext) {
           showError(`Markdown editor can only open local markdown files.`)
           return
         }
+        // Reveal an existing vMarkd tab for this file instead of opening a
+        // duplicate (task 36): target its own column so VS Code focuses it.
+        const existing = findTabForUri(target, 'custom')
+        if (existing) {
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            target,
+            MarkdownEditorViewType,
+            { viewColumn: existing.group.viewColumn }
+          )
+          return
+        }
         await vscode.commands.executeCommand(
           'vscode.openWith',
           target,
@@ -268,6 +311,27 @@ export function activate(context: vscode.ExtensionContext) {
           return
         }
         await vscode.commands.executeCommand('vscode.openWith', target, 'default')
+      }
+    ),
+    vscode.commands.registerCommand(
+      'markdown-editor.openSourceToSide',
+      async (uri?: vscode.Uri, ...args) => {
+        debug('command', uri, args)
+        const target = getCommandTarget(uri)
+        if (!target) {
+          showError(`Cannot find markdown file!`)
+          return
+        }
+        if (!isSupportedMarkdownUri(target)) {
+          showError(`Markdown editor can only open local markdown files.`)
+          return
+        }
+        // Reuse an existing source tab (focus it in its column); otherwise open
+        // the text view in the adjacent column (task 36).
+        const existing = findTabForUri(target, 'text')
+        await vscode.commands.executeCommand('vscode.openWith', target, 'default', {
+          viewColumn: existing ? existing.group.viewColumn : vscode.ViewColumn.Beside,
+        })
       }
     ),
     vscode.commands.registerCommand('markdown-editor.openSettings', async () => {

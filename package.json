@@ -76,6 +76,12 @@
         "title": "Open with markdown editor to the side",
         "category": "markdown-editor",
         "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "markdown-editor.openSourceToSide",
+        "title": "Open source to the side",
+        "category": "markdown-editor",
+        "icon": "$(go-to-file)"
       }
     ],
     "customEditors": [
@@ -121,6 +127,11 @@
           "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
           "command": "markdown-editor.openInSplit",
           "group": "navigation@11"
+        },
+        {
+          "when": "activeCustomEditorId == markdown-editor.editor",
+          "command": "markdown-editor.openSourceToSide",
+          "group": "navigation@19"
         },
         {
           "when": "activeCustomEditorId == markdown-editor.editor",
