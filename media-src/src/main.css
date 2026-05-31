@@ -158,6 +158,46 @@ body[data-full-width="1"] .vditor-wysiwyg .vditor-reset {
   padding: 0 20px !important;
 }
 
+/* The shorthand padding above overrides the global `.vditor-reset` 35px left
+   gutter down to 20px, which clips the IR heading-level markers (H1…H6 render
+   at `margin-left: -29px`, so only the "1" of "H1" survives in full-width).
+   Restore the 35px left room on the IR editing surface (task 04). */
+body[data-full-width="1"] .vditor-ir .vditor-reset {
+  padding-left: 35px !important;
+}
+
+/* Vertically center the IR heading-level markers (H1…H6). Vditor floats them at
+   the TOP of the heading line. Rather than centering on the heading box (which
+   the H1/H2 underline makes taller — top:50% then drifts per level), give the
+   floated marker a line-height equal to that heading's own line box
+   (`line-height 1.25 × font-size ÷ the marker's 0.85rem`), so its small label
+   centers on the first text line. Keeps Vditor's float + -29px gutter, so the
+   horizontal position is unchanged. Mode-independent. (task 04) */
+.vditor-ir .vditor-reset > h1::before { line-height: 2.574; }
+.vditor-ir .vditor-reset > h2::before { line-height: 2.279; }
+.vditor-ir .vditor-reset > h3::before { line-height: 2.029; }
+.vditor-ir .vditor-reset > h4::before { line-height: 1.838; }
+.vditor-ir .vditor-reset > h5::before { line-height: 1.662; }
+.vditor-ir .vditor-reset > h6::before { line-height: 1.471; }
+
+/* Per-level fine-tuning: some levels read a hair high after the line-height
+   centering; nudge those down 1px. H5/H6 are already centered. */
+.vditor-ir .vditor-reset > h1::before,
+.vditor-ir .vditor-reset > h2::before,
+.vditor-ir .vditor-reset > h3::before,
+.vditor-ir .vditor-reset > h4::before {
+  position: relative;
+  top: 1px;
+}
+
+/* Relabel the IR link-reference-definitions gutter marker from Vditor's '"A"'
+   to a return arrow, nudged slightly lower to sit on the text line. */
+.vditor-ir .vditor-reset div[data-type="link-ref-defs-block"]::before {
+  content: '↩';
+  position: relative;
+  top: 2px;
+}
+
 body[data-full-width="1"] .vditor-preview .vditor-reset {
   max-width: none !important;
   width: 100% !important;
