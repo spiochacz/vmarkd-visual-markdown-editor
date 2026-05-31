@@ -57,7 +57,7 @@ checked here **only when the task is fully complete**.
 
 ## Tooling, tests & refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md)
-- [ ] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md)
+- [x] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — import from source; main.js 310→261 KB (−16%)
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
 - [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md)
 

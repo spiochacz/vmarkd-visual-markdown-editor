@@ -16,6 +16,15 @@ Built artifacts (`out/`, `media/dist/`, `media/vditor/dist/`) are generated and
 git-ignored. The Vditor assets the webview needs are synced from
 `media-src/node_modules/vditor` into `media/vditor/` by the build.
 
+**Webview bundle (task 20):** `media-src/build.mjs` (the `start`/`build` scripts)
+imports Vditor from **source** (`vditor/src/index`) so esbuild can tree-shake it.
+The source-import specifics live in `media-src/esbuild-shared.mjs` — `define
+VDITOR_VERSION`, `useDefineForClassFields:false`, a `.less`→empty loader, a plugin
+stubbing 4 unused toolbar buttons (`src/stubs/`), and a `diff-match-patch`
+interop rewrite (Vditor's `undo` needs a default import or `new DiffMatchPatch()`
+throws — guarded by `e2e/undo-interop.spec.ts`). `e2e/serve.mjs` reuses the same
+config so the harnesses bundle Vditor identically.
+
 ## Package manager
 
 **npm only.** Do not reintroduce `yarn.lock` / `pnpm-lock.yaml` or a

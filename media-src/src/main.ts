@@ -12,7 +12,7 @@ import {
 } from './utils'
 
 import { deepMerge } from './deep-merge'
-import Vditor from 'vditor'
+import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
 import 'vditor/dist/index.css'
 import { lang } from './lang'
