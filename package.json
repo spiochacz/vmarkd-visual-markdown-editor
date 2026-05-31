@@ -141,11 +141,6 @@
             "default": "assets",
             "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`."
           },
-          "markdown-editor.wordCount": {
-            "type": "boolean",
-            "default": false,
-            "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
-          },
           "markdown-editor.retainHiddenEditors": {
             "type": "boolean",
             "default": true,
@@ -187,6 +182,17 @@
             "default": true,
             "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
           },
+          "markdown-editor.wordCount": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
+          }
+        }
+      },
+      {
+        "title": "Custom CSS",
+        "order": 3,
+        "properties": {
           "markdown-editor.customCss": {
             "type": "string",
             "default": "",
@@ -202,7 +208,7 @@
       },
       {
         "title": "Outline",
-        "order": 3,
+        "order": 4,
         "properties": {
           "markdown-editor.showOutlineByDefault": {
             "type": "boolean",
