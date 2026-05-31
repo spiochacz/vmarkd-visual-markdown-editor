@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import * as NodePath from 'path'
 import * as fs from 'fs'
+import { readingTime } from './reading-time'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -137,12 +138,73 @@ async function updateEditorContexts() {
   )
 }
 
+// Native status-bar items (task 35): estimated reading time + an editor-mode
+// indicator (WYSIWYG vs Source), shown only while a markdown doc is the active
+// tab. Returns an `update` fn the caller wires to the same active-tab / document
+// listeners that drive updateEditorContexts.
+function setupStatusBar(context: vscode.ExtensionContext): () => void {
+  const reading = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  )
+  reading.name = 'vMarkd Reading Time'
+  const mode = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    99
+  )
+  mode.name = 'vMarkd Editor Mode'
+  context.subscriptions.push(reading, mode)
+
+  const textForUri = (uri: vscode.Uri): string =>
+    vscode.workspace.textDocuments
+      .find((d) => d.uri.toString() === uri.toString())
+      ?.getText() ?? ''
+
+  return () => {
+    const input = getActiveTabInput()
+    const showFor = (uri: vscode.Uri) => {
+      reading.text = `$(book) ${readingTime(textForUri(uri))}`
+      reading.show()
+    }
+    if (
+      input instanceof vscode.TabInputCustom &&
+      input.viewType === MarkdownEditorViewType
+    ) {
+      showFor(input.uri)
+      mode.text = '$(eye) WYSIWYG'
+      mode.tooltip = 'Markdown: visual editor — click to edit as source'
+      mode.command = 'markdown-editor.openTextEditor'
+      mode.show()
+    } else if (
+      input instanceof vscode.TabInputText &&
+      isSupportedMarkdownUri(input.uri)
+    ) {
+      showFor(input.uri)
+      mode.text = '$(code) Source'
+      mode.tooltip = 'Markdown: source view — click to open the visual editor'
+      mode.command = 'markdown-editor.openEditor'
+      mode.show()
+    } else {
+      reading.hide()
+      mode.hide()
+    }
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('vMarkd', { log: true })
   context.subscriptions.push(logger)
 
+  const updateStatusBar = setupStatusBar(context)
   const refreshContexts = () => {
     void updateEditorContexts()
+    updateStatusBar()
+  }
+  // Live reading-time on edits, debounced so it doesn't recompute per keystroke.
+  let statusBarTimer: NodeJS.Timeout | undefined
+  const debouncedStatusBar = () => {
+    if (statusBarTimer) clearTimeout(statusBarTimer)
+    statusBarTimer = setTimeout(updateStatusBar, 300)
   }
 
   context.subscriptions.push(
@@ -207,7 +269,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.onDidChangeActiveTextEditor(refreshContexts),
     vscode.window.tabGroups.onDidChangeTabs(refreshContexts),
     vscode.workspace.onDidOpenTextDocument(refreshContexts),
-    vscode.workspace.onDidCloseTextDocument(refreshContexts)
+    vscode.workspace.onDidCloseTextDocument(refreshContexts),
+    vscode.workspace.onDidChangeTextDocument(debouncedStatusBar)
   )
 
   context.globalState.setKeysForSync([KeyVditorOptions])

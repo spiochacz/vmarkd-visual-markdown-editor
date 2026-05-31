@@ -157,6 +157,8 @@ export const ColorThemeKind = {
   HighContrastLight: 4,
 } as const
 
+export const StatusBarAlignment = { Left: 1, Right: 2 } as const
+
 export const FileType = {
   Unknown: 0,
   File: 1,
@@ -222,6 +224,7 @@ function freshState() {
         | { viewType: string; provider: any; options: any }
         | undefined,
       setKeysForSync: [] as string[][],
+      statusBarItems: [] as any[],
       outputChannels: [] as {
         name: string
         options: any
@@ -320,6 +323,26 @@ export const window = {
       }),
     }
   }),
+  createStatusBarItem: vi.fn((alignment?: number, priority?: number) => {
+    const item: any = {
+      alignment,
+      priority,
+      text: '',
+      tooltip: '',
+      command: undefined as string | undefined,
+      name: '',
+      visible: false,
+      show: vi.fn(() => {
+        item.visible = true
+      }),
+      hide: vi.fn(() => {
+        item.visible = false
+      }),
+      dispose: vi.fn(),
+    }
+    state.calls.statusBarItems.push(item)
+    return item
+  }),
   onDidChangeActiveTextEditor: (l: any) =>
     state.emitters.didChangeActiveTextEditor.event(l),
   onDidChangeActiveColorTheme: (l: any) =>
@@ -329,6 +352,9 @@ export const window = {
 export const workspace = {
   get isTrusted() {
     return state.isTrusted
+  },
+  get textDocuments() {
+    return state.documents
   },
   getConfiguration: vi.fn((_section?: string) => ({
     get: <T>(key: string, defaultValue?: T): T =>
@@ -541,6 +567,9 @@ export const mock = {
       affectsConfiguration: (s: string) =>
         s === section || s.startsWith(`${section}.`),
     })
+  },
+  fireDidChangeTabs() {
+    return state.emitters.didChangeTabs.fire(undefined)
   },
   createTextDocument,
   createWebviewPanel,

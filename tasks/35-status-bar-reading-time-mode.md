@@ -1,5 +1,12 @@
 # Task: Status bar — reading time + editor mode indicator
 
+> **Status:** ✅ Done. Two native `StatusBarItem`s (right-aligned) shown only while a
+> markdown doc is the active tab: `$(book) ~N min read` (from `src/reading-time.ts`,
+> ~200 wpm, live + debounced on edits) and a mode indicator — `$(eye) WYSIWYG`
+> (custom-editor tab → click opens source) / `$(code) Source` (text tab for a .md →
+> click opens the visual editor). Wired into the existing active-tab listeners that
+> drive `updateEditorContexts`. Host-side → unit layer: +7 tests (105 total;
+> reading-time pure fns + status-bar show/hide/mode/live integration).
 > **Source:** vMark VS Code stable-API audit (native `StatusBarItem`)
 > **Value / Risk:** 🟡 writing-tool polish / low
 > **Engines:** none (`StatusBarItem` is old API)

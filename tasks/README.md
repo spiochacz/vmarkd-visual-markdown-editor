@@ -36,7 +36,7 @@ checked here **only when the task is fully complete**.
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
 - [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)
 - [ ] [32 — Link/image path autocomplete](32-link-image-autocomplete.md) — findFiles + watcher, no engines bump
-- [ ] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — shares count with 02
+- [x] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — reading time + WYSIWYG/Source indicator
 - [ ] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — overlaps 10
 
 ## Security
