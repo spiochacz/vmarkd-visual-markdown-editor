@@ -88,7 +88,10 @@ describe('package.json manifest', () => {
   })
 
   it('declares the settings the provider reads, with matching types/defaults', () => {
-    const props = pkg.contributes.configuration.properties
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
     expect(props['markdown-editor.imageSaveFolder']).toMatchObject({
       type: 'string',
       default: 'assets',
@@ -105,7 +108,10 @@ describe('package.json manifest', () => {
   })
 
   it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
-    const props = pkg.contributes.configuration.properties
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
     expect(props['markdown-editor.wordCount']).toMatchObject({
       type: 'boolean',
       default: false,
@@ -125,10 +131,17 @@ describe('package.json manifest', () => {
   })
 
   it('declares the outline settings (highlightHeadings, outlinePosition/Width, showOutlineByDefault, outlineHighlight)', () => {
-    const props = pkg.contributes.configuration.properties
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
     expect(props['markdown-editor.highlightHeadings']).toMatchObject({
       type: 'boolean',
-      default: false,
+      default: true,
+    })
+    expect(props['markdown-editor.showHeadingMarkers']).toMatchObject({
+      type: 'boolean',
+      default: true,
     })
     expect(props['markdown-editor.outlinePosition']).toMatchObject({
       type: 'string',
@@ -147,5 +160,23 @@ describe('package.json manifest', () => {
       type: 'boolean',
       default: true,
     })
+  })
+
+  it('groups settings into titled sections, with visual-presence ones under Appearance', () => {
+    expect(Array.isArray(pkg.contributes.configuration)).toBe(true)
+    const titles = pkg.contributes.configuration.map((c: any) => c.title)
+    expect(titles).toEqual(
+      expect.arrayContaining(['General', 'Appearance', 'Outline'])
+    )
+    const appearance = pkg.contributes.configuration.find(
+      (c: any) => c.title === 'Appearance'
+    )
+    expect(Object.keys(appearance.properties)).toEqual(
+      expect.arrayContaining([
+        'markdown-editor.highlightHeadings',
+        'markdown-editor.showHeadingMarkers',
+        'markdown-editor.enableFullWidth',
+      ])
+    )
   })
 })

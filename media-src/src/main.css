@@ -190,6 +190,16 @@ body[data-full-width="1"] .vditor-ir .vditor-reset {
   top: 1px;
 }
 
+/* Hide the IR heading-level gutter markers when showHeadingMarkers is off. */
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h1::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h2::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h3::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h4::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h5::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h6::before {
+  display: none;
+}
+
 /* Relabel the IR link-reference-definitions gutter marker from Vditor's '"A"'
    to a return arrow, nudged slightly lower to sit on the text line. */
 .vditor-ir .vditor-reset div[data-type="link-ref-defs-block"]::before {

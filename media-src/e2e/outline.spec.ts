@@ -59,3 +59,21 @@ test('highlight-headings attr themes headings; --me-outline-width drives panel w
   expect(styles.h1Radius).toBe('3px') // heading-highlight rule applied
   expect(styles.outlineWidth).toBe('321px') // width var applied
 })
+
+test('showHeadingMarkers toggle hides the IR heading-level gutter markers', async ({
+  page,
+}) => {
+  await gotoOutline(page)
+  const result = await page.evaluate(() => {
+    const h1 = document.querySelector(
+      '.vditor-ir .vditor-reset > h1'
+    ) as HTMLElement
+    document.body.setAttribute('data-heading-markers', '1')
+    const shown = getComputedStyle(h1, '::before').display
+    document.body.setAttribute('data-heading-markers', '0')
+    const hidden = getComputedStyle(h1, '::before').display
+    return { shown, hidden }
+  })
+  expect(result.shown).not.toBe('none') // marker visible by default
+  expect(result.hidden).toBe('none') // hidden when toggled off
+})

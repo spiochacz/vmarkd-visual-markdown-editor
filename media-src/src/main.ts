@@ -197,6 +197,10 @@ window.addEventListener('message', (e) => {
           'data-highlight-headings',
           msg.options && msg.options.highlightHeadings ? '1' : '0'
         )
+        document.body.setAttribute(
+          'data-heading-markers',
+          msg.options && msg.options.showHeadingMarkers === false ? '0' : '1'
+        )
         if (msg.options && msg.options.outlineWidth) {
           document.body.style.setProperty(
             '--me-outline-width',

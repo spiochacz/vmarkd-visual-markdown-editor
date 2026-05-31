@@ -79,6 +79,7 @@ describe('resolveCustomTextEditor — init handshake', () => {
   it('passes the outline settings into the init options', async () => {
     mock.setConfig({
       highlightHeadings: true,
+      showHeadingMarkers: false,
       outlinePosition: 'left',
       outlineWidth: 320,
       showOutlineByDefault: true,
@@ -88,6 +89,7 @@ describe('resolveCustomTextEditor — init handshake', () => {
     await panel._receiveMessage({ command: 'ready' })
     expect(lastUpdate().options).toMatchObject({
       highlightHeadings: true,
+      showHeadingMarkers: false,
       outlinePosition: 'left',
       outlineWidth: 320,
       showOutlineByDefault: true,

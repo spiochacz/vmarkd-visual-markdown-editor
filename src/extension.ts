@@ -410,6 +410,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 highlightHeadings: MarkdownEditorProvider.config.get<boolean>(
                   'highlightHeadings'
                 ),
+                showHeadingMarkers: MarkdownEditorProvider.config.get<boolean>(
+                  'showHeadingMarkers'
+                ),
                 outlinePosition: MarkdownEditorProvider.config.get<string>(
                   'outlinePosition'
                 ),
