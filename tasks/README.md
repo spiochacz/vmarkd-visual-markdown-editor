@@ -40,7 +40,7 @@ checked here **only when the task is fully complete**.
 - [x] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — dedup vMarkd tabs + open-source-to-side with reuse
 
 ## Security
-- [ ] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — §2a is the priority
+- [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
 - [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
 
 ## Marketplace / publication
