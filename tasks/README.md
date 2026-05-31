@@ -30,8 +30,8 @@ checked here **only when the task is fully complete**.
 ## Features
 - [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
 - [x] [14 — Rename tracking (onDidRenameFiles)](14-rename-tracking.md)
-- [ ] [15 — Shared DOM→source mapping](15-shared-dom-source-mapping.md) — prerequisite for 16 & 17
-- [ ] [16 — Reveal-in-Source](16-reveal-in-source.md) — needs 15
+- [x] [15 — Shared DOM→source mapping](15-shared-dom-source-mapping.md) — exact Lute-caret offset (prose too); prerequisite for 16 & 17
+- [x] [16 — Reveal-in-Source](16-reveal-in-source.md) — jump to the caret's line in the text editor
 - [ ] [17 — Git gutters](17-git-gutters.md) — needs 15
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
 - [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)

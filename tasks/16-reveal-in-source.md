@@ -1,5 +1,12 @@
 # Task: Reveal-in-Source (jump to cursor's line in the text editor)
 
+> **Status:** ✅ Done. `markdown-editor.revealInSource` posts `get-cursor-offset`
+> to the active panel (1s timeout, self-disposing listener), maps the reply via
+> the new pure `selectionForOffset` (src/reveal-range.ts), then
+> `showTextDocument(Beside)` + select line + `revealRange(InCenter)`. Webview
+> replies using task-15's exact Lute-caret mapping. Contributes command +
+> editor/title + palette entries (no keybinding). Tests: 6 unit (reveal-range) +
+> 3 backend (registration, round-trip selection, no-panel abort).
 > **Source:** `jes-bz/notemd` — `revealInSource` (adapted to `CustomTextEditorProvider`)
 > **Derived from (removed plan):** `notemd-reveal-and-git-gutters-plan.md` §B
 > **Value / Risk:** 🟢 self-contained / approximate for prose, exact for tables

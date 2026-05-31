@@ -1,5 +1,13 @@
 # Task: Shared DOM→source mapping module (prerequisite)
 
+> **Status:** ✅ Done. `media-src/src/source-map.ts` with `offsetToLine` +
+> `getTableSourceOffset` (pure, unit-tested) and `getCursorSourceOffset` (e2e).
+> Improved on notemd: the accurate path inserts Lute's own caret token (‸,
+> `Lute.Caret`) and round-trips the active mode's innerHTML through Lute's
+> DOM→Md — the token survives even inside syntax markers, giving EXACT offsets
+> for prose too (notemd was proportional/approximate). Tables use exact pipe
+> counting (round-trip re-pads cells, so it runs first). Resolves against the
+> active mode element, not a hard-coded `.vditor-ir`.
 > **Source:** `jes-bz/notemd` — shared trick behind both reveal-in-source and gutters
 > **Derived from (removed plan):** `notemd-reveal-and-git-gutters-plan.md` (Shared mapping)
 > **Value / Risk:** prerequisite / medium (heuristic, approximate for prose)
