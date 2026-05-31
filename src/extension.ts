@@ -294,6 +294,38 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return (css || '').replace(/<\/style/gi, '')
   }
 
+  // Vditor's saved options can bake absolute webview-resource URLs that embed
+  // the extension's *versioned* install dir — e.g. `preview.theme.path` ends up
+  // as `…/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme`.
+  // We persist these in globalState (and mark the key for Settings Sync), then
+  // spread them back into the init options on every open. After the extension
+  // updates (or on another machine), that stale path points at a dir that no
+  // longer exists / is outside localResourceRoots → the content/code-theme CSS
+  // 401s and the editor renders with no colors. Strip any baked resource URL so
+  // Vditor recomputes every path from the current `cdn`. Applied on both read
+  // (heals existing dirty/synced state) and write (never re-persists it).
+  static sanitizeVditorOptions<T>(options: T): T {
+    if (!options || typeof options !== 'object') return options
+    const isBakedResourceUrl = (s: string) =>
+      /vscode-resource|vscode-cdn\.net|[/\\]extensions[/\\]spiochacz\.vmarkd-|\.vscode-server[/\\]extensions/.test(
+        s
+      )
+    const clone = JSON.parse(JSON.stringify(options))
+    const walk = (o: any) => {
+      if (!o || typeof o !== 'object') return
+      for (const k of Object.keys(o)) {
+        const v = o[k]
+        if (typeof v === 'string') {
+          if (isBakedResourceUrl(v)) delete o[k]
+        } else if (typeof v === 'object') {
+          walk(v)
+        }
+      }
+    }
+    walk(clone)
+    return clone
+  }
+
   // Id'd <style> tags so external + custom CSS can be live-swapped by id
   // (tasks 12/26). External loads first, customCss last, so customCss always
   // wins on conflicting rules (later tag = higher priority). Both are sanitized
@@ -603,7 +635,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 outlineHighlight: MarkdownEditorProvider.config.get<boolean>(
                   'outlineHighlight'
                 ),
-                ...this._context.globalState.get(KeyVditorOptions),
+                ...MarkdownEditorProvider.sanitizeVditorOptions(
+                  this._context.globalState.get(KeyVditorOptions)
+                ),
               },
               theme: currentThemeKind(),
               wiki: wikiInit,
@@ -611,7 +645,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             break
           }
           case 'save-options':
-            await this._context.globalState.update(KeyVditorOptions, message.options)
+            await this._context.globalState.update(
+              KeyVditorOptions,
+              MarkdownEditorProvider.sanitizeVditorOptions(message.options)
+            )
             break
           case 'info':
             vscode.window.showInformationMessage(message.content)

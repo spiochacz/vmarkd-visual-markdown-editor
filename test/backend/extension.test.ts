@@ -159,6 +159,89 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
       value: { mode: 'ir' },
     })
   })
+
+  it('strips baked version-specific resource URLs before persisting options (colors-401 bug)', async () => {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({
+      command: 'save-options',
+      options: {
+        mode: 'ir',
+        preview: {
+          theme: {
+            current: 'dark',
+            path: 'https://x.vscode-cdn.net/home/u/.vscode-server/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme',
+          },
+        },
+      },
+    })
+    const saved = mock.calls.globalStateUpdates.find(
+      (u) => u.key === 'vditor.options'
+    )!.value
+    // the baked path is gone; stable prefs survive
+    expect(saved.preview.theme.path).toBeUndefined()
+    expect(saved.preview.theme.current).toBe('dark')
+    expect(saved.mode).toBe('ir')
+  })
+
+  it('does not let a stale saved theme.path leak into the init options', async () => {
+    const context = mock.createExtensionContext()
+    // simulate dirty globalState carried over from an older install / Settings Sync
+    await context.globalState.update('vditor.options', {
+      mode: 'ir',
+      preview: {
+        theme: {
+          current: 'dark',
+          path: '.vscode-server/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme',
+        },
+      },
+    })
+    mock.setWorkspaceFolder('/workspace')
+    const document = mock.createTextDocument('/workspace/note.md', '# Hi\n')
+    const panel = mock.createWebviewPanel()
+    new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
+      document as any,
+      panel as any
+    )
+    await panel._receiveMessage({ command: 'ready' })
+    const init = mock.calls.postMessage
+      .filter((m) => m.command === 'update')
+      .at(-1)
+    expect(init.options.preview?.theme?.path).toBeUndefined()
+    expect(init.options.preview?.theme?.current).toBe('dark') // kept
+  })
+})
+
+describe('sanitizeVditorOptions (colors-401 bug)', () => {
+  it('removes any baked webview-resource URL anywhere in the object', () => {
+    const cleaned = MarkdownEditorProvider.sanitizeVditorOptions({
+      mode: 'ir',
+      cdn: 'https://x.vscode-resource.vscode-cdn.net/.../media/vditor',
+      preview: {
+        hljs: { style: 'github-dark' },
+        theme: {
+          current: 'dark',
+          path: 'https://x.vscode-cdn.net/home/u/.vscode-server/extensions/spiochacz.vmarkd-0.4.0/x',
+        },
+      },
+    })
+    expect(cleaned.cdn).toBeUndefined()
+    expect(cleaned.preview.theme.path).toBeUndefined()
+    expect(cleaned.preview.theme.current).toBe('dark')
+    expect(cleaned.preview.hljs.style).toBe('github-dark')
+    expect(cleaned.mode).toBe('ir')
+  })
+
+  it('does not mutate the input and passes through clean options', () => {
+    const input = { theme: 'dark', mode: 'ir', preview: { theme: { current: 'dark' } } }
+    const out = MarkdownEditorProvider.sanitizeVditorOptions(input)
+    expect(out).toEqual(input)
+    expect(out).not.toBe(input) // returns a clone
+  })
+
+  it('is a no-op for nullish / non-object input', () => {
+    expect(MarkdownEditorProvider.sanitizeVditorOptions(undefined)).toBeUndefined()
+    expect(MarkdownEditorProvider.sanitizeVditorOptions(null as any)).toBeNull()
+  })
 })
 
 describe('resolveCustomTextEditor — editor → webview sync', () => {
