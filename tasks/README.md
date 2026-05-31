@@ -17,7 +17,7 @@ checked here **only when the task is fully complete**.
 - [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md)
 
 ## Settings & polish
-- [ ] [43 — Unify editor font size with VS Code](43-unify-font-size-with-vscode.md) — text reads larger than the rest of VS Code
+- [x] [43 — Unify editor font size with VS Code](43-unify-font-size-with-vscode.md) — `fontSize` setting follows VS Code's editor size by default
 - [x] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [x] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)

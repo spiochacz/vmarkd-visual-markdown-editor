@@ -162,6 +162,11 @@
             "default": true,
             "description": "Enable full-width layout for the editor (removes max-width centering)."
           },
+          "markdown-editor.fontSize": {
+            "type": "string",
+            "default": "editor",
+            "description": "Base font size of the editor content. \"editor\" follows VS Code's editor font size (recommended), \"vditor\" keeps Vditor's larger 16px reading size, or enter a number for an explicit pixel size (e.g. \"15\"). Headings scale proportionally."
+          },
           "markdown-editor.highlightHeadings": {
             "type": "boolean",
             "default": true,

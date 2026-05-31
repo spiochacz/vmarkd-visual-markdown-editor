@@ -326,6 +326,7 @@ test.describe('live-config (tasks 12/26)', () => {
         highlightHeadings: true,
         showHeadingMarkers: false,
         outlineWidth: 250,
+        fontSize: 'vditor',
       })
       const b = document.body
       return {
@@ -334,6 +335,7 @@ test.describe('live-config (tasks 12/26)', () => {
         highlight: b.getAttribute('data-highlight-headings'),
         markers: b.getAttribute('data-heading-markers'),
         width: b.style.getPropertyValue('--me-outline-width'),
+        fontSize: b.style.getPropertyValue('--me-font-size'),
       }
     })
     expect(res).toEqual({
@@ -342,6 +344,7 @@ test.describe('live-config (tasks 12/26)', () => {
       highlight: '1',
       markers: '0',
       width: '250px',
+      fontSize: '16px', // resolveFontSize('vditor')
     })
   })
 

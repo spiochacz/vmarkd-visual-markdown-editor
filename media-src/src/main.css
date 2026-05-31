@@ -25,9 +25,12 @@ body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
   --toolbar-icon-hover-color: var(--vscode-textLink-foreground, #fff);
   --resize-icon-color: var(--vscode-editor-foreground, #b9b9b9);
 }
-/* fix font family */
+/* fix font family + size — follow VS Code by default (task 43). The base size
+   is driven by --me-font-size (set from the `fontSize` setting); headings are
+   em-relative so they scale with it. */
 .vditor .vditor-reset {
   font-family: var(--vscode-editor-font-family)!important;
+  font-size: var(--me-font-size, var(--vscode-editor-font-size, 14px))!important;
 }
 /* fix code block color in dark mode */
 .vditor--dark .vditor-reset code:not(.hljs):not(.highlight-chroma) {

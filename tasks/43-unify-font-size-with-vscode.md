@@ -1,5 +1,9 @@
 # Task: Unify editor font size with VS Code
 
+> **Status:** ✅ Done. Setting `markdown-editor.fontSize` (`"editor"` default →
+> follows `--vscode-editor-font-size`, `"vditor"` → 16px, or a px number). Driven
+> live via `--me-font-size` (resolveFontSize / applyBodyOptions) + a `.vditor-reset`
+> rule; headings scale (em-relative). Unit + e2e covered.
 > **Source:** user request (2026-05-31) — editor text reads larger than the rest
 > of VS Code.
 > **Value / Risk:** 🟡 visual consistency / low (CSS, opt-out-able).

@@ -176,6 +176,21 @@ describe('package.json manifest', () => {
     })
   })
 
+  it('declares the fontSize setting under Appearance, default "editor" (task 43)', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
+    expect(props['markdown-editor.fontSize']).toMatchObject({
+      type: 'string',
+      default: 'editor',
+    })
+    const appearance = pkg.contributes.configuration.find(
+      (c: any) => c.title === 'Appearance'
+    )
+    expect(Object.keys(appearance.properties)).toContain('markdown-editor.fontSize')
+  })
+
   it('declares the externalCssFiles setting', () => {
     const props = Object.assign(
       {},

@@ -80,6 +80,7 @@ describe('resolveCustomTextEditor — init handshake', () => {
     mock.setConfig({
       highlightHeadings: true,
       showHeadingMarkers: false,
+      fontSize: 'vditor',
       outlinePosition: 'left',
       outlineWidth: 320,
       showOutlineByDefault: true,
@@ -90,6 +91,7 @@ describe('resolveCustomTextEditor — init handshake', () => {
     expect(lastUpdate().options).toMatchObject({
       highlightHeadings: true,
       showHeadingMarkers: false,
+      fontSize: 'vditor',
       outlinePosition: 'left',
       outlineWidth: 320,
       showOutlineByDefault: true,
@@ -248,13 +250,16 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
 
   it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
     resolveProvider()
-    mock.setConfig({ enableFullWidth: false, customCss: '/* x */' })
+    mock.setConfig({ enableFullWidth: false, fontSize: '15', customCss: '/* x */' })
     mock.fireDidChangeConfiguration()
 
     const posted = mock.calls.postMessage
     const configChanged = posted.find((m) => m.command === 'config-changed')
     // carries body-attr options AND the constructor-only ones (re-init keys)
-    expect(configChanged?.options).toMatchObject({ enableFullWidth: false })
+    expect(configChanged?.options).toMatchObject({
+      enableFullWidth: false,
+      fontSize: '15',
+    })
     expect(configChanged?.options).toHaveProperty('showToolbar')
     expect(configChanged?.options).toHaveProperty('wordCount')
 

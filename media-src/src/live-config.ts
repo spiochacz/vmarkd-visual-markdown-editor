@@ -10,6 +10,22 @@ export interface BodyOptions {
   highlightHeadings?: boolean
   showHeadingMarkers?: boolean
   outlineWidth?: number
+  fontSize?: string | number
+}
+
+const VSCODE_FONT_SIZE = 'var(--vscode-editor-font-size, 14px)'
+
+// Resolve the `fontSize` setting into a CSS value for `--me-font-size`.
+//   "editor" / unset  -> follow VS Code's editor font size
+//   "vditor"          -> Vditor's own 16px reading size
+//   a number / "15"   -> that many pixels
+// Anything unrecognised falls back to the VS Code size.
+export function resolveFontSize(value: string | number | undefined): string {
+  if (value === undefined || value === '' || value === 'editor')
+    return VSCODE_FONT_SIZE
+  if (value === 'vditor') return '16px'
+  const n = typeof value === 'number' ? value : parseFloat(value)
+  return Number.isFinite(n) && n > 0 ? `${n}px` : VSCODE_FONT_SIZE
 }
 
 // Apply the body-attribute / CSS-var driven options. Mirrors what the CSS keys
@@ -32,6 +48,7 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
   if (typeof options?.outlineWidth === 'number' && options.outlineWidth > 0) {
     body.style.setProperty('--me-outline-width', `${options.outlineWidth}px`)
   }
+  body.style.setProperty('--me-font-size', resolveFontSize(options?.fontSize))
 }
 
 // Settings that are Vditor *constructor* options (toolbar, counter, code-block

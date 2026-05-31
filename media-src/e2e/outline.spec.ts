@@ -60,6 +60,25 @@ test('highlight-headings attr themes headings; --me-outline-width drives panel w
   expect(styles.outlineWidth).toBe('321px') // width var applied
 })
 
+test('--me-font-size drives the .vditor-reset base size; headings scale with it (task 43)', async ({
+  page,
+}) => {
+  await gotoOutline(page)
+  const sizes = await page.evaluate(() => {
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    const h1 = document.querySelector('.vditor-reset h1') as HTMLElement
+    document.body.style.setProperty('--me-font-size', '20px')
+    const base20 = parseFloat(getComputedStyle(reset).fontSize)
+    const h1At20 = parseFloat(getComputedStyle(h1).fontSize)
+    document.body.style.setProperty('--me-font-size', '10px')
+    const base10 = parseFloat(getComputedStyle(reset).fontSize)
+    return { base20, base10, h1At20 }
+  })
+  expect(sizes.base20).toBe(20) // CSS rule follows the var
+  expect(sizes.base10).toBe(10) // and updates live
+  expect(sizes.h1At20).toBeGreaterThan(20) // em-relative heading scales up
+})
+
 test('showHeadingMarkers toggle hides the gutter markers and tightens the gutter', async ({
   page,
 }) => {

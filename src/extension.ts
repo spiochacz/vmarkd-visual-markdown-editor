@@ -376,6 +376,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             MarkdownEditorProvider.config.get<boolean>('highlightHeadings'),
           showHeadingMarkers:
             MarkdownEditorProvider.config.get<boolean>('showHeadingMarkers'),
+          fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
           outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
           // constructor-only options — a change re-inits Vditor (webview side)
           showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
@@ -531,6 +532,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 showHeadingMarkers: MarkdownEditorProvider.config.get<boolean>(
                   'showHeadingMarkers'
                 ),
+                fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
                 outlinePosition: MarkdownEditorProvider.config.get<string>(
                   'outlinePosition'
                 ),
