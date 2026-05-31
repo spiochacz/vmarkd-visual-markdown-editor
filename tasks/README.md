@@ -13,21 +13,22 @@ checked here **only when the task is fully complete**.
 - [x] [02 — Word count](02-word-count.md)
 - [x] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md)
 - [x] [04 — IR heading-level indicator CSS](04-ir-heading-level-indicator-css.md)
-- [ ] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md)
+- [x] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md)
 - [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md)
 
 ## Settings & polish
-- [ ] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
-- [ ] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
+- [x] [43 — Unify editor font size with VS Code](43-unify-font-size-with-vscode.md) — `fontSize` setting follows VS Code's editor size by default
+- [x] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
+- [x] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
-- [ ] [12 — External CSS files + live reload](12-external-css-live-reload.md)
+- [x] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)
-- [ ] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
+- [x] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
 
 ## Features
-- [ ] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
+- [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
 - [x] [14 — Rename tracking (onDidRenameFiles)](14-rename-tracking.md)
 - [ ] [15 — Shared DOM→source mapping](15-shared-dom-source-mapping.md) — prerequisite for 16 & 17
 - [ ] [16 — Reveal-in-Source](16-reveal-in-source.md) — needs 15

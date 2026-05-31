@@ -1,5 +1,8 @@
 # Task: Code-block styling in dark theme (CSS + hljs)
 
+> **Status:** ✅ Done. Dark code theme → `github-dark`, light → `github`
+> (explicit matched pair in init + setTheme); dark code-block preview
+> bottom-padding fix. `media-src/src/main.ts` + `media-src/src/main.css`.
 > **Source:** `Inferno214221/vscode-markdown-editor` — quick-fixes §5
 > **Derived from (removed plan):** `quick-fixes-and-hardening-plan.md`
 > **Value / Risk:** 🟡 cosmetic / none. Adopt only if you prefer the look.

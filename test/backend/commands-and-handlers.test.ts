@@ -72,6 +72,19 @@ describe('command: markdown-editor.openTextEditor', () => {
   })
 })
 
+describe('command: markdown-editor.openSettings', () => {
+  beforeEach(() => mock.reset())
+
+  it('opens the Settings UI filtered to this extension', async () => {
+    const openSettings = activateAndGetCommand('markdown-editor.openSettings')
+    await openSettings()
+    expect(mock.calls.executeCommand).toContainEqual({
+      command: 'workbench.action.openSettings',
+      args: ['@ext:spiochacz.vmarkd'],
+    })
+  })
+})
+
 function resolveProvider(fsPath = '/workspace/note.md', text = '# doc\n') {
   mock.setWorkspaceFolder('/workspace')
   const context = mock.createExtensionContext()
@@ -117,6 +130,19 @@ describe('message handler: upload', () => {
     })
     expect(mock.calls.fsWrites).toHaveLength(0)
     expect(mock.calls.showWarning.length).toBeGreaterThan(0)
+  })
+})
+
+describe('message handler: open-settings', () => {
+  beforeEach(() => mock.reset())
+
+  it('runs the openSettings command (toolbar gear → settings)', async () => {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({ command: 'open-settings' })
+    expect(mock.calls.executeCommand).toContainEqual({
+      command: 'markdown-editor.openSettings',
+      args: [],
+    })
   })
 })
 

@@ -1,5 +1,6 @@
 # Task: External CSS files + live reload
 
+> **Status:** ✅ Done. `externalCssFiles` injected as an id'd `<style id="external-css">` + live reload via FS watcher; customCss moved to `<style id="custom-css">` (loaded last, always wins — `cssLoadOrder` dropped per user). Swap mechanism shared with 26 (`live-config.ts` `swapStyle`). Unit (manifest + html) + e2e (swapStyle).
 > **Source:** `aqz236/vscode-markdown-editor` — §2
 > **Derived from (removed plan):** `aqz236-port-plan.md`
 > **Value / Risk:** 🟡 medium / low (CSP + `localResourceRoots` are the only gotchas)

@@ -1,5 +1,6 @@
 # Task: Settings — highlightHeadings + outlinePosition
 
+> **Status:** ✅ Done. `highlightHeadings` (body attr + CSS) + `outlinePosition` (Vditor `outline.position`). Unit (manifest + init options) + e2e (outline.spec). Shared panel with 08/13.
 > **Source:** `masterofarbs-audiodub/better-markdown-editor` — §2
 > **Derived from (removed plan):** `better-markdown-editor-port-plan.md`
 > **Value / Risk:** 🟡 medium / low

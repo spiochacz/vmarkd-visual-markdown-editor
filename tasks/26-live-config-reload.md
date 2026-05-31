@@ -1,5 +1,6 @@
 # Task: Live config reload (onDidChangeConfiguration)
 
+> **Status:** ✅ Done. `onDidChangeConfiguration` → posts `config-changed` (body-attr options via `live-config.ts` `applyBodyOptions`) + `reload-css` (custom + external) with no Vditor re-init. Vditor-init-only settings (outlinePosition/showOutlineByDefault) still need reopen. Unit (config-reload posts) + e2e (applyBodyOptions/swapStyle).
 > **Source:** vMark VS Code stable-API audit (live config via `onDidChangeConfiguration`)
 > **Value / Risk:** 🟡 medium / low
 

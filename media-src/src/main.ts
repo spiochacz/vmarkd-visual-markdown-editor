@@ -19,9 +19,14 @@ import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
+import { setupOutlineFlash } from './outline'
+import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import './main.css'
 
 let applyingExtensionUpdate = false
+// The last message Vditor was initialised from — used to re-init when a
+// constructor-only setting (toolbar, word count, …) changes live (task 26).
+let lastInitMsg: any = null
 
 // Apply Vditor's UI + content + code theme via setTheme — the proven path.
 // The constructor `theme`/`preview.theme.current` options alone do NOT reliably
@@ -30,7 +35,7 @@ let applyingExtensionUpdate = false
 function applyVditorTheme(theme: 'dark' | 'light') {
   if (!window.vditor) return
   if (theme === 'dark') {
-    vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
+    vditor.setTheme('dark', 'dark', 'github-dark')
   } else {
     vditor.setTheme('classic', 'light', 'github')
   }
@@ -38,6 +43,7 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 
 function initVditor(msg) {
   console.log('msg', msg)
+  lastInitMsg = msg
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
@@ -49,7 +55,17 @@ function initVditor(msg) {
           current: 'dark',
         },
         hljs: {
-          style: 'atom-one-dark-reasonable',
+          style: 'github-dark',
+        },
+      }
+    })
+  } else {
+    // Explicit light code theme — matched pair to github-dark, avoids any
+    // init flash of Vditor's default before applyVditorTheme runs (task 05).
+    defaultOptions = deepMerge(defaultOptions, {
+      preview: {
+        hljs: {
+          style: 'github',
         },
       }
     })
@@ -68,6 +84,13 @@ function initVditor(msg) {
       preview: { hljs: { lineNumber: true } },
     })
   }
+  // Outline panel: open-by-default + side (tasks 07/08). Default position right.
+  defaultOptions = deepMerge(defaultOptions, {
+    outline: {
+      enable: msg.options?.showOutlineByDefault === true,
+      position: msg.options?.outlinePosition === 'left' ? 'left' : 'right',
+    },
+  })
   if (window.vditor) {
     vditor.destroy()
     window.vditor = null
@@ -116,6 +139,9 @@ function initVditor(msg) {
       fixTableIr()
       fixResponsiveTables()
       fixPanelHover()
+      if (msg.options?.outlineHighlight !== false) {
+        setupOutlineFlash(window.vditor)
+      }
     },
     input() {
       if (applyingExtensionUpdate) {
@@ -160,17 +186,7 @@ window.addEventListener('message', (e) => {
           'data-wiki-file',
           msg.wiki && msg.wiki.enabled ? '1' : '0'
         )
-        if (msg.options && msg.options.useVscodeThemeColor) {
-          document.body.setAttribute('data-use-vscode-theme-color', '1')
-        } else {
-          document.body.setAttribute('data-use-vscode-theme-color', '0')
-        }
-
-        if (msg.options && msg.options.enableFullWidth) {
-          document.body.setAttribute('data-full-width', '1')
-        } else {
-          document.body.setAttribute('data-full-width', '0')
-        }
+        applyBodyOptions(msg.options)
         try {
           initVditor(msg)
         } catch (error) {
@@ -199,6 +215,30 @@ window.addEventListener('message', (e) => {
       // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
       // colors already follow via --vscode-* CSS vars.
       applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+      break
+    }
+    case 'config-changed': {
+      // Live config reload (task 26): body-attr / CSS-var options apply without
+      // touching Vditor. Constructor-only options (toolbar, word count, …) can't
+      // — re-init Vditor with the merged options, preserving the current content.
+      applyBodyOptions(msg.options)
+      if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
+        const content =
+          window.vditor && !applyingExtensionUpdate
+            ? vditor.getValue()
+            : lastInitMsg.content
+        initVditor({
+          ...lastInitMsg,
+          content,
+          options: { ...lastInitMsg.options, ...msg.options },
+        })
+      }
+      break
+    }
+    case 'reload-css': {
+      // Live CSS swap (tasks 12/26): replace the customCss or external-CSS
+      // <style> node in place.
+      swapStyle(msg.id, msg.css)
       break
     }
     case 'uploaded': {

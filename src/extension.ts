@@ -1,5 +1,6 @@
 import * as vscode from 'vscode'
 import * as NodePath from 'path'
+import * as fs from 'fs'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -149,6 +150,13 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('vscode.openWith', target, 'default')
       }
     ),
+    vscode.commands.registerCommand('markdown-editor.openSettings', async () => {
+      // Open the Settings UI filtered to this extension's options.
+      await vscode.commands.executeCommand(
+        'workbench.action.openSettings',
+        '@ext:spiochacz.vmarkd'
+      )
+    }),
     vscode.window.registerCustomEditorProvider(
       MarkdownEditorViewType,
       new MarkdownEditorProvider(context),
@@ -200,6 +208,43 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
   static get config() {
     return vscode.workspace.getConfiguration('markdown-editor')
+  }
+
+  // External CSS files (task 12): resolve each `externalCssFiles` entry (absolute,
+  // or relative to the first workspace folder) and concatenate their contents.
+  // Read synchronously so it can feed the (sync) HTML build; unreadable/missing
+  // files are skipped. Local-fs only — a no-op in virtual workspaces.
+  static readExternalCss(): string {
+    const files = this.config.get<string[]>('externalCssFiles') || []
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+    const chunks: string[] = []
+    for (const f of files) {
+      if (!f) continue
+      const p = NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f
+      try {
+        chunks.push(fs.readFileSync(p, 'utf8'))
+      } catch {
+        // skip missing / unreadable / non-file-scheme
+      }
+    }
+    return chunks.join('\n')
+  }
+
+  static resolveExternalCssPaths(): string[] {
+    const files = MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+    return files
+      .filter(Boolean)
+      .map((f) => (NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f))
+  }
+
+  // Id'd <style> tags so external + custom CSS can be live-swapped by id
+  // (tasks 12/26). External loads first, customCss last, so customCss always
+  // wins on conflicting rules (later tag = higher priority).
+  static _cssStyleTags(): string {
+    const external = `<style id="external-css">${this.readExternalCss()}</style>`
+    const custom = `<style id="custom-css">${this.config.get<string>('customCss') || ''}</style>`
+    return external + custom
   }
 
   constructor(private readonly _context: vscode.ExtensionContext) {}
@@ -309,7 +354,81 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       disposables.push(currentWatcher)
     }
 
+    // Live config reload (tasks 12/26): on settings change push the config-driven
+    // body options + CSS to the open editor, and watch external CSS files so
+    // edits apply without reopening. No Vditor re-init (cursor/scroll preserved).
+    const postExternalCss = () => {
+      webviewPanel.webview.postMessage({
+        command: 'reload-css',
+        id: 'external-css',
+        css: MarkdownEditorProvider.readExternalCss(),
+      })
+    }
+    const postLiveConfig = () => {
+      webviewPanel.webview.postMessage({
+        command: 'config-changed',
+        options: {
+          useVscodeThemeColor:
+            MarkdownEditorProvider.config.get<boolean>('useVscodeThemeColor'),
+          enableFullWidth:
+            MarkdownEditorProvider.config.get<boolean>('enableFullWidth'),
+          highlightHeadings:
+            MarkdownEditorProvider.config.get<boolean>('highlightHeadings'),
+          showHeadingMarkers:
+            MarkdownEditorProvider.config.get<boolean>('showHeadingMarkers'),
+          fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
+          outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
+          // constructor-only options — a change re-inits Vditor (webview side)
+          showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
+          wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
+          codeBlockLineNumbers:
+            MarkdownEditorProvider.config.get<boolean>('codeBlockLineNumbers'),
+          outlinePosition:
+            MarkdownEditorProvider.config.get<string>('outlinePosition'),
+          showOutlineByDefault:
+            MarkdownEditorProvider.config.get<boolean>('showOutlineByDefault'),
+          outlineHighlight:
+            MarkdownEditorProvider.config.get<boolean>('outlineHighlight'),
+        },
+      })
+      webviewPanel.webview.postMessage({
+        command: 'reload-css',
+        id: 'custom-css',
+        css: MarkdownEditorProvider.config.get<string>('customCss') || '',
+      })
+      postExternalCss()
+    }
+    let externalCssWatcher: vscode.Disposable | undefined
+    const refreshExternalCssWatchers = () => {
+      externalCssWatcher?.dispose()
+      const paths = MarkdownEditorProvider.resolveExternalCssPaths()
+      if (paths.length === 0) {
+        externalCssWatcher = undefined
+        return
+      }
+      externalCssWatcher = vscode.Disposable.from(
+        ...paths.map((p) => {
+          const w = vscode.workspace.createFileSystemWatcher(p)
+          return vscode.Disposable.from(
+            w,
+            w.onDidChange(postExternalCss),
+            w.onDidCreate(postExternalCss),
+            w.onDidDelete(postExternalCss)
+          )
+        })
+      )
+      disposables.push(externalCssWatcher)
+    }
+    refreshExternalCssWatchers()
+
     disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (!e.affectsConfiguration('markdown-editor')) {
+          return
+        }
+        postLiveConfig()
+        refreshExternalCssWatchers()
+      }),
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (event.document.uri.toString() !== activeUri.toString()) {
           return
@@ -407,6 +526,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                   'codeBlockLineNumbers'
                 ),
                 showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
+                highlightHeadings: MarkdownEditorProvider.config.get<boolean>(
+                  'highlightHeadings'
+                ),
+                showHeadingMarkers: MarkdownEditorProvider.config.get<boolean>(
+                  'showHeadingMarkers'
+                ),
+                fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
+                outlinePosition: MarkdownEditorProvider.config.get<string>(
+                  'outlinePosition'
+                ),
+                outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
+                showOutlineByDefault: MarkdownEditorProvider.config.get<boolean>(
+                  'showOutlineByDefault'
+                ),
+                outlineHighlight: MarkdownEditorProvider.config.get<boolean>(
+                  'outlineHighlight'
+                ),
                 ...this._context.globalState.get(KeyVditorOptions),
               },
               theme: currentThemeKind(),
@@ -441,6 +577,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             break
           case 'navigate-back':
             await vscode.commands.executeCommand('workbench.action.navigateBack')
+            break
+          case 'open-settings':
+            await vscode.commands.executeCommand('markdown-editor.openSettings')
             break
           case 'list-wiki-pages': {
             const wikiRoot = getWikiRoot(document.uri)
@@ -644,9 +783,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 				${CssFiles.map((f) => `<link href="${f}" rel="stylesheet">`).join('\n')}
 
 				<title>markdown editor</title>
-        <style>` +
-      MarkdownEditorProvider.config.get<string>('customCss') +
-      `</style>
+        ` +
+      MarkdownEditorProvider._cssStyleTags() +
+      `
 			</head>
 			<body>
 				<div id="app"></div>

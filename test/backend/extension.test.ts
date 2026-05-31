@@ -75,6 +75,29 @@ describe('resolveCustomTextEditor — init handshake', () => {
     await panel._receiveMessage({ command: 'ready' })
     expect(lastUpdate().theme).toBe('light')
   })
+
+  it('passes the outline settings into the init options', async () => {
+    mock.setConfig({
+      highlightHeadings: true,
+      showHeadingMarkers: false,
+      fontSize: 'vditor',
+      outlinePosition: 'left',
+      outlineWidth: 320,
+      showOutlineByDefault: true,
+      outlineHighlight: false,
+    })
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({ command: 'ready' })
+    expect(lastUpdate().options).toMatchObject({
+      highlightHeadings: true,
+      showHeadingMarkers: false,
+      fontSize: 'vditor',
+      outlinePosition: 'left',
+      outlineWidth: 320,
+      showOutlineByDefault: true,
+      outlineHighlight: false,
+    })
+  })
 })
 
 describe('resolveCustomTextEditor — webview → editor sync', () => {
@@ -219,5 +242,38 @@ describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
       Uri.file('/workspace/renamed.md')
     )
     expect(panel.title).toBe('note.md')
+  })
+})
+
+describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
+  beforeEach(() => mock.reset())
+
+  it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
+    resolveProvider()
+    mock.setConfig({ enableFullWidth: false, fontSize: '15', customCss: '/* x */' })
+    mock.fireDidChangeConfiguration()
+
+    const posted = mock.calls.postMessage
+    const configChanged = posted.find((m) => m.command === 'config-changed')
+    // carries body-attr options AND the constructor-only ones (re-init keys)
+    expect(configChanged?.options).toMatchObject({
+      enableFullWidth: false,
+      fontSize: '15',
+    })
+    expect(configChanged?.options).toHaveProperty('showToolbar')
+    expect(configChanged?.options).toHaveProperty('wordCount')
+
+    const cssMsgs = posted.filter((m) => m.command === 'reload-css')
+    expect(cssMsgs.map((m) => m.id)).toEqual(
+      expect.arrayContaining(['custom-css', 'external-css'])
+    )
+    expect(cssMsgs.find((m) => m.id === 'custom-css')?.css).toBe('/* x */')
+  })
+
+  it('ignores config changes outside the markdown-editor section', async () => {
+    resolveProvider()
+    const before = mock.calls.postMessage.length
+    mock.fireDidChangeConfiguration('editor')
+    expect(mock.calls.postMessage.length).toBe(before)
   })
 })

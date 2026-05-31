@@ -61,4 +61,15 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     const { html } = resolveAndGetHtml(sentinel)
     expect(html).toContain(sentinel)
   })
+
+  it('emits id-tagged external-css + custom-css <style> nodes for live swap (tasks 12/26)', () => {
+    const { html } = resolveAndGetHtml('/* sentinel */ body{}')
+    expect(html).toContain('<style id="external-css">')
+    expect(html).toContain('<style id="custom-css">')
+    // external loads first so customCss (later) wins on conflicts
+    expect(html.indexOf('id="external-css"')).toBeLessThan(
+      html.indexOf('id="custom-css"')
+    )
+    expect(html).toContain('/* sentinel */ body{}')
+  })
 })

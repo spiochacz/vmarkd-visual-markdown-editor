@@ -18,7 +18,7 @@ const coverageOptions = {
   // Keep only our harness bundles (drop separately-loaded vditor scripts like
   // lute.min.js / i18n that Chromium also reports).
   entryFilter: (entry: { url: string }) =>
-    /\/(harness|behaviors)\.js/.test(entry.url),
+    /\/(harness|behaviors|outline)\.js/.test(entry.url),
 
   // From the unpacked source map, keep only the webview source modules under
   // `src/`. Drops node_modules (vditor) and the e2e harness itself

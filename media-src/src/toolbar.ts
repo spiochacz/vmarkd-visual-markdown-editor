@@ -64,6 +64,9 @@ const wikiPagesIcon =
 const backIcon =
 	'<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20z"/></svg>'
 
+const settingsIcon =
+	'<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm0 6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/><path fill="currentColor" d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.03 7.03 0 0 0-1.69-.98l-.38-2.65A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.32.61.22l2.49-1c.52.39 1.08.73 1.69.98l.38 2.65c.04.24.25.42.49.42h4c.24 0 .45-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65z"/></svg>'
+
 interface ToolbarOptions {
 	wikiEnabled?: boolean
 }
@@ -148,6 +151,18 @@ export function createToolbar(options: ToolbarOptions = {}) {
 		  },
 	    ]
 	  : []),
+	{
+	  name: 'settings',
+	  tipPosition: 's',
+	  tip: 'Settings',
+	  className: 'right',
+	  icon: settingsIcon,
+	  click() {
+		vscode.postMessage({
+		  command: 'open-settings',
+		})
+	  },
+	},
 	{
 	  name: 'edit-in-vscode',
 	  tipPosition: 's',

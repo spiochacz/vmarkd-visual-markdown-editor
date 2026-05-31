@@ -3,7 +3,7 @@
   "displayName": "vMarkd — Visual Markdown Editor",
   "icon": "media/logo.png",
   "description": "vMarkd — a full-featured visual markdown editor.",
-  "version": "0.4.16",
+  "version": "0.3.0",
   "publisher": "spiochacz",
   "author": "Sławomir Piochacz",
   "license": "MIT",
@@ -64,6 +64,12 @@
           "light": "media/open-editor-light.svg",
           "dark": "media/open-editor-dark.svg"
         }
+      },
+      {
+        "command": "markdown-editor.openSettings",
+        "title": "Open vMarkd Settings",
+        "category": "markdown-editor",
+        "icon": "$(settings-gear)"
       }
     ],
     "customEditors": [
@@ -104,6 +110,11 @@
           "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
           "command": "markdown-editor.openEditor",
           "group": "navigation@10"
+        },
+        {
+          "when": "activeCustomEditorId == markdown-editor.editor",
+          "command": "markdown-editor.openSettings",
+          "group": "navigation@20"
         }
       ],
       "editor/title/context": [
@@ -120,50 +131,114 @@
         }
       ]
     },
-    "configuration": {
-      "title": "markdown-editor",
-      "properties": {
-        "markdown-editor.imageSaveFolder": {
-          "type": "string",
-          "default": "assets",
-          "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`."
-        },
-        "markdown-editor.useVscodeThemeColor": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use vscode theme's background color as the markdown editor's background color."
-        },
-        "markdown-editor.customCss": {
-          "type": "string",
-          "default": ""
-        },
-        "markdown-editor.enableFullWidth": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable full-width layout for the editor (removes max-width centering)."
-        },
-        "markdown-editor.wordCount": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
-        },
-        "markdown-editor.codeBlockLineNumbers": {
-          "type": "boolean",
-          "default": false,
-          "description": "Show line numbers in fenced code blocks (rendered preview). Off by default — adds a line-number gutter per code block."
-        },
-        "markdown-editor.showToolbar": {
-          "type": "boolean",
-          "default": true,
-          "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
-        },
-        "markdown-editor.retainHiddenEditors": {
-          "type": "boolean",
-          "default": true,
-          "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
+    "configuration": [
+      {
+        "title": "General",
+        "order": 1,
+        "properties": {
+          "markdown-editor.imageSaveFolder": {
+            "type": "string",
+            "default": "assets",
+            "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`."
+          },
+          "markdown-editor.retainHiddenEditors": {
+            "type": "boolean",
+            "default": true,
+            "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
+          }
+        }
+      },
+      {
+        "title": "Appearance",
+        "order": 2,
+        "properties": {
+          "markdown-editor.useVscodeThemeColor": {
+            "type": "boolean",
+            "default": true,
+            "description": "Use vscode theme's background color as the markdown editor's background color."
+          },
+          "markdown-editor.enableFullWidth": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable full-width layout for the editor (removes max-width centering)."
+          },
+          "markdown-editor.fontSize": {
+            "type": "string",
+            "default": "editor",
+            "description": "Base font size of the editor content. \"editor\" follows VS Code's editor font size (recommended), \"vditor\" keeps Vditor's larger 16px reading size, or enter a number for an explicit pixel size (e.g. \"15\"). Headings scale proportionally."
+          },
+          "markdown-editor.highlightHeadings": {
+            "type": "boolean",
+            "default": true,
+            "description": "Apply a themed background to headings (h1–h6) for easier scanning."
+          },
+          "markdown-editor.showHeadingMarkers": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show the IR-mode left-gutter markers (heading levels H1–H6, the link-reference ↩, etc.). Turn off to hide them and tighten the left margin."
+          },
+          "markdown-editor.codeBlockLineNumbers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show line numbers in fenced code blocks (rendered preview). Off by default — adds a line-number gutter per code block."
+          },
+          "markdown-editor.showToolbar": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
+          },
+          "markdown-editor.wordCount": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
+          }
+        }
+      },
+      {
+        "title": "Custom CSS",
+        "order": 3,
+        "properties": {
+          "markdown-editor.customCss": {
+            "type": "string",
+            "default": "",
+            "description": "Custom CSS injected into the editor webview."
+          },
+          "markdown-editor.externalCssFiles": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "description": "Paths to external CSS files (absolute, or relative to the workspace root) injected into the editor. They reload live when edited. customCss is loaded after them, so it always wins on conflicting rules."
+          }
+        }
+      },
+      {
+        "title": "Outline",
+        "order": 4,
+        "properties": {
+          "markdown-editor.showOutlineByDefault": {
+            "type": "boolean",
+            "default": false,
+            "description": "Open the outline panel automatically when an editor opens."
+          },
+          "markdown-editor.outlinePosition": {
+            "type": "string",
+            "enum": ["left", "right"],
+            "default": "right",
+            "description": "Which side the outline panel opens on."
+          },
+          "markdown-editor.outlineWidth": {
+            "type": "number",
+            "default": 200,
+            "description": "Width of the outline panel, in pixels."
+          },
+          "markdown-editor.outlineHighlight": {
+            "type": "boolean",
+            "default": true,
+            "description": "Briefly flash a heading when you click it in the outline."
+          }
         }
       }
-    },
+    ],
     "keybindings": [
       {
         "key": "ctrl+alt+e",

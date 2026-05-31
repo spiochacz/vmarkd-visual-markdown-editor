@@ -16,6 +16,7 @@ const built = await esbuild.build({
     harness: path.join(__dirname, 'harness.ts'),
     behaviors: path.join(__dirname, 'behaviors-harness.ts'),
     bench: path.join(__dirname, 'bench-harness.ts'),
+    outline: path.join(__dirname, 'outline-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -29,6 +30,7 @@ const bundles = Object.fromEntries(
 const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'))
 const behaviorsHtml = fs.readFileSync(path.join(__dirname, 'behaviors.html'))
 const benchHtml = fs.readFileSync(path.join(__dirname, 'bench.html'))
+const outlineHtml = fs.readFileSync(path.join(__dirname, 'outline.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -57,6 +59,10 @@ const server = http.createServer((req, res) => {
   if (url === '/bench.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(benchHtml)
+  }
+  if (url === '/outline.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(outlineHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

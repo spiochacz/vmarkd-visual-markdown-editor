@@ -313,3 +313,56 @@ test('fixCut() defers delete but passes other commands through', async ({
   expect(result.immediate).toEqual(['bold'])
   expect(result.eventual).toEqual(['bold', 'delete'])
 })
+
+test.describe('live-config (tasks 12/26)', () => {
+  test('applyBodyOptions sets the body attributes + outline-width var', async ({
+    page,
+  }) => {
+    await gotoBehaviors(page)
+    const res = await page.evaluate(() => {
+      ;(window as any).__liveConfig.applyBodyOptions({
+        useVscodeThemeColor: false,
+        enableFullWidth: true,
+        highlightHeadings: true,
+        showHeadingMarkers: false,
+        outlineWidth: 250,
+        fontSize: 'vditor',
+      })
+      const b = document.body
+      return {
+        themeColor: b.getAttribute('data-use-vscode-theme-color'),
+        fullWidth: b.getAttribute('data-full-width'),
+        highlight: b.getAttribute('data-highlight-headings'),
+        markers: b.getAttribute('data-heading-markers'),
+        width: b.style.getPropertyValue('--me-outline-width'),
+        fontSize: b.style.getPropertyValue('--me-font-size'),
+      }
+    })
+    expect(res).toEqual({
+      themeColor: '0',
+      fullWidth: '1',
+      highlight: '1',
+      markers: '0',
+      width: '250px',
+      fontSize: '16px', // resolveFontSize('vditor')
+    })
+  })
+
+  test('swapStyle creates then replaces an id-tagged style node in place', async ({
+    page,
+  }) => {
+    await gotoBehaviors(page)
+    const res = await page.evaluate(() => {
+      const lc = (window as any).__liveConfig
+      lc.swapStyle('custom-css', 'body{color:red}')
+      const first = document.getElementById('custom-css')?.textContent
+      lc.swapStyle('custom-css', 'body{color:blue}')
+      const second = document.getElementById('custom-css')?.textContent
+      const count = document.querySelectorAll('#custom-css').length
+      return { first, second, count }
+    })
+    expect(res.first).toBe('body{color:red}')
+    expect(res.second).toBe('body{color:blue}')
+    expect(res.count).toBe(1) // swapped in place, not duplicated
+  })
+})

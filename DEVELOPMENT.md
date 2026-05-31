@@ -46,6 +46,17 @@ from `media/vditor/`. (The unit suite does not need it.)
 The two are **disjoint** — different runners, different layers, separate coverage
 reports. Neither instruments the other.
 
+> **Every new piece of functionality must ship with both layers** — a unit test
+> for the host/pure-logic side and an e2e test for the webview behaviour — and you
+> must **verify the new code is exercised** in the coverage report (see below). A
+> feature is not done until its tests pass and cover the new behaviour.
+>
+> **Where the new code lives decides the layer.** Pure / host logic → unit
+> (vitest). DOM- or Vditor-dependent code → e2e (Playwright). To keep webview code
+> e2e-testable, put real logic in a **small importable module** (e.g.
+> `media-src/src/outline.ts`) and keep `main.ts` a thin wiring entry — `main.ts`
+> is excluded from coverage and is not loaded by any test.
+
 ---
 
 ## Unit tests (vitest)
@@ -100,13 +111,24 @@ npm --prefix media-src run test:e2e:coverage   # run + collect coverage
 A local server (`e2e/serve.mjs`) bundles the harnesses in-memory with esbuild
 (inline source maps) and serves Vditor assets; Playwright starts/stops it.
 
-### Two harnesses
+### Harnesses
 
-- **`e2e/harness.ts` (`/index.html`)** — instantiates a real Vditor in IR mode
-  with a table. Used by `table-hotkey.spec.ts` (table editing: hotkeys + panel).
+Each harness is an esbuild entry in `serve.mjs` with its own HTML page; a spec
+drives it. Two kinds: **real-Vditor** harnesses (instantiate Vditor, wire the
+feature in `after()`, expose globals) and the **behaviours** harness (helpers
+only, no Vditor).
+
+- **`e2e/harness.ts` (`/index.html`)** — real Vditor (IR) with a table. Used by
+  `table-hotkey.spec.ts` (table editing: hotkeys + panel).
+- **`e2e/outline-harness.ts` (`/outline.html`)** — real Vditor (IR) with headings
+  and the outline panel + `setupOutlineFlash`. Used by `outline.spec.ts` (outline
+  render/position, click-to-flash, heading-highlight CSS). A good template for a
+  new feature that needs a real editor.
 - **`e2e/behaviors-harness.ts` (`/behaviors.html`)** — exposes the webview
   helpers as globals, **no full Vditor**. Used by `webview-behaviors.spec.ts`
   (message contract + DOM utils).
+- **`e2e/bench-harness.ts` (`/bench.html`)** — init-perf benchmark (`init-bench.spec.ts`,
+  opt-in via `BENCH=1`). **Excluded from coverage** (a measurement, not a behaviour test).
 
 ### The `window.vscode` stub
 
@@ -127,15 +149,27 @@ together they verify both ends of the same message contract.
 
 ### Adding an e2e test
 
-- Table / Vditor-rendering behaviour → extend `harness.ts` (expose globals in
-  `after()`), add to `table-hotkey.spec.ts` or a new spec.
-- Helper that posts a message or mutates the DOM → use the behaviours harness:
+- Helper that posts a message or mutates the DOM → use the **behaviours** harness:
   set a minimal DOM fixture in `page.evaluate`, call the helper via
   `window.__utils` / `window.__createToolbar`, assert `window.__posted` or the
-  DOM. Import `test`/`expect` from `./coverage-fixture` (not `@playwright/test`)
-  so coverage is collected.
+  DOM.
+- Behaviour that needs a **real editor** → reuse `harness.ts` (table) or
+  `outline-harness.ts` (headings/outline), or add a **new harness** for a distinct
+  feature. To add one:
+  1. `e2e/<feature>-harness.ts` — `new Vditor(...)`, wire the feature, expose
+     globals + `window.__ready = true` in `after()`.
+  2. `e2e/<feature>.html` — load `/vditor/dist/index.css`, `/main.css`, and
+     `/<feature>.js`.
+  3. `serve.mjs` — add the entry to `entryPoints`, read the html, add a route.
+  4. **`coverage-options.ts` — add the bundle name to the `entryFilter` regex**,
+     or its coverage is silently dropped (this is easy to miss).
+- Always import `test`/`expect` from **`./coverage-fixture`** (not
+  `@playwright/test`) so V8 coverage is collected.
 - Hidden elements (e.g. `.vditor-panel` is `display:none`): dispatch a synthetic
   bubbling event in-page instead of a Playwright actionable `.click()`.
+
+After writing the test, run `npm --prefix media-src run test:e2e:coverage` and
+confirm your new source file appears in the report with real coverage.
 
 ---
 
@@ -155,10 +189,12 @@ How it works (`monocart-coverage-reports`):
   per test (chromium V8), feeds entries to monocart.
 - `coverage-setup.ts` / `coverage-teardown.ts` — Playwright global setup/teardown
   clean the cache and generate the final report.
-- `coverage-options.ts` — shared config: keeps the `harness`/`behaviors` bundle
-  entries, filters sources to `media-src/src/**` (drops vditor/node_modules and
-  the harness files). V8 coverage is mapped back to the original TypeScript via
-  the inline source map esbuild embeds.
+- `coverage-options.ts` — shared config: the `entryFilter` keeps the behavioural
+  bundles (`harness`/`behaviors`/`outline`; **add new harness bundles here**) and
+  drops vditor scripts + the `bench` benchmark; the `sourceFilter` keeps sources
+  under `media-src/src/**` (drops node_modules and the harness files). V8 coverage
+  is mapped back to the original TypeScript via the inline source map esbuild
+  embeds.
 
 All four `coverage-*.ts` files are no-ops unless `E2E_COVERAGE` is set.
 
