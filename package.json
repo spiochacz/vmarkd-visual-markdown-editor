@@ -199,6 +199,12 @@
             "default": true,
             "description": "Show the IR-mode left-gutter markers (heading levels H1–H6, the link-reference ↩, etc.). Turn off to hide them and tighten the left margin."
           },
+          "markdown-editor.mermaidTheme": {
+            "type": "string",
+            "enum": ["auto", "default", "dark", "forest", "neutral"],
+            "default": "auto",
+            "description": "Theme for Mermaid diagrams. \"auto\" follows the editor (dark in a dark theme) — which renders a plain flowchart mostly monochrome; pick \"default\"/\"forest\"/\"neutral\" for colour, or \"dark\" to force the dark palette."
+          },
           "markdown-editor.codeBlockLineNumbers": {
             "type": "boolean",
             "default": false,

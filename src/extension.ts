@@ -636,6 +636,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
           codeBlockLineNumbers:
             MarkdownEditorProvider.config.get<boolean>('codeBlockLineNumbers'),
+          mermaidTheme: MarkdownEditorProvider.config.get<string>('mermaidTheme'),
           outlinePosition:
             MarkdownEditorProvider.config.get<string>('outlinePosition'),
           showOutlineByDefault:
@@ -778,6 +779,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 codeBlockLineNumbers: MarkdownEditorProvider.config.get<boolean>(
                   'codeBlockLineNumbers'
                 ),
+                mermaidTheme:
+                  MarkdownEditorProvider.config.get<string>('mermaidTheme'),
                 showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
                 highlightHeadings: MarkdownEditorProvider.config.get<boolean>(
                   'highlightHeadings'

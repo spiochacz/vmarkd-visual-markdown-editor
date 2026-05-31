@@ -21,6 +21,7 @@ import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
+import { applyMermaidTheme } from './mermaid-theme'
 import './main.css'
 
 let applyingExtensionUpdate = false
@@ -52,6 +53,9 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
+  // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
+  // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
+  applyMermaidTheme(window, msg.options?.mermaidTheme)
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {

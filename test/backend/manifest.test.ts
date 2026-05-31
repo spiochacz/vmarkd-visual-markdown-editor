@@ -203,6 +203,20 @@ describe('package.json manifest', () => {
     })
   })
 
+  it('declares the mermaidTheme setting (enum, default "auto")', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
+    expect(props['markdown-editor.mermaidTheme']).toMatchObject({
+      type: 'string',
+      default: 'auto',
+    })
+    expect(props['markdown-editor.mermaidTheme'].enum).toEqual(
+      expect.arrayContaining(['auto', 'default', 'forest'])
+    )
+  })
+
   it('declares the fontSize setting under Appearance, default "editor" (task 43)', () => {
     const props = Object.assign(
       {},

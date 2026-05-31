@@ -24,6 +24,7 @@ describe('initOnlyChanged', () => {
     expect(INIT_ONLY_OPTIONS).toContain('showToolbar')
     expect(INIT_ONLY_OPTIONS).toContain('wordCount')
     expect(INIT_ONLY_OPTIONS).toContain('outlinePosition')
+    expect(INIT_ONLY_OPTIONS).toContain('mermaidTheme')
   })
 
   it('does not list fontSize (it is a live body/CSS-var option, not init-only)', () => {
