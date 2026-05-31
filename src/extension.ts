@@ -3,6 +3,7 @@ import * as NodePath from 'path'
 import * as fs from 'fs'
 import { readingTime } from './reading-time'
 import { selectionForOffset } from './reveal-range'
+import { createDiffScheduler, makeDiffComputer } from './git-diff'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -658,6 +659,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }, 75)
     }
 
+    // Git gutters (task 17): debounced HEAD↔current diff pushed to the webview.
+    // The computer reads `activeFsPath` lazily so it follows a rename. Self-
+    // disables (posts []) when there's no git / the file is untracked.
+    const scheduleDiffInfo = createDiffScheduler(
+      (msg) => webviewPanel.webview.postMessage(msg),
+      (content) =>
+        makeDiffComputer(activeFsPath, vscode.extensions)(content)
+    )
+
     // Extracted so it can be disposed + recreated when the file is renamed.
     const setupFileWatcher = (uri: vscode.Uri): vscode.Disposable | undefined => {
       if (!workspaceFolder) {
@@ -762,6 +772,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           return
         }
         const currentContent = event.document.getText()
+        // Any content change (webview edit, external edit, typing) shifts the git
+        // diff — refresh the gutters even for echoed/own edits.
+        scheduleDiffInfo(currentContent)
         if (
           pendingWebviewContent !== undefined &&
           normalizeContent(currentContent) ===
@@ -780,6 +793,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         if (savedDocument.uri.toString() !== activeUri.toString()) {
           return
         }
+        scheduleDiffInfo(savedDocument.getText())
         schedulePostUpdate()
       }),
       vscode.workspace.onDidRenameFiles((e) => {

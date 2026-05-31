@@ -4,6 +4,7 @@ import { fixTableIr } from '../src/fix-table-ir'
 import { dispatchTableHotkey, TableAction } from '../src/table-hotkey'
 import { setupCustomRenderer } from '../src/custom-renderer'
 import * as sourceMap from '../src/source-map'
+import * as diffMarkers from '../src/diff-markers'
 
 // Minimal page that instantiates Vditor in IR mode with a known table and
 // wires fix-table-ir, mirroring how main.ts sets things up. Exposed globals
@@ -23,6 +24,7 @@ const editor = new Vditor('app', {
     ;(window as any).__dispatchTableHotkey = (type: TableAction) =>
       dispatchTableHotkey(editor.vditor.ir.element, type, isMac)
     ;(window as any).__sourceMap = sourceMap
+    ;(window as any).__diffMarkers = diffMarkers
     ;(window as any).__ready = true
   },
 })

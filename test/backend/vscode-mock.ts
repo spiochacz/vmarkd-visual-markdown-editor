@@ -223,6 +223,7 @@ function freshState() {
     responses: {
       showQuickPick: undefined as any,
       showWarningMessage: undefined as any,
+      gitExtension: undefined as any,
       executeCommand: undefined as ((command: string, args: any[]) => any) | undefined,
     },
     calls: {
@@ -436,6 +437,15 @@ export const workspace = {
     }),
     readDirectory: vi.fn((uri: Uri) => state.readDirectory(uri)),
   },
+}
+
+// Minimal extensions namespace. Defaults to "no git" so the gutter diff
+// scheduler (task 17) self-disables in tests; a test can override via
+// state.responses.gitExtension.
+export const extensions = {
+  getExtension: vi.fn((id: string) =>
+    id === 'vscode.git' ? state.responses.gitExtension : undefined
+  ),
 }
 
 export const commands = {

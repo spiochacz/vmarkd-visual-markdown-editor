@@ -24,6 +24,11 @@ import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { setupHistoryKeybind } from './undo-keybind'
 import { getCursorSourceOffset } from './source-map'
+import {
+  renderDiffMarkers,
+  clearDiffMarkers,
+  DiffChange,
+} from './diff-markers'
 import './main.css'
 
 let applyingExtensionUpdate = false
@@ -196,6 +201,9 @@ window.addEventListener('message', (e) => {
   switch (msg.command) {
     case 'update': {
       if (msg.type === 'init') {
+        // A fresh editor: drop any stale gutter bars from a previous instance.
+        lastDiffChanges = []
+        clearDiffMarkers()
         document.body.setAttribute(
           'data-wiki-file',
           msg.wiki && msg.wiki.enabled ? '1' : '0'
@@ -218,6 +226,10 @@ window.addEventListener('message', (e) => {
           } finally {
             setTimeout(() => {
               applyingExtensionUpdate = false
+              // setValue re-rendered the blocks → re-apply the gutter bars.
+              if (window.vditor && lastDiffChanges.length) {
+                renderDiffMarkers(window.vditor, lastDiffChanges)
+              }
             }, 0)
           }
           console.log('setValue')
@@ -261,6 +273,12 @@ window.addEventListener('message', (e) => {
       // unresolved) so the host's awaited round-trip never hangs past its timeout.
       const offset = window.vditor ? getCursorSourceOffset(window.vditor) : -1
       vscode.postMessage({ command: 'cursor-offset', offset })
+      break
+    }
+    case 'diff-info': {
+      // Git gutters (task 17): stash + render the change bars.
+      lastDiffChanges = (msg.changes || []) as DiffChange[]
+      if (window.vditor) renderDiffMarkers(window.vditor, lastDiffChanges)
       break
     }
     case 'uploaded': {

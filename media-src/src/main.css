@@ -399,3 +399,25 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
 .vditor-toolbar .vditor-tooltipped:focus:not(:hover)::after {
   display: none;
 }
+
+/* Git gutters (task 17): a thin bar at the left edge of a changed block,
+   themed via VS Code's editor-gutter colors. The bar is contenteditable=false
+   and absolutely positioned within the editor element (set position:relative in
+   renderDiffMarkers), mirroring the source line that changed vs git HEAD. */
+.me-diff-marker {
+  position: absolute;
+  left: 0;
+  width: 3px;
+  border-radius: 1px;
+  pointer-events: none;
+  user-select: none;
+}
+.me-diff-marker--added {
+  background: var(--vscode-editorGutter-addedBackground, #587c0c);
+}
+.me-diff-marker--modified {
+  background: var(--vscode-editorGutter-modifiedBackground, #0c7d9d);
+}
+.me-diff-marker--removed {
+  background: var(--vscode-editorGutter-deletedBackground, #94151b);
+}
