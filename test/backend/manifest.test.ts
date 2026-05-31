@@ -53,6 +53,20 @@ describe('package.json manifest', () => {
     )
   })
 
+  it('contributes an Open-in-Split command shown in the editor title (task 10)', () => {
+    const cmd = pkg.contributes.commands.find(
+      (c: any) => c.command === 'markdown-editor.openInSplit'
+    )
+    expect(cmd).toBeDefined()
+    expect(cmd.icon).toBe('$(split-horizontal)')
+    const inTitle = pkg.contributes.menus['editor/title'].some(
+      (m: any) =>
+        m.command === 'markdown-editor.openInSplit' &&
+        m.when.includes(`activeCustomEditorId != ${VIEW_TYPE}`)
+    )
+    expect(inTitle).toBe(true)
+  })
+
   it('contributes an Open-Settings command shown in the editor title for the custom editor', () => {
     const cmd = pkg.contributes.commands.find(
       (c: any) => c.command === 'markdown-editor.openSettings'

@@ -21,7 +21,7 @@ checked here **only when the task is fully complete**.
 - [x] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [x] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
-- [ ] [10 — Open in Split command](10-open-in-split-command.md)
+- [x] [10 — Open in Split command](10-open-in-split-command.md) — open the visual editor beside (ViewColumn.Beside)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
 - [x] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)

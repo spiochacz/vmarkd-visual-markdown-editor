@@ -1,5 +1,12 @@
 # Task: Open in Split command
 
+> **Status:** ✅ Done. `markdown-editor.openInSplit` opens the visual editor in
+> `ViewColumn.Beside` (mirrors `openEditor`'s target resolution + diff/non-md
+> guards, then `vscode.openWith(..., ViewColumn.Beside)`). Declared with a
+> `$(split-horizontal)` icon and an `editor/title` entry (navigation@11, next to
+> "Open with markdown editor"). Single `option` registration kept — no dual
+> default/option. Host-side → unit: +5 tests (110 total). No keybinding (avoids
+> clashing with the built-in markdown-preview `ctrl+k v`).
 > **Source:** `aqz236/vscode-markdown-editor` — §4b
 > **Derived from (removed plan):** `aqz236-port-plan.md`
 > **Value / Risk:** 🟡 low / low (optional)

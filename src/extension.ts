@@ -233,6 +233,32 @@ export function activate(context: vscode.ExtensionContext) {
       }
     ),
     vscode.commands.registerCommand(
+      'markdown-editor.openInSplit',
+      async (uri?: vscode.Uri, ...args) => {
+        debug('command', uri, args)
+        const target = getCommandTarget(uri)
+        if (!target) {
+          showError(`Cannot find markdown file!`)
+          return
+        }
+        if (isDiffContextForUri(target)) {
+          showError(`Markdown editor is unavailable in diff editors.`)
+          return
+        }
+        if (!isSupportedMarkdownUri(target)) {
+          showError(`Markdown editor can only open local markdown files.`)
+          return
+        }
+        // Open the visual editor beside the current view (task 10).
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          target,
+          MarkdownEditorViewType,
+          vscode.ViewColumn.Beside
+        )
+      }
+    ),
+    vscode.commands.registerCommand(
       'markdown-editor.openTextEditor',
       async (uri?: vscode.Uri, ...args) => {
         debug('command', uri, args)

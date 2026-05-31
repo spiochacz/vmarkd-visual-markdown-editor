@@ -70,6 +70,12 @@
         "title": "Open vMarkd Settings",
         "category": "markdown-editor",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "markdown-editor.openInSplit",
+        "title": "Open with markdown editor to the side",
+        "category": "markdown-editor",
+        "icon": "$(split-horizontal)"
       }
     ],
     "customEditors": [
@@ -110,6 +116,11 @@
           "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
           "command": "markdown-editor.openEditor",
           "group": "navigation@10"
+        },
+        {
+          "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
+          "command": "markdown-editor.openInSplit",
+          "group": "navigation@11"
         },
         {
           "when": "activeCustomEditorId == markdown-editor.editor",
