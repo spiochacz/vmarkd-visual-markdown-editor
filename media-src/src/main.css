@@ -46,6 +46,10 @@ body[data-use-vscode-theme-color="1"] .vditor-reset table {
   border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35)) !important;
 }
 body[data-use-vscode-theme-color="1"] .vditor-reset blockquote {
+  /* VS Code's default webview stylesheet gives blockquotes a
+     --vscode-textBlockQuote-background, which is a fixed blue-grey in some
+     custom themes; a translucent overlay tints with the actual editor bg. */
+  background-color: rgba(127, 127, 127, 0.1) !important;
   border-left-color: var(
     --vscode-panel-border,
     rgba(128, 128, 128, 0.35)
@@ -280,7 +284,11 @@ body[data-highlight-headings="1"] .vditor-reset h3,
 body[data-highlight-headings="1"] .vditor-reset h4,
 body[data-highlight-headings="1"] .vditor-reset h5,
 body[data-highlight-headings="1"] .vditor-reset h6 {
-  background: var(--vscode-textBlockQuote-background);
+  /* Subtle translucent overlay rather than --vscode-textBlockQuote-background:
+     that var is a fixed blue-grey in some custom themes (e.g. a maroon dark
+     theme) and clashes. A translucent grey sits over whatever the editor bg is,
+     so it always tints with the theme. */
+  background: rgba(127, 127, 127, 0.13);
   padding: 0 0.3em;
   border-radius: 3px;
 }

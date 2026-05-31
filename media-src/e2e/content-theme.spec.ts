@@ -46,3 +46,20 @@ test('table background follows --vscode-editor-background when the option is on'
   })
   expect(bg).toBe('rgb(50, 0, 0)') // the sentinel VS Code colour, not #2f363d
 })
+
+test('blockquote uses a translucent overlay (theme-following) when the option is on', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const bg = await page.evaluate(() => {
+    document.body.setAttribute('data-use-vscode-theme-color', '1')
+    const reset = document.querySelector('.vditor-reset')!
+    const bq = document.createElement('blockquote')
+    bq.textContent = 'q'
+    reset.appendChild(bq)
+    return getComputedStyle(bq).backgroundColor
+  })
+  // not the fixed --vscode-textBlockQuote-background; a translucent overlay
+  expect(bg).toBe('rgba(127, 127, 127, 0.1)')
+})
