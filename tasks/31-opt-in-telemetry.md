@@ -1,5 +1,9 @@
 # Task: Opt-in telemetry (createTelemetryLogger)
 
+> **Status:** ⏸ Parked (2026-05-31). Unblocked, but deferred by decision —
+> runs counter to the privacy posture (task 18 §2d, "never transmit content")
+> and adds review scrutiny for little benefit. Revisit only with a concrete
+> metric worth collecting.
 > **Source:** vMark VS Code stable-API audit (opt-in telemetry)
 > **Value / Risk:** ⚪ low priority — only if you actually want metrics / low
 > **Engines:** ⚠️ `env.createTelemetryLogger` ≈ `^1.75` — requires an engines bump

@@ -1,5 +1,8 @@
 # Task: Localization (vscode.l10n + package.nls.json)
 
+> **Status:** ⏸ Parked (2026-05-31). Unblocked (engines floor already `^1.110`),
+> but deferred by decision — broad string churn that only pays off if a
+> non-English (PL) UI is actually wanted. Revisit when localization is a goal.
 > **Source:** vMark VS Code stable-API audit (`vscode.l10n` localization)
 > **Value / Risk:** 🟡 nice-to-have (PL + others) / medium
 > **Engines:** ⚠️ `vscode.l10n` API ≈ `^1.73` — requires an engines bump (moot if

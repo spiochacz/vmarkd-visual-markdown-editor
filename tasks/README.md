@@ -48,8 +48,8 @@ checked here **only when the task is fully complete**.
 - [x] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md)
 
 ## Pro / i18n (engines bump — see note)
-- [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ~^1.73
-- [ ] [31 — Opt-in telemetry (createTelemetryLogger)](31-opt-in-telemetry.md) — ~^1.75, only if metrics wanted
+- [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ⏸ **parked** (unblocked; do only if PL UI wanted)
+- [ ] [31 — Opt-in telemetry (createTelemetryLogger)](31-opt-in-telemetry.md) — ⏸ **parked** (unblocked; counter to privacy posture)
 
 ## Engines-bump features (tradeoff: cuts older VS Code)
 - [x] [33 — ThemeIcon on the editor tab](33-themeicon-tab.md) — engines floor now ^1.110
