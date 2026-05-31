@@ -80,6 +80,36 @@ test('panel appears horizontally aligned with the clicked cell, not pinned far l
   expect(Math.abs(panelLeft - cellLeft)).toBeLessThan(30)
 })
 
+test('clicking a non-table paragraph reserves no flow space (no editing gap)', async ({
+  page,
+}) => {
+  await gotoEditor(page)
+  await page.evaluate(() => {
+    ;(window as any).vditor.setValue(
+      'A paragraph.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail paragraph.\n'
+    )
+  })
+  await page.waitForTimeout(120)
+  // click into the plain paragraph — this creates the table-panel wrapper, whose
+  // inner panel stays hidden (not a cell). The wrapper must NOT add an empty box
+  // to the content flow (regression: a static wrapper reserved a ~58px line +
+  // margin, showing as a gap under the text while editing).
+  await page.locator('.vditor-ir p').first().click()
+  await page.waitForTimeout(80)
+  const got = await page.evaluate(() => {
+    const w = document.getElementById('fix-table-ir-wrapper')!
+    const panel = w.querySelector('.vditor-panel') as HTMLElement
+    return {
+      position: getComputedStyle(w).position,
+      wrapperHeight: Math.round(w.getBoundingClientRect().height),
+      panelDisplay: panel.style.display,
+    }
+  })
+  expect(got.position).toBe('absolute') // taken out of the content flow
+  expect(got.wrapperHeight).toBe(0) // reserves no vertical space → no gap
+  expect(got.panelDisplay).toBe('none') // panel hidden for a non-cell click
+})
+
 test('table panel shows for a cell containing only inline code', async ({
   page,
 }) => {
