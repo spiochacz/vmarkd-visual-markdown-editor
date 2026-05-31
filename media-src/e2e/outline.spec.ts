@@ -60,7 +60,7 @@ test('highlight-headings attr themes headings; --me-outline-width drives panel w
   expect(styles.outlineWidth).toBe('321px') // width var applied
 })
 
-test('showHeadingMarkers toggle hides the IR heading-level gutter markers', async ({
+test('showHeadingMarkers toggle hides the gutter markers and tightens the gutter', async ({
   page,
 }) => {
   await gotoOutline(page)
@@ -68,12 +68,19 @@ test('showHeadingMarkers toggle hides the IR heading-level gutter markers', asyn
     const h1 = document.querySelector(
       '.vditor-ir .vditor-reset > h1'
     ) as HTMLElement
+    const reset = document.querySelector(
+      '.vditor-ir .vditor-reset'
+    ) as HTMLElement
     document.body.setAttribute('data-heading-markers', '1')
     const shown = getComputedStyle(h1, '::before').display
+    const padOn = getComputedStyle(reset).paddingLeft
     document.body.setAttribute('data-heading-markers', '0')
     const hidden = getComputedStyle(h1, '::before').display
-    return { shown, hidden }
+    const padOff = getComputedStyle(reset).paddingLeft
+    return { shown, hidden, padOn, padOff }
   })
   expect(result.shown).not.toBe('none') // marker visible by default
   expect(result.hidden).toBe('none') // hidden when toggled off
+  // the now-empty left gutter is tightened
+  expect(parseFloat(result.padOff)).toBeLessThan(parseFloat(result.padOn))
 })

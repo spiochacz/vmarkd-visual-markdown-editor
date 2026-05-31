@@ -164,7 +164,7 @@
           "markdown-editor.showHeadingMarkers": {
             "type": "boolean",
             "default": true,
-            "description": "Show the IR-mode heading-level markers (H1–H6) in the left gutter. Turn off to hide them."
+            "description": "Show the IR-mode left-gutter markers (heading levels H1–H6, the link-reference ↩, etc.). Turn off to hide them and tighten the left margin."
           },
           "markdown-editor.codeBlockLineNumbers": {
             "type": "boolean",

@@ -190,14 +190,23 @@ body[data-full-width="1"] .vditor-ir .vditor-reset {
   top: 1px;
 }
 
-/* Hide the IR heading-level gutter markers when showHeadingMarkers is off. */
+/* showHeadingMarkers off: hide ALL the IR left-gutter markers (heading levels
+   H1–H6, the link-reference ↩, footnotes, toc) and tighten the now-empty left
+   gutter on both the content and the pinned toolbar. */
 body[data-heading-markers="0"] .vditor-ir .vditor-reset > h1::before,
 body[data-heading-markers="0"] .vditor-ir .vditor-reset > h2::before,
 body[data-heading-markers="0"] .vditor-ir .vditor-reset > h3::before,
 body[data-heading-markers="0"] .vditor-ir .vditor-reset > h4::before,
 body[data-heading-markers="0"] .vditor-ir .vditor-reset > h5::before,
-body[data-heading-markers="0"] .vditor-ir .vditor-reset > h6::before {
+body[data-heading-markers="0"] .vditor-ir .vditor-reset > h6::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset div[data-type="link-ref-defs-block"]::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset div[data-type="footnotes-block"]::before,
+body[data-heading-markers="0"] .vditor-ir .vditor-reset .vditor-toc::before {
   display: none;
+}
+body[data-heading-markers="0"] .vditor-ir .vditor-reset,
+body[data-heading-markers="0"] .vditor-toolbar.vditor-toolbar--pin {
+  padding-left: 10px !important;
 }
 
 /* Relabel the IR link-reference-definitions gutter marker from Vditor's '"A"'
