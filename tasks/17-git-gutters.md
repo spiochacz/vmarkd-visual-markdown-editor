@@ -1,5 +1,12 @@
 # Task: Git gutters — change markers vs git HEAD
 
+> **Status:** ✅ Done. Added/modified bars next to blocks differing from git
+> HEAD, themed via `--vscode-editorGutter-*`. Host: `diff-lines.ts`
+> (dependency-free LCS — the `diff` pkg wouldn't ship under .vscodeignore'd
+> node_modules + plain-tsc build), `git-diff.ts` (getHeadContent via vscode.git
+> API, debounced scheduler). Webview: `diff-markers.ts` (pure computeBlockMarkers
+> + DOM render, block→source via sample+indexOf, re-applied after setValue).
+> Tests: 6+9+5 unit + 2 e2e. Block-level placement (approximate), diff exact.
 > **Source:** `jes-bz/notemd` — diff markers (adapted to `CustomTextEditorProvider`)
 > **Derived from (removed plan):** `notemd-reveal-and-git-gutters-plan.md` §A
 > **Value / Risk:** 🟡 / medium (must re-render on mode switch & layout changes)
