@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import * as NodePath from 'path'
 import * as fs from 'fs'
 import { readingTime } from './reading-time'
+import { selectionForOffset } from './reveal-range'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -341,6 +342,57 @@ export function activate(context: vscode.ExtensionContext) {
         '@ext:spiochacz.vmarkd'
       )
     }),
+    vscode.commands.registerCommand(
+      'markdown-editor.revealInSource',
+      async () => {
+        // Reveal-in-Source (task 16): ask the active vMarkd webview for the
+        // caret's exact source offset, then open the underlying .md beside and
+        // select that line.
+        const entry = MarkdownEditorProvider.findActivePanel()
+        if (!entry) {
+          vscode.window.showInformationMessage(
+            'Focus a vMarkd editor to reveal its source.'
+          )
+          return
+        }
+        const { panel, uri: docUri } = entry
+
+        // Round-trip with a 1s timeout so a missing reply can't hang the command;
+        // the listener self-disposes either way.
+        const offset = await new Promise<number>((resolve) => {
+          const timeout = setTimeout(() => {
+            sub.dispose()
+            resolve(-1)
+          }, 1000)
+          const sub = panel.webview.onDidReceiveMessage((msg: any) => {
+            if (msg?.command === 'cursor-offset') {
+              clearTimeout(timeout)
+              sub.dispose()
+              resolve(typeof msg.offset === 'number' ? msg.offset : -1)
+            }
+          })
+          panel.webview.postMessage({ command: 'get-cursor-offset' })
+        })
+        if (offset < 0) return
+
+        const doc = vscode.workspace.textDocuments.find(
+          (d) => d.uri.toString() === docUri.toString()
+        )
+        const text = doc ? doc.getText() : ''
+        const { line, startChar, endChar } = selectionForOffset(text, offset)
+        const editor = await vscode.window.showTextDocument(docUri, {
+          viewColumn: vscode.ViewColumn.Beside,
+          preview: false,
+        })
+        const start = new vscode.Position(line, startChar)
+        const end = new vscode.Position(line, endChar)
+        editor.selection = new vscode.Selection(start, end)
+        editor.revealRange(
+          new vscode.Range(start, end),
+          vscode.TextEditorRevealType.InCenter
+        )
+      }
+    ),
     vscode.window.registerCustomEditorProvider(
       MarkdownEditorViewType,
       new MarkdownEditorProvider(context),
@@ -367,7 +419,24 @@ export function activate(context: vscode.ExtensionContext) {
   refreshContexts()
 }
 
+interface ActivePanelEntry {
+  panel: vscode.WebviewPanel
+  uri: vscode.Uri
+}
+
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
+  // Live registry of open vMarkd panels (task 16). Commands like revealInSource
+  // need the focused panel + its document; CustomTextEditorProvider gives us no
+  // singleton, so we track them here and pick the active one.
+  static activePanels = new Set<ActivePanelEntry>()
+
+  static findActivePanel(): ActivePanelEntry | undefined {
+    for (const entry of MarkdownEditorProvider.activePanels) {
+      if (entry.panel.active) return entry
+    }
+    return undefined
+  }
+
   // Scope the webview's filesystem reach (task 18 §2a). Previously the roots were
   // the whole disk (`/` + every Windows drive), letting the webview load any local
   // file. Narrow to exactly what we serve:
@@ -517,6 +586,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.title = NodePath.basename(activeFsPath)
     webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
+    // Track this panel so commands (e.g. revealInSource, task 16) can find the
+    // focused editor + its document. `uri` is updated on rename below and the
+    // entry is removed on dispose.
+    const panelEntry: ActivePanelEntry = { panel: webviewPanel, uri: activeUri }
+    MarkdownEditorProvider.activePanels.add(panelEntry)
     // Augment, don't replace: keep VS Code's default custom-editor webview options
     // and only override the ones we control (task 27).
     webviewPanel.webview.options = {
@@ -720,6 +794,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         suppressCloseDispose = true
         activeUri = hit.newUri
         activeFsPath = hit.newUri.fsPath
+        panelEntry.uri = hit.newUri // keep the active-panel registry in sync
         webviewPanel.title = NodePath.basename(activeFsPath)
         currentWatcher?.dispose()
         currentWatcher = setupFileWatcher(activeUri)
@@ -983,6 +1058,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }),
       webviewPanel.onDidDispose(() => {
         pendingWebviewContent = undefined
+        MarkdownEditorProvider.activePanels.delete(panelEntry)
         if (textEditTimer) {
           clearTimeout(textEditTimer)
         }

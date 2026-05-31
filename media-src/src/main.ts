@@ -23,6 +23,7 @@ import { setupOutlineFlash } from './outline'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { setupHistoryKeybind } from './undo-keybind'
+import { getCursorSourceOffset } from './source-map'
 import './main.css'
 
 let applyingExtensionUpdate = false
@@ -252,6 +253,14 @@ window.addEventListener('message', (e) => {
       // Live CSS swap (tasks 12/26): replace the customCss or external-CSS
       // <style> node in place.
       swapStyle(msg.id, msg.css)
+      break
+    }
+    case 'get-cursor-offset': {
+      // Reveal-in-Source (task 16): report the caret's exact source offset so the
+      // host can select the matching line. Always reply (offset -1 when
+      // unresolved) so the host's awaited round-trip never hangs past its timeout.
+      const offset = window.vditor ? getCursorSourceOffset(window.vditor) : -1
+      vscode.postMessage({ command: 'cursor-offset', offset })
       break
     }
     case 'uploaded': {

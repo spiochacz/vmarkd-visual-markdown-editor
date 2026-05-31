@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { activate, MarkdownEditorProvider } from '../../src/extension'
-import { mock, ColorThemeKind, Uri } from './vscode-mock'
+import { mock, ColorThemeKind, Uri, ViewColumn } from './vscode-mock'
 
 function resolveProvider(fsPath = '/workspace/note.md', text = 'old content\n') {
   mock.setWorkspaceFolder('/workspace')
@@ -382,5 +382,87 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
     const before = mock.calls.postMessage.length
     mock.fireDidChangeConfiguration('editor')
     expect(mock.calls.postMessage.length).toBe(before)
+  })
+})
+
+describe('revealInSource command (task 16)', () => {
+  beforeEach(() => {
+    mock.reset()
+    MarkdownEditorProvider.activePanels.clear()
+  })
+
+  // Register a fake active panel whose webview replies to get-cursor-offset with
+  // the given offset, plus a matching text document, and return the reveal cmd.
+  function setup(replyOffset: number, docText: string) {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+
+    const listeners: Array<(m: any) => void> = []
+    const docUri = Uri.file('/note.md')
+    const panel = {
+      active: true,
+      webview: {
+        postMessage: vi.fn((msg: any) => {
+          if (msg.command === 'get-cursor-offset') {
+            // host registers its reply listener before posting → reply now
+            listeners.forEach((l) =>
+              l({ command: 'cursor-offset', offset: replyOffset })
+            )
+          }
+          return true
+        }),
+        onDidReceiveMessage: (cb: any) => {
+          listeners.push(cb)
+          return { dispose: vi.fn() }
+        },
+      },
+    }
+    MarkdownEditorProvider.activePanels.add({ panel: panel as any, uri: docUri })
+    mock.setDocument(docUri.fsPath, docText)
+
+    const reveal = mock.calls.registeredCommands.get(
+      'markdown-editor.revealInSource'
+    )!
+    return { reveal, docUri }
+  }
+
+  it('is registered on activate', () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    expect([...mock.calls.registeredCommands.keys()]).toContain(
+      'markdown-editor.revealInSource'
+    )
+  })
+
+  it('opens the source beside and selects the caret line', async () => {
+    const text = 'first line\nsecond line here\nthird\n'
+    // offset 14 → inside "second line here" (line 1)
+    const { reveal } = setup(14, text)
+    await reveal()
+
+    const editor = mock.calls.shownTextEditors.at(-1)
+    expect(editor).toBeDefined()
+    expect(editor.options).toMatchObject({ viewColumn: ViewColumn.Beside })
+    expect(editor.selection.anchor.line).toBe(1)
+    expect(editor.selection.anchor.character).toBe(0)
+    expect(editor.selection.active.line).toBe(1)
+    expect(editor.selection.active.character).toBe('second line here'.length)
+    expect(editor.revealRange).toHaveBeenCalled()
+  })
+
+  it('aborts (opens nothing) when the webview reports offset -1', async () => {
+    const { reveal } = setup(-1, 'whatever\n')
+    await reveal()
+    expect(mock.calls.shownTextEditors).toHaveLength(0)
+  })
+
+  it('aborts quietly when there is no active panel', async () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    const reveal = mock.calls.registeredCommands.get(
+      'markdown-editor.revealInSource'
+    )!
+    await reveal()
+    expect(mock.calls.shownTextEditors).toHaveLength(0)
   })
 })
