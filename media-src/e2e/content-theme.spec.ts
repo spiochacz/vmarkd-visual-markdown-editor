@@ -83,3 +83,60 @@ test('task-list checkbox accent follows the VS Code theme when the option is on'
   })
   expect(accent).toBe('rgb(10, 20, 30)') // themed accent, not the browser default
 })
+
+// Consolidated theme-following contract: with the option on, the content layers
+// + elements resolve their colours from --vscode-* vars (so a custom VS Code
+// theme is honoured), and the background stays consistent across wrapper layers
+// (the focus-shade fix). Sentinel colours prove the var — not a fixed palette.
+test('content elements + wrapper layers follow VS Code theme vars when the option is on', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const got = await page.evaluate(() => {
+    const root = document.documentElement.style
+    root.setProperty('--vscode-editor-background', 'rgb(1, 2, 3)')
+    root.setProperty('--vscode-textCodeBlock-background', 'rgb(4, 5, 6)')
+    root.setProperty('--vscode-panel-border', 'rgb(7, 8, 9)')
+    document.body.setAttribute('data-use-vscode-theme-color', '1')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    reset.insertAdjacentHTML(
+      'beforeend',
+      '<pre id="t-pre"><code>x</code></pre>' +
+        '<p><code id="t-inline">y</code></p>' +
+        '<hr id="t-hr">'
+    )
+    const cs = (id: string, p: string) =>
+      (getComputedStyle(document.getElementById(id)!) as any)[p]
+    const td = document.querySelector('.vditor-reset table td') as HTMLElement
+    return {
+      resetBg: getComputedStyle(reset).backgroundColor,
+      preBg: cs('t-pre', 'backgroundColor'),
+      inlineBg: cs('t-inline', 'backgroundColor'),
+      hrBg: cs('t-hr', 'backgroundColor'),
+      tdBorder: td ? getComputedStyle(td).borderTopColor : null,
+    }
+  })
+  expect(got.resetBg).toBe('rgb(1, 2, 3)') // wrapper bg = editor bg (focus-consistent)
+  expect(got.preBg).toBe('rgb(4, 5, 6)') // code block
+  expect(got.inlineBg).toBe('rgb(4, 5, 6)') // inline code
+  expect(got.hrBg).toBe('rgb(7, 8, 9)') // rule
+  expect(got.tdBorder).toBe('rgb(7, 8, 9)') // table border
+})
+
+test('the theme overrides are gated on the option (off → not applied)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const bg = await page.evaluate(() => {
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(1, 2, 3)'
+    )
+    document.body.setAttribute('data-use-vscode-theme-color', '0')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    return getComputedStyle(reset).backgroundColor
+  })
+  expect(bg).not.toBe('rgb(1, 2, 3)') // override only applies when the attr is "1"
+})
