@@ -1,5 +1,9 @@
 # Task: Heading-level indicators in IR mode (CSS)
 
+> **Status:** ✅ Done. Scope grew beyond centering: full-width left-gutter
+> clip-fix (markers were cut to just "1"), per-heading vertical centering via
+> line-height + a 1px nudge on H1–H4, and relabelled the link-ref-defs marker
+> "A" → ↩. All in `media-src/src/main.css`.
 > **Source:** `Inferno214221/vscode-markdown-editor` — quick-fixes §4
 > **Derived from (removed plan):** `quick-fixes-and-hardening-plan.md`
 > **Value / Risk:** 🟡 cosmetic / none (pure CSS)
