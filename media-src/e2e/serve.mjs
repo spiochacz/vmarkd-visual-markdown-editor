@@ -3,6 +3,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { vditorSourceConfig } from '../esbuild-shared.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const mediaVditor = path.resolve(__dirname, '../../media/vditor')
@@ -23,6 +24,9 @@ const built = await esbuild.build({
   sourcemap: 'inline',
   write: false,
   outdir: __dirname,
+  // Harnesses import main.ts's modules → Vditor from source needs the same
+  // define / class-fields / LESS / button-stub treatment as the prod build (task 20).
+  ...vditorSourceConfig,
 })
 const bundles = Object.fromEntries(
   built.outputFiles.map((f) => ['/' + path.basename(f.path), f.text])

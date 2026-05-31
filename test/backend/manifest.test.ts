@@ -53,6 +53,33 @@ describe('package.json manifest', () => {
     )
   })
 
+  it('contributes an Open-in-Split command shown in the editor title (task 10)', () => {
+    const cmd = pkg.contributes.commands.find(
+      (c: any) => c.command === 'markdown-editor.openInSplit'
+    )
+    expect(cmd).toBeDefined()
+    expect(cmd.icon).toBe('$(split-horizontal)')
+    const inTitle = pkg.contributes.menus['editor/title'].some(
+      (m: any) =>
+        m.command === 'markdown-editor.openInSplit' &&
+        m.when.includes(`activeCustomEditorId != ${VIEW_TYPE}`)
+    )
+    expect(inTitle).toBe(true)
+  })
+
+  it('contributes an Open-source-to-the-side command in the custom-editor title (task 36)', () => {
+    const cmd = pkg.contributes.commands.find(
+      (c: any) => c.command === 'markdown-editor.openSourceToSide'
+    )
+    expect(cmd).toBeDefined()
+    const inTitle = pkg.contributes.menus['editor/title'].some(
+      (m: any) =>
+        m.command === 'markdown-editor.openSourceToSide' &&
+        m.when === `activeCustomEditorId == ${VIEW_TYPE}`
+    )
+    expect(inTitle).toBe(true)
+  })
+
   it('contributes an Open-Settings command shown in the editor title for the custom editor', () => {
     const cmd = pkg.contributes.commands.find(
       (c: any) => c.command === 'markdown-editor.openSettings'
@@ -174,6 +201,20 @@ describe('package.json manifest', () => {
       type: 'boolean',
       default: true,
     })
+  })
+
+  it('declares the mermaidTheme setting (enum, default "auto")', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
+    expect(props['markdown-editor.mermaidTheme']).toMatchObject({
+      type: 'string',
+      default: 'auto',
+    })
+    expect(props['markdown-editor.mermaidTheme'].enum).toEqual(
+      expect.arrayContaining(['auto', 'default', 'forest'])
+    )
   })
 
   it('declares the fontSize setting under Appearance, default "editor" (task 43)', () => {

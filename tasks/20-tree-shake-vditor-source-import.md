@@ -1,5 +1,16 @@
 # Task: Editor from source — tree-shake + VDITOR_VERSION fix
 
+> **Status:** ✅ Done. `main.ts` imports `vditor/src/index`; esbuild upgraded
+> 0.11→0.21.5; new `media-src/build.mjs` driver + shared `esbuild-shared.mjs`
+> (reused by `e2e/serve.mjs`) carry `define VDITOR_VERSION`,
+> `useDefineForClassFields:false`, `loader '.less':'empty'`, and a plugin stubbing
+> the 4 unused toolbar buttons (Br/Fullscreen/Record/Export → `src/stubs/`). One
+> extra interop fix beyond the plan: Vditor's `undo` does
+> `import * as DiffMatchPatch … new DiffMatchPatch()` — a CJS function-export, so
+> the source build needs that rewritten to a default import (plugin in
+> esbuild-shared) or undo throws; guarded by `e2e/undo-interop.spec.ts`.
+> **Result:** `media/dist/main.js` **310.5 → 261.1 KB (−16%)**; 44 e2e pass (incl.
+> the new undo guard); 116 unit unchanged.
 > **Source:** `masterofarbs-audiodub/better-markdown-editor` — §4 (SELECTED)
 > **Derived from (removed plan):** `better-markdown-editor-port-plan.md`
 > **Value / Risk:** 🟢 bundle −49% (805→375 KB) / medium-high (touches build pipeline)

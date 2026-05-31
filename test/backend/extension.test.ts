@@ -42,6 +42,29 @@ describe('activate()', () => {
     activate(context as any)
     expect(mock.calls.setKeysForSync).toContainEqual(['vditor.options'])
   })
+
+  it('creates a levelled log channel and registers it for disposal (task 18 §2d)', () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')
+    expect(ch).toBeDefined()
+    expect(ch!.options).toMatchObject({ log: true })
+    // disposed with the extension (added to context.subscriptions)
+    expect(context.subscriptions.length).toBeGreaterThan(0)
+    context.subscriptions.forEach((d) => d.dispose())
+    expect(ch!.disposed).toBe(true)
+  })
+
+  it('routes content-bearing debug logs at trace level only (task 18 §2d)', async () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    const open = mock.calls.registeredCommands.get('markdown-editor.openEditor')!
+    await open(Uri.file('/workspace/secret.md'))
+    const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')!
+    // nothing logged above trace — content never surfaces at the default level
+    expect(ch.logs.length).toBeGreaterThan(0)
+    expect(ch.logs.every((l) => l.level === 'trace')).toBe(true)
+  })
 })
 
 describe('resolveCustomTextEditor — init handshake', () => {
@@ -135,6 +158,89 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
       key: 'vditor.options',
       value: { mode: 'ir' },
     })
+  })
+
+  it('strips baked version-specific resource URLs before persisting options (colors-401 bug)', async () => {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({
+      command: 'save-options',
+      options: {
+        mode: 'ir',
+        preview: {
+          theme: {
+            current: 'dark',
+            path: 'https://x.vscode-cdn.net/home/u/.vscode-server/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme',
+          },
+        },
+      },
+    })
+    const saved = mock.calls.globalStateUpdates.find(
+      (u) => u.key === 'vditor.options'
+    )!.value
+    // the baked path is gone; stable prefs survive
+    expect(saved.preview.theme.path).toBeUndefined()
+    expect(saved.preview.theme.current).toBe('dark')
+    expect(saved.mode).toBe('ir')
+  })
+
+  it('does not let a stale saved theme.path leak into the init options', async () => {
+    const context = mock.createExtensionContext()
+    // simulate dirty globalState carried over from an older install / Settings Sync
+    await context.globalState.update('vditor.options', {
+      mode: 'ir',
+      preview: {
+        theme: {
+          current: 'dark',
+          path: '.vscode-server/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme',
+        },
+      },
+    })
+    mock.setWorkspaceFolder('/workspace')
+    const document = mock.createTextDocument('/workspace/note.md', '# Hi\n')
+    const panel = mock.createWebviewPanel()
+    new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
+      document as any,
+      panel as any
+    )
+    await panel._receiveMessage({ command: 'ready' })
+    const init = mock.calls.postMessage
+      .filter((m) => m.command === 'update')
+      .at(-1)
+    expect(init.options.preview?.theme?.path).toBeUndefined()
+    expect(init.options.preview?.theme?.current).toBe('dark') // kept
+  })
+})
+
+describe('sanitizeVditorOptions (colors-401 bug)', () => {
+  it('removes any baked webview-resource URL anywhere in the object', () => {
+    const cleaned = MarkdownEditorProvider.sanitizeVditorOptions({
+      mode: 'ir',
+      cdn: 'https://x.vscode-resource.vscode-cdn.net/.../media/vditor',
+      preview: {
+        hljs: { style: 'github-dark' },
+        theme: {
+          current: 'dark',
+          path: 'https://x.vscode-cdn.net/home/u/.vscode-server/extensions/spiochacz.vmarkd-0.4.0/x',
+        },
+      },
+    })
+    expect(cleaned.cdn).toBeUndefined()
+    expect(cleaned.preview.theme.path).toBeUndefined()
+    expect(cleaned.preview.theme.current).toBe('dark')
+    expect(cleaned.preview.hljs.style).toBe('github-dark')
+    expect(cleaned.mode).toBe('ir')
+  })
+
+  it('does not mutate the input and passes through clean options', () => {
+    const input = { theme: 'dark', mode: 'ir', preview: { theme: { current: 'dark' } } }
+    const out = MarkdownEditorProvider.sanitizeVditorOptions(input)
+    expect(out).toEqual(input)
+    expect(out).not.toBe(input) // returns a clone
+  })
+
+  it('is a no-op for nullish / non-object input', () => {
+    expect(MarkdownEditorProvider.sanitizeVditorOptions(undefined)).toBeUndefined()
+    expect(MarkdownEditorProvider.sanitizeVditorOptions(null as any)).toBeNull()
   })
 })
 
@@ -262,6 +368,7 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
     })
     expect(configChanged?.options).toHaveProperty('showToolbar')
     expect(configChanged?.options).toHaveProperty('wordCount')
+    expect(configChanged?.options).toHaveProperty('mermaidTheme')
 
     const cssMsgs = posted.filter((m) => m.command === 'reload-css')
     expect(cssMsgs.map((m) => m.id)).toEqual(

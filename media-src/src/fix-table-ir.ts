@@ -32,6 +32,21 @@ export function fixTableIr() {
       // editable/selectable. Complementary to the mousedown preventDefault.
       tablePanel.contentEditable = 'false'
       tablePanel.style.userSelect = 'none'
+      // Keep the wrapper OUT of the editable content flow. It is appended into
+      // the contenteditable IR element; as a static block it reserves a line+
+      // margin box (~58px) that shows up as an empty gap under the text whenever
+      // you click/edit (the click handler creates it on first click). Anchor it
+      // as a zero-size absolute box at the IR origin: it then reserves no flow
+      // space, and the whitespace text nodes in its template can't form a stray
+      // line box over the top content. The inner panel is itself
+      // position:absolute (overflowing this 0×0 box, so still visible) and is
+      // positioned via JS relative to eventRoot — landing on the clicked cell
+      // exactly as before.
+      tablePanel.style.position = 'absolute'
+      tablePanel.style.top = '0'
+      tablePanel.style.left = '0'
+      tablePanel.style.width = '0'
+      tablePanel.style.height = '0'
       eventRoot.appendChild(tablePanel)
       tablePanel.innerHTML = `<div
     class="vditor-panel vditor-panel--none vditor-panel-ir"

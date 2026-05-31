@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { activate, MarkdownEditorProvider } from '../../src/extension'
-import { mock, Uri, TabInputTextDiff } from './vscode-mock'
+import {
+  mock,
+  Uri,
+  TabInputTextDiff,
+  TabInputText,
+  TabInputCustom,
+  ViewColumn,
+} from './vscode-mock'
 
 const VIEW_TYPE = 'markdown-editor.editor'
 
@@ -50,6 +57,109 @@ describe('command: markdown-editor.openEditor', () => {
 
   it('refuses to open inside a diff editor', async () => {
     const open = activateAndGetCommand('markdown-editor.openEditor')
+    const uri = Uri.file('/workspace/note.md')
+    mock.setActiveTab(new TabInputTextDiff(uri, Uri.file('/workspace/old.md')))
+    await open(uri)
+    expect(openWithCalls()).toHaveLength(0)
+    expect(mock.calls.showError.join(' ')).toContain('diff editors')
+  })
+})
+
+describe('command: markdown-editor.openEditor — tab dedup (task 36)', () => {
+  beforeEach(() => mock.reset())
+
+  it('reveals an existing vMarkd tab in its column instead of duplicating', async () => {
+    const open = activateAndGetCommand('markdown-editor.openEditor')
+    const uri = Uri.file('/workspace/note.md')
+    mock.setTabGroups([
+      { viewColumn: 1, inputs: [new TabInputText(Uri.file('/workspace/other.md'))] },
+      { viewColumn: 2, inputs: [new TabInputCustom(uri, VIEW_TYPE)] },
+    ])
+    await open(uri)
+    expect(openWithCalls()).toContainEqual({
+      command: 'vscode.openWith',
+      args: [uri, VIEW_TYPE, { viewColumn: 2 }],
+    })
+  })
+
+  it('opens normally when only a text (not vMarkd) tab exists for the file', async () => {
+    const open = activateAndGetCommand('markdown-editor.openEditor')
+    const uri = Uri.file('/workspace/note.md')
+    mock.setTabGroups([{ viewColumn: 1, inputs: [new TabInputText(uri)] }])
+    await open(uri)
+    expect(openWithCalls()).toContainEqual({
+      command: 'vscode.openWith',
+      args: [uri, VIEW_TYPE],
+    })
+  })
+})
+
+describe('command: markdown-editor.openSourceToSide (task 36)', () => {
+  beforeEach(() => mock.reset())
+
+  it('opens the source in the adjacent column when no source tab exists', async () => {
+    const open = activateAndGetCommand('markdown-editor.openSourceToSide')
+    const uri = Uri.file('/workspace/note.md')
+    await open(uri)
+    expect(openWithCalls()).toContainEqual({
+      command: 'vscode.openWith',
+      args: [uri, 'default', { viewColumn: ViewColumn.Beside }],
+    })
+  })
+
+  it('focuses an existing source tab in its own column (no duplicate)', async () => {
+    const open = activateAndGetCommand('markdown-editor.openSourceToSide')
+    const uri = Uri.file('/workspace/note.md')
+    mock.setTabGroups([
+      { viewColumn: 1, inputs: [new TabInputCustom(uri, VIEW_TYPE)] },
+      { viewColumn: 2, inputs: [new TabInputText(uri)] },
+    ])
+    await open(uri)
+    expect(openWithCalls()).toContainEqual({
+      command: 'vscode.openWith',
+      args: [uri, 'default', { viewColumn: 2 }],
+    })
+  })
+
+  it('rejects non-markdown files', async () => {
+    const open = activateAndGetCommand('markdown-editor.openSourceToSide')
+    await open(Uri.file('/workspace/notes.txt'))
+    expect(openWithCalls()).toHaveLength(0)
+    expect(mock.calls.showError.join(' ')).toContain('local markdown files')
+  })
+})
+
+describe('command: markdown-editor.openInSplit', () => {
+  beforeEach(() => mock.reset())
+
+  it('opens the visual editor beside the current view', async () => {
+    const open = activateAndGetCommand('markdown-editor.openInSplit')
+    const uri = Uri.file('/workspace/note.md')
+    await open(uri)
+    expect(openWithCalls()).toContainEqual({
+      command: 'vscode.openWith',
+      args: [uri, VIEW_TYPE, ViewColumn.Beside],
+    })
+  })
+
+  it('falls back to the active text editor when no uri is passed', async () => {
+    const open = activateAndGetCommand('markdown-editor.openInSplit')
+    mock.setActiveTextEditor(Uri.file('/workspace/active.md'))
+    await open()
+    const call = openWithCalls().at(-1)
+    expect(call?.args[0].fsPath).toBe('/workspace/active.md')
+    expect(call?.args[2]).toBe(ViewColumn.Beside)
+  })
+
+  it('rejects non-markdown files', async () => {
+    const open = activateAndGetCommand('markdown-editor.openInSplit')
+    await open(Uri.file('/workspace/notes.txt'))
+    expect(openWithCalls()).toHaveLength(0)
+    expect(mock.calls.showError.join(' ')).toContain('local markdown files')
+  })
+
+  it('refuses to open inside a diff editor', async () => {
+    const open = activateAndGetCommand('markdown-editor.openInSplit')
     const uri = Uri.file('/workspace/note.md')
     mock.setActiveTab(new TabInputTextDiff(uri, Uri.file('/workspace/old.md')))
     await open(uri)

@@ -12,7 +12,7 @@ import {
 } from './utils'
 
 import { deepMerge } from './deep-merge'
-import Vditor from 'vditor'
+import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
 import 'vditor/dist/index.css'
 import { lang } from './lang'
@@ -21,6 +21,8 @@ import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
+import { applyMermaidTheme } from './mermaid-theme'
+import { setupHistoryKeybind } from './undo-keybind'
 import './main.css'
 
 let applyingExtensionUpdate = false
@@ -32,18 +34,29 @@ let lastInitMsg: any = null
 // The constructor `theme`/`preview.theme.current` options alone do NOT reliably
 // apply the content/code theme at init, which left a dark VS Code showing light
 // content text + white tables. Used by both init (after()) and live switching.
+//
+// We pass the content-theme path EXPLICITLY (4th arg) instead of letting
+// setTheme fall back to `options.preview.theme.path`: that option is unreliable
+// here — the host strips a stale baked path from saved options (the colors-401
+// fix), which would otherwise leave setContentTheme with an empty path and make
+// it a no-op, so the table/content theme never followed a live theme switch.
 function applyVditorTheme(theme: 'dark' | 'light') {
   if (!window.vditor) return
+  const cdn = lastInitMsg?.cdn
+  const contentThemePath = cdn ? `${cdn}/dist/css/content-theme` : undefined
   if (theme === 'dark') {
-    vditor.setTheme('dark', 'dark', 'github-dark')
+    vditor.setTheme('dark', 'dark', 'github-dark', contentThemePath)
   } else {
-    vditor.setTheme('classic', 'light', 'github')
+    vditor.setTheme('classic', 'light', 'github', contentThemePath)
   }
 }
 
 function initVditor(msg) {
-  console.log('msg', msg)
+  // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
+  // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
+  // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
+  applyMermaidTheme(window, msg.options?.mermaidTheme)
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
@@ -279,5 +292,9 @@ window.addEventListener('keydown', (event) => {
     vscode.postMessage({ command: 'edit-in-vscode' })
   }
 })
+
+// Route Ctrl/Cmd+Z·Y to Vditor's own undo engine instead of the browser/VS Code
+// document undo — see undo-keybind.ts for the full rationale.
+setupHistoryKeybind(window)
 
 vscode.postMessage({ command: 'ready' })

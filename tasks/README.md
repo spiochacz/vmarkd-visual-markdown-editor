@@ -21,7 +21,7 @@ checked here **only when the task is fully complete**.
 - [x] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
 - [x] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
-- [ ] [10 — Open in Split command](10-open-in-split-command.md)
+- [x] [10 — Open in Split command](10-open-in-split-command.md) — open the visual editor beside (ViewColumn.Beside)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
 - [x] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)
@@ -36,12 +36,12 @@ checked here **only when the task is fully complete**.
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
 - [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)
 - [ ] [32 — Link/image path autocomplete](32-link-image-autocomplete.md) — findFiles + watcher, no engines bump
-- [ ] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — shares count with 02
-- [ ] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — overlaps 10
+- [x] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — reading time + WYSIWYG/Source indicator
+- [x] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — dedup vMarkd tabs + open-source-to-side with reuse
 
 ## Security
-- [ ] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — §2a is the priority
-- [ ] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — needs 18 §2a
+- [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
+- [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
 
 ## Marketplace / publication
 - [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)
@@ -57,7 +57,7 @@ checked here **only when the task is fully complete**.
 
 ## Tooling, tests & refactor
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md)
-- [ ] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md)
+- [x] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — import from source; main.js 310→261 KB (−16%)
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
 - [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md)
 

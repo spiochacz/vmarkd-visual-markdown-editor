@@ -19,11 +19,91 @@ body[data-use-vscode-theme-color="1"] .vditor {
   --border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
   --resize-icon-color: var(--vscode-editor-foreground, #586069);
 }
+/* Keep the whole editor background = the VS Code editor background on every
+   layer + the body, so it stays consistent whether or not the editor has focus.
+   Vditor's wrapper layers (.vditor/.vditor-content/.vditor-ir/.vditor-reset) are
+   transparent, so otherwise the body's (lighter) bg shows through when unfocused
+   while the focused editable shows the darker --textarea-background-color. */
+body[data-use-vscode-theme-color="1"],
+body[data-use-vscode-theme-color="1"] .vditor,
+body[data-use-vscode-theme-color="1"] .vditor-content,
+body[data-use-vscode-theme-color="1"] .vditor-ir,
+body[data-use-vscode-theme-color="1"] .vditor-sv,
+body[data-use-vscode-theme-color="1"] .vditor-wysiwyg,
+body[data-use-vscode-theme-color="1"] .vditor-reset {
+  background-color: var(--vscode-editor-background) !important;
+}
 /* When Vditor is in dark mode, use light fallback colors for toolbar icons */
 body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
   --toolbar-icon-color: var(--vscode-editor-foreground, #b9b9b9);
   --toolbar-icon-hover-color: var(--vscode-textLink-foreground, #fff);
   --resize-icon-color: var(--vscode-editor-foreground, #b9b9b9);
+}
+/* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
+   colours instead of Vditor's fixed content-theme palette (which clashes with
+   custom themes). Only when the use-VS-Code-colour option is on; the --vscode-*
+   vars are theme-aware so a single rule covers both light and dark. Higher
+   specificity than Vditor's `.vditor-reset table tr {…}` so it wins. */
+body[data-use-vscode-theme-color="1"] .vditor-reset table tr,
+body[data-use-vscode-theme-color="1"] .vditor-reset table th {
+  background-color: var(--vscode-editor-background) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-reset table tbody tr:nth-child(2n) {
+  background-color: var(
+    --vscode-editorWidget-background,
+    var(--vscode-editor-background)
+  ) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-reset table td,
+body[data-use-vscode-theme-color="1"] .vditor-reset table th,
+body[data-use-vscode-theme-color="1"] .vditor-reset table {
+  border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35)) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-reset blockquote {
+  /* VS Code's default webview stylesheet gives blockquotes a
+     --vscode-textBlockQuote-background, which is a fixed blue-grey in some
+     custom themes; a translucent overlay tints with the actual editor bg. */
+  background-color: rgba(127, 127, 127, 0.1) !important;
+  border-left-color: var(
+    --vscode-panel-border,
+    rgba(128, 128, 128, 0.35)
+  ) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-reset hr {
+  background-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35)) !important;
+}
+/* code blocks (rendered preview + raw) and inline code follow VS Code's code
+   background so they don't stay GitHub-dark blue-grey on a custom theme. */
+body[data-use-vscode-theme-color="1"] .vditor-reset pre,
+body[data-use-vscode-theme-color="1"] .vditor-reset pre > code,
+body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
+  background-color: var(
+    --vscode-textCodeBlock-background,
+    var(--vscode-editor-background)
+  ) !important;
+}
+body[data-use-vscode-theme-color="1"]
+  .vditor-reset
+  code:not(.hljs):not(.highlight-chroma) {
+  background-color: var(
+    --vscode-textCodeBlock-background,
+    rgba(127, 127, 127, 0.18)
+  ) !important;
+}
+/* Task-list checkboxes are native form controls — default blue check + white
+   box, which clashes with a custom theme. Theme the accent and (in dark mode)
+   set color-scheme so the browser renders a dark control instead of white. */
+body[data-use-vscode-theme-color="1"] .vditor-reset input[type="checkbox"] {
+  accent-color: var(
+    --vscode-checkbox-background,
+    var(--vscode-button-background, var(--vscode-focusBorder))
+  );
+}
+body[data-use-vscode-theme-color="1"]
+  .vditor.vditor--dark
+  .vditor-reset
+  input[type="checkbox"] {
+  color-scheme: dark;
 }
 /* fix font family + size — follow VS Code by default (task 43). The base size
    is driven by --me-font-size (set from the `fontSize` setting); headings are
@@ -233,7 +313,11 @@ body[data-highlight-headings="1"] .vditor-reset h3,
 body[data-highlight-headings="1"] .vditor-reset h4,
 body[data-highlight-headings="1"] .vditor-reset h5,
 body[data-highlight-headings="1"] .vditor-reset h6 {
-  background: var(--vscode-textBlockQuote-background);
+  /* Subtle translucent overlay rather than --vscode-textBlockQuote-background:
+     that var is a fixed blue-grey in some custom themes (e.g. a maroon dark
+     theme) and clashes. A translucent grey sits over whatever the editor bg is,
+     so it always tints with the theme. */
+  background: rgba(127, 127, 127, 0.13);
   padding: 0 0.3em;
   border-radius: 3px;
 }

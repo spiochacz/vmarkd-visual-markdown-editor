@@ -157,6 +157,8 @@ export const ColorThemeKind = {
   HighContrastLight: 4,
 } as const
 
+export const StatusBarAlignment = { Left: 1, Right: 2 } as const
+
 export const FileType = {
   Unknown: 0,
   File: 1,
@@ -196,6 +198,7 @@ function freshState() {
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
     activeTabInput: undefined as unknown,
+    tabGroups: [] as Array<{ viewColumn: number; tabs: Array<{ input: unknown; group: any }> }>,
     workspaceFolder: undefined as { uri: Uri; name: string; index: number } | undefined,
     documents: [] as MockTextDocument[],
     watchers: [] as MockWatcher[],
@@ -222,6 +225,13 @@ function freshState() {
         | { viewType: string; provider: any; options: any }
         | undefined,
       setKeysForSync: [] as string[][],
+      statusBarItems: [] as any[],
+      outputChannels: [] as {
+        name: string
+        options: any
+        logs: { level: string; message: string }[]
+        disposed: boolean
+      }[],
     },
     emitters: {
       didChangeActiveTextEditor: new EventEmitter(),
@@ -262,6 +272,7 @@ export const window = {
   },
   get tabGroups() {
     return {
+      all: state.tabGroups,
       activeTabGroup: { get activeTab() {
         return state.activeTabInput ? { input: state.activeTabInput } : undefined
       } },
@@ -290,6 +301,50 @@ export const window = {
       return new Disposable()
     }
   ),
+  createOutputChannel: vi.fn((name: string, options?: any) => {
+    const record = { name, options, logs: [], disposed: false } as {
+      name: string
+      options: any
+      logs: { level: string; message: string }[]
+      disposed: boolean
+    }
+    state.calls.outputChannels.push(record)
+    const log = (level: string) => (message: string) =>
+      record.logs.push({ level, message })
+    return {
+      name,
+      trace: vi.fn(log('trace')),
+      debug: vi.fn(log('debug')),
+      info: vi.fn(log('info')),
+      warn: vi.fn(log('warn')),
+      error: vi.fn(log('error')),
+      appendLine: vi.fn(log('append')),
+      show: vi.fn(),
+      dispose: vi.fn(() => {
+        record.disposed = true
+      }),
+    }
+  }),
+  createStatusBarItem: vi.fn((alignment?: number, priority?: number) => {
+    const item: any = {
+      alignment,
+      priority,
+      text: '',
+      tooltip: '',
+      command: undefined as string | undefined,
+      name: '',
+      visible: false,
+      show: vi.fn(() => {
+        item.visible = true
+      }),
+      hide: vi.fn(() => {
+        item.visible = false
+      }),
+      dispose: vi.fn(),
+    }
+    state.calls.statusBarItems.push(item)
+    return item
+  }),
   onDidChangeActiveTextEditor: (l: any) =>
     state.emitters.didChangeActiveTextEditor.event(l),
   onDidChangeActiveColorTheme: (l: any) =>
@@ -299,6 +354,9 @@ export const window = {
 export const workspace = {
   get isTrusted() {
     return state.isTrusted
+  },
+  get textDocuments() {
+    return state.documents
   },
   getConfiguration: vi.fn((_section?: string) => ({
     get: <T>(key: string, defaultValue?: T): T =>
@@ -472,6 +530,16 @@ export const mock = {
   setActiveTab(input: unknown) {
     state.activeTabInput = input
   },
+  // Build tab groups for findTabForUri (task 36). Each entry → one group with a
+  // viewColumn and its tab inputs; tabs get a back-ref to their group so
+  // `tab.group.viewColumn` works like the real API.
+  setTabGroups(groups: Array<{ viewColumn: number; inputs: unknown[] }>) {
+    state.tabGroups = groups.map((g) => {
+      const group: any = { viewColumn: g.viewColumn, tabs: [] as any[] }
+      group.tabs = g.inputs.map((input) => ({ input, group }))
+      return group
+    })
+  },
   setTrusted(value: boolean) {
     state.isTrusted = value
   },
@@ -511,6 +579,9 @@ export const mock = {
       affectsConfiguration: (s: string) =>
         s === section || s.startsWith(`${section}.`),
     })
+  },
+  fireDidChangeTabs() {
+    return state.emitters.didChangeTabs.fire(undefined)
   },
   createTextDocument,
   createWebviewPanel,

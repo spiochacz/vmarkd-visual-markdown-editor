@@ -86,3 +86,4 @@ coverage/
 
 # Built VSIX packages — do not commit (nie commituj paczek)
 artifacts/*.vsix
+test-results/

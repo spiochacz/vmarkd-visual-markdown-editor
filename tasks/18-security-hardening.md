@@ -1,5 +1,11 @@
 # Task: Security hardening (filesystem / CSS / CSP / logging)
 
+> **Status:** ✅ Done. All four sub-items implemented + unit-tested: 2a scoped
+> `localResourceRoots` (media + workspace/docdir), 2b `sanitizeCss` strips
+> `</style>` breakout, 2c CSP `<meta>` + per-render nonce on scripts, 2d
+> `LogOutputChannel('vMarkd', {log:true})` with content logged only at `trace`.
+> Live-verified: images, math (KaTeX), Mermaid diagrams and custom CSS all render
+> correctly under the narrowed roots + CSP.
 > **Source:** `nebuk89/vscode-markdown-editor` — "restrict filesystem access, sanitize
 > CSS, protect logging"
 > **Derived from (removed plan):** `quick-fixes-and-hardening-plan.md` §2

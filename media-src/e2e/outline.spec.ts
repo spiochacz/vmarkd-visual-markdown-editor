@@ -53,10 +53,13 @@ test('highlight-headings attr themes headings; --me-outline-width drives panel w
     const outline = document.querySelector('.vditor-outline') as HTMLElement
     return {
       h1Radius: getComputedStyle(h1).borderRadius,
+      h1Bg: getComputedStyle(h1).backgroundColor,
       outlineWidth: getComputedStyle(outline).width,
     }
   })
   expect(styles.h1Radius).toBe('3px') // heading-highlight rule applied
+  // translucent overlay (follows the theme), not a fixed blue-grey var
+  expect(styles.h1Bg).toBe('rgba(127, 127, 127, 0.13)')
   expect(styles.outlineWidth).toBe('321px') // width var applied
 })
 

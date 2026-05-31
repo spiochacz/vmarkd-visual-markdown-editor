@@ -61,6 +61,8 @@ export const INIT_ONLY_OPTIONS = [
   'outlinePosition',
   'showOutlineByDefault',
   'outlineHighlight',
+  // changing the mermaid theme re-inits so existing diagrams re-render themed
+  'mermaidTheme',
 ] as const
 
 export function initOnlyChanged(
