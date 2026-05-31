@@ -30,7 +30,7 @@ let applyingExtensionUpdate = false
 function applyVditorTheme(theme: 'dark' | 'light') {
   if (!window.vditor) return
   if (theme === 'dark') {
-    vditor.setTheme('dark', 'dark', 'atom-one-dark-reasonable')
+    vditor.setTheme('dark', 'dark', 'github-dark')
   } else {
     vditor.setTheme('classic', 'light', 'github')
   }
@@ -49,7 +49,17 @@ function initVditor(msg) {
           current: 'dark',
         },
         hljs: {
-          style: 'atom-one-dark-reasonable',
+          style: 'github-dark',
+        },
+      }
+    })
+  } else {
+    // Explicit light code theme — matched pair to github-dark, avoids any
+    // init flash of Vditor's default before applyVditorTheme runs (task 05).
+    defaultOptions = deepMerge(defaultOptions, {
+      preview: {
+        hljs: {
+          style: 'github',
         },
       }
     })

@@ -13,7 +13,7 @@ checked here **only when the task is fully complete**.
 - [x] [02 — Word count](02-word-count.md)
 - [x] [03 — Code-block line numbers (setting)](03-codeblock-line-numbers-setting.md)
 - [x] [04 — IR heading-level indicator CSS](04-ir-heading-level-indicator-css.md)
-- [ ] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md)
+- [x] [05 — Code-block dark-theme CSS](05-codeblock-dark-theme-css.md)
 - [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md)
 
 ## Settings & polish
