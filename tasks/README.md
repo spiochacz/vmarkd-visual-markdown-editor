@@ -23,9 +23,9 @@ checked here **only when the task is fully complete**.
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
-- [ ] [12 — External CSS files + live reload](12-external-css-live-reload.md)
+- [x] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)
-- [ ] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
+- [x] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
 
 ## Features
 - [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)

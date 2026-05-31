@@ -506,6 +506,12 @@ export const mock = {
       files: [{ oldUri, newUri }],
     })
   },
+  fireDidChangeConfiguration(section = 'markdown-editor') {
+    return state.emitters.didChangeConfiguration.fire({
+      affectsConfiguration: (s: string) =>
+        s === section || s.startsWith(`${section}.`),
+    })
+  },
   createTextDocument,
   createWebviewPanel,
   createExtensionContext,

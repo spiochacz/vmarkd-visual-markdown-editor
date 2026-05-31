@@ -180,6 +180,12 @@
             "type": "string",
             "default": "",
             "description": "Custom CSS injected into the editor webview."
+          },
+          "markdown-editor.externalCssFiles": {
+            "type": "array",
+            "items": { "type": "string" },
+            "default": [],
+            "description": "Paths to external CSS files (absolute, or relative to the workspace root) injected into the editor. They reload live when edited. customCss is loaded after them, so it always wins on conflicting rules."
           }
         }
       },

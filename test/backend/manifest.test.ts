@@ -162,6 +162,17 @@ describe('package.json manifest', () => {
     })
   })
 
+  it('declares the externalCssFiles setting', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties)
+    )
+    expect(props['markdown-editor.externalCssFiles']).toMatchObject({
+      type: 'array',
+      default: [],
+    })
+  })
+
   it('groups settings into titled sections, with visual-presence ones under Appearance', () => {
     expect(Array.isArray(pkg.contributes.configuration)).toBe(true)
     const titles = pkg.contributes.configuration.map((c: any) => c.title)

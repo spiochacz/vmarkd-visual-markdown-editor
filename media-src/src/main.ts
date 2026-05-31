@@ -20,6 +20,7 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
+import { applyBodyOptions, swapStyle } from './live-config'
 import './main.css'
 
 let applyingExtensionUpdate = false
@@ -181,32 +182,7 @@ window.addEventListener('message', (e) => {
           'data-wiki-file',
           msg.wiki && msg.wiki.enabled ? '1' : '0'
         )
-        if (msg.options && msg.options.useVscodeThemeColor) {
-          document.body.setAttribute('data-use-vscode-theme-color', '1')
-        } else {
-          document.body.setAttribute('data-use-vscode-theme-color', '0')
-        }
-
-        if (msg.options && msg.options.enableFullWidth) {
-          document.body.setAttribute('data-full-width', '1')
-        } else {
-          document.body.setAttribute('data-full-width', '0')
-        }
-
-        document.body.setAttribute(
-          'data-highlight-headings',
-          msg.options && msg.options.highlightHeadings ? '1' : '0'
-        )
-        document.body.setAttribute(
-          'data-heading-markers',
-          msg.options && msg.options.showHeadingMarkers === false ? '0' : '1'
-        )
-        if (msg.options && msg.options.outlineWidth) {
-          document.body.style.setProperty(
-            '--me-outline-width',
-            `${msg.options.outlineWidth}px`
-          )
-        }
+        applyBodyOptions(msg.options)
         try {
           initVditor(msg)
         } catch (error) {
@@ -235,6 +211,18 @@ window.addEventListener('message', (e) => {
       // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
       // colors already follow via --vscode-* CSS vars.
       applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+      break
+    }
+    case 'config-changed': {
+      // Live config reload (task 26): re-apply the body-attr / CSS-var options
+      // without destroying Vditor (cursor/scroll preserved).
+      applyBodyOptions(msg.options)
+      break
+    }
+    case 'reload-css': {
+      // Live CSS swap (tasks 12/26): replace the customCss or external-CSS
+      // <style> node in place.
+      swapStyle(msg.id, msg.css)
       break
     }
     case 'uploaded': {

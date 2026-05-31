@@ -242,3 +242,30 @@ describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
     expect(panel.title).toBe('note.md')
   })
 })
+
+describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
+  beforeEach(() => mock.reset())
+
+  it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
+    resolveProvider()
+    mock.setConfig({ enableFullWidth: false, customCss: '/* x */' })
+    mock.fireDidChangeConfiguration()
+
+    const posted = mock.calls.postMessage
+    const configChanged = posted.find((m) => m.command === 'config-changed')
+    expect(configChanged?.options).toMatchObject({ enableFullWidth: false })
+
+    const cssMsgs = posted.filter((m) => m.command === 'reload-css')
+    expect(cssMsgs.map((m) => m.id)).toEqual(
+      expect.arrayContaining(['custom-css', 'external-css'])
+    )
+    expect(cssMsgs.find((m) => m.id === 'custom-css')?.css).toBe('/* x */')
+  })
+
+  it('ignores config changes outside the markdown-editor section', async () => {
+    resolveProvider()
+    const before = mock.calls.postMessage.length
+    mock.fireDidChangeConfiguration('editor')
+    expect(mock.calls.postMessage.length).toBe(before)
+  })
+})
