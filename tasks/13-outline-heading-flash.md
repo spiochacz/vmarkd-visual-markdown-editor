@@ -1,5 +1,6 @@
 # Task: Outline navigation + heading flash (all modes)
 
+> **Status:** ✅ Done (Option 1). `media-src/src/outline.ts` `setupOutlineFlash` (capture-phase, since Vditor stops bubble propagation); flashes the clicked heading by id, all modes. Setting `outlineHighlight` (default true). e2e: outline.spec.
 > **Source:** `systemator-de/vscode-markdown-editor` (WYSIWYG-only; we rework for all modes)
 > **Derived from (removed plan):** `outline-heading-highlight-plan.md`
 > **Value / Risk:** 🟢 / low (Option 1) — medium (Option 2)

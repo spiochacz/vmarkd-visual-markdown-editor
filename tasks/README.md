@@ -17,8 +17,8 @@ checked here **only when the task is fully complete**.
 - [x] [06 — Table-panel contentEditable fix](06-table-panel-contenteditable-fix.md)
 
 ## Settings & polish
-- [ ] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
-- [ ] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
+- [x] [07 — highlightHeadings + outlinePosition](07-settings-highlight-headings-outline-position.md)
+- [x] [08 — outlineWidth + showOutlineByDefault](08-outline-width-show-by-default.md)
 - [x] [09 — Toolbar hide setting](09-toolbar-show-setting.md)
 - [ ] [10 — Open in Split command](10-open-in-split-command.md)
 - [x] [11 — Perf: debounce + drop onLanguage](11-perf-debounce-activation.md)
@@ -27,7 +27,7 @@ checked here **only when the task is fully complete**.
 - [ ] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
 
 ## Features
-- [ ] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
+- [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
 - [x] [14 — Rename tracking (onDidRenameFiles)](14-rename-tracking.md)
 - [ ] [15 — Shared DOM→source mapping](15-shared-dom-source-mapping.md) — prerequisite for 16 & 17
 - [ ] [16 — Reveal-in-Source](16-reveal-in-source.md) — needs 15

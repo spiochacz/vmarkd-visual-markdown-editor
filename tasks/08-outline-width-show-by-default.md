@@ -1,5 +1,6 @@
 # Task: Outline width + show-by-default settings
 
+> **Status:** ✅ Done. `outlineWidth` (`--me-outline-width` var) + `showOutlineByDefault` (Vditor `outline.enable`). Same panel as 07. Unit + e2e (outline.spec).
 > **Source:** `aqz236/vscode-markdown-editor` — §3 (`showOutlineByDefault`, `outlineWidth`)
 > **Derived from (removed plan):** `aqz236-port-plan.md`
 > **Value / Risk:** 🟡 medium / low
