@@ -16,12 +16,41 @@ const WikiFileContextKey = 'markdown-editor.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])
 const SupportedMarkdownExtensions = new Set(['.md', '.markdown'])
 
+// Levelled log channel (task 18 §2d). Replaces raw `console.log`, which always
+// dumped full payloads — including document content — to the dev console.
+// Routed at `trace`, so content-bearing logs surface only when the user raises
+// the channel's log level; nothing leaks at the default level.
+let logger: vscode.LogOutputChannel | undefined
+
 function debug(...args: any[]) {
-  console.log(...args)
+  if (!logger) return
+  logger.trace(
+    args
+      .map((a) => {
+        if (typeof a === 'string') return a
+        try {
+          return JSON.stringify(a)
+        } catch {
+          return String(a)
+        }
+      })
+      .join(' ')
+  )
 }
 
 function showError(msg: string) {
   vscode.window.showErrorMessage(`[markdown-editor] ${msg}`)
+}
+
+// Random per-render nonce so only our own <script> tags are allowed to run
+// under the CSP (task 18 §2c) — injected inline scripts (no nonce) cannot.
+function getNonce(): string {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let text = ''
+  for (let i = 0; i < 32; i++)
+    text += chars.charAt(Math.floor(Math.random() * chars.length))
+  return text
 }
 
 function normalizeContent(content: string) {
@@ -109,6 +138,9 @@ async function updateEditorContexts() {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  logger = vscode.window.createOutputChannel('vMarkd', { log: true })
+  context.subscriptions.push(logger)
+
   const refreshContexts = () => {
     void updateEditorContexts()
   }
@@ -183,21 +215,35 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
-  private static getFolders(): vscode.Uri[] {
-    const data = []
-    for (let i = 65; i <= 90; i++) {
-      data.push(vscode.Uri.file(`${String.fromCharCode(i)}:/`))
-    }
-    return data
+  // Scope the webview's filesystem reach (task 18 §2a). Previously the roots were
+  // the whole disk (`/` + every Windows drive), letting the webview load any local
+  // file. Narrow to exactly what we serve:
+  //   - the extension's `media` dir (Vditor assets: the local `cdn` base where
+  //     Mermaid/KaTeX/etc. are self-hosted — MUST stay in the roots or diagram/
+  //     math rendering silently 404s),
+  //   - the document's workspace folder (covers images referenced relative to the
+  //     doc or the workspace), or its own directory when there is no workspace.
+  static webviewRoots(
+    extensionUri: vscode.Uri,
+    documentUri: vscode.Uri
+  ): vscode.Uri[] {
+    const roots = [vscode.Uri.joinPath(extensionUri, 'media')]
+    const ws = vscode.workspace.getWorkspaceFolder(documentUri)
+    if (ws) roots.push(ws.uri)
+    else if (documentUri.scheme === 'file')
+      roots.push(vscode.Uri.file(NodePath.dirname(documentUri.fsPath)))
+    return roots
   }
 
-  static getWebviewOptions(): vscode.WebviewOptions &
-    vscode.WebviewPanelOptions {
+  static getWebviewOptions(
+    extensionUri: vscode.Uri,
+    documentUri: vscode.Uri
+  ): vscode.WebviewOptions & vscode.WebviewPanelOptions {
     return {
       // Enable javascript in the webview
       enableScripts: true,
 
-      localResourceRoots: [vscode.Uri.file("/"), ...this.getFolders()],
+      localResourceRoots: this.webviewRoots(extensionUri, documentUri),
       // The effective panel-level option is set in registerCustomEditorProvider
       // (task 37); kept here in sync for clarity.
       retainContextWhenHidden:
@@ -238,12 +284,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       .map((f) => (NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f))
   }
 
+  // Neutralize a `</style>` breakout in user CSS (task 18 §2b). When CSS is
+  // baked into the HTML string inside a <style> block, a literal `</style` in
+  // the value closes the tag early and everything after it is parsed as markup
+  // — i.e. arbitrary `<script>` injection. Strip the closing-tag sequence
+  // (case-insensitive). The live `reload-css` path is already safe: swapStyle
+  // assigns `textContent`, which never parses markup.
+  static sanitizeCss(css: string | undefined): string {
+    return (css || '').replace(/<\/style/gi, '')
+  }
+
   // Id'd <style> tags so external + custom CSS can be live-swapped by id
   // (tasks 12/26). External loads first, customCss last, so customCss always
-  // wins on conflicting rules (later tag = higher priority).
+  // wins on conflicting rules (later tag = higher priority). Both are sanitized
+  // against `</style>` breakout (task 18 §2b).
   static _cssStyleTags(): string {
-    const external = `<style id="external-css">${this.readExternalCss()}</style>`
-    const custom = `<style id="custom-css">${this.config.get<string>('customCss') || ''}</style>`
+    const external = `<style id="external-css">${this.sanitizeCss(this.readExternalCss())}</style>`
+    const custom = `<style id="custom-css">${this.sanitizeCss(this.config.get<string>('customCss'))}</style>`
     return external + custom
   }
 
@@ -272,7 +329,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.title = NodePath.basename(activeFsPath)
     webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
-    webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions()
+    webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions(
+      this._context.extensionUri,
+      document.uri
+    )
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       document.uri
@@ -770,11 +830,35 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const CssFiles = ['main.css'].map(toMediaPath).map(toUri)
     const iconScript = toUri('media/vditor/dist/js/icons/ant.js')
 
+    // Content-Security-Policy (task 18 §2c). default-src 'none' denies
+    // everything, then we re-allow only what the editor needs, all scoped to the
+    // webview origin (`cspSource`, which covers our asWebviewUri assets):
+    //   - scripts: our own tags by nonce + same-origin Vditor assets. 'unsafe-eval'
+    //     is kept because some bundled libs (e.g. GopherJS Lute / diagram engines)
+    //     eval at runtime; injected inline scripts still can't run (no nonce), so
+    //     the §2b/§2c injection protection is preserved.
+    //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
+    //     we inject <style> for custom/external CSS).
+    //   - images: same-origin + data:/blob: + https: (remote images in markdown).
+    const nonce = getNonce()
+    const csp = webview.cspSource
+    const cspMeta =
+      `<meta http-equiv="Content-Security-Policy" content="` +
+      `default-src 'none'; ` +
+      `img-src ${csp} data: blob: https:; ` +
+      `media-src ${csp} data: blob:; ` +
+      `font-src ${csp} data:; ` +
+      `style-src ${csp} 'unsafe-inline'; ` +
+      `script-src 'nonce-${nonce}' ${csp} 'unsafe-eval'; ` +
+      `connect-src ${csp} data:; ` +
+      `worker-src ${csp} blob:;">`
+
     return (
       `<!DOCTYPE html>
 			<html lang="en">
 			<head>
 				<meta charset="UTF-8">
+				${cspMeta}
 
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 				<base href="${baseHref}" />
@@ -790,8 +874,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 			<body>
 				<div id="app"></div>
 
-				<script id="vditorIconScript" src="${iconScript}"></script>
-				${JsFiles.map((f) => `<script src="${f}"></script>`).join('\n')}
+				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
+				${JsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
 			</body>
 			</html>`
     )

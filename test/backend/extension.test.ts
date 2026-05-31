@@ -42,6 +42,29 @@ describe('activate()', () => {
     activate(context as any)
     expect(mock.calls.setKeysForSync).toContainEqual(['vditor.options'])
   })
+
+  it('creates a levelled log channel and registers it for disposal (task 18 §2d)', () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')
+    expect(ch).toBeDefined()
+    expect(ch!.options).toMatchObject({ log: true })
+    // disposed with the extension (added to context.subscriptions)
+    expect(context.subscriptions.length).toBeGreaterThan(0)
+    context.subscriptions.forEach((d) => d.dispose())
+    expect(ch!.disposed).toBe(true)
+  })
+
+  it('routes content-bearing debug logs at trace level only (task 18 §2d)', async () => {
+    const context = mock.createExtensionContext()
+    activate(context as any)
+    const open = mock.calls.registeredCommands.get('markdown-editor.openEditor')!
+    await open(Uri.file('/workspace/secret.md'))
+    const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')!
+    // nothing logged above trace — content never surfaces at the default level
+    expect(ch.logs.length).toBeGreaterThan(0)
+    expect(ch.logs.every((l) => l.level === 'trace')).toBe(true)
+  })
 })
 
 describe('resolveCustomTextEditor — init handshake', () => {

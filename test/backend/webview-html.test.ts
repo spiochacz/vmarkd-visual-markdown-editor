@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MarkdownEditorProvider } from '../../src/extension'
-import { mock, ThemeIcon } from './vscode-mock'
+import { mock, ThemeIcon, Uri } from './vscode-mock'
 
 function resolveAndGetHtml(customCss = '') {
   mock.setConfig({ customCss })
@@ -71,5 +71,84 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
       html.indexOf('id="custom-css"')
     )
     expect(html).toContain('/* sentinel */ body{}')
+  })
+})
+
+describe('security: scoped localResourceRoots (task 18 §2a)', () => {
+  beforeEach(() => mock.reset())
+
+  it('scopes the webview to the extension media dir + the workspace folder', () => {
+    const { panel } = resolveAndGetHtml()
+    const roots = (panel.webview.options as any).localResourceRoots as Uri[]
+    const paths = roots.map((r) => r.fsPath)
+    expect(paths).toContain('/ext/media')
+    expect(paths).toContain('/workspace')
+    // the whole-disk root (and per-drive roots) must be gone
+    expect(paths).not.toContain('/')
+    expect(paths.some((p) => /^[A-Z]:\//.test(p))).toBe(false)
+  })
+
+  it('falls back to the document directory when there is no workspace', () => {
+    const roots = MarkdownEditorProvider.webviewRoots(
+      Uri.file('/ext'),
+      Uri.file('/notes/sub/note.md')
+    )
+    const paths = roots.map((r) => r.fsPath)
+    expect(paths).toEqual(['/ext/media', '/notes/sub'])
+  })
+
+  it('uses only the media root for a non-file (untitled) document with no workspace', () => {
+    const roots = MarkdownEditorProvider.webviewRoots(
+      Uri.file('/ext'),
+      Uri.parse('untitled:Untitled-1')
+    )
+    expect(roots.map((r) => r.fsPath)).toEqual(['/ext/media'])
+  })
+})
+
+describe('security: customCss/external CSS sanitization (task 18 §2b)', () => {
+  beforeEach(() => mock.reset())
+
+  it('neutralizes a </style> breakout in customCss', () => {
+    const { html } = resolveAndGetHtml(
+      'body{}</style><script>alert(1)</script>'
+    )
+    // no premature </style> closes our block to start a real <script> element
+    expect(html).not.toContain('</style><script>')
+    // the payload survives only as inert CSS text inside our controlled block:
+    // up to the first (our) </style>, the injected closing sequence is gone
+    const block = html.slice(html.indexOf('<style id="custom-css">'))
+    const inner = block.slice(0, block.indexOf('</style>'))
+    expect(inner).not.toContain('</style')
+    expect(inner).toContain('alert(1)') // present, but inert (inside <style>)
+  })
+
+  it('sanitizeCss strips the closing-tag sequence case-insensitively', () => {
+    expect(MarkdownEditorProvider.sanitizeCss('a</STYLE >b')).toBe('a >b')
+    expect(MarkdownEditorProvider.sanitizeCss(undefined)).toBe('')
+  })
+})
+
+describe('security: Content-Security-Policy + nonce (task 18 §2c)', () => {
+  beforeEach(() => mock.reset())
+
+  it('emits a CSP meta scoped to the webview origin with default-src none', () => {
+    const { html } = resolveAndGetHtml()
+    const csp = /content="([^"]*default-src[^"]*)"/.exec(html)?.[1]
+    expect(csp).toBeDefined()
+    expect(csp).toContain("default-src 'none'")
+    // scoped to cspSource (the mock returns 'vscode-resource:')
+    expect(csp).toContain('vscode-resource:')
+  })
+
+  it('puts a matching nonce on every script tag and in script-src', () => {
+    const { html } = resolveAndGetHtml()
+    const nonce = /script-src [^"]*'nonce-([A-Za-z0-9]+)'/.exec(html)?.[1]
+    expect(nonce).toBeTruthy()
+    const scriptTags = html.match(/<script[^>]*>/g) || []
+    expect(scriptTags.length).toBeGreaterThanOrEqual(2)
+    for (const tag of scriptTags) {
+      expect(tag).toContain(`nonce="${nonce}"`)
+    }
   })
 })

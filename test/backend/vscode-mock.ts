@@ -222,6 +222,12 @@ function freshState() {
         | { viewType: string; provider: any; options: any }
         | undefined,
       setKeysForSync: [] as string[][],
+      outputChannels: [] as {
+        name: string
+        options: any
+        logs: { level: string; message: string }[]
+        disposed: boolean
+      }[],
     },
     emitters: {
       didChangeActiveTextEditor: new EventEmitter(),
@@ -290,6 +296,30 @@ export const window = {
       return new Disposable()
     }
   ),
+  createOutputChannel: vi.fn((name: string, options?: any) => {
+    const record = { name, options, logs: [], disposed: false } as {
+      name: string
+      options: any
+      logs: { level: string; message: string }[]
+      disposed: boolean
+    }
+    state.calls.outputChannels.push(record)
+    const log = (level: string) => (message: string) =>
+      record.logs.push({ level, message })
+    return {
+      name,
+      trace: vi.fn(log('trace')),
+      debug: vi.fn(log('debug')),
+      info: vi.fn(log('info')),
+      warn: vi.fn(log('warn')),
+      error: vi.fn(log('error')),
+      appendLine: vi.fn(log('append')),
+      show: vi.fn(),
+      dispose: vi.fn(() => {
+        record.disposed = true
+      }),
+    }
+  }),
   onDidChangeActiveTextEditor: (l: any) =>
     state.emitters.didChangeActiveTextEditor.event(l),
   onDidChangeActiveColorTheme: (l: any) =>

@@ -42,7 +42,7 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 }
 
 function initVditor(msg) {
-  console.log('msg', msg)
+  // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
