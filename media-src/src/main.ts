@@ -20,10 +20,13 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
-import { applyBodyOptions, swapStyle } from './live-config'
+import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import './main.css'
 
 let applyingExtensionUpdate = false
+// The last message Vditor was initialised from — used to re-init when a
+// constructor-only setting (toolbar, word count, …) changes live (task 26).
+let lastInitMsg: any = null
 
 // Apply Vditor's UI + content + code theme via setTheme — the proven path.
 // The constructor `theme`/`preview.theme.current` options alone do NOT reliably
@@ -40,6 +43,7 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 
 function initVditor(msg) {
   console.log('msg', msg)
+  lastInitMsg = msg
   let inputTimer
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
@@ -214,9 +218,21 @@ window.addEventListener('message', (e) => {
       break
     }
     case 'config-changed': {
-      // Live config reload (task 26): re-apply the body-attr / CSS-var options
-      // without destroying Vditor (cursor/scroll preserved).
+      // Live config reload (task 26): body-attr / CSS-var options apply without
+      // touching Vditor. Constructor-only options (toolbar, word count, …) can't
+      // — re-init Vditor with the merged options, preserving the current content.
       applyBodyOptions(msg.options)
+      if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
+        const content =
+          window.vditor && !applyingExtensionUpdate
+            ? vditor.getValue()
+            : lastInitMsg.content
+        initVditor({
+          ...lastInitMsg,
+          content,
+          options: { ...lastInitMsg.options, ...msg.options },
+        })
+      }
       break
     }
     case 'reload-css': {

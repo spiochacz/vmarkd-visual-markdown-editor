@@ -122,11 +122,6 @@
           "when": "activeCustomEditorId == markdown-editor.editor",
           "command": "markdown-editor.openTextEditor",
           "group": "1_open"
-        },
-        {
-          "when": "activeCustomEditorId == markdown-editor.editor",
-          "command": "markdown-editor.openSettings",
-          "group": "1_open"
         }
       ],
       "commandPalette": [

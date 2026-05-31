@@ -253,7 +253,10 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
 
     const posted = mock.calls.postMessage
     const configChanged = posted.find((m) => m.command === 'config-changed')
+    // carries body-attr options AND the constructor-only ones (re-init keys)
     expect(configChanged?.options).toMatchObject({ enableFullWidth: false })
+    expect(configChanged?.options).toHaveProperty('showToolbar')
+    expect(configChanged?.options).toHaveProperty('wordCount')
 
     const cssMsgs = posted.filter((m) => m.command === 'reload-css')
     expect(cssMsgs.map((m) => m.id)).toEqual(

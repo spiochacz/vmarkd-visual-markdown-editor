@@ -377,6 +377,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           showHeadingMarkers:
             MarkdownEditorProvider.config.get<boolean>('showHeadingMarkers'),
           outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
+          // constructor-only options — a change re-inits Vditor (webview side)
+          showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
+          wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
+          codeBlockLineNumbers:
+            MarkdownEditorProvider.config.get<boolean>('codeBlockLineNumbers'),
+          outlinePosition:
+            MarkdownEditorProvider.config.get<string>('outlinePosition'),
+          showOutlineByDefault:
+            MarkdownEditorProvider.config.get<boolean>('showOutlineByDefault'),
+          outlineHighlight:
+            MarkdownEditorProvider.config.get<boolean>('outlineHighlight'),
         },
       })
       webviewPanel.webview.postMessage({
@@ -564,6 +575,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             break
           case 'navigate-back':
             await vscode.commands.executeCommand('workbench.action.navigateBack')
+            break
+          case 'open-settings':
+            await vscode.commands.executeCommand('markdown-editor.openSettings')
             break
           case 'list-wiki-pages': {
             const wikiRoot = getWikiRoot(document.uri)

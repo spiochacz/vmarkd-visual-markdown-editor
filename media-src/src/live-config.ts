@@ -34,6 +34,25 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
   }
 }
 
+// Settings that are Vditor *constructor* options (toolbar, counter, code-block
+// line numbers, outline init) — they can't be toggled on the live instance, so
+// a change to any of these means main.ts must re-initialise Vditor.
+export const INIT_ONLY_OPTIONS = [
+  'showToolbar',
+  'wordCount',
+  'codeBlockLineNumbers',
+  'outlinePosition',
+  'showOutlineByDefault',
+  'outlineHighlight',
+] as const
+
+export function initOnlyChanged(
+  prev: Record<string, any> | undefined,
+  next: Record<string, any> | undefined
+): boolean {
+  return INIT_ONLY_OPTIONS.some((k) => prev?.[k] !== next?.[k])
+}
+
 // Swap (creating if needed) an id'd <style> node so host-driven CSS — the
 // `customCss` setting and external CSS files — can be replaced live.
 export function swapStyle(id: string, css: string): void {

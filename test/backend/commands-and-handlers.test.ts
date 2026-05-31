@@ -133,6 +133,19 @@ describe('message handler: upload', () => {
   })
 })
 
+describe('message handler: open-settings', () => {
+  beforeEach(() => mock.reset())
+
+  it('runs the openSettings command (toolbar gear → settings)', async () => {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({ command: 'open-settings' })
+    expect(mock.calls.executeCommand).toContainEqual({
+      command: 'markdown-editor.openSettings',
+      args: [],
+    })
+  })
+})
+
 describe('message handler: open-link', () => {
   beforeEach(() => mock.reset())
 
