@@ -82,29 +82,42 @@ describe('runVditorHistory', () => {
 describe('setupHistoryKeybind', () => {
   function makeWin(platform: string, inner: any) {
     let handler: (e: any) => void = () => {}
+    let capture: boolean | undefined
     return {
       navigator: { platform },
       vditor: { vditor: inner },
-      addEventListener: (type: string, h: any) => {
-        if (type === 'keydown') handler = h
+      addEventListener: (type: string, h: any, useCapture?: boolean) => {
+        if (type === 'keydown') {
+          handler = h
+          capture = useCapture
+        }
+      },
+      get captureFlag() {
+        return capture
       },
       fire: (e: any) => handler(e),
     } as any
   }
 
-  it('routes Ctrl+Z to undo and prevents the default + propagation', () => {
+  it('registers in the capture phase (must beat VS Code key forwarding)', () => {
+    const win = makeWin('Linux x86_64', { undo: { undo: vi.fn(), redo: vi.fn() } })
+    setupHistoryKeybind(win)
+    expect(win.captureFlag).toBe(true)
+  })
+
+  it('routes Ctrl+Z to undo, prevents default, and stops immediate propagation', () => {
     const inner = { undo: { undo: vi.fn(), redo: vi.fn() } }
     const win = makeWin('Linux x86_64', inner)
     setupHistoryKeybind(win)
     const e = {
       ...ev({ key: 'z', ctrlKey: true }),
       preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
     }
     win.fire(e)
     expect(inner.undo.undo).toHaveBeenCalledWith(inner)
-    expect(e.preventDefault).toHaveBeenCalled() // native + VS Code undo suppressed
-    expect(e.stopPropagation).toHaveBeenCalled()
+    expect(e.preventDefault).toHaveBeenCalled() // native undo suppressed
+    expect(e.stopImmediatePropagation).toHaveBeenCalled() // VS Code forwarding suppressed
   })
 
   it('leaves a plain keystroke untouched (no prevent, no engine call)', () => {
@@ -114,7 +127,7 @@ describe('setupHistoryKeybind', () => {
     const e = {
       ...ev({ key: 'z' }),
       preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
+      stopImmediatePropagation: vi.fn(),
     }
     win.fire(e)
     expect(inner.undo.undo).not.toHaveBeenCalled()

@@ -42,15 +42,29 @@ export function runVditorHistory(win: any, kind: HistoryKind): void {
   inner?.undo?.[kind]?.(inner)
 }
 
-// Wire the window-level keydown listener. `win` is the global object holding the
-// Vditor instance (`win.vditor`).
+// Wire the keydown listener. `win` is the global object holding the Vditor
+// instance (`win.vditor`).
+//
+// CRITICAL: registered in the CAPTURE phase. VS Code's webview preload installs
+// its own keydown→host forwarding listener (which is what makes Ctrl+Z reach VS
+// Code's `undo` command and revert the TextDocument → full setValue re-render →
+// the editor jumps). That forwarding listener is on `window` in the BUBBLE phase
+// and is registered before our page script runs. A bubble-phase handler of ours
+// would therefore fire AFTER the forwarding already happened — too late. A
+// capture-phase handler runs before ANY bubble-phase listener, so
+// stopImmediatePropagation here prevents VS Code from ever seeing the key. The
+// document undo never fires; only Vditor's own in-place undo runs.
 export function setupHistoryKeybind(win: Window & typeof globalThis): void {
   const isMac = win.navigator.platform.toLowerCase().includes('mac')
-  win.addEventListener('keydown', (event) => {
-    const kind = historyActionFor(event, isMac)
-    if (!kind) return
-    event.preventDefault()
-    event.stopPropagation()
-    runVditorHistory(win, kind)
-  })
+  win.addEventListener(
+    'keydown',
+    (event) => {
+      const kind = historyActionFor(event, isMac)
+      if (!kind) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      runVditorHistory(win, kind)
+    },
+    true // capture phase — beat VS Code's bubble-phase key forwarding
+  )
 }
