@@ -27,12 +27,11 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     expect((panel.iconPath as ThemeIcon).id).toBe('markdown')
   })
 
-  it('applies the scoped webview options', () => {
+  it('applies the scoped webview options (scripts on, command URIs off — task 27)', () => {
     const { panel } = resolveAndGetHtml()
     expect(panel.webview.options).toMatchObject({
       enableScripts: true,
-      retainContextWhenHidden: true,
-      enableCommandUris: true,
+      enableCommandUris: false,
     })
   })
 
@@ -103,6 +102,47 @@ describe('security: scoped localResourceRoots (task 18 §2a)', () => {
       Uri.parse('untitled:Untitled-1')
     )
     expect(roots.map((r) => r.fsPath)).toEqual(['/ext/media'])
+  })
+})
+
+describe('security: augment webview options + drop command URIs (task 27)', () => {
+  beforeEach(() => mock.reset())
+
+  it('augments rather than wholesale-replaces VS Code default webview options', () => {
+    mock.setWorkspaceFolder('/workspace')
+    const context = mock.createExtensionContext()
+    const document = mock.createTextDocument('/workspace/note.md', '# Hi\n')
+    const panel = mock.createWebviewPanel()
+    // VS Code pre-populates sensible defaults before resolveCustomTextEditor runs.
+    panel.webview.options = {
+      enableForms: true,
+      portMapping: [{ webviewPort: 3000, extensionHostPort: 3000 }],
+    }
+    new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
+      document as any,
+      panel as any
+    )
+    const opts = panel.webview.options as any
+    // our controlled fields applied…
+    expect(opts.enableScripts).toBe(true)
+    expect(opts.enableCommandUris).toBe(false) // navigation is postMessage-only
+    expect(Array.isArray(opts.localResourceRoots)).toBe(true)
+    // …and the pre-existing defaults survive (augment, not replace)
+    expect(opts.enableForms).toBe(true)
+    expect(opts.portMapping).toEqual([
+      { webviewPort: 3000, extensionHostPort: 3000 },
+    ])
+  })
+
+  it('getWebviewOptions does not set command URIs and omits panel-level keys', () => {
+    const opts: any = MarkdownEditorProvider.getWebviewOptions(
+      Uri.file('/ext'),
+      Uri.file('/workspace/note.md')
+    )
+    expect(opts.enableCommandUris).toBe(false)
+    expect(opts.enableScripts).toBe(true)
+    // retainContextWhenHidden is panel-level (set at registration), not here
+    expect('retainContextWhenHidden' in opts).toBe(false)
   })
 })
 

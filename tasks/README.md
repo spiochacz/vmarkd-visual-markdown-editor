@@ -41,7 +41,7 @@ checked here **only when the task is fully complete**.
 
 ## Security
 - [ ] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — §2a is the priority
-- [ ] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — needs 18 §2a
+- [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
 
 ## Marketplace / publication
 - [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)

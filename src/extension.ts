@@ -235,20 +235,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return roots
   }
 
+  // Only the webview options we deliberately control (task 27). The caller spreads
+  // these over the existing `webview.options` so VS Code's sensible custom-editor
+  // defaults are augmented, not wholesale-replaced. `retainContextWhenHidden` is a
+  // panel-level option set at registerCustomEditorProvider (task 37) — it is not a
+  // WebviewOptions field, so it does not belong here.
   static getWebviewOptions(
     extensionUri: vscode.Uri,
     documentUri: vscode.Uri
-  ): vscode.WebviewOptions & vscode.WebviewPanelOptions {
+  ): vscode.WebviewOptions {
     return {
       // Enable javascript in the webview
       enableScripts: true,
-
+      // Narrowed to the extension media dir + the document's workspace (task 18 §2a).
       localResourceRoots: this.webviewRoots(extensionUri, documentUri),
-      // The effective panel-level option is set in registerCustomEditorProvider
-      // (task 37); kept here in sync for clarity.
-      retainContextWhenHidden:
-        this.config.get<boolean>('retainHiddenEditors') ?? true,
-      enableCommandUris: true,
+      // Navigation goes through postMessage (open-link / navigate-back / …), never
+      // `command:` URIs, so keep them disabled to reduce webview privilege (task 27).
+      enableCommandUris: false,
     }
   }
 
@@ -361,10 +364,15 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
     webviewPanel.title = NodePath.basename(activeFsPath)
     webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
-    webviewPanel.webview.options = MarkdownEditorProvider.getWebviewOptions(
-      this._context.extensionUri,
-      document.uri
-    )
+    // Augment, don't replace: keep VS Code's default custom-editor webview options
+    // and only override the ones we control (task 27).
+    webviewPanel.webview.options = {
+      ...webviewPanel.webview.options,
+      ...MarkdownEditorProvider.getWebviewOptions(
+        this._context.extensionUri,
+        document.uri
+      ),
+    }
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       document.uri

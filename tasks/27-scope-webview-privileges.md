@@ -1,5 +1,12 @@
 # Task: Scope webview privileges (enableCommandUris + stop overwriting options)
 
+> **Status:** ✅ Done. (1) The call site now spreads `getWebviewOptions()` over the
+> existing `webview.options` (augment, not replace), preserving VS Code's defaults.
+> (2) Audited the webview/HTML/Vditor output — navigation is 100% `postMessage`
+> (`open-link`/`navigate-back`/…), zero `command:` URIs — so `enableCommandUris` is
+> now `false`. `retainContextWhenHidden` (panel-level, set at registration, task 37)
+> dropped from the webview options where it was dead. Host-side, +2 unit tests (98
+> total). Pairs with 18 §2c — confirm rendering in the same live pass.
 > **Source:** vMark `src` security audit (webview options privilege)
 > **Value / Risk:** 🟢 reduces webview privilege / low
 
