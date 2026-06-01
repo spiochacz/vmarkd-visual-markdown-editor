@@ -1,7 +1,6 @@
 import { debounce } from './debounce'
-import Vditor from 'vditor'
-window.vscode =
-  (window as any).acquireVsCodeApi && (window as any).acquireVsCodeApi()
+import type Vditor from 'vditor'
+window.vscode = (window as any).acquireVsCodeApi?.()
 ;(window as any).global = window
 
 let responsiveTableCleanup: (() => void) | null = null
@@ -43,10 +42,10 @@ export function confirm(msg: string, onOk: () => void | Promise<void>) {
 }
 // 切换 content-theme 时自动修改 vditor theme
 export function fixDarkTheme() {
-  let $ct = document.querySelector('[data-type="content-theme"]')
+  const $ct = document.querySelector('[data-type="content-theme"]')
   $ct.nextElementSibling.addEventListener('click', (e) => {
     if ((e.target as any).tagName !== 'BUTTON') return
-    let type = (e.target as any).getAttribute('data-type')
+    const type = (e.target as any).getAttribute('data-type')
     if (type === 'dark') {
       vditor.setTheme(type)
     } else {
@@ -61,23 +60,23 @@ export function fixPanelHover() {
   document
     .querySelectorAll<HTMLElement>('#fix-table-ir-wrapper .vditor-panel')
     .forEach((el) => {
-    let timer: ReturnType<typeof setTimeout> | undefined
-    el.addEventListener('mouseenter', () => {
-      timer && clearTimeout(timer)
-      el.classList.add('vditor-panel_hover')
+      let timer: ReturnType<typeof setTimeout> | undefined
+      el.addEventListener('mouseenter', () => {
+        timer && clearTimeout(timer)
+        el.classList.add('vditor-panel_hover')
+      })
+      el.addEventListener('mouseleave', () => {
+        timer = setTimeout(() => {
+          el.classList.remove('vditor-panel_hover')
+        }, 2000)
+      })
     })
-    el.addEventListener('mouseleave', () => {
-      timer = setTimeout(() => {
-        el.classList.remove('vditor-panel_hover')
-      }, 2000)
-    })
-  })
 }
 // 文件转base64用于传输
 export const fileToBase64 = async (file) => {
   return new Promise((res, rej) => {
     const reader = new FileReader()
-    reader.onload = function (evt) {
+    reader.onload = (evt) => {
       res(evt.target.result.toString().split(',')[1])
     }
     reader.onerror = rej
@@ -86,7 +85,7 @@ export const fileToBase64 = async (file) => {
 }
 // 保存 vditor 配置到 vscode 同步存储
 export function saveVditorOptions() {
-  let vditorOptions = {
+  const vditorOptions = {
     theme: vditor.vditor.options.theme,
     mode: vditor.vditor.currentMode,
     preview: vditor.vditor.options.preview,
@@ -102,7 +101,7 @@ export function handleToolbarClick() {
     toolbar.addEventListener('click', (e) => {
       if (
         (e.target as HTMLElement).closest(
-          '.vditor-panel--left button, .vditor-panel--arrow button, .vditor-panel button'
+          '.vditor-panel--left button, .vditor-panel--arrow button, .vditor-panel button',
         )
       ) {
         setTimeout(() => {
@@ -114,19 +113,21 @@ export function handleToolbarClick() {
 }
 
 function normalizeResponsiveTables(root: ParentNode = document) {
-  root.querySelectorAll<HTMLTableElement>('.vditor-reset table').forEach((table) => {
-    table.removeAttribute('width')
-    table.style.setProperty('display', 'table', 'important')
-    table.style.setProperty('table-layout', 'fixed', 'important')
-    table.style.setProperty('width', '100%', 'important')
-    table.style.setProperty('max-width', '100%', 'important')
-    table.style.setProperty('min-width', '0', 'important')
-    table.style.setProperty('box-sizing', 'border-box')
-  })
+  root
+    .querySelectorAll<HTMLTableElement>('.vditor-reset table')
+    .forEach((table) => {
+      table.removeAttribute('width')
+      table.style.setProperty('display', 'table', 'important')
+      table.style.setProperty('table-layout', 'fixed', 'important')
+      table.style.setProperty('width', '100%', 'important')
+      table.style.setProperty('max-width', '100%', 'important')
+      table.style.setProperty('min-width', '0', 'important')
+      table.style.setProperty('box-sizing', 'border-box')
+    })
 
   root
     .querySelectorAll<HTMLElement>(
-      '.vditor-reset table colgroup col, .vditor-reset table th, .vditor-reset table td'
+      '.vditor-reset table colgroup col, .vditor-reset table th, .vditor-reset table td',
     )
     .forEach((element) => {
       element.removeAttribute('width')
@@ -221,12 +222,11 @@ export function fixLinkClick() {
       activateWikiLink(wikiElement)
     }
   })
-  window.open = (url: string, ...args: any[]) => {
+  window.open = (url: string, ..._args: any[]) => {
     openLink(url)
     return window
   }
 }
-
 
 /** error:
  We don't execute document.execCommand() this time, because it is called recursively.
@@ -235,7 +235,7 @@ export function fixLinkClick() {
 (anonymous) @ host.js:27
 see: https://github.com/nwjs/nw.js/issues/3403 */
 export function fixCut() {
-  let _exec = document.execCommand.bind(document)
+  const _exec = document.execCommand.bind(document)
   document.execCommand = (cmd, ...args) => {
     if (cmd === 'delete') {
       setTimeout(() => {

@@ -195,7 +195,13 @@
           },
           "markdown-editor.mermaidTheme": {
             "type": "string",
-            "enum": ["auto", "default", "dark", "forest", "neutral"],
+            "enum": [
+              "auto",
+              "default",
+              "dark",
+              "forest",
+              "neutral"
+            ],
             "default": "auto",
             "description": "Theme for Mermaid diagrams. \"auto\" follows the editor (dark in a dark theme) — which renders a plain flowchart mostly monochrome; pick \"default\"/\"forest\"/\"neutral\" for colour, or \"dark\" to force the dark palette."
           },
@@ -227,7 +233,9 @@
           },
           "markdown-editor.externalCssFiles": {
             "type": "array",
-            "items": { "type": "string" },
+            "items": {
+              "type": "string"
+            },
             "default": [],
             "description": "Paths to external CSS files (absolute, or relative to the workspace root) injected into the editor. They reload live when edited. customCss is loaded after them, so it always wins on conflicting rules."
           }
@@ -244,7 +252,10 @@
           },
           "markdown-editor.outlinePosition": {
             "type": "string",
-            "enum": ["left", "right"],
+            "enum": [
+              "left",
+              "right"
+            ],
             "default": "right",
             "description": "Which side the outline panel opens on."
           },
@@ -289,11 +300,16 @@
     "test": "vitest run --config test/vitest.config.ts",
     "test:watch": "vitest --config test/vitest.config.ts",
     "test:coverage": "vitest run --coverage --config test/vitest.config.ts",
+    "lint": "biome check",
+    "lint:ci": "biome ci",
+    "lint:fix": "biome check --write",
+    "format": "biome format --write",
     "publish:marketplace": "bash scripts/publish-marketplace.sh",
     "release:marketplace": "bash scripts/release-marketplace.sh",
     "pub": "npm run release:marketplace"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@types/node": "^22",
     "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.8",

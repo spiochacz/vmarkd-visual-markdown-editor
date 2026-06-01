@@ -22,7 +22,7 @@ test('renderDiffMarkers adds a themed bar on the changed block and clears it', a
     const count = dm.renderDiffMarkers(v, changes)
 
     const bars = Array.from(
-      document.querySelectorAll('.me-diff-marker')
+      document.querySelectorAll('.me-diff-marker'),
     ) as HTMLElement[]
     const editor = v.vditor.ir.element as HTMLElement
     const info = bars.map((b) => ({
@@ -36,7 +36,12 @@ test('renderDiffMarkers adds a themed bar on the changed block and clears it', a
     dm.clearDiffMarkers(editor)
     const afterClear = document.querySelectorAll('.me-diff-marker').length
 
-    return { count, info, afterClear, editorPosition: getComputedStyle(editor).position }
+    return {
+      count,
+      info,
+      afterClear,
+      editorPosition: getComputedStyle(editor).position,
+    }
   })
 
   expect(result.count).toBe(1)

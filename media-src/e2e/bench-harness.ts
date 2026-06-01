@@ -7,7 +7,7 @@ import { createToolbar } from '../src/toolbar'
 // `init.construct`, the GopherJS Lute load + first parse). Driven by Playwright
 // through window.__bench / window.__benchCold.
 
-const CDN = location.origin + '/vditor'
+const CDN = `${location.origin}/vditor`
 
 function repeat(s: string, n: number): string {
   let out = ''
@@ -29,23 +29,35 @@ export function makeDoc(kind: string): string {
       return repeat('lorem ipsum dolor sit amet consectetur\n', 1300) // ~50 KB
     case 'headings': {
       let s = ''
-      for (let i = 0; i < 200; i++) s += `## Heading ${i}\n\nParagraph text number ${i} with some words.\n\n`
+      for (let i = 0; i < 200; i++)
+        s += `## Heading ${i}\n\nParagraph text number ${i} with some words.\n\n`
       return s
     }
     case 'code': {
       let s = ''
       for (let i = 0; i < 50; i++)
-        s += '```js\nconst x' + i + ' = ' + i + '\nfunction f' + i + '() { return x' + i + ' * 2 }\n```\n\n'
+        s +=
+          '```js\nconst x' +
+          i +
+          ' = ' +
+          i +
+          '\nfunction f' +
+          i +
+          '() { return x' +
+          i +
+          ' * 2 }\n```\n\n'
       return s
     }
     case 'math': {
       let s = ''
-      for (let i = 0; i < 50; i++) s += `Inline $a_${i}^2 + b = c$ and a block:\n\n$$\\int_0^${i} x\\,dx = \\frac{${i}^2}{2}$$\n\n`
+      for (let i = 0; i < 50; i++)
+        s += `Inline $a_${i}^2 + b = c$ and a block:\n\n$$\\int_0^${i} x\\,dx = \\frac{${i}^2}{2}$$\n\n`
       return s
     }
     case 'tables': {
       let s = ''
-      for (let i = 0; i < 30; i++) s += '| a | b | c |\n| - | - | - |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\n'
+      for (let i = 0; i < 30; i++)
+        s += '| a | b | c |\n| - | - | - |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n\n'
       return s
     }
     default:
@@ -58,7 +70,8 @@ function buildOptions(spec: any): any {
     cache: { enable: false },
     mode: spec.mode ?? 'ir',
     cdn: CDN,
-    value: typeof spec.doc === 'string' ? spec.doc : makeDoc(spec.doc ?? 'empty'),
+    value:
+      typeof spec.doc === 'string' ? spec.doc : makeDoc(spec.doc ?? 'empty'),
     // Vditor 3.11 calls this unconditionally while rendering the wysiwyg
     // toolbar; without it init throws (see main.ts).
     customWysiwygToolbar: () => {},
@@ -107,7 +120,6 @@ function median(runs: number[]): number {
   const s = [...runs].sort((a, b) => a - b)
   return s[Math.floor(s.length / 2)]
 }
-
 // Warm matrix: a single throwaway construct first loads Lute, then every spec
 // is measured `iterations` times (median reported) with Lute already resident.
 ;(window as any).__bench = async (specs: any[], iterations = 3) => {

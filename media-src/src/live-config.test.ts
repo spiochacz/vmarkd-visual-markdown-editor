@@ -7,10 +7,14 @@ import {
 
 describe('initOnlyChanged', () => {
   it('is false when no constructor-only option changed', () => {
-    const opts = { showToolbar: true, wordCount: false, highlightHeadings: true }
+    const opts = {
+      showToolbar: true,
+      wordCount: false,
+      highlightHeadings: true,
+    }
     // highlightHeadings flips, but it is a live body-attr option, not init-only
     expect(initOnlyChanged(opts, { ...opts, highlightHeadings: false })).toBe(
-      false
+      false,
     )
   })
 

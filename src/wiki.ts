@@ -1,4 +1,4 @@
-import * as NodePath from 'path'
+import * as NodePath from 'node:path'
 import * as vscode from 'vscode'
 
 const WikiFolderName = 'wiki'
@@ -26,7 +26,7 @@ export function isWikiFile(uri: vscode.Uri | undefined) {
 }
 
 export function getWikiDocumentContext(
-  uri: vscode.Uri | undefined
+  uri: vscode.Uri | undefined,
 ): WikiDocumentContext {
   const root = uri ? getWikiRoot(uri) : undefined
   if (!root) {
@@ -60,7 +60,7 @@ export function getWikiRoot(uri: vscode.Uri) {
 
 export async function resolveWikiLink(
   sourceUri: vscode.Uri,
-  rawTarget: string
+  rawTarget: string,
 ): Promise<WikiLinkResolution> {
   const root = getWikiRoot(sourceUri)
   if (!root) {
@@ -74,7 +74,7 @@ export async function resolveWikiLink(
 
   const files = await collectWikiMarkdownFiles(root)
   const matches = files.filter((candidate) =>
-    getWikiKeys(root, candidate).includes(targetKey)
+    getWikiKeys(root, candidate).includes(targetKey),
   )
   matches.sort((left, right) => left.fsPath.localeCompare(right.fsPath))
 
@@ -104,7 +104,9 @@ export async function resolveWikiLink(
 }
 
 function isSupportedMarkdownUri(uri: vscode.Uri) {
-  return SupportedMarkdownExtensions.has(NodePath.extname(uri.path).toLowerCase())
+  return SupportedMarkdownExtensions.has(
+    NodePath.extname(uri.path).toLowerCase(),
+  )
 }
 
 function extractWikiTarget(rawTarget: string) {
@@ -139,15 +141,17 @@ function getWikiKeys(root: vscode.Uri, candidate: vscode.Uri) {
   const basename = NodePath.basename(candidate.fsPath, extension)
   const relativePath = NodePath.relative(root.fsPath, candidate.fsPath).replace(
     /\\/g,
-    '/'
+    '/',
   )
   const relativeWithoutExtension = relativePath.slice(0, -extension.length)
 
   return Array.from(
-    new Set([
-      normalizeWikiLookupKey(relativeWithoutExtension),
-      normalizeWikiLookupKey(basename),
-    ].filter(Boolean))
+    new Set(
+      [
+        normalizeWikiLookupKey(relativeWithoutExtension),
+        normalizeWikiLookupKey(basename),
+      ].filter(Boolean),
+    ),
   )
 }
 

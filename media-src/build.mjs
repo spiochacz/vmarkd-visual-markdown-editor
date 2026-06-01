@@ -19,7 +19,10 @@ const options = {
   ...vditorSourceConfig,
 }
 
-rmSync(new URL('../media/dist', import.meta.url), { recursive: true, force: true })
+rmSync(new URL('../media/dist', import.meta.url), {
+  recursive: true,
+  force: true,
+})
 
 if (watch) {
   const ctx = await esbuild.context(options)

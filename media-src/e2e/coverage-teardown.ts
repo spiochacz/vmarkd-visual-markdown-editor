@@ -11,7 +11,7 @@ export default async function globalTeardown() {
   const pct = results?.summary?.lines?.pct
   if (pct !== undefined) {
     console.log(
-      `\nE2E line coverage: ${pct}%  →  ${coverageOptions.outputDir}/index.html`
+      `\nE2E line coverage: ${pct}%  →  ${coverageOptions.outputDir}/index.html`,
     )
   }
 }

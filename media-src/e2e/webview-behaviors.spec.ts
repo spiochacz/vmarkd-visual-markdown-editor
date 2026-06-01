@@ -41,14 +41,14 @@ test.describe('confirm() dialog', () => {
             ran = true
           })
           const dialog = document.querySelector(
-            'dialog.me-confirm'
+            'dialog.me-confirm',
           ) as HTMLDialogElement
           const text = dialog.querySelector('.me-confirm__content')!.textContent
           ;(
             dialog.querySelector('button[value="confirm"]') as HTMLButtonElement
           ).click()
           setTimeout(() => resolve({ ran, text }), 50)
-        })
+        }),
     )
     expect(result.text).toBe('Reset everything?')
     expect(result.ran).toBe(true)
@@ -66,7 +66,7 @@ test.describe('confirm() dialog', () => {
             ran = true
           })
           const dialog = document.querySelector(
-            'dialog.me-confirm'
+            'dialog.me-confirm',
           ) as HTMLDialogElement
           ;(
             dialog.querySelector('button[value="cancel"]') as HTMLButtonElement
@@ -77,9 +77,9 @@ test.describe('confirm() dialog', () => {
                 ran,
                 stillInDom: !!document.querySelector('dialog.me-confirm'),
               }),
-            50
+            50,
           )
-        })
+        }),
     )
     expect(result.ran).toBe(false)
     expect(result.stillInDom).toBe(false)
@@ -282,10 +282,14 @@ test('fixDarkTheme() maps content-theme buttons to vditor.setTheme', async ({
       '<button data-type="light">l</button></div>'
     ;(window as any).__utils.fixDarkTheme()
     ;(
-      document.querySelector('#sib button[data-type="dark"]') as HTMLButtonElement
+      document.querySelector(
+        '#sib button[data-type="dark"]',
+      ) as HTMLButtonElement
     ).click()
     ;(
-      document.querySelector('#sib button[data-type="light"]') as HTMLButtonElement
+      document.querySelector(
+        '#sib button[data-type="light"]',
+      ) as HTMLButtonElement
     ).click()
     return themeCalls
   })

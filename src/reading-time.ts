@@ -14,6 +14,7 @@ export function wordCount(text: string): number {
 // never reads "~0 min" for a few words. Empty doc → "~0 min read".
 export function readingTime(text: string): string {
   const words = wordCount(text)
-  const minutes = words === 0 ? 0 : Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))
+  const minutes =
+    words === 0 ? 0 : Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))
   return `~${minutes} min read`
 }

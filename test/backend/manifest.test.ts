@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 
 const pkg = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 )
 
 const VIEW_TYPE = 'markdown-editor.editor'
@@ -30,16 +30,14 @@ describe('package.json manifest', () => {
 
   it('selects both markdown extensions on file and untitled schemes', () => {
     const selectors = pkg.contributes.customEditors[0].selector
-    const pairs = selectors.map(
-      (s: any) => `${s.filenamePattern}@${s.scheme}`
-    )
+    const pairs = selectors.map((s: any) => `${s.filenamePattern}@${s.scheme}`)
     expect(pairs).toEqual(
       expect.arrayContaining([
         '*.md@file',
         '*.md@untitled',
         '*.markdown@file',
         '*.markdown@untitled',
-      ])
+      ]),
     )
   })
 
@@ -49,52 +47,52 @@ describe('package.json manifest', () => {
       expect.arrayContaining([
         'markdown-editor.openEditor',
         'markdown-editor.openTextEditor',
-      ])
+      ]),
     )
   })
 
   it('contributes an Open-in-Split command shown in the editor title (task 10)', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openInSplit'
+      (c: any) => c.command === 'markdown-editor.openInSplit',
     )
     expect(cmd).toBeDefined()
     expect(cmd.icon).toBe('$(split-horizontal)')
     const inTitle = pkg.contributes.menus['editor/title'].some(
       (m: any) =>
         m.command === 'markdown-editor.openInSplit' &&
-        m.when.includes(`activeCustomEditorId != ${VIEW_TYPE}`)
+        m.when.includes(`activeCustomEditorId != ${VIEW_TYPE}`),
     )
     expect(inTitle).toBe(true)
   })
 
   it('contributes an Open-source-to-the-side command in the custom-editor title (task 36)', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openSourceToSide'
+      (c: any) => c.command === 'markdown-editor.openSourceToSide',
     )
     expect(cmd).toBeDefined()
     const inTitle = pkg.contributes.menus['editor/title'].some(
       (m: any) =>
         m.command === 'markdown-editor.openSourceToSide' &&
-        m.when === `activeCustomEditorId == ${VIEW_TYPE}`
+        m.when === `activeCustomEditorId == ${VIEW_TYPE}`,
     )
     expect(inTitle).toBe(true)
   })
 
   it('contributes an Open-Settings command but NOT in the editor title bar', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openSettings'
+      (c: any) => c.command === 'markdown-editor.openSettings',
     )
     expect(cmd).toBeDefined() // available via the command palette
     // intentionally absent from the editor title bar to keep it uncluttered
     const inTitle = pkg.contributes.menus['editor/title'].some(
-      (m: any) => m.command === 'markdown-editor.openSettings'
+      (m: any) => m.command === 'markdown-editor.openSettings',
     )
     expect(inTitle).toBe(false)
   })
 
   it('binds the "edit in text editor" keybinding scoped to the custom editor', () => {
     const binding = pkg.contributes.keybindings.find(
-      (k: any) => k.command === 'markdown-editor.openTextEditor'
+      (k: any) => k.command === 'markdown-editor.openTextEditor',
     )
     expect(binding).toBeDefined()
     expect(binding.key).toBe('ctrl+alt+e')
@@ -104,7 +102,7 @@ describe('package.json manifest', () => {
 
   it('binds Ctrl/Cmd+F to the webview find widget inside the custom editor', () => {
     const binding = pkg.contributes.keybindings.find(
-      (k: any) => k.command === 'editor.action.webvieweditor.showFind'
+      (k: any) => k.command === 'editor.action.webvieweditor.showFind',
     )
     expect(binding).toBeDefined()
     expect(binding.key).toBe('ctrl+f')
@@ -118,7 +116,7 @@ describe('package.json manifest', () => {
         'onCustomEditor:markdown-editor.editor',
         'onCommand:markdown-editor.openEditor',
         'onCommand:markdown-editor.openTextEditor',
-      ])
+      ]),
     )
   })
 
@@ -129,7 +127,7 @@ describe('package.json manifest', () => {
   it('declares the settings the provider reads, with matching types/defaults', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.imageSaveFolder']).toMatchObject({
       type: 'string',
@@ -149,7 +147,7 @@ describe('package.json manifest', () => {
   it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.wordCount']).toMatchObject({
       type: 'boolean',
@@ -172,7 +170,7 @@ describe('package.json manifest', () => {
   it('declares the outline settings (highlightHeadings, outlinePosition/Width, showOutlineByDefault, outlineHighlight)', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.highlightHeadings']).toMatchObject({
       type: 'boolean',
@@ -204,36 +202,38 @@ describe('package.json manifest', () => {
   it('declares the mermaidTheme setting (enum, default "auto")', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.mermaidTheme']).toMatchObject({
       type: 'string',
       default: 'auto',
     })
     expect(props['markdown-editor.mermaidTheme'].enum).toEqual(
-      expect.arrayContaining(['auto', 'default', 'forest'])
+      expect.arrayContaining(['auto', 'default', 'forest']),
     )
   })
 
   it('declares the fontSize setting under Appearance, default "editor" (task 43)', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.fontSize']).toMatchObject({
       type: 'string',
       default: 'editor',
     })
     const appearance = pkg.contributes.configuration.find(
-      (c: any) => c.title === 'Appearance'
+      (c: any) => c.title === 'Appearance',
     )
-    expect(Object.keys(appearance.properties)).toContain('markdown-editor.fontSize')
+    expect(Object.keys(appearance.properties)).toContain(
+      'markdown-editor.fontSize',
+    )
   })
 
   it('declares the externalCssFiles setting', () => {
     const props = Object.assign(
       {},
-      ...pkg.contributes.configuration.map((c: any) => c.properties)
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
     expect(props['markdown-editor.externalCssFiles']).toMatchObject({
       type: 'array',
@@ -245,17 +245,17 @@ describe('package.json manifest', () => {
     expect(Array.isArray(pkg.contributes.configuration)).toBe(true)
     const titles = pkg.contributes.configuration.map((c: any) => c.title)
     expect(titles).toEqual(
-      expect.arrayContaining(['General', 'Appearance', 'Outline'])
+      expect.arrayContaining(['General', 'Appearance', 'Outline']),
     )
     const appearance = pkg.contributes.configuration.find(
-      (c: any) => c.title === 'Appearance'
+      (c: any) => c.title === 'Appearance',
     )
     expect(Object.keys(appearance.properties)).toEqual(
       expect.arrayContaining([
         'markdown-editor.highlightHeadings',
         'markdown-editor.showHeadingMarkers',
         'markdown-editor.enableFullWidth',
-      ])
+      ]),
     )
   })
 })

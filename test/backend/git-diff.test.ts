@@ -82,7 +82,10 @@ describe('createDiffScheduler', () => {
     expect(compute).toHaveBeenCalledTimes(1)
     expect(compute).toHaveBeenCalledWith('v2') // latest content wins
     expect(posted).toEqual([
-      { command: 'diff-info', changes: [{ startLine: 0, endLine: 1, type: 'added' }] },
+      {
+        command: 'diff-info',
+        changes: [{ startLine: 0, endLine: 1, type: 'added' }],
+      },
     ])
   })
 

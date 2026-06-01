@@ -23,7 +23,7 @@ const value = [
 const editor = new Vditor('app', {
   cache: { enable: false },
   mode: 'ir',
-  cdn: location.origin + '/vditor',
+  cdn: `${location.origin}/vditor`,
   value,
   outline: { enable: true, position: 'right' },
   customWysiwygToolbar: () => {},

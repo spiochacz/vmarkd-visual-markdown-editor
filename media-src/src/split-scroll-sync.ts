@@ -25,7 +25,11 @@ let installed = false
 
 // Top of `el` relative to the scroll container's content (0 = top of content).
 function topWithin(container: HTMLElement, el: HTMLElement): number {
-  return el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+  return (
+    el.getBoundingClientRect().top -
+    container.getBoundingClientRect().top +
+    container.scrollTop
+  )
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -35,17 +39,17 @@ function clamp(v: number, lo: number, hi: number): number {
 function syncSourceToPreview(source: HTMLElement) {
   const content = source.closest('.vditor-content') ?? source.parentElement
   const preview = content?.querySelector<HTMLElement>(PREVIEW_SEL)
-  if (!preview || preview.style.display !== 'block') return
+  if (preview?.style.display !== 'block') return
   const reset = preview.querySelector<HTMLElement>(RESET_SEL)
   if (!reset) return
 
   // Heading anchors, paired by DOM order. Source heading blocks start with
   // `#…␠`; preview headings are <h1>..<h6>.
   const srcHeads = (Array.from(source.children) as HTMLElement[]).filter((el) =>
-    HEADING_RE.test((el.textContent ?? '').trimStart())
+    HEADING_RE.test((el.textContent ?? '').trimStart()),
   )
   const pvHeads = (Array.from(reset.children) as HTMLElement[]).filter((el) =>
-    /^H[1-6]$/.test(el.tagName)
+    /^H[1-6]$/.test(el.tagName),
   )
   // Mismatch → leave Vditor's proportional value untouched (never worse).
   if (!srcHeads.length || srcHeads.length !== pvHeads.length) return
@@ -83,7 +87,7 @@ function syncSourceToPreview(source: HTMLElement) {
   preview.scrollTop = clamp(
     target - preview.clientHeight / 2,
     0,
-    preview.scrollHeight - preview.clientHeight
+    preview.scrollHeight - preview.clientHeight,
   )
 }
 
@@ -98,7 +102,7 @@ export function setupSplitScrollSync() {
     'scroll',
     (e) => {
       const t = e.target as HTMLElement | null
-      if (!t || !t.classList || !t.classList.contains('vditor-sv')) return
+      if (!t?.classList?.contains('vditor-sv')) return
       lastSource = t
       if (pending) return
       pending = true
@@ -108,6 +112,6 @@ export function setupSplitScrollSync() {
         if (lastSource) syncSourceToPreview(lastSource)
       })
     },
-    true // capture: scroll doesn't bubble, but capture sees inner-pane scrolls
+    true, // capture: scroll doesn't bubble, but capture sees inner-pane scrolls
   )
 }

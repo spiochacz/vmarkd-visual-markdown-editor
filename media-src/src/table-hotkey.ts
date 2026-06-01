@@ -27,7 +27,7 @@ const SHORTCUTS: Record<TableAction, ShortcutDef> = {
 
 export function resolveShortcut(
   type: TableAction,
-  isMac: boolean
+  isMac: boolean,
 ): { key: string; shift: boolean } {
   const def = SHORTCUTS[type]
   return { key: isMac && def.macKey ? def.macKey : def.key, shift: def.shift }
@@ -39,7 +39,7 @@ export function resolveShortcut(
 export function dispatchTableHotkey(
   el: HTMLElement,
   type: TableAction,
-  isMac: boolean
+  isMac: boolean,
 ) {
   const { key, shift } = resolveShortcut(type, isMac)
   el.dispatchEvent(
@@ -50,6 +50,6 @@ export function dispatchTableHotkey(
       metaKey: isMac,
       bubbles: true,
       cancelable: true,
-    })
+    }),
   )
 }

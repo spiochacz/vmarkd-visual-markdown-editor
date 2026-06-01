@@ -9,7 +9,7 @@ test('merges flat properties from multiple sources, later wins', () => {
 test('deep-merges nested objects without clobbering sibling keys', () => {
   const result = deepMerge(
     { preview: { theme: { current: 'light' }, hljs: { style: 'a' } } },
-    { preview: { theme: { current: 'dark' } } }
+    { preview: { theme: { current: 'dark' } } },
   )
   expect(result).toEqual({
     preview: { theme: { current: 'dark' }, hljs: { style: 'a' } },

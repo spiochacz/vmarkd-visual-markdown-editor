@@ -34,16 +34,16 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
   const body = document.body
   body.setAttribute(
     'data-use-vscode-theme-color',
-    options?.useVscodeThemeColor ? '1' : '0'
+    options?.useVscodeThemeColor ? '1' : '0',
   )
   body.setAttribute('data-full-width', options?.enableFullWidth ? '1' : '0')
   body.setAttribute(
     'data-highlight-headings',
-    options?.highlightHeadings ? '1' : '0'
+    options?.highlightHeadings ? '1' : '0',
   )
   body.setAttribute(
     'data-heading-markers',
-    options?.showHeadingMarkers === false ? '0' : '1'
+    options?.showHeadingMarkers === false ? '0' : '1',
   )
   if (typeof options?.outlineWidth === 'number' && options.outlineWidth > 0) {
     body.style.setProperty('--me-outline-width', `${options.outlineWidth}px`)
@@ -67,7 +67,7 @@ export const INIT_ONLY_OPTIONS = [
 
 export function initOnlyChanged(
   prev: Record<string, any> | undefined,
-  next: Record<string, any> | undefined
+  next: Record<string, any> | undefined,
 ): boolean {
   return INIT_ONLY_OPTIONS.some((k) => prev?.[k] !== next?.[k])
 }

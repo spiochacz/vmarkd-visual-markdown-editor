@@ -31,7 +31,7 @@ export function offsetToLine(md: string, offset: number): number {
 // cell's content start, or null if the table/row can't be located.
 export function getTableSourceOffset(
   md: string,
-  ref: TableCellRef
+  ref: TableCellRef,
 ): number | null {
   const lines = md.split('\n')
 
@@ -195,7 +195,7 @@ export function getCursorSourceOffset(vditor: any): number {
 // offset that drifts across the two text spaces.
 export function lineAndTextForOffset(
   md: string,
-  offset: number
+  offset: number,
 ): { line: number; lineText: string } {
   const clamped = Math.max(0, Math.min(offset, md.length))
   const lines = md.split('\n')

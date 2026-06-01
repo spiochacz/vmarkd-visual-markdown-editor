@@ -26,7 +26,7 @@ function lcsHunks(a: string[], b: string[]): Hunk[] {
   const m = b.length
   // dp[i][j] = LCS length of a[i:] and b[j:]
   const dp: number[][] = Array.from({ length: n + 1 }, () =>
-    new Array(m + 1).fill(0)
+    new Array(m + 1).fill(0),
   )
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
@@ -119,7 +119,7 @@ function diffHunks(headLines: string[], currentLines: string[]): Hunk[] {
 //   common  → advances the current-line cursor
 export function computeDiffChanges(
   headContent: string,
-  currentContent: string
+  currentContent: string,
 ): DiffChange[] {
   if (headContent === currentContent) return []
   const hunks = diffHunks(headContent.split('\n'), currentContent.split('\n'))

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
-import * as NodePath from 'path'
-import * as fs from 'fs'
+import * as NodePath from 'node:path'
+import * as fs from 'node:fs'
 import { readingTime } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
@@ -37,7 +37,7 @@ function debug(...args: any[]) {
           return String(a)
         }
       })
-      .join(' ')
+      .join(' '),
   )
 }
 
@@ -48,8 +48,7 @@ function showError(msg: string) {
 // Random per-render nonce so only our own <script> tags are allowed to run
 // under the CSP (task 18 §2c) — injected inline scripts (no nonce) cannot.
 function getNonce(): string {
-  const chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
   let text = ''
   for (let i = 0; i < 32; i++)
     text += chars.charAt(Math.floor(Math.random() * chars.length))
@@ -77,13 +76,13 @@ function currentThemeKind(): 'dark' | 'light' {
 function ensureCanWriteFiles(uri: vscode.Uri): boolean {
   if (uri.scheme !== 'file') {
     vscode.window.showInformationMessage(
-      `[markdown-editor] Image upload and wiki page creation are unavailable in virtual workspaces.`
+      `[markdown-editor] Image upload and wiki page creation are unavailable in virtual workspaces.`,
     )
     return false
   }
   if (!vscode.workspace.isTrusted) {
     vscode.window.showWarningMessage(
-      `[markdown-editor] Trust this workspace to upload images and create wiki pages.`
+      `[markdown-editor] Trust this workspace to upload images and create wiki pages.`,
     )
     return false
   }
@@ -106,7 +105,7 @@ function getActiveTabInput() {
 // existing tab in its own column instead of opening a duplicate (task 36).
 function findTabForUri(
   uri: vscode.Uri,
-  kind: 'custom' | 'text'
+  kind: 'custom' | 'text',
 ): vscode.Tab | undefined {
   const want = uri.toString()
   for (const group of vscode.window.tabGroups.all) {
@@ -167,7 +166,7 @@ async function updateEditorContexts() {
   await vscode.commands.executeCommand(
     'setContext',
     WikiFileContextKey,
-    isWikiFile(target)
+    isWikiFile(target),
   )
 }
 
@@ -178,12 +177,12 @@ async function updateEditorContexts() {
 function setupStatusBar(context: vscode.ExtensionContext): () => void {
   const reading = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
-    100
+    100,
   )
   reading.name = 'vMarkd Reading Time'
   const mode = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
-    99
+    99,
   )
   mode.name = 'vMarkd Editor Mode'
   context.subscriptions.push(reading, mode)
@@ -235,7 +234,7 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
 async function revealCaretInSource(
   panel: vscode.WebviewPanel,
   docUri: vscode.Uri,
-  viewColumn: vscode.ViewColumn
+  viewColumn: vscode.ViewColumn,
 ): Promise<void> {
   const reply = await new Promise<{ line: number; lineText: string }>(
     (resolve) => {
@@ -254,7 +253,7 @@ async function revealCaretInSource(
         }
       })
       panel.webview.postMessage({ command: 'get-cursor-offset' })
-    }
+    },
   )
 
   const editor = await vscode.window.showTextDocument(docUri, {
@@ -264,20 +263,20 @@ async function revealCaretInSource(
   if (reply.line < 0) return // opened, but no caret to jump to
 
   const doc = vscode.workspace.textDocuments.find(
-    (d) => d.uri.toString() === docUri.toString()
+    (d) => d.uri.toString() === docUri.toString(),
   )
   const text = doc ? doc.getText() : editor.document.getText()
   const { line, startChar, endChar } = selectionForLine(
     text,
     reply.line,
-    reply.lineText
+    reply.lineText,
   )
   const start = new vscode.Position(line, startChar)
   const end = new vscode.Position(line, endChar)
   editor.selection = new vscode.Selection(start, end)
   editor.revealRange(
     new vscode.Range(start, end),
-    vscode.TextEditorRevealType.InCenter
+    vscode.TextEditorRevealType.InCenter,
   )
 }
 
@@ -323,16 +322,16 @@ export function activate(context: vscode.ExtensionContext) {
             'vscode.openWith',
             target,
             MarkdownEditorViewType,
-            { viewColumn: existing.group.viewColumn }
+            { viewColumn: existing.group.viewColumn },
           )
           return
         }
         await vscode.commands.executeCommand(
           'vscode.openWith',
           target,
-          MarkdownEditorViewType
+          MarkdownEditorViewType,
         )
-      }
+      },
     ),
     vscode.commands.registerCommand(
       'markdown-editor.openInSplit',
@@ -356,9 +355,9 @@ export function activate(context: vscode.ExtensionContext) {
           'vscode.openWith',
           target,
           MarkdownEditorViewType,
-          vscode.ViewColumn.Beside
+          vscode.ViewColumn.Beside,
         )
-      }
+      },
     ),
     vscode.commands.registerCommand(
       'markdown-editor.openTextEditor',
@@ -369,8 +368,12 @@ export function activate(context: vscode.ExtensionContext) {
           showError(`Cannot find markdown file!`)
           return
         }
-        await vscode.commands.executeCommand('vscode.openWith', target, 'default')
-      }
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          target,
+          'default',
+        )
+      },
     ),
     vscode.commands.registerCommand(
       'markdown-editor.openSourceToSide',
@@ -402,18 +405,21 @@ export function activate(context: vscode.ExtensionContext) {
             'vscode.openWith',
             target,
             'default',
-            { viewColumn }
+            { viewColumn },
           )
         }
-      }
+      },
     ),
-    vscode.commands.registerCommand('markdown-editor.openSettings', async () => {
-      // Open the Settings UI filtered to this extension's options.
-      await vscode.commands.executeCommand(
-        'workbench.action.openSettings',
-        '@ext:spiochacz.vmarkd'
-      )
-    }),
+    vscode.commands.registerCommand(
+      'markdown-editor.openSettings',
+      async () => {
+        // Open the Settings UI filtered to this extension's options.
+        await vscode.commands.executeCommand(
+          'workbench.action.openSettings',
+          '@ext:spiochacz.vmarkd',
+        )
+      },
+    ),
     vscode.window.registerCustomEditorProvider(
       MarkdownEditorViewType,
       new MarkdownEditorProvider(context),
@@ -424,16 +430,17 @@ export function activate(context: vscode.ExtensionContext) {
           // default. Memory-conscious users with many tabs can disable it.
           // The bounded retain-cache (keep N) is tasks/41.
           retainContextWhenHidden:
-            MarkdownEditorProvider.config.get<boolean>('retainHiddenEditors') ?? true,
+            MarkdownEditorProvider.config.get<boolean>('retainHiddenEditors') ??
+            true,
           enableFindWidget: true,
         },
-      }
+      },
     ),
     vscode.window.onDidChangeActiveTextEditor(refreshContexts),
     vscode.window.tabGroups.onDidChangeTabs(refreshContexts),
     vscode.workspace.onDidOpenTextDocument(refreshContexts),
     vscode.workspace.onDidCloseTextDocument(refreshContexts),
-    vscode.workspace.onDidChangeTextDocument(debouncedStatusBar)
+    vscode.workspace.onDidChangeTextDocument(debouncedStatusBar),
   )
 
   context.globalState.setKeysForSync([KeyVditorOptions])
@@ -476,7 +483,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   //     doc or the workspace), or its own directory when there is no workspace.
   static webviewRoots(
     extensionUri: vscode.Uri,
-    documentUri: vscode.Uri
+    documentUri: vscode.Uri,
   ): vscode.Uri[] {
     const roots = [vscode.Uri.joinPath(extensionUri, 'media')]
     const ws = vscode.workspace.getWorkspaceFolder(documentUri)
@@ -493,13 +500,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // WebviewOptions field, so it does not belong here.
   static getWebviewOptions(
     extensionUri: vscode.Uri,
-    documentUri: vscode.Uri
+    documentUri: vscode.Uri,
   ): vscode.WebviewOptions {
     return {
       // Enable javascript in the webview
       enableScripts: true,
       // Narrowed to the extension media dir + the document's workspace (task 18 §2a).
-      localResourceRoots: this.webviewRoots(extensionUri, documentUri),
+      localResourceRoots: MarkdownEditorProvider.webviewRoots(
+        extensionUri,
+        documentUri,
+      ),
       // Navigation goes through postMessage (open-link / navigate-back / …), never
       // `command:` URIs, so keep them disabled to reduce webview privilege (task 27).
       enableCommandUris: false,
@@ -515,7 +525,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // Read synchronously so it can feed the (sync) HTML build; unreadable/missing
   // files are skipped. Local-fs only — a no-op in virtual workspaces.
   static readExternalCss(): string {
-    const files = this.config.get<string[]>('externalCssFiles') || []
+    const files =
+      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     const chunks: string[] = []
     for (const f of files) {
@@ -531,11 +542,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   static resolveExternalCssPaths(): string[] {
-    const files = MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+    const files =
+      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     return files
       .filter(Boolean)
-      .map((f) => (NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f))
+      .map((f) =>
+        NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f,
+      )
   }
 
   // Neutralize a `</style>` breakout in user CSS (task 18 §2b). When CSS is
@@ -562,7 +576,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     if (!options || typeof options !== 'object') return options
     const isBakedResourceUrl = (s: string) =>
       /vscode-resource|vscode-cdn\.net|[/\\]extensions[/\\]spiochacz\.vmarkd-|\.vscode-server[/\\]extensions/.test(
-        s
+        s,
       )
     const clone = JSON.parse(JSON.stringify(options))
     const walk = (o: any) => {
@@ -585,8 +599,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // wins on conflicting rules (later tag = higher priority). Both are sanitized
   // against `</style>` breakout (task 18 §2b).
   static _cssStyleTags(): string {
-    const external = `<style id="external-css">${this.sanitizeCss(this.readExternalCss())}</style>`
-    const custom = `<style id="custom-css">${this.sanitizeCss(this.config.get<string>('customCss'))}</style>`
+    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss())}</style>`
+    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('customCss'))}</style>`
     return external + custom
   }
 
@@ -594,7 +608,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
   public resolveCustomTextEditor(
     document: vscode.TextDocument,
-    webviewPanel: vscode.WebviewPanel
+    webviewPanel: vscode.WebviewPanel,
   ) {
     const disposables: vscode.Disposable[] = []
     // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
@@ -606,7 +620,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const wiki = getWikiDocumentContext(document.uri)
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)
     const vditorBaseUri = webviewPanel.webview
-      .asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, 'media', 'vditor'))
+      .asWebviewUri(
+        vscode.Uri.joinPath(this._context.extensionUri, 'media', 'vditor'),
+      )
       .toString()
     let textEditTimer: NodeJS.Timeout | undefined
     let applyingWebviewEdit = false
@@ -626,18 +642,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       ...webviewPanel.webview.options,
       ...MarkdownEditorProvider.getWebviewOptions(
         this._context.extensionUri,
-        document.uri
+        document.uri,
       ),
     }
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
-      document.uri
+      document.uri,
     )
 
     const syncToEditor = async (content: string) => {
-      if (
-        normalizeContent(content) === normalizeContent(document.getText())
-      ) {
+      if (normalizeContent(content) === normalizeContent(document.getText())) {
         lastSyncedContent = document.getText()
         return
       }
@@ -660,7 +674,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         options?: any
         theme?: 'dark' | 'light'
         wiki?: any
-      } = { options: void 0 }
+      } = { options: void 0 },
     ) => {
       const content = document.getText()
       const force = props.type === 'init'
@@ -692,26 +706,27 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // disables (posts []) when there's no git / the file is untracked.
     const scheduleDiffInfo = createDiffScheduler(
       (msg) => webviewPanel.webview.postMessage(msg),
-      (content) =>
-        makeDiffComputer(activeFsPath, vscode.extensions)(content)
+      (content) => makeDiffComputer(activeFsPath, vscode.extensions)(content),
     )
 
     // Extracted so it can be disposed + recreated when the file is renamed.
-    const setupFileWatcher = (uri: vscode.Uri): vscode.Disposable | undefined => {
+    const setupFileWatcher = (
+      uri: vscode.Uri,
+    ): vscode.Disposable | undefined => {
       if (!workspaceFolder) {
         return undefined
       }
       const relativePath = NodePath.relative(
         workspaceFolder.uri.fsPath,
-        uri.fsPath
+        uri.fsPath,
       ).replace(/\\/g, '/')
       const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(workspaceFolder, relativePath)
+        new vscode.RelativePattern(workspaceFolder, relativePath),
       )
       return vscode.Disposable.from(
         watcher,
         watcher.onDidChange(() => schedulePostUpdate()),
-        watcher.onDidCreate(() => schedulePostUpdate())
+        watcher.onDidCreate(() => schedulePostUpdate()),
       )
     }
     let currentWatcher = setupFileWatcher(activeUri)
@@ -733,8 +748,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       webviewPanel.webview.postMessage({
         command: 'config-changed',
         options: {
-          useVscodeThemeColor:
-            MarkdownEditorProvider.config.get<boolean>('useVscodeThemeColor'),
+          useVscodeThemeColor: MarkdownEditorProvider.config.get<boolean>(
+            'useVscodeThemeColor',
+          ),
           enableFullWidth:
             MarkdownEditorProvider.config.get<boolean>('enableFullWidth'),
           highlightHeadings:
@@ -742,17 +758,22 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           showHeadingMarkers:
             MarkdownEditorProvider.config.get<boolean>('showHeadingMarkers'),
           fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
-          outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
+          outlineWidth:
+            MarkdownEditorProvider.config.get<number>('outlineWidth'),
           // constructor-only options — a change re-inits Vditor (webview side)
-          showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
+          showToolbar:
+            MarkdownEditorProvider.config.get<boolean>('showToolbar'),
           wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
-          codeBlockLineNumbers:
-            MarkdownEditorProvider.config.get<boolean>('codeBlockLineNumbers'),
-          mermaidTheme: MarkdownEditorProvider.config.get<string>('mermaidTheme'),
+          codeBlockLineNumbers: MarkdownEditorProvider.config.get<boolean>(
+            'codeBlockLineNumbers',
+          ),
+          mermaidTheme:
+            MarkdownEditorProvider.config.get<string>('mermaidTheme'),
           outlinePosition:
             MarkdownEditorProvider.config.get<string>('outlinePosition'),
-          showOutlineByDefault:
-            MarkdownEditorProvider.config.get<boolean>('showOutlineByDefault'),
+          showOutlineByDefault: MarkdownEditorProvider.config.get<boolean>(
+            'showOutlineByDefault',
+          ),
           outlineHighlight:
             MarkdownEditorProvider.config.get<boolean>('outlineHighlight'),
         },
@@ -779,9 +800,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             w,
             w.onDidChange(postExternalCss),
             w.onDidCreate(postExternalCss),
-            w.onDidDelete(postExternalCss)
+            w.onDidDelete(postExternalCss),
           )
-        })
+        }),
       )
       disposables.push(externalCssWatcher)
     }
@@ -828,7 +849,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         // Phase 1: direct file rename only. Re-point identity, tab, watcher and
         // suppress the old-uri close that would otherwise dispose the panel.
         const hit = e.files.find(
-          (f) => f.oldUri.toString() === activeUri.toString()
+          (f) => f.oldUri.toString() === activeUri.toString(),
         )
         if (!hit) {
           return
@@ -887,37 +908,43 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               cdn: vditorBaseUri,
               options: {
                 useVscodeThemeColor: MarkdownEditorProvider.config.get<boolean>(
-                  'useVscodeThemeColor'
+                  'useVscodeThemeColor',
                 ),
-                enableFullWidth: MarkdownEditorProvider.config.get<boolean>(
-                  'enableFullWidth'
-                ),
-                wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
-                codeBlockLineNumbers: MarkdownEditorProvider.config.get<boolean>(
-                  'codeBlockLineNumbers'
-                ),
+                enableFullWidth:
+                  MarkdownEditorProvider.config.get<boolean>('enableFullWidth'),
+                wordCount:
+                  MarkdownEditorProvider.config.get<boolean>('wordCount'),
+                codeBlockLineNumbers:
+                  MarkdownEditorProvider.config.get<boolean>(
+                    'codeBlockLineNumbers',
+                  ),
                 mermaidTheme:
                   MarkdownEditorProvider.config.get<string>('mermaidTheme'),
-                showToolbar: MarkdownEditorProvider.config.get<boolean>('showToolbar'),
-                highlightHeadings: MarkdownEditorProvider.config.get<boolean>(
-                  'highlightHeadings'
-                ),
-                showHeadingMarkers: MarkdownEditorProvider.config.get<boolean>(
-                  'showHeadingMarkers'
-                ),
+                showToolbar:
+                  MarkdownEditorProvider.config.get<boolean>('showToolbar'),
+                highlightHeadings:
+                  MarkdownEditorProvider.config.get<boolean>(
+                    'highlightHeadings',
+                  ),
+                showHeadingMarkers:
+                  MarkdownEditorProvider.config.get<boolean>(
+                    'showHeadingMarkers',
+                  ),
                 fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
-                outlinePosition: MarkdownEditorProvider.config.get<string>(
-                  'outlinePosition'
-                ),
-                outlineWidth: MarkdownEditorProvider.config.get<number>('outlineWidth'),
-                showOutlineByDefault: MarkdownEditorProvider.config.get<boolean>(
-                  'showOutlineByDefault'
-                ),
-                outlineHighlight: MarkdownEditorProvider.config.get<boolean>(
-                  'outlineHighlight'
-                ),
+                outlinePosition:
+                  MarkdownEditorProvider.config.get<string>('outlinePosition'),
+                outlineWidth:
+                  MarkdownEditorProvider.config.get<number>('outlineWidth'),
+                showOutlineByDefault:
+                  MarkdownEditorProvider.config.get<boolean>(
+                    'showOutlineByDefault',
+                  ),
+                outlineHighlight:
+                  MarkdownEditorProvider.config.get<boolean>(
+                    'outlineHighlight',
+                  ),
                 ...MarkdownEditorProvider.sanitizeVditorOptions(
-                  this._context.globalState.get(KeyVditorOptions)
+                  this._context.globalState.get(KeyVditorOptions),
                 ),
               },
               theme: currentThemeKind(),
@@ -928,7 +955,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           case 'save-options':
             await this._context.globalState.update(
               KeyVditorOptions,
-              MarkdownEditorProvider.sanitizeVditorOptions(message.options)
+              MarkdownEditorProvider.sanitizeVditorOptions(message.options),
             )
             break
           case 'info':
@@ -953,11 +980,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             await revealCaretInSource(
               webviewPanel,
               activeUri,
-              vscode.ViewColumn.Active
+              vscode.ViewColumn.Active,
             )
             break
           case 'navigate-back':
-            await vscode.commands.executeCommand('workbench.action.navigateBack')
+            await vscode.commands.executeCommand(
+              'workbench.action.navigateBack',
+            )
             break
           case 'open-settings':
             await vscode.commands.executeCommand('markdown-editor.openSettings')
@@ -969,24 +998,29 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             }
             const allPages = await collectWikiMarkdownFiles(wikiRoot)
             allPages.sort((a, b) =>
-              NodePath.basename(a.fsPath).localeCompare(NodePath.basename(b.fsPath))
+              NodePath.basename(a.fsPath).localeCompare(
+                NodePath.basename(b.fsPath),
+              ),
             )
             const picked = await vscode.window.showQuickPick(
               allPages.map((page) => ({
-                label: NodePath.basename(page.fsPath, NodePath.extname(page.fsPath)),
+                label: NodePath.basename(
+                  page.fsPath,
+                  NodePath.extname(page.fsPath),
+                ),
                 description: vscode.workspace.asRelativePath(page, false),
                 uri: page,
               })),
               {
                 title: 'Wiki Pages',
                 placeHolder: 'Select a wiki page to open',
-              }
+              },
             )
             if (picked?.uri) {
               await vscode.commands.executeCommand(
                 'vscode.openWith',
                 picked.uri,
-                MarkdownEditorViewType
+                MarkdownEditorViewType,
               )
             }
             break
@@ -995,9 +1029,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             if (!ensureCanWriteFiles(activeUri)) {
               break
             }
-            const assetsFolder = MarkdownEditorProvider.getAssetsFolder(activeUri)
+            const assetsFolder =
+              MarkdownEditorProvider.getAssetsFolder(activeUri)
             try {
-              await vscode.workspace.fs.createDirectory(vscode.Uri.file(assetsFolder))
+              await vscode.workspace.fs.createDirectory(
+                vscode.Uri.file(assetsFolder),
+              )
             } catch (error) {
               console.error(error)
               showError(`Invalid image folder: ${assetsFolder}`)
@@ -1007,17 +1044,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 const content = Buffer.from(file.base64, 'base64')
                 return vscode.workspace.fs.writeFile(
                   vscode.Uri.file(NodePath.join(assetsFolder, file.name)),
-                  content
+                  content,
                 )
-              })
+              }),
             )
             webviewPanel.webview.postMessage({
               command: 'uploaded',
               files: message.files.map((file: any) =>
                 NodePath.relative(
                   NodePath.dirname(activeFsPath),
-                  NodePath.join(assetsFolder, file.name)
-                ).replace(/\\/g, '/')
+                  NodePath.join(assetsFolder, file.name),
+                ).replace(/\\/g, '/'),
               ),
             })
             break
@@ -1027,15 +1064,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             if (!/^https?:/i.test(url)) {
               url = NodePath.resolve(NodePath.dirname(activeFsPath), url)
             }
-            await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(url))
+            await vscode.commands.executeCommand(
+              'vscode.open',
+              vscode.Uri.parse(url),
+            )
             break
           }
           case 'open-wikilink': {
-            const resolution = await resolveWikiLink(document.uri, String(message.target))
+            const resolution = await resolveWikiLink(
+              document.uri,
+              String(message.target),
+            )
 
             switch (resolution.kind) {
               case 'disabled':
-                showError(`Wiki links are only enabled for Markdown files inside a wiki folder.`)
+                showError(
+                  `Wiki links are only enabled for Markdown files inside a wiki folder.`,
+                )
                 break
               case 'invalid':
                 showError(`Invalid wiki link target.`)
@@ -1044,25 +1089,30 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 const createChoice = await vscode.window.showWarningMessage(
                   `Wiki page "${message.target}" was not found under "${vscode.workspace.asRelativePath(
                     resolution.root,
-                    false
+                    false,
                   )}".`,
-                  'Create Page'
+                  'Create Page',
                 )
                 if (createChoice === 'Create Page') {
                   if (!ensureCanWriteFiles(document.uri)) {
                     break
                   }
-                  const newFileName = resolution.key.replace(/\//g, '-') + '.md'
-                  const newFileUri = vscode.Uri.joinPath(resolution.root, newFileName)
-                  const heading = resolution.key.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+                  const newFileName = `${resolution.key.replace(/\//g, '-')}.md`
+                  const newFileUri = vscode.Uri.joinPath(
+                    resolution.root,
+                    newFileName,
+                  )
+                  const heading = resolution.key
+                    .replace(/-/g, ' ')
+                    .replace(/\b\w/g, (c) => c.toUpperCase())
                   await vscode.workspace.fs.writeFile(
                     newFileUri,
-                    Buffer.from(`# ${heading}\n`)
+                    Buffer.from(`# ${heading}\n`),
                   )
                   await vscode.commands.executeCommand(
                     'vscode.openWith',
                     newFileUri,
-                    MarkdownEditorViewType
+                    MarkdownEditorViewType,
                   )
                 }
                 break
@@ -1071,20 +1121,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 const picked = await vscode.window.showQuickPick(
                   resolution.candidates.map((candidate) => ({
                     label: NodePath.basename(candidate.fsPath),
-                    description: vscode.workspace.asRelativePath(candidate, false),
+                    description: vscode.workspace.asRelativePath(
+                      candidate,
+                      false,
+                    ),
                     uri: candidate,
                   })),
                   {
                     title: `Select wiki page for "${message.target}"`,
                     placeHolder: 'Multiple wiki pages match this link.',
-                  }
+                  },
                 )
 
                 if (picked?.uri) {
                   await vscode.commands.executeCommand(
                     'vscode.openWith',
                     picked.uri,
-                    MarkdownEditorViewType
+                    MarkdownEditorViewType,
                   )
                 }
                 break
@@ -1093,7 +1146,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 await vscode.commands.executeCommand(
                   'vscode.openWith',
                   resolution.target,
-                  MarkdownEditorViewType
+                  MarkdownEditorViewType,
                 )
                 break
             }
@@ -1110,7 +1163,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         while (disposables.length) {
           disposables.pop()?.dispose()
         }
-      })
+      }),
     )
   }
 
@@ -1120,33 +1173,37 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     )
       .replace(
         '${projectRoot}',
-        vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath || ''
+        vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath || '',
       )
       .replace('${file}', uri.fsPath)
       .replace(
         '${fileBasenameNoExtension}',
-        NodePath.basename(uri.fsPath, NodePath.extname(uri.fsPath))
+        NodePath.basename(uri.fsPath, NodePath.extname(uri.fsPath)),
       )
       .replace('${dir}', NodePath.dirname(uri.fsPath))
     const assetsFolder = NodePath.resolve(
       NodePath.dirname(uri.fsPath),
-      imageSaveFolder
+      imageSaveFolder,
     )
     return assetsFolder
   }
 
   private _documentRange(document: vscode.TextDocument) {
     const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0))
-    return new vscode.Range(0, 0, lastLine.range.end.line, lastLine.range.end.character)
+    return new vscode.Range(
+      0,
+      0,
+      lastLine.range.end.line,
+      lastLine.range.end.character,
+    )
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri) {
     const toUri = (f: string) =>
       webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, f))
-    const baseHref =
-      NodePath.dirname(
-        webview.asWebviewUri(vscode.Uri.file(uri.fsPath)).toString()
-      ) + '/'
+    const baseHref = `${NodePath.dirname(
+      webview.asWebviewUri(vscode.Uri.file(uri.fsPath)).toString(),
+    )}/`
     const toMediaPath = (f: string) => `media/dist/${f}`
     const JsFiles = ['main.js'].map(toMediaPath).map(toUri)
     const CssFiles = ['main.css'].map(toMediaPath).map(toUri)

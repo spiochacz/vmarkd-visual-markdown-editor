@@ -53,6 +53,8 @@ describe('getTableSourceOffset', () => {
     expect(off).toBe(line4Start + afterSecondPipe)
   })
   it('returns null when the table index is out of range', () => {
-    expect(getTableSourceOffset(md, { tableIndex: 5, row: 0, col: 0 })).toBeNull()
+    expect(
+      getTableSourceOffset(md, { tableIndex: 5, row: 0, col: 0 }),
+    ).toBeNull()
   })
 })

@@ -56,5 +56,5 @@ export const lang = (() => {
 })()
 
 export function t(msg: string) {
-  return (Langs[lang] && Langs[lang][msg]) || Langs.en_US[msg]
+  return Langs[lang]?.[msg] || Langs.en_US[msg]
 }

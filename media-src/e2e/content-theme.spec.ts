@@ -13,7 +13,7 @@ test('setTheme with an explicit path swaps the content-theme stylesheet', async 
   await page.waitForFunction(() => (window as any).__ready === true)
   const result = await page.evaluate(() => {
     const v = (window as any).vditor
-    const path = location.origin + '/vditor/dist/css/content-theme'
+    const path = `${location.origin}/vditor/dist/css/content-theme`
     v.setTheme('classic', 'light', 'github', path)
     const light = document
       .getElementById('vditorContentTheme')
@@ -38,7 +38,7 @@ test('table background follows --vscode-editor-background when the option is on'
   const bg = await page.evaluate(() => {
     document.documentElement.style.setProperty(
       '--vscode-editor-background',
-      'rgb(50, 0, 0)'
+      'rgb(50, 0, 0)',
     )
     document.body.setAttribute('data-use-vscode-theme-color', '1')
     const tr = document.querySelector('.vditor-reset table tr') as HTMLElement
@@ -72,7 +72,7 @@ test('task-list checkbox accent follows the VS Code theme when the option is on'
   const accent = await page.evaluate(() => {
     document.documentElement.style.setProperty(
       '--vscode-checkbox-background',
-      'rgb(10, 20, 30)'
+      'rgb(10, 20, 30)',
     )
     document.body.setAttribute('data-use-vscode-theme-color', '1')
     const reset = document.querySelector('.vditor-reset')!
@@ -104,7 +104,7 @@ test('content elements + wrapper layers follow VS Code theme vars when the optio
       'beforeend',
       '<pre id="t-pre"><code>x</code></pre>' +
         '<p><code id="t-inline">y</code></p>' +
-        '<hr id="t-hr">'
+        '<hr id="t-hr">',
     )
     const cs = (id: string, p: string) =>
       (getComputedStyle(document.getElementById(id)!) as any)[p]
@@ -132,7 +132,7 @@ test('the theme overrides are gated on the option (off → not applied)', async 
   const bg = await page.evaluate(() => {
     document.documentElement.style.setProperty(
       '--vscode-editor-background',
-      'rgb(1, 2, 3)'
+      'rgb(1, 2, 3)',
     )
     document.body.setAttribute('data-use-vscode-theme-color', '0')
     const reset = document.querySelector('.vditor-reset') as HTMLElement

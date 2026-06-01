@@ -48,7 +48,7 @@ describe('resolveCustomTextEditor — disposal', () => {
 
     await vi.advanceTimersByTimeAsync(200)
     expect(
-      mock.calls.postMessage.filter((m) => m.command === 'update')
+      mock.calls.postMessage.filter((m) => m.command === 'update'),
     ).toHaveLength(0)
   })
 })

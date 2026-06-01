@@ -46,6 +46,7 @@ test('getCursorSourceOffset is exact even inside a syntax marker (heading)', asy
     const walker = document.createTreeWalker(ir, NodeFilter.SHOW_TEXT)
     let node: Text | null = null
     let n: Node | null
+    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic TreeWalker iteration loop
     while ((n = walker.nextNode())) {
       if ((n.textContent || '').includes('Title')) {
         node = n as Text
@@ -74,8 +75,9 @@ test('getCursorSourceOffset maps a table cell exactly', async ({ page }) => {
     await new Promise((r) => setTimeout(r, 100))
     const ir = v.vditor.ir.element as HTMLElement
     const cell = ir.querySelectorAll('td')[1] as HTMLElement // body row, col 1 ("b")
-    const tn =
-      (cell.firstChild as Text) || document.createTextNode(cell.textContent || '')
+    const _tn =
+      (cell.firstChild as Text) ||
+      document.createTextNode(cell.textContent || '')
     const range = document.createRange()
     range.selectNodeContents(cell)
     range.collapse(true)
@@ -90,7 +92,9 @@ test('getCursorSourceOffset maps a table cell exactly', async ({ page }) => {
   // Table mapping is exact against the real (Vditor-normalized) source: the
   // offset must land on the body row's line, inside that row's span.
   const lines = got.md.split('\n')
-  const bodyLine = lines.findIndex((l: string) => /\|\s*a\s*\|\s*b\s*\|/.test(l))
+  const bodyLine = lines.findIndex((l: string) =>
+    /\|\s*a\s*\|\s*b\s*\|/.test(l),
+  )
   expect(got.line).toBe(bodyLine) // correct line
   const rowStart = lines.slice(0, bodyLine).join('\n').length + 1
   expect(got.offset).toBeGreaterThanOrEqual(rowStart)

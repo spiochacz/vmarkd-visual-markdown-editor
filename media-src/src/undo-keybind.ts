@@ -24,7 +24,7 @@ export function historyActionFor(
     KeyboardEvent,
     'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'
   >,
-  isMac: boolean
+  isMac: boolean,
 ): HistoryKind | null {
   const historyMod = isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey
   if (!historyMod || event.altKey) return null
@@ -65,6 +65,6 @@ export function setupHistoryKeybind(win: Window & typeof globalThis): void {
       event.stopImmediatePropagation()
       runVditorHistory(win, kind)
     },
-    true // capture phase — beat VS Code's bubble-phase key forwarding
+    true, // capture phase — beat VS Code's bubble-phase key forwarding
   )
 }
