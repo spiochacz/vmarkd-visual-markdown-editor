@@ -342,3 +342,102 @@ test.describe('live-config (tasks 12/26)', () => {
     expect(res.count).toBe(1) // swapped in place, not duplicated
   })
 })
+
+test.describe('createToolbar (task 44/wiki) — custom item click handlers', () => {
+  async function buildToolbar(page: Page, wikiEnabled: boolean) {
+    await gotoBehaviors(page)
+    return page.evaluate((wiki) => {
+      const calls: any = { insertValue: [], updateValue: [], clip: [] }
+      ;(window as any).vditor = {
+        getValue: () => 'MD',
+        getHTML: () => '<p>H</p>',
+        getCurrentMode: () => 'ir',
+        focus: () => {},
+        insertValue: (v: string) => calls.insertValue.push(v),
+        updateValue: (v: string) => calls.updateValue.push(v),
+        vditor: { ir: { element: document.body, range: undefined } },
+      }
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (t: string) => {
+            calls.clip.push(t)
+          },
+        },
+      })
+      ;(window as any).__tbCalls = calls
+      // flatten top-level + the 'more' submenu, keep items that have a click()
+      const items = (window as any).__createToolbar({ wikiEnabled: wiki })
+      const flat: any[] = []
+      for (const it of items) {
+        flat.push(it)
+        if (Array.isArray(it.toolbar)) flat.push(...it.toolbar)
+      }
+      ;(window as any).__tbItems = flat
+      return flat.map((i) => i.name).filter(Boolean)
+    }, wikiEnabled)
+  }
+
+  async function click(page: Page, name: string) {
+    await page.evaluate(async (n) => {
+      const it = (window as any).__tbItems.find((i: any) => i.name === n)
+      await it.click()
+    }, name)
+  }
+
+  test('message-posting items post their command (+ wikiEnabled adds nav/wiki)', async ({
+    page,
+  }) => {
+    const names = await buildToolbar(page, true)
+    expect(names).toEqual(
+      expect.arrayContaining(['navigate-back', 'wiki-pages']),
+    )
+    for (const n of [
+      'save',
+      'settings',
+      'edit-in-vscode',
+      'navigate-back',
+      'wiki-pages',
+    ])
+      await click(page, n)
+    const msgs = await posted(page)
+    const commands = msgs.map((m: any) => m.command)
+    expect(commands).toEqual(
+      expect.arrayContaining([
+        'save',
+        'open-settings',
+        'edit-in-vscode',
+        'navigate-back',
+        'list-wiki-pages',
+      ]),
+    )
+    // save carries the current value
+    expect(msgs.find((m: any) => m.command === 'save').content).toBe('MD')
+  })
+
+  test('omits the wiki items when wiki is disabled', async ({ page }) => {
+    const names = await buildToolbar(page, false)
+    expect(names).not.toContain('navigate-back')
+    expect(names).not.toContain('wiki-pages')
+  })
+
+  test('the link item inserts a markdown link skeleton', async ({ page }) => {
+    await buildToolbar(page, false)
+    await click(page, 'link')
+    const calls = await page.evaluate(() => (window as any).__tbCalls)
+    // no selection -> inserts an empty link
+    expect(calls.insertValue).toContain('[]()')
+  })
+
+  test('copy-markdown / copy-html copy the document and report success', async ({
+    page,
+  }) => {
+    await buildToolbar(page, false)
+    await click(page, 'copy-markdown')
+    await click(page, 'copy-html')
+    const calls = await page.evaluate(() => (window as any).__tbCalls)
+    expect(calls.clip).toEqual(['MD', '<p>H</p>'])
+    const infos = (await posted(page)).filter((m: any) => m.command === 'info')
+    expect(infos.length).toBeGreaterThanOrEqual(2)
+  })
+})
