@@ -1276,8 +1276,25 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           showToolbar ? ' vmarkd-prerender--toolbar' : ''
         }" aria-hidden="true"><div class="vditor-ir"><pre class="vditor-reset">${preIR}</pre></div></div>`
       : ''
+    // The base content text colour comes from Vditor's content-theme CSS, which
+    // the live editor loads at runtime via setTheme. Link the SAME file here so
+    // the overlay text/headings match exactly (otherwise they render dim — the
+    // index.css light-theme fallback on a dark background).
+    // id="vditorContentTheme": the live editor's setContentTheme() reuses a link
+    // with this id (leaves it if the href already matches), so the overlay's
+    // theme link becomes the editor's — no duplicate, no stale link on a later
+    // live theme switch.
+    const prerenderThemeLink = preIR
+      ? `<link id="vditorContentTheme" href="${toUri(
+          `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
+        )}" rel="stylesheet">`
+      : ''
+    // Single scroll surface: only the overlay container scrolls. Vditor's inner
+    // .vditor-ir/.vditor-reset carry their own height+overflow, which would add a
+    // second scrollbar inside the overlay — force them to flow so just the
+    // container's one scrollbar shows (matching the live editor after the swap).
     const prerenderStyle = preIR
-      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:auto;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender.vmarkd-prerender--toolbar{padding-top:37px;}#vmarkd-prerender .vditor-ir{height:auto;}</style>`
+      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:auto;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender.vmarkd-prerender--toolbar{padding-top:37px;}#vmarkd-prerender .vditor-ir,#vmarkd-prerender .vditor-reset{height:auto;max-height:none;overflow:visible;}</style>`
       : ''
 
     const nonce = getNonce()
@@ -1308,6 +1325,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
 				<title>markdown editor</title>
         ` +
+      prerenderThemeLink +
       MarkdownEditorProvider._cssStyleTags() +
       prerenderStyle +
       `
