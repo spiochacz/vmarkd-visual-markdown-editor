@@ -1269,12 +1269,24 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       content !== undefined
         ? renderIR(this._context.extensionPath, content)
         : undefined
+    // A static, empty themed toolbar bar (no icons) so the chrome region looks
+    // present during the instant paint — the real toolbar can't be reused here, it
+    // isn't attached to the DOM until Vditor's post-Lute initUI (~the swap moment).
+    // The real icons fade in at the swap. .vditor-toolbar/--pin inherit the themed
+    // bg + bottom border from the .vditor wrapper; min-height set in the style.
+    const prerenderToolbar = showToolbar
+      ? '<div class="vditor-toolbar vditor-toolbar--pin" style="height:35px;box-sizing:content-box;padding-top:0;padding-bottom:0;"></div>'
+      : ''
+    // Mirror the live editor's DOM exactly: .vditor > toolbar + .vditor-content >
+    // .vditor-ir > pre.vditor-reset. The .vditor-content wrapper matters — it lets
+    // Vditor's own CSS make .vditor-reset the scroll container (overflow:auto =
+    // a BFC), which both gives a single scrollbar AND stops the first heading's
+    // margin-top from collapsing through and pushing content down 24px. Measured
+    // (Playwright): content lands at the same offset as the live editor → no jump.
     const prerenderOverlay = preIR
       ? `<div id="vmarkd-prerender" class="vditor${
           theme === 'dark' ? ' vditor--dark' : ''
-        }${
-          showToolbar ? ' vmarkd-prerender--toolbar' : ''
-        }" aria-hidden="true"><div class="vditor-ir"><pre class="vditor-reset">${preIR}</pre></div></div>`
+        }" style="height:100%" aria-hidden="true">${prerenderToolbar}<div class="vditor-content"><div class="vditor-ir"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
       : ''
     // The base content text colour comes from Vditor's content-theme CSS, which
     // the live editor loads at runtime via setTheme. Link the SAME file here so
@@ -1289,12 +1301,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
         )}" rel="stylesheet">`
       : ''
-    // Single scroll surface: only the overlay container scrolls. Vditor's inner
-    // .vditor-ir/.vditor-reset carry their own height+overflow, which would add a
-    // second scrollbar inside the overlay — force them to flow so just the
-    // container's one scrollbar shows (matching the live editor after the swap).
+    // The overlay just positions the mirrored editor over #app and clips
+    // (overflow:hidden) — the inner .vditor-reset scrolls natively via Vditor's
+    // own CSS, exactly like the live editor (single scrollbar, correct margins).
     const prerenderStyle = preIR
-      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:auto;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender.vmarkd-prerender--toolbar{padding-top:37px;}#vmarkd-prerender .vditor-ir,#vmarkd-prerender .vditor-reset{height:auto;max-height:none;overflow:visible;}</style>`
+      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}</style>`
       : ''
 
     const nonce = getNonce()
