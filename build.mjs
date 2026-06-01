@@ -1,17 +1,36 @@
-#!/usr/bin/env bun
-// Build orchestration for the extension — run with Bun (replaces the former
-// Foyfile.ts). Bun executes this TypeScript directly, so there is no `foy` task
-// runner and no `ts-node` in the toolchain.
+#!/usr/bin/env node
+// Build orchestration for the extension — plain Node, no extra tooling
+// (no `foy`, no `ts-node`, no Bun). Run with Node:
 //
-//   bun ./build.ts          one-shot build: sync assets, compile host + webview
-//   bun ./build.ts watch    watch mode: tsc -w + webview watcher, in parallel
+//   node build.mjs          one-shot build: sync assets, compile host + webview
+//   node build.mjs watch    watch mode: tsc -w + webview watcher, in parallel
 //
 // The webview half lives in media-src (its own esbuild build, `node build.mjs`);
 // here we sync Vditor's prebuilt assets into media/ and drive both compilers.
 
 import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
-import { $ } from 'bun'
+import { spawn } from 'node:child_process'
+
+// node_modules/.bin so `tsc` resolves whether this is run via `npm run build`
+// or directly as `node build.mjs`.
+const BIN = path.resolve('node_modules/.bin')
+
+// Run a command, inheriting stdio; reject on non-zero exit.
+function run(command, opts = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, {
+      stdio: 'inherit',
+      shell: true,
+      env: { ...process.env, PATH: `${BIN}${path.delimiter}${process.env.PATH}` },
+      ...opts,
+    })
+    child.on('error', reject)
+    child.on('exit', (code) =>
+      code === 0 ? resolve() : reject(new Error(`\`${command}\` exited with ${code}`))
+    )
+  })
+}
 
 async function syncVditorAssets() {
   const sourceDir = path.resolve('media-src/node_modules/vditor/dist')
@@ -45,7 +64,7 @@ async function syncVditorAssets() {
   await removeMacMetadata(targetDir)
 }
 
-async function removeMacMetadata(dirPath: string) {
+async function removeMacMetadata(dirPath) {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
   await Promise.all(
     entries.map(async (entry) => {
@@ -67,10 +86,10 @@ await syncVditorAssets()
 
 if (watch) {
   await Promise.all([
-    $`tsc -w -p ./`,
-    $`bun run start`.cwd('media-src'),
+    run('tsc -w -p ./'),
+    run('npm run start', { cwd: 'media-src' }),
   ])
 } else {
-  await Promise.all([$`tsc -p ./`, $`bun run build`.cwd('media-src')])
-  await $`git add -A`
+  await Promise.all([run('tsc -p ./'), run('npm run build', { cwd: 'media-src' })])
+  await run('git add -A')
 }

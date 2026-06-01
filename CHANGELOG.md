@@ -12,42 +12,75 @@ project and summarized at the bottom.
 
 ## [Unreleased]
 
-Work accumulated since 0.2.32 — not yet released under a version number.
+Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated release.
 
 ### Added
+- Search in the editor: `Ctrl/Cmd+F` wired to the webview find.
+- Word count (opt-in `markdown-editor.wordCount`) — live word/character count.
+- Outline panel: navigation with click-to-flash, configurable width and side
+  (`outlinePosition`), open-by-default, and a heading-level markers toggle.
+- Reveal-in-source: "Open source to the side" and the toolbar "open in vs code"
+  button jump to the caret's line in the text editor (exact Lute-caret mapping).
+- Git gutters: added/modified change bars vs git HEAD in the visual editor.
+- Status bar: reading-time estimate + a WYSIWYG/Source mode indicator.
+- Open the visual editor to the side (`Open with markdown editor to the side`).
+- External CSS files with live reload; `customCss` is injected last so it wins.
+- Live theme switching (follows the VS Code colour theme) and live config reload
+  (settings apply without reopening the editor).
+- Rename tracking — the editor follows files renamed/moved in the workspace.
+- Tab-group awareness: dedupe vMarkd tabs and reuse on open-to-side.
+- Undo/redo: intercept `Ctrl/Cmd+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` in the webview
+  and route them to Vditor's history engine.
+- Appearance settings: highlight headings, heading-level markers, code-block line
+  numbers, Mermaid theme, toolbar visibility, and a font size that follows VS
+  Code's editor size by default.
+- Code-block line numbers (opt-in) and a dark-theme code-block style.
+- ThemeIcon on the editor tab; declared workspace-trust / virtual-workspace
+  capabilities.
 - True opt-in default editor for Markdown files (custom editor registered as
   `option`, not forced default).
 - Playwright e2e harness covering the 9 table-editing hotkeys (`media-src/e2e/`).
 
 ### Changed
-- Fix the editor code to fully support Vditor 3.11 (the dependency was already
-  bumped to 3.11.2 in 0.2.7; this release makes the integration actually work).
-- Replace `@testing-library/user-event` keyboard simulation with a native
-  `KeyboardEvent` dispatcher (`media-src/src/table-hotkey.ts`).
-- Replace jQuery with native DOM; replace jquery-confirm with a native `<dialog>`.
-- Replace lodash with tested native helpers (`debounce`, `deep-merge`).
-- Replace date-fns with a native `formatTimestamp` helper.
+- Tree-shake Vditor from source — webview bundle main.js ~310→261 KB (−16%).
+- Native `KeyboardEvent` dispatch replaces `@testing-library/user-event`.
+- Backend tests on vitest (host + pure webview helpers).
+- Build toolchain: drop `foy` + `ts-node`; the build is now `node build.mjs`
+  (plain Node ESM) with npm as the package manager. (Bun was trialled and reverted
+  to keep tooling minimal.)
+- Dev dependencies: TypeScript → 4.9.5, `@types/node` → 22 (matches the VS Code
+  host's Node 22), vitest + coverage → 4.1.8. Declared `engines.node >=22` + `.nvmrc`.
+- Vditor 3.11 integration brought fully working (the dependency is on 3.11.2).
+- Minimum VS Code raised to ^1.110.
 
 ### Fixed
-- Vditor 3.11: provide `customWysiwygToolbar` to stop the init crash.
-- Vditor 3.11: drop unsupported Lute reverse renderers and correct lute access.
-- Skip the wiki custom renderer for non-wiki files.
+- Reveal-in-source: the caret lands on the correct source line (content-matched,
+  robust to Vditor reflow) instead of the file start.
+- Editing gap: the table panel no longer reserves flow space under the caret.
+- Vditor 3.11: provide `customWysiwygToolbar` to stop the init crash; drop
+  unsupported Lute reverse renderers and correct lute access.
 - Position the table panel at the clicked cell instead of pinned far-left.
-- Remove an unused `t` import in `main.ts`.
+- Skip the wiki custom renderer for non-wiki files.
+
+### Security
+- Hardening: scoped filesystem roots, sanitized custom CSS, CSP + nonce on the
+  webview, and levelled logging.
+- Scope webview privileges (command URIs off; postMessage-only, audited).
+
+### Performance
+- `retainContextWhenHidden` memory dial (`retainHiddenEditors`).
+- Drop unused MathJax (~6.5 MB) from the shipped Vditor assets (KaTeX is used).
+- Debounce activation; drop the broad `onLanguage` activation event.
 
 ### Removed
 - Runtime dependencies: jQuery, jquery-confirm, lodash, date-fns,
   `@testing-library/user-event`, `@testing-library/dom`, `@babel/runtime-corejs3`.
+- Build tooling: `foy`, `ts-node` (and a brief Bun trial).
 
-### Documentation
-- Fork ecosystem analysis consolidated into an actionable task backlog in `tasks/`
-  — 23 independently-actionable tasks + `tasks/README.md` (priority order,
-  dependencies, status). The intermediate per-fork plan documents were folded into
-  these tasks and removed.
-
-> ⚠️ Most backlog features (image resize, Vditor tree-shake, word count, search
-> keybinding, code-block line numbers, git gutters, reveal-in-source, etc.) are
-> **planned, not yet implemented**. See `tasks/README.md` for status.
+### Documentation / packaging
+- Fork ecosystem analysis turned into an actionable `tasks/` backlog
+  (`tasks/README.md` — priority order, dependencies, status).
+- VSIX hygiene: internal docs/tests excluded from the package (455→402 files).
 
 ## [0.2.32] — 2026-04-17
 

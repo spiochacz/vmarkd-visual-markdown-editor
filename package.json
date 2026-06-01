@@ -9,7 +9,8 @@
   "license": "MIT",
   "private": false,
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.110.0",
+    "node": ">=22"
   },
   "capabilities": {
     "untrustedWorkspaces": {
@@ -282,15 +283,15 @@
     ]
   },
   "scripts": {
-    "build": "bun ./build.ts",
-    "watch": "bun ./build.ts watch",
-    "start": "bun ./build.ts watch",
+    "build": "node build.mjs",
+    "watch": "node build.mjs watch",
+    "start": "node build.mjs watch",
     "test": "vitest run --config test/vitest.config.ts",
     "test:watch": "vitest --config test/vitest.config.ts",
     "test:coverage": "vitest run --coverage --config test/vitest.config.ts",
     "publish:marketplace": "bash scripts/publish-marketplace.sh",
     "release:marketplace": "bash scripts/release-marketplace.sh",
-    "pub": "bun run release:marketplace"
+    "pub": "npm run release:marketplace"
   },
   "devDependencies": {
     "@types/node": "^22",

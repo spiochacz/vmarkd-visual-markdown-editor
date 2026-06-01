@@ -8,14 +8,12 @@
 ## Current state (verified 2026-05-30)
 Everything below was read in full; the bones exist but there are real gaps.
 
-> **Update 2026-06-01 — toolchain moved to Bun (task 45).** The npm + `foy` +
-> `ts-node` specifics described below are **superseded**: install is now
-> `bun install --frozen-lockfile`, build is `bun ./build.ts` (was `foy build`),
-> `Foyfile.ts` → `build.ts`, lockfiles are `bun.lock` (root + `media-src`), and
-> both workflows install/build via Bun. The CI/release **plan** below still
-> stands — just read `npm ci`→`bun install`, `foy build`→`bun ./build.ts`,
-> `npm test`→`bun run test`. What this task still owns:
-> - **Part C #2** — `build.ts` still ends with `git add -A` (carried over 1:1).
+> **Update 2026-06-01 — build runner replaced (task 45).** `foy` + `ts-node` are
+> gone; the build is now **`node build.mjs`** (plain Node ESM, npm as package
+> manager). The `foy build` references below mean **`node build.mjs`**; install is
+> `npm ci` (unchanged). (Bun was tried mid-day then reverted to minimise tooling —
+> see task 45.) What this task still owns:
+> - **Part C #2** — `build.mjs` still ends with `git add -A` (carried over 1:1).
 > - **§5** — doc/cruft exclusion **done 2026-06-01** (see below); source maps
 >   (`**/*.map`) still ship by choice; MathJax already excluded (task 40).
 > - Parts A/B (PR gate, single release path, version-bump policy) — still open.
@@ -62,7 +60,7 @@ Everything below was read in full; the bones exist but there are real gaps.
   (patch/minor/major), committed back, and tagged. No bump per change.
 - Fix the broken bits (root `test`, dual deploy, `git add -A`).
 
-Publisher `oleksiiko`; build via `build.ts` (Bun) → `tsc` + esbuild (task 45).
+Publisher `oleksiiko`; build via `node build.mjs` → `tsc` + esbuild (task 45).
 
 ---
 

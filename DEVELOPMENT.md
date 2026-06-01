@@ -27,24 +27,24 @@ config so the harnesses bundle Vditor identically.
 
 ## Package manager
 
-**Bun only.** Bun is the package manager *and* the script/build runner — it
-installs deps and runs `build.ts` directly (no `foy`, no `ts-node`). Do not
-reintroduce `yarn.lock` / `pnpm-lock.yaml` / `package-lock.json` — CI installs
-with `bun install --frozen-lockfile`. There are two lockfiles: `bun.lock` (root)
-and `media-src/bun.lock`. The extension still ships as plain Node-targeted JS
-(`tsc` output); Bun is dev-time tooling only — VS Code runs the extension in its
-own Node runtime.
+**npm only — minimal tooling.** npm installs deps and `node build.mjs` drives the
+build directly (no `foy`, no `ts-node`, no Bun — the build script is plain Node
+ESM). Do not reintroduce `yarn.lock` / `pnpm-lock.yaml` / `bun.lock` or a
+`packageManager` field — CI installs with `npm ci`. There are two lockfiles:
+`package-lock.json` (root) and `media-src/package-lock.json`. The extension ships
+as plain Node-targeted JS (`tsc` output) and VS Code runs it in its own Node
+runtime; the build toolchain is dev-time only.
 
 ## First-time setup
 
 ```bash
-bun install                  # root deps (extension host + vitest)
-cd media-src && bun install && cd ..   # webview deps (esbuild, vditor, playwright, monocart)
-bun ./build.ts               # compile both + sync Vditor assets into media/vditor
-cd media-src && bunx playwright install chromium && cd ..   # e2e browser (once)
+npm ci                       # root deps (extension host + vitest)
+npm --prefix media-src ci    # webview deps (esbuild, vditor, playwright, monocart)
+node build.mjs               # compile both + sync Vditor assets into media/vditor
+npm --prefix media-src exec -- playwright install chromium   # e2e browser (once)
 ```
 
-`bun ./build.ts` is required before e2e: the table harness serves real Vditor
+`node build.mjs` is required before e2e: the table harness serves real Vditor
 assets from `media/vditor/`. (The unit suite does not need it.)
 
 ---
@@ -77,9 +77,9 @@ reports. Neither instruments the other.
 Run from the **repo root**:
 
 ```bash
-bun run test            # run once
-bun run test:watch      # watch mode
-bun run test:coverage   # with coverage (v8) -> coverage/  (text + html)
+npm test                # run once
+npm run test:watch      # watch mode
+npm run test:coverage   # with coverage (v8) -> coverage/  (text + html)
 ```
 
 Config: `test/vitest.config.ts`. It aliases the bare `vscode` import to an
@@ -114,11 +114,11 @@ Coverage HTML report: open `coverage/index.html`.
 
 ## E2e tests (Playwright)
 
-Run from the repo root (`--cwd` targets `media-src/`):
+Run from `media-src/`:
 
 ```bash
-bun run --cwd media-src test:e2e            # run (no coverage)
-bun run --cwd media-src test:e2e:coverage   # run + collect coverage
+npm --prefix media-src run test:e2e            # run (no coverage)
+npm --prefix media-src run test:e2e:coverage   # run + collect coverage
 ```
 
 A local server (`e2e/serve.mjs`) bundles the harnesses in-memory with esbuild
@@ -181,7 +181,7 @@ together they verify both ends of the same message contract.
 - Hidden elements (e.g. `.vditor-panel` is `display:none`): dispatch a synthetic
   bubbling event in-page instead of a Playwright actionable `.click()`.
 
-After writing the test, run `bun run --cwd media-src test:e2e:coverage` and
+After writing the test, run `npm --prefix media-src run test:e2e:coverage` and
 confirm your new source file appears in the report with real coverage.
 
 ---
@@ -192,7 +192,7 @@ E2e coverage is **off by default** (so the normal run stays fast and unchanged)
 and gated behind `E2E_COVERAGE`:
 
 ```bash
-bun run --cwd media-src test:e2e:coverage
+npm --prefix media-src run test:e2e:coverage
 # -> media-src/coverage/e2e/index.html   (open in a browser)
 ```
 
@@ -216,7 +216,7 @@ All four `coverage-*.ts` files are no-ops unless `E2E_COVERAGE` is set.
 ## CI
 
 `.github/workflows/main.yml` (manual deploy) runs the full gate:
-`bun install` (root + `media-src`) → `bun ./build.ts` → `bun run test`.
+`npm ci` (root + `media-src`) → `node build.mjs` → `npm test`.
 `publish.yml` (on `v*` tags) installs the same way and publishes.
 
 E2e is not wired into CI yet (needs a browser install step) — run it locally.
@@ -227,10 +227,10 @@ E2e is not wired into CI yet (needs a browser install step) — run it locally.
 
 ```bash
 # unit
-bun run test
-bun run test:coverage          # -> coverage/index.html
+npm test
+npm run test:coverage          # -> coverage/index.html
 
-# e2e (from media-src, after `bun ./build.ts`)
-bun run --cwd media-src test:e2e
-bun run --cwd media-src test:e2e:coverage   # -> media-src/coverage/e2e/index.html
+# e2e (from media-src, after `node build.mjs`)
+npm --prefix media-src run test:e2e
+npm --prefix media-src run test:e2e:coverage   # -> media-src/coverage/e2e/index.html
 ```
