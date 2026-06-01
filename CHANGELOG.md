@@ -66,6 +66,10 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Skip the wiki custom renderer for non-wiki files.
 
 ### Security
+- Bump `esbuild` 0.21 → 0.28 — clears the dev-server advisory
+  (GHSA-67mh-4wv8-2f99; we were never exposed since the e2e harness uses its own
+  `http.createServer`, not `esbuild.serve()`). CI now fails on moderate+
+  vulnerabilities (`npm audit --audit-level=moderate` gate).
 - Hardening: scoped filesystem roots, sanitized custom CSS, CSP + nonce on the
   webview, and levelled logging.
 - Scope webview privileges (command URIs off; postMessage-only, audited).

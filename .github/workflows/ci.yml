@@ -20,9 +20,15 @@ jobs:
           cache: 'npm'
 
       - name: Install (root)
-        run: npm ci
+        run: npm ci --no-fund --no-audit
       - name: Install (media-src)
-        run: npm --prefix media-src ci
+        run: npm --prefix media-src ci --no-fund --no-audit
+
+      # Security gate: fail the build on known vulnerabilities (moderate+).
+      - name: Audit (root)
+        run: npm audit --audit-level=moderate
+      - name: Audit (media-src)
+        run: npm --prefix media-src audit --audit-level=moderate
 
       # Compiles the host with tsc (type-checks it) and bundles the webview.
       - name: Build
