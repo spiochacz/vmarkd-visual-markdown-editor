@@ -65,6 +65,7 @@ lib
 out/
 media/dist/
 media/vditor/dist/
+media/vditor-icons-codicon.js
 media-src/dist/
 media-src/dist-ssr/
 
@@ -87,3 +88,6 @@ coverage/
 # Built VSIX packages — do not commit (nie commituj paczek)
 artifacts/*.vsix
 test-results/
+
+# Packaged extension (build artifact)
+*.vsix

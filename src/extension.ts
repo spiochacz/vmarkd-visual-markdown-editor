@@ -1151,6 +1151,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const JsFiles = ['main.js'].map(toMediaPath).map(toUri)
     const CssFiles = ['main.css'].map(toMediaPath).map(toUri)
     const iconScript = toUri('media/vditor/dist/js/icons/ant.js')
+    // Codicon restyle of the toolbar: loaded right after ant.js, it mutates the
+    // injected <symbol> defs in place (see media-src/build-icon-sprite.mjs, task 44).
+    const iconOverrideScript = toUri('media/vditor-icons-codicon.js')
 
     // Content-Security-Policy (task 18 §2c). default-src 'none' denies
     // everything, then we re-allow only what the editor needs, all scoped to the
@@ -1197,6 +1200,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 				<div id="app"></div>
 
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
+				<script nonce="${nonce}" id="vditorIconOverride" src="${iconOverrideScript}"></script>
 				${JsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
 			</body>
 			</html>`

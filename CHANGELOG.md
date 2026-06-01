@@ -42,6 +42,10 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Playwright e2e harness covering the 9 table-editing hotkeys (`media-src/e2e/`).
 
 ### Changed
+- Unified icons on VS Code codicons: title-bar buttons use `$(markdown)` /
+  `$(go-to-file)`; the in-webview Vditor toolbar is restyled to codicons via a
+  generated override (24 codicons + 6 codicon-style customs for glyphs codicons
+  lack — headings, indent/outdent, inline-code, insert-before/after).
 - Tree-shake Vditor from source — webview bundle main.js ~310→261 KB (−16%).
 - Native `KeyboardEvent` dispatch replaces `@testing-library/user-event`.
 - Backend tests on vitest (host + pure webview helpers).

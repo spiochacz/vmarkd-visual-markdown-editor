@@ -52,19 +52,13 @@
         "command": "markdown-editor.openEditor",
         "title": "Open with markdown editor",
         "category": "markdown-editor",
-        "icon": {
-          "light": "media/open-markdown-light.svg",
-          "dark": "media/open-markdown-dark.svg"
-        }
+        "icon": "$(markdown)"
       },
       {
         "command": "markdown-editor.openTextEditor",
         "title": "Edit in Text Editor",
         "category": "markdown-editor",
-        "icon": {
-          "light": "media/open-editor-light.svg",
-          "dark": "media/open-editor-dark.svg"
-        }
+        "icon": "$(go-to-file)"
       },
       {
         "command": "markdown-editor.openSettings",

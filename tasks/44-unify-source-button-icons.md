@@ -1,48 +1,66 @@
-# Task: Unify the "open source" button icons
+# Task: Unify the toolbar/chrome icons on codicons
 
-> **Status:** ⏳ Todo.
-> **Source:** user request (2026-06-01) — the two source-opening buttons should
-> share one icon.
-> **Value / Risk:** ⚪ cosmetic consistency / low (icon swap only).
+> **Status:** ✅ Done (2026-06-01). Scope grew from "unify the two source buttons"
+> to a full codicon restyle of the editor's icons.
+> **Source:** user request (2026-06-01).
+> **Value / Risk:** ⚪ visual consistency / low–medium (icon swap + a webview icon
+> override script).
 > **Engines:** none.
 
-## Problem
-Two buttons open the markdown source, in two different UI surfaces, drawing two
-different (but similar) icons:
+## What shipped
+The editor drew icons from three different worlds: VS Code **codicons** (some
+title-bar buttons), **raw SVG files** (other title-bar buttons), and Vditor's
+**`ant`** icon set (the in-webview toolbar). Now everything reads as one codicon
+family.
 
-- **"Open source to the side"** — VS Code **editor title bar** (chrome). Icon is a
-  **codicon** name string: `"$(go-to-file)"` in `package.json`
-  (`contributes.commands`). Renders a page-with-arrow glyph from VS Code's icon
-  font. Opens the source **beside** + reveals the caret line.
-- **"open in vs code"** (`edit-in-vscode`) — Vditor **toolbar** (inside the
-  webview iframe). Icon is a **raw inline SVG** string, `editInVsCodeIcon` in
-  `media-src/src/toolbar.ts:58` (a page+arrow path). Opens the source in the
-  **same column** + reveals the caret line.
+### 1. Chrome (`package.json` `contributes.commands`)
+- `openEditor` → `$(markdown)` (was `media/open-markdown-{light,dark}.svg`).
+- `openTextEditor` → `$(go-to-file)` (was `media/open-editor-{light,dark}.svg`).
+- `openSettings` `$(settings-gear)`, `openInSplit` `$(split-horizontal)`,
+  `openSourceToSide` `$(go-to-file)` — already codicons, unchanged.
+- Deleted the now-dead SVGs: `open-markdown-{light,dark}.svg`,
+  `open-editor-{light,dark}.svg`, plus the never-referenced `markdown.svg` and
+  `md_editor.svg`.
 
-They are already visually close (both page+arrow), but not identical, because the
-two surfaces use different icon mechanisms — VS Code codicons are NOT available
-inside the webview document, so the toolbar must inline its own SVG.
+### 2. Our own webview-toolbar icons (`media-src/src/toolbar.ts`)
+Inline SVGs (codicons aren't available as a font inside the iframe, so the path
+data is inlined): `save`→`save`, `edit-in-vscode`→`go-to-file`,
+`wiki-pages`→`book`, `navigate-back`→`arrow-left`, `settings`→`settings-gear`.
 
-## Goal
-Make both buttons draw the same icon.
+### 3. Vditor's built-in toolbar icons (the `ant` set)
+Restyled to codicons via a generated runtime override:
+- **Source of truth:** `media-src/icons/<name>.svg` — 30 codicon-style glyphs,
+  where `<name>` maps to Vditor's `vditor-icon-<name>` symbol id.
+- **Generator:** `media-src/build-icon-sprite.mjs` (run by `build.mjs` after the
+  Vditor asset sync) emits `media/vditor-icons-codicon.js`.
+- **Wiring:** `src/extension.ts` loads that script **right after** Vditor's icon
+  script (`ant.js`). `ant.js` synchronously injects all `<symbol>` defs; the
+  override then mutates the 30 we care about **in place** by id (sets viewBox
+  `0 0 16 16` + codicon `innerHTML`). Untouched symbols keep their `ant` glyph,
+  so nothing else in Vditor (dialogs, panels) loses its icon.
 
-## Approach
-Replace `editInVsCodeIcon`'s SVG path (`toolbar.ts:58`) with the exact `<path>`
-data from VS Code's **`go-to-file`** codicon (codicons are MIT-licensed; copy the
-glyph's path into the existing `<svg viewBox="0 0 24 24" …>` string wrapper used
-by the other toolbar icons). Keep the codicon reference `"$(go-to-file)"` in
-package.json for the title-bar button unchanged.
+**Mapping (24 official codicons + 6 hand-drawn in codicon style):**
+- Direct codicon: bold, italic, strike→`strikethrough`, link, list→`list-unordered`,
+  ordered-list→`list-ordered`, check→`checklist`, quote, code, line→`horizontal-rule`,
+  table, emoji→`smiley`, upload→`cloud-upload`, undo→`discard`, redo, edit, more→`ellipsis`,
+  both→`split-horizontal`, code-theme→`paintcan`, content-theme→`jersey`,
+  preview→`open-preview`, devtools→`bug`, info, help→`question`.
+- **Custom (no good codicon → drawn at 16×16 in codicon style, modeled on the ant
+  shape):** `headings` (an "H"), `indent`/`outdent` (list-unordered-weight lines +
+  a direction triangle), `inline-code` (the `code` chevrons, no slash),
+  `insert-before`/`insert-after` (thin bar + up/down arrow).
 
-## Notes / decision
-- The two buttons are DIFFERENT actions (same column vs beside). Sharing an icon
-  risks confusion, but they live in different surfaces (toolbar vs title bar), so
-  context distinguishes them. Confirmed acceptable by the user.
-- Codicon source: https://github.com/microsoft/vscode-codicons → `go-to-file`.
-- Browse / preview all codicons (find the icon + its name):
-  https://microsoft.github.io/vscode-codicons/dist/codicon.html — the visual
-  reference for picking a glyph; copy its `<path>` data from the source repo above.
+## Notes
+- codicons are MIT-licensed; path data lifted from the codicon source repo.
+- Custom glyph geometry deliberately matches neighbouring codicons (1px rounded
+  capsule lines like `list-unordered`; chevrons lifted from `code`).
+- To re-tune a custom glyph: edit `media-src/icons/<name>.svg`, then `node build.mjs`.
+- After a Vditor bump the override still applies (it targets stable symbol ids); if
+  Vditor ever renames a `vditor-icon-*` id, update the file name in `media-src/icons/`.
 
 ## Verify
-Open a `.md` in vMarkd → the toolbar "open in vs code" button and the title-bar
-"open source to the side" button show the same page+arrow glyph. Both still open
-the source and jump to the caret line.
+Open a `.md` in vMarkd → the whole toolbar + title-bar buttons read as one codicon
+set. Title-bar `openEditor` shows the markdown glyph, `openTextEditor`/source
+buttons show go-to-file. The webview toolbar's bold/italic/list/etc. are codicons;
+headings/indent/outdent/inline-code/insert-before/after are the codicon-style
+customs. No icon renders blank.
