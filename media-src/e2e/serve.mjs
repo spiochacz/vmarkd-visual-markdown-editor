@@ -18,6 +18,7 @@ const built = await esbuild.build({
     behaviors: path.join(__dirname, 'behaviors-harness.ts'),
     bench: path.join(__dirname, 'bench-harness.ts'),
     outline: path.join(__dirname, 'outline-harness.ts'),
+    prerender: path.join(__dirname, 'prerender-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -35,6 +36,7 @@ const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'))
 const behaviorsHtml = fs.readFileSync(path.join(__dirname, 'behaviors.html'))
 const benchHtml = fs.readFileSync(path.join(__dirname, 'bench.html'))
 const outlineHtml = fs.readFileSync(path.join(__dirname, 'outline.html'))
+const prerenderHtml = fs.readFileSync(path.join(__dirname, 'prerender.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -67,6 +69,10 @@ const server = http.createServer((req, res) => {
   if (url === '/outline.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(outlineHtml)
+  }
+  if (url === '/prerender.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(prerenderHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

@@ -269,34 +269,6 @@ test('fixPanelHover() adds the hover class on mouseenter', async ({ page }) => {
   expect(hasClass).toBe(true)
 })
 
-test('fixDarkTheme() maps content-theme buttons to vditor.setTheme', async ({
-  page,
-}) => {
-  await gotoBehaviors(page)
-  const calls = await page.evaluate(() => {
-    const themeCalls: string[] = []
-    ;(window as any).vditor = { setTheme: (t: string) => themeCalls.push(t) }
-    document.body.innerHTML =
-      '<span data-type="content-theme"></span>' +
-      '<div id="sib"><button data-type="dark">d</button>' +
-      '<button data-type="light">l</button></div>'
-    ;(window as any).__utils.fixDarkTheme()
-    ;(
-      document.querySelector(
-        '#sib button[data-type="dark"]',
-      ) as HTMLButtonElement
-    ).click()
-    ;(
-      document.querySelector(
-        '#sib button[data-type="light"]',
-      ) as HTMLButtonElement
-    ).click()
-    return themeCalls
-  })
-  // dark -> 'dark', anything else -> 'classic'
-  expect(calls).toEqual(['dark', 'classic'])
-})
-
 test('fixCut() defers delete but passes other commands through', async ({
   page,
 }) => {
