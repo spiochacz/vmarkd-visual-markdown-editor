@@ -54,6 +54,9 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Minimum VS Code raised to ^1.110.
 
 ### Fixed
+- Source Control diffs open the built-in **text diff** again instead of the visual
+  editor: ship a `configurationDefaults` association routing `git`-scheme markdown
+  to `default` (VS Code has no API for "default editor except in diff mode").
 - Reveal-in-source: the caret lands on the correct source line (content-matched,
   robust to Vditor reflow) instead of the file start.
 - Editing gap: the table panel no longer reserves flow space under the caret.

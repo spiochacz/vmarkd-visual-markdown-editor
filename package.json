@@ -267,6 +267,12 @@
         }
       }
     ],
+    "configurationDefaults": {
+      "workbench.editorAssociations": {
+        "{git}:/**/*.md": "default",
+        "{git}:/**/*.markdown": "default"
+      }
+    },
     "keybindings": [
       {
         "key": "ctrl+alt+e",
