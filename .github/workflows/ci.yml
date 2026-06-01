@@ -31,7 +31,17 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Install Playwright browser
-        run: npm --prefix media-src exec -- playwright install --with-deps chromium
+      # Cache the browser binaries (~290 MB) so they download once. The GitHub
+      # ubuntu runner already ships Playwright's OS libs (only fonts would be new
+      # via --with-deps, which our headless tests don't need), so we skip apt.
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('media-src/package-lock.json') }}
+      - name: Install Playwright chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npm --prefix media-src exec -- playwright install chromium
       - name: E2e tests
         run: npm --prefix media-src run test:e2e
