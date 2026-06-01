@@ -93,7 +93,10 @@ describe('wiki', () => {
   describe('getWikiPageKeys', () => {
     it('exposes the basename key and the root-relative path key, normalized', async () => {
       mountFs({
-        '/ws/wiki': [['Home.md', F], ['sub', D]],
+        '/ws/wiki': [
+          ['Home.md', F],
+          ['sub', D],
+        ],
         '/ws/wiki/sub': [['Deep Page.md', F]],
       })
       const keys = await getWikiPageKeys(Uri.file('/ws/wiki'))
@@ -116,7 +119,10 @@ describe('wiki', () => {
 
     it('resolves a unique match by basename (case/space-insensitive)', async () => {
       mountFs({
-        '/ws/wiki': [['Home.md', F], ['sub', D]],
+        '/ws/wiki': [
+          ['Home.md', F],
+          ['sub', D],
+        ],
         '/ws/wiki/sub': [['Deep Page.md', F]],
       })
       const r = await resolveWikiLink(source, 'deep page')
@@ -138,7 +144,11 @@ describe('wiki', () => {
 
     it('reports ambiguous when several files share the key', async () => {
       mountFs({
-        '/ws/wiki': [['Home.md', F], ['a', D], ['b', D]],
+        '/ws/wiki': [
+          ['Home.md', F],
+          ['a', D],
+          ['b', D],
+        ],
         '/ws/wiki/a': [['Page.md', F]],
         '/ws/wiki/b': [['Page.md', F]],
       })
