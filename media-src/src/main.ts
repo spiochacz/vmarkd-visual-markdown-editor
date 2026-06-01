@@ -116,13 +116,14 @@ function applyVditorTheme(theme: 'dark' | 'light') {
   }
 }
 
-// Remove the host-side instant-paint overlay (see src/lute-host.ts) once the
-// live editor is ready. rAF defers it past Vditor's first layout so there's no
-// flash of empty editor between removing the overlay and the editor painting.
+// Remove the host-side instant-paint overlay (see src/lute-host.ts). Called once
+// the live editor is built AND themed (right after applyVditorTheme), so the
+// reveal is seamless — no rAF needed. Idempotent + never throws, so it's safe to
+// call from a finally as a guaranteed swap even if a later after() helper throws.
 function removePrerenderOverlay() {
-  const el = document.getElementById('vmarkd-prerender')
-  if (!el) return
-  requestAnimationFrame(() => el.remove())
+  try {
+    document.getElementById('vmarkd-prerender')?.remove()
+  } catch {}
 }
 
 function initVditor(msg) {
@@ -211,45 +212,51 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
-      // Force the theme through setTheme at init (constructor options don't
-      // reliably apply content/code theme — see applyVditorTheme).
-      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
-      const wikiEnabled = Boolean(msg.wiki?.enabled)
-      setupCustomRenderer(window.vditor, {
-        enabled: wikiEnabled,
-        knownPages:
-          wikiEnabled && msg.wiki.pageKeys
-            ? new Set(msg.wiki.pageKeys as string[])
-            : undefined,
-      })
-      if (
-        wikiEnabled &&
-        typeof msg.content === 'string' &&
-        msg.content.includes('[[')
-      ) {
-        applyingExtensionUpdate = true
-        try {
-          vditor.setValue(msg.content)
-        } finally {
-          setTimeout(() => {
-            applyingExtensionUpdate = false
-          }, 0)
+      try {
+        // Force the theme through setTheme at init (constructor options don't
+        // reliably apply content/code theme — see applyVditorTheme).
+        applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+        // The live editor is now built AND themed — swap it in for the host-side
+        // instant-paint overlay here, BEFORE the remaining (non-visual) helpers,
+        // so a throw in any of them can't leave the overlay stuck on top.
+        removePrerenderOverlay()
+        const wikiEnabled = Boolean(msg.wiki?.enabled)
+        setupCustomRenderer(window.vditor, {
+          enabled: wikiEnabled,
+          knownPages:
+            wikiEnabled && msg.wiki.pageKeys
+              ? new Set(msg.wiki.pageKeys as string[])
+              : undefined,
+        })
+        if (
+          wikiEnabled &&
+          typeof msg.content === 'string' &&
+          msg.content.includes('[[')
+        ) {
+          applyingExtensionUpdate = true
+          try {
+            vditor.setValue(msg.content)
+          } finally {
+            setTimeout(() => {
+              applyingExtensionUpdate = false
+            }, 0)
+          }
         }
+        fixDarkTheme()
+        handleToolbarClick()
+        fixTableIr()
+        fixResponsiveTables()
+        fixPanelHover()
+        if (msg.options?.outlineHighlight !== false) {
+          setupOutlineFlash(window.vditor)
+        }
+        // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
+        setupSplitScrollSync()
+      } finally {
+        // Belt-and-suspenders: guarantee the overlay is gone even if a helper
+        // (or applyVditorTheme) above threw. Idempotent.
+        removePrerenderOverlay()
       }
-      fixDarkTheme()
-      handleToolbarClick()
-      fixTableIr()
-      fixResponsiveTables()
-      fixPanelHover()
-      if (msg.options?.outlineHighlight !== false) {
-        setupOutlineFlash(window.vditor)
-      }
-      // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
-      setupSplitScrollSync()
-      // Live editor is painted — drop the host-side instant-paint overlay
-      // (perf: it masked the Lute-runtime bootstrap). next frame, so the swap
-      // lands after Vditor's own first layout and is visually seamless.
-      removePrerenderOverlay()
     },
     input() {
       if (applyingExtensionUpdate) {
