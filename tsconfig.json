@@ -10,5 +10,5 @@
 		"resolveJsonModule": true,
 		"esModuleInterop": true
 	},
-	"exclude": ["node_modules", ".vscode-test.js", "media-src", "Foyfile.ts", "test", "coverage"]
+	"exclude": ["node_modules", ".vscode-test.js", "media-src", "build.ts", "test", "coverage"]
 }

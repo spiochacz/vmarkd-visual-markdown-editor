@@ -12,7 +12,8 @@ DEVELOPMENT.md
 tsconfig.json
 webpack.config.js
 esbuild.js
-Foyfile.ts
+build.ts
+bun.lock
 scripts
 yarn-error.log
 patch.css.js

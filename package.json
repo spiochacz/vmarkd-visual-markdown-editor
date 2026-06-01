@@ -282,23 +282,22 @@
     ]
   },
   "scripts": {
-    "watch": "foy watch",
-    "start": "foy watch",
+    "build": "bun ./build.ts",
+    "watch": "bun ./build.ts watch",
+    "start": "bun ./build.ts watch",
     "test": "vitest run --config test/vitest.config.ts",
     "test:watch": "vitest --config test/vitest.config.ts",
     "test:coverage": "vitest run --coverage --config test/vitest.config.ts",
     "publish:marketplace": "bash scripts/publish-marketplace.sh",
     "release:marketplace": "bash scripts/release-marketplace.sh",
-    "pub": "npm run release:marketplace"
+    "pub": "bun run release:marketplace"
   },
   "devDependencies": {
     "@types/node": "^12.12.0",
     "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.7",
-    "foy": "^0.2.5",
     "jsdom": "^29.1.1",
     "sharp": "^0.34.5",
-    "ts-node": "9.1.1",
     "typescript": "4.2.2",
     "vitest": "^4.1.7"
   }
