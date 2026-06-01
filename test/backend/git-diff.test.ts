@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { getHeadContent, createDiffScheduler } from '../../src/git-diff'
+import {
+  createDiffScheduler,
+  getHeadContent,
+  makeDiffComputer,
+  MAX_DIFF_CONTENT_SIZE,
+} from '../../src/git-diff'
 
 // A fake `vscode.git` extension API: one repo rooted at /repo, with a
 // configurable HEAD blob per relative path.
@@ -113,5 +118,34 @@ describe('createDiffScheduler', () => {
     await vi.runAllTimersAsync()
     expect(compute).toHaveBeenCalledTimes(1)
     expect(posted).toEqual([]) // a failed diff leaves existing markers untouched
+  })
+})
+
+describe('makeDiffComputer', () => {
+  it('returns line changes when HEAD differs from the current content', async () => {
+    const api = fakeGitApi('/repo', { 'note.md': 'a\nb\nc\n' })
+    const compute = makeDiffComputer(
+      '/repo/note.md',
+      fakeExtensions(api) as any,
+    )
+    const changes = await compute('a\nB\nc\n')
+    expect(changes.length).toBeGreaterThan(0)
+  })
+
+  it('returns [] when HEAD is unavailable (no git / untracked)', async () => {
+    const compute = makeDiffComputer('/repo/note.md', {
+      getExtension: vi.fn(() => undefined),
+    } as any)
+    expect(await compute('x\n')).toEqual([])
+  })
+
+  it('returns [] for content over the size cap (skips the diff)', async () => {
+    const api = fakeGitApi('/repo', { 'note.md': 'a\n' })
+    const compute = makeDiffComputer(
+      '/repo/note.md',
+      fakeExtensions(api) as any,
+    )
+    const big = 'x'.repeat(MAX_DIFF_CONTENT_SIZE + 1)
+    expect(await compute(big)).toEqual([])
   })
 })
