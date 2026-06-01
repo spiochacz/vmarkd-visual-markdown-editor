@@ -23,6 +23,14 @@ import * as vm from 'node:vm'
 
 const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 
+// Hard cap on the document size we pre-render. renderIR runs SYNCHRONOUSLY on the
+// extension-host thread, and Lute's render time grows super-linearly: ~150 ms at
+// 12 KB but seconds for large docs (a 189 KB table-heavy file measured ~26 s),
+// which would freeze the whole host and stall the webview open. Above the cap we
+// skip the instant paint (normal path, no host block) — the masking is a
+// nice-to-have only worth a small, bounded host pause on a typical small file.
+const MAX_PRERENDER_CHARS = 12_000
+
 let lute: { Md2VditorIRDOM(md: string): string } | undefined
 let loadFailed = false
 
@@ -49,7 +57,17 @@ function loadLute(extensionFsPath: string): typeof lute {
       loadFailed = true
       return undefined
     }
-    lute = Lute.New()
+    const instance = Lute.New()
+    if (!instance) {
+      loadFailed = true
+      return undefined
+    }
+    lute = instance
+    // Warm the JIT once so the first real render isn't cold (the cold first call
+    // is markedly slower). Best-effort.
+    try {
+      instance.Md2VditorIRDOM('# warmup\n\ntext')
+    } catch {}
     return lute
   } catch {
     loadFailed = true
@@ -72,6 +90,8 @@ export function renderIR(
   extensionFsPath: string,
   markdown: string,
 ): string | undefined {
+  // Too large → skip (a synchronous host render here would freeze the host).
+  if (markdown.length > MAX_PRERENDER_CHARS) return undefined
   if (!lute) {
     prewarmLute(extensionFsPath)
     return undefined

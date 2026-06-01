@@ -320,6 +320,13 @@ function initVditor(msg) {
   // Vditor built its toolbar synchronously above (icons and all); surface it in
   // the instant-paint overlay now, while Lute is still loading (see helper).
   showRealToolbarInOverlay()
+  // Failsafe: after() normally drops the overlay in ~150 ms. But if the webview's
+  // own Lute script never loads (network/resource failure), after() never fires
+  // and the overlay would stay forever — a frozen, non-interactive teaser. Force
+  // it gone after a generous grace period so a broken load degrades to the (empty)
+  // editor the user can reload, instead of an indefinite hang. Idempotent no-op
+  // on the normal path.
+  setTimeout(removePrerenderOverlay, 8000)
 }
 
 window.addEventListener('message', (e) => {
