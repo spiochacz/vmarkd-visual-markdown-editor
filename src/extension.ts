@@ -4,7 +4,7 @@ import * as fs from 'node:fs'
 import { readingTime } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
-import { prewarmLute, renderIR } from './lute-host'
+import { type EditorMode, prewarmLute, renderForMode } from './lute-host'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -1265,9 +1265,23 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               parseFloat(fontSizeOpt) > 0
             ? `${parseFloat(fontSizeOpt)}px`
             : 'var(--vscode-editor-font-size, 14px)'
+    // The editor opens in whatever mode was last saved (Vditor's currentMode,
+    // persisted via save-options) — default 'ir'. Pre-render in THAT mode so the
+    // overlay matches; mismatch showed up as the H1/H2 gutter markers landing
+    // wrong when the editor was in WYSIWYG.
+    const savedOpts = MarkdownEditorProvider.sanitizeVditorOptions(
+      this._context.globalState.get(KeyVditorOptions),
+    ) as { mode?: string } | undefined
+    const mode: EditorMode =
+      savedOpts?.mode === 'wysiwyg'
+        ? 'wysiwyg'
+        : savedOpts?.mode === 'sv'
+          ? 'sv'
+          : 'ir'
+    const innerClass = mode === 'wysiwyg' ? 'vditor-wysiwyg' : 'vditor-ir'
     const preIR =
       content !== undefined
-        ? renderIR(this._context.extensionPath, content)
+        ? renderForMode(this._context.extensionPath, content, mode)
         : undefined
     // A static, empty themed toolbar bar (no icons) so the chrome region looks
     // present during the instant paint — the real toolbar can't be reused here, it
@@ -1286,7 +1300,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const prerenderOverlay = preIR
       ? `<div id="vmarkd-prerender" class="vditor${
           theme === 'dark' ? ' vditor--dark' : ''
-        }" style="height:100%" aria-hidden="true">${prerenderToolbar}<div class="vditor-content"><div class="vditor-ir"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
+        }" style="height:100%" aria-hidden="true">${prerenderToolbar}<div class="vditor-content"><div class="${innerClass}"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
       : ''
     // The base content text colour comes from Vditor's content-theme CSS, which
     // the live editor loads at runtime via setTheme. Link the SAME file here so

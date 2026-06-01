@@ -31,7 +31,11 @@ const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 // nice-to-have only worth a small, bounded host pause on a typical small file.
 const MAX_PRERENDER_CHARS = 12_000
 
-let lute: { Md2VditorIRDOM(md: string): string } | undefined
+export type EditorMode = 'ir' | 'wysiwyg' | 'sv'
+
+let lute:
+  | { Md2VditorIRDOM(md: string): string; Md2VditorDOM(md: string): string }
+  | undefined
 let loadFailed = false
 
 // Synchronously load + $init Lute in a sandboxed context. ~250 ms of host CPU,
@@ -86,10 +90,18 @@ export function prewarmLute(extensionFsPath: string): void {
 // falls back to the normal webview render, no regression) when Lute isn't warm
 // yet — we never block HTML generation on the 250 ms load; we only kick a
 // prewarm so the NEXT open is covered.
-export function renderIR(
+// Render the document to the same DOM the live editor will build for `mode`, so
+// the instant-paint overlay matches exactly. 'ir' and 'wysiwyg' use the parallel
+// `.vditor-{mode} > pre.vditor-reset` structure (the host's Md2VditorIRDOM /
+// Md2VditorDOM); 'sv' (split) is structurally different — skip it (returns
+// undefined → no overlay). Mode mismatch was visible as the heading-level (H1/H2)
+// gutter markers landing in the wrong place when the editor opened in WYSIWYG.
+export function renderForMode(
   extensionFsPath: string,
   markdown: string,
+  mode: EditorMode,
 ): string | undefined {
+  if (mode === 'sv') return undefined
   // Too large → skip (a synchronous host render here would freeze the host).
   if (markdown.length > MAX_PRERENDER_CHARS) return undefined
   if (!lute) {
@@ -97,7 +109,9 @@ export function renderIR(
     return undefined
   }
   try {
-    return lute.Md2VditorIRDOM(markdown)
+    return mode === 'wysiwyg'
+      ? lute.Md2VditorDOM(markdown)
+      : lute.Md2VditorIRDOM(markdown)
   } catch {
     return undefined
   }
