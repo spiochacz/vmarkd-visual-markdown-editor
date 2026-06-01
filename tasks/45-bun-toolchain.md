@@ -1,13 +1,14 @@
 # Task: Bun toolchain (package manager + script runner)
 
-> **Status:** ✅ Done (2026-06-01).
+> **Status:** 🔄 Open — **Phase 1 (light) done 2026-06-01**; Phase 2 (going
+> further onto Bun) **under evaluation** — see "Phase 2" below.
 > **Source:** user request — out of the dependency-update discussion
 > (`out/DEPENDENCY-UPDATES.md`): drop the niche `foy` task runner (and the
 > `ts-node` it needs) in favour of Bun.
 > **Value / Risk:** 🟢 simpler, faster dev toolchain / low (dev-time only — the
 > shipped extension is unchanged).
 
-## Decision / scope
+## Phase 1 — light adoption (done 2026-06-01)
 "Light" Bun adoption — Bun as **package manager + script/build runner only**.
 Bun installs deps and runs the build directly; it does **not** replace the
 workhorse tools. Deliberately kept as-is (Bun just launches them):
@@ -44,7 +45,25 @@ in its own Node runtime, never Bun.
 - Source maps still ship in the `.vsix` (`**/*.map`) — kept on purpose (debug
   aid). Stripping them is **task 24 §5**.
 
-## Verify
+## Phase 2 — going further onto Bun (open / under evaluation)
+**Decision pending** — keep this task open until resolved. Only the two
+*replaceable* tools are candidates; `tsc` and `playwright` are out (Bun can't
+type-check or drive a browser).
+
+- **`vitest` → `bun test`** (lower risk, evaluate first). Bun's runner is
+  Jest-compatible. Blockers to check: the `vscode` import alias
+  (`test/vitest.config.ts` → `vscode-mock.ts`), the jsdom environment, v8
+  coverage, and the co-located `media-src/src/*.test.ts`. 189 tests to re-point.
+- **`esbuild` → `Bun.build`** (higher risk). Would need the Vditor build config
+  in `esbuild-shared.mjs` reimplemented as Bun plugins (`define VDITOR_VERSION`,
+  `.less`→empty loader, the 4 stubbed toolbar buttons, the `diff-match-patch`
+  interop). `e2e/serve.mjs` also bundles harnesses with esbuild. Big surface; do
+  only if the devDep cut is judged worth it.
+
+Net of full Phase 2: `esbuild` + `vitest` (+ `@vitest/coverage-v8`) drop out.
+If neither clears its blockers cheaply, **stop at Phase 1** and close this task.
+
+## Verify (Phase 1)
 - `bun ./build.ts` → host (`out/extension.js`) + webview (`media/dist/main.js`)
   build green.
 - `bun run test` → 189 unit pass; `bun run --cwd media-src test:e2e` → 56 e2e pass.

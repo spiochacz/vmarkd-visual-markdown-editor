@@ -61,7 +61,7 @@ checked here **only when the task is fully complete**.
 - [x] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — import from source; main.js 310→261 KB (−16%)
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
 - [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md)
-- [x] [45 — Bun toolchain (package manager + script runner)](45-bun-toolchain.md) — drop `foy` + `ts-node`; `Foyfile.ts`→`build.ts`; `bun.lock`; CI on Bun
+- [ ] [45 — Bun toolchain (package manager + script runner)](45-bun-toolchain.md) — Phase 1 done (`foy`/`ts-node` out, `build.ts`, `bun.lock`, CI on Bun); Phase 2 (esbuild/vitest → Bun) under evaluation
 
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)
