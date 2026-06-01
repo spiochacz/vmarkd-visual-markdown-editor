@@ -19,3 +19,13 @@ yarn-error.log
 patch.css.js
 patch_extension.js
 media/vditor/dist/js/mathjax
+
+# Internal docs / working files — never ship in the .vsix
+AGENTS.md
+publish_reminder.txt
+source_control_view_report.md
+tasks
+test-results
+out/*.md
+out/**/*.test.js
+out/**/*.test.js.map
