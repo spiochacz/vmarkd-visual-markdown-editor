@@ -116,6 +116,15 @@ function applyVditorTheme(theme: 'dark' | 'light') {
   }
 }
 
+// Remove the host-side instant-paint overlay (see src/lute-host.ts) once the
+// live editor is ready. rAF defers it past Vditor's first layout so there's no
+// flash of empty editor between removing the overlay and the editor painting.
+function removePrerenderOverlay() {
+  const el = document.getElementById('vmarkd-prerender')
+  if (!el) return
+  requestAnimationFrame(() => el.remove())
+}
+
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
@@ -237,6 +246,10 @@ function initVditor(msg) {
       }
       // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
       setupSplitScrollSync()
+      // Live editor is painted — drop the host-side instant-paint overlay
+      // (perf: it masked the Lute-runtime bootstrap). next frame, so the swap
+      // lands after Vditor's own first layout and is visually seamless.
+      removePrerenderOverlay()
     },
     input() {
       if (applyingExtensionUpdate) {

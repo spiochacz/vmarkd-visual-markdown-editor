@@ -1,0 +1,84 @@
+// Host-side Lute pre-render (perf: warm-open masking).
+//
+// The webview's first content paint is gated on loading + running the 3.8 MB
+// GopherJS Lute runtime ($init ≈150 ms) IN EVERY new webview realm — measured as
+// the dominant cost of opening a fresh file. We can't shrink that per-realm cost
+// (it's the Go runtime bootstrap, not the markdown work — rendering itself is
+// ~1 ms warm), but the extension host is a SINGLE long-lived Node process, so we
+// can pay the Lute $init there exactly ONCE and reuse it.
+//
+// On open, the host renders the document to Vditor's IR DOM (the same
+// `Md2VditorIRDOM` the webview's Lute would call — byte-identical output) and
+// inlines it as a static, read-only overlay in the initial HTML. That paints
+// during HTML parse, before main.js even runs; the live Vditor builds underneath
+// and the overlay is removed once it's ready (see media-src/src/main.ts). Because
+// both renders come from the same Lute, the swap is visually seamless.
+//
+// Loaded in an isolated `vm` context so the GopherJS blob never pollutes the
+// shared extension-host global (`global.Lute` stays undefined elsewhere).
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import * as vm from 'node:vm'
+
+const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
+
+let lute: { Md2VditorIRDOM(md: string): string } | undefined
+let loadFailed = false
+
+// Synchronously load + $init Lute in a sandboxed context. ~250 ms of host CPU,
+// once per session. Only the few globals the GopherJS scheduler needs are
+// exposed; no filesystem, no host global leakage.
+function loadLute(extensionFsPath: string): typeof lute {
+  if (lute || loadFailed) return lute
+  try {
+    const src = fs.readFileSync(path.join(extensionFsPath, LUTE_REL), 'utf8')
+    const sandbox: Record<string, unknown> = {
+      TextEncoder,
+      TextDecoder,
+      setTimeout,
+      clearTimeout,
+      setInterval,
+      clearInterval,
+      console,
+    }
+    vm.createContext(sandbox)
+    vm.runInContext(src, sandbox, { filename: 'lute.min.js' })
+    const Lute = (sandbox as { Lute?: { New(): typeof lute } }).Lute
+    if (!Lute || typeof Lute.New !== 'function') {
+      loadFailed = true
+      return undefined
+    }
+    lute = Lute.New()
+    return lute
+  } catch {
+    loadFailed = true
+    return undefined
+  }
+}
+
+// Kick off the (blocking) load off the activation critical path. Safe to call
+// repeatedly — it no-ops once loaded or once it has permanently failed.
+export function prewarmLute(extensionFsPath: string): void {
+  if (lute || loadFailed) return
+  setTimeout(() => loadLute(extensionFsPath), 0)
+}
+
+// Render markdown → IR DOM for the instant paint. Returns undefined (caller
+// falls back to the normal webview render, no regression) when Lute isn't warm
+// yet — we never block HTML generation on the 250 ms load; we only kick a
+// prewarm so the NEXT open is covered.
+export function renderIR(
+  extensionFsPath: string,
+  markdown: string,
+): string | undefined {
+  if (!lute) {
+    prewarmLute(extensionFsPath)
+    return undefined
+  }
+  try {
+    return lute.Md2VditorIRDOM(markdown)
+  } catch {
+    return undefined
+  }
+}

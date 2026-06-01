@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import { readingTime } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
+import { prewarmLute, renderIR } from './lute-host'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -283,6 +284,10 @@ async function revealCaretInSource(
 export function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('vMarkd', { log: true })
   context.subscriptions.push(logger)
+
+  // Warm the host-side Lute now so the first file open already gets the instant
+  // pre-rendered paint (see src/lute-host.ts). Deferred off the activation path.
+  prewarmLute(context.extensionPath)
 
   const updateStatusBar = setupStatusBar(context)
   const refreshContexts = () => {
@@ -648,6 +653,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       document.uri,
+      document.getText(),
+      currentThemeKind(),
     )
 
     const syncToEditor = async (content: string) => {
@@ -1201,7 +1208,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     )
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri) {
+  private _getHtmlForWebview(
+    webview: vscode.Webview,
+    uri: vscode.Uri,
+    content?: string,
+    theme: 'dark' | 'light' = 'light',
+  ) {
     const toUri = (f: string) =>
       webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, f))
     const baseHref = `${NodePath.dirname(
@@ -1225,6 +1237,28 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
     //     we inject <style> for custom/external CSS).
     //   - images: same-origin + data:/blob: + https: (remote images in markdown).
+    // Instant paint (perf): render the document to Vditor IR DOM host-side and
+    // inline it as a static, read-only overlay. It shows during HTML parse —
+    // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
+    // — and is removed once the live editor is ready (media-src/src/main.ts).
+    // Falls back to nothing (normal render path) when Lute isn't warm yet.
+    const showToolbar =
+      MarkdownEditorProvider.config.get<boolean>('showToolbar') !== false
+    const preIR =
+      content !== undefined
+        ? renderIR(this._context.extensionPath, content)
+        : undefined
+    const prerenderOverlay = preIR
+      ? `<div id="vmarkd-prerender" class="vditor${
+          theme === 'dark' ? ' vditor--dark' : ''
+        }${
+          showToolbar ? ' vmarkd-prerender--toolbar' : ''
+        }" aria-hidden="true"><div class="vditor-ir"><pre class="vditor-reset">${preIR}</pre></div></div>`
+      : ''
+    const prerenderStyle = preIR
+      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:auto;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender.vmarkd-prerender--toolbar{padding-top:37px;}#vmarkd-prerender .vditor-ir{height:auto;}</style>`
+      : ''
+
     const nonce = getNonce()
     const csp = webview.cspSource
     const cspMeta =
@@ -1254,10 +1288,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 				<title>markdown editor</title>
         ` +
       MarkdownEditorProvider._cssStyleTags() +
+      prerenderStyle +
       `
 			</head>
 			<body>
 				<div id="app"></div>
+				${prerenderOverlay}
 
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
 				<script nonce="${nonce}" id="vditorIconOverride" src="${iconOverrideScript}"></script>
