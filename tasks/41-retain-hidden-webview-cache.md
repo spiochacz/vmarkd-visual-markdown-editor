@@ -3,7 +3,7 @@
 > **Source:** follow-up to task 37 (dispose-on-hide decision)
 > **Value / Risk:** 🟧 perf/UX balance / medium — touches webview lifecycle
 > **Engines:** none
-> **Status:** deferred — only build this if dispose-on-hide proves annoying.
+> **Status:** ⏸ Parked (2026-06-01) — only build this if dispose-on-hide proves annoying.
 
 ## Background
 Task **37** shipped `retainContextWhenHidden: false` (dispose-on-hide): hidden

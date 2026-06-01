@@ -66,7 +66,7 @@ checked here **only when the task is fully complete**.
 
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)
-- [ ] [41 — Bounded retain-cache for hidden webviews (keep N)](41-retain-hidden-webview-cache.md)
+- [ ] [41 — Bounded retain-cache for hidden webviews (keep N)](41-retain-hidden-webview-cache.md) — ⏸ **parked** (only if dispose-on-hide proves annoying)
 - [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md)
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md)
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md)
