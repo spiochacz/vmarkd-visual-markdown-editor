@@ -102,5 +102,4 @@ if (watch) {
     run('tsc -p ./'),
     run('npm run build', { cwd: 'media-src' }),
   ])
-  await run('git add -A')
 }
