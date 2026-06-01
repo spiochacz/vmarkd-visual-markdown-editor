@@ -40,19 +40,6 @@ export function confirm(msg: string, onOk: () => void | Promise<void>) {
   })
   dialog.showModal()
 }
-// 切换 content-theme 时自动修改 vditor theme
-export function fixDarkTheme() {
-  const $ct = document.querySelector('[data-type="content-theme"]')
-  $ct.nextElementSibling.addEventListener('click', (e) => {
-    if ((e.target as any).tagName !== 'BUTTON') return
-    const type = (e.target as any).getAttribute('data-type')
-    if (type === 'dark') {
-      vditor.setTheme(type)
-    } else {
-      vditor.setTheme('classic')
-    }
-  })
-}
 // panel hover 加定时延迟
 export function fixPanelHover() {
   // Only the IR table panel uses the collapse-to-"..." + delayed-collapse

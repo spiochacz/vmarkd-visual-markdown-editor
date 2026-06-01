@@ -3,7 +3,6 @@ import './preload'
 import {
   fileToBase64,
   fixCut,
-  fixDarkTheme,
   fixLinkClick,
   fixPanelHover,
   fixResponsiveTables,
@@ -242,7 +241,6 @@ function initVditor(msg) {
             }, 0)
           }
         }
-        fixDarkTheme()
         handleToolbarClick()
         fixTableIr()
         fixResponsiveTables()
