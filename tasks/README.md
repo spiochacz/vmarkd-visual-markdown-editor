@@ -40,6 +40,7 @@ checked here **only when the task is fully complete**.
 - [ ] [32 — Link/image path autocomplete](32-link-image-autocomplete.md) — findFiles + watcher, no engines bump
 - [x] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — reading time + WYSIWYG/Source indicator
 - [x] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — dedup vMarkd tabs + open-source-to-side with reuse
+- [x] [48 — Line-anchored split-view scroll sync](48-split-view-line-scroll-sync.md) — heading-anchored centre sync in `sv` mode (replaces Vditor's proportional drift)
 
 ## Security
 - [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)

@@ -20,6 +20,7 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
+import { setupSplitScrollSync } from './split-scroll-sync'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { setupHistoryKeybind } from './undo-keybind'
@@ -143,6 +144,10 @@ function initVditor(msg) {
       math: {
         inlineDigit: true,
       },
+      // Drop Vditor's default preview action bar (Desktop/Tablet/Mobile device
+      // widths + the China-specific "copy for WeChat 公众号 / Zhihu" buttons) —
+      // irrelevant in a VS Code markdown editor.
+      actions: [],
     },
   })
   // Code-block line numbers (rendered preview only). deepMerge keeps the
@@ -217,6 +222,8 @@ function initVditor(msg) {
       if (msg.options?.outlineHighlight !== false) {
         setupOutlineFlash(window.vditor)
       }
+      // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
+      setupSplitScrollSync()
     },
     input() {
       if (applyingExtensionUpdate) {
