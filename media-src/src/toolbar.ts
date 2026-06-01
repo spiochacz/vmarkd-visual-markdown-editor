@@ -186,8 +186,9 @@ export function createToolbar(options: ToolbarOptions = {}) {
       tipPosition: 'e',
       toolbar: [
         'both',
-        'code-theme',
-        'content-theme',
+        // content-theme + code-theme pickers dropped from the toolbar — VS Code
+        // manages the theme: content follows the editor colours, and the code
+        // block highlight is the `markdown-editor.codeTheme` setting.
         'outline',
         'preview',
         {

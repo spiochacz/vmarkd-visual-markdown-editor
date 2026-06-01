@@ -96,14 +96,23 @@ function restoreEditorCaretIfLost(): boolean {
 // here — the host strips a stale baked path from saved options (the colors-401
 // fix), which would otherwise leave setContentTheme with an empty path and make
 // it a no-op, so the table/content theme never followed a live theme switch.
+// Resolve the code-block highlight style: the `codeTheme` setting, or — when
+// 'auto'/unset — github/github-dark following the VS Code light/dark theme.
+function codeHljsStyle(theme: 'dark' | 'light', options: any): string {
+  const ct = options?.codeTheme
+  if (!ct || ct === 'auto') return theme === 'dark' ? 'github-dark' : 'github'
+  return ct
+}
+
 function applyVditorTheme(theme: 'dark' | 'light') {
   if (!window.vditor) return
   const cdn = lastInitMsg?.cdn
   const contentThemePath = cdn ? `${cdn}/dist/css/content-theme` : undefined
+  const code = codeHljsStyle(theme, lastInitMsg?.options)
   if (theme === 'dark') {
-    vditor.setTheme('dark', 'dark', 'github-dark', contentThemePath)
+    vditor.setTheme('dark', 'dark', code, contentThemePath)
   } else {
-    vditor.setTheme('classic', 'light', 'github', contentThemePath)
+    vditor.setTheme('classic', 'light', code, contentThemePath)
   }
 }
 
@@ -115,6 +124,10 @@ function initVditor(msg) {
   applyMermaidTheme(window, msg.options?.mermaidTheme)
   let inputTimer: ReturnType<typeof setTimeout> | undefined
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
+  const codeStyle = codeHljsStyle(
+    msg.theme === 'dark' ? 'dark' : 'light',
+    msg.options,
+  )
   if (msg.theme === 'dark') {
     // vditor.setTheme('dark', 'dark')
     defaultOptions = deepMerge(defaultOptions, {
@@ -124,17 +137,17 @@ function initVditor(msg) {
           current: 'dark',
         },
         hljs: {
-          style: 'github-dark',
+          style: codeStyle,
         },
       },
     })
   } else {
-    // Explicit light code theme — matched pair to github-dark, avoids any
-    // init flash of Vditor's default before applyVditorTheme runs (task 05).
+    // Explicit light code theme — avoids any init flash of Vditor's default
+    // before applyVditorTheme runs (task 05). Honors the codeTheme setting.
     defaultOptions = deepMerge(defaultOptions, {
       preview: {
         hljs: {
-          style: 'github',
+          style: codeStyle,
         },
       },
     })
@@ -311,6 +324,8 @@ window.addEventListener('message', (e) => {
       // touching Vditor. Constructor-only options (toolbar, word count, …) can't
       // — re-init Vditor with the merged options, preserving the current content.
       applyBodyOptions(msg.options)
+      const codeThemeChanged =
+        lastInitMsg && lastInitMsg.options?.codeTheme !== msg.options?.codeTheme
       if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
         const content =
           window.vditor && !applyingExtensionUpdate
@@ -321,6 +336,11 @@ window.addEventListener('message', (e) => {
           content,
           options: { ...lastInitMsg.options, ...msg.options },
         })
+      } else if (codeThemeChanged && window.vditor) {
+        // Code-block theme isn't a constructor-only option — apply it live via
+        // setTheme (swaps the hljs stylesheet) without re-init, keeping cursor.
+        lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
+        applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
       }
       break
     }

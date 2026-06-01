@@ -776,6 +776,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           ),
           outlineHighlight:
             MarkdownEditorProvider.config.get<boolean>('outlineHighlight'),
+          codeTheme: MarkdownEditorProvider.config.get<string>('codeTheme'),
         },
       })
       webviewPanel.webview.postMessage({
@@ -943,6 +944,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                   MarkdownEditorProvider.config.get<boolean>(
                     'outlineHighlight',
                   ),
+                codeTheme:
+                  MarkdownEditorProvider.config.get<string>('codeTheme'),
                 ...MarkdownEditorProvider.sanitizeVditorOptions(
                   this._context.globalState.get(KeyVditorOptions),
                 ),
