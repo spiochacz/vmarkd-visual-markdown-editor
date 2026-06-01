@@ -61,7 +61,7 @@ checked here **only when the task is fully complete**.
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md)
 - [x] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — import from source; main.js 310→261 KB (−16%)
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
-- [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md)
+- [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md) — Part A (PR gate `ci.yml`) ✅ done; Part B (single release path / version policy) open
 - [x] [45 — Build toolchain (drop foy/ts-node)](45-build-toolchain.md) — landed on plain Node + npm: `build.mjs` run by `node`, no `foy`/`ts-node`/Bun (tried Bun, reverted to minimise tooling)
 
 ## Performance (open latency + memory)

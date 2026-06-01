@@ -16,7 +16,9 @@ Everything below was read in full; the bones exist but there are real gaps.
 > - **Part C #2** — `build.mjs` still ends with `git add -A` (carried over 1:1).
 > - **§5** — doc/cruft exclusion **done 2026-06-01** (see below); source maps
 >   (`**/*.map`) still ship by choice; MathJax already excluded (task 40).
-> - Parts A/B (PR gate, single release path, version-bump policy) — still open.
+> - **Part A** — ✅ **done 2026-06-01** (`ci.yml`: PR + push-to-main gate →
+>   install → `node build.mjs` → unit → e2e). Webview `tsc --noEmit` left out (see
+>   note under Part A); Part B (single release path, version-bump policy) still open.
 
 - **`.github/workflows/main.yml` ("Deploy Extension")** — manual `workflow_dispatch`.
   `npm ci` (root + `media-src`) → `foy build` → **`npm test`** → publish to **Open VSX**
@@ -64,16 +66,28 @@ Publisher `oleksiiko`; build via `node build.mjs` → `tsc` + esbuild (task 45).
 
 ---
 
-## Part A — CI workflow (`.github/workflows/ci.yml`)
-Trigger: `pull_request` + `push` to `main`.
+## Part A — CI workflow (`.github/workflows/ci.yml`) — ✅ Done (2026-06-01)
+Trigger: `pull_request` + `push` to `main`. Single job on `ubuntu-latest`,
+`setup-node@22` + npm cache. Steps: `npm ci` (root + `media-src`) → `node build.mjs`
+(compiles host with tsc + bundles webview) → `npm test` (189 unit) →
+`playwright install --with-deps chromium` → e2e (56). `concurrency` cancels
+superseded runs.
 
-1. `actions/checkout@v4`, `actions/setup-node@v4` (node 20, cache).
+**Follow-up — webview type-check is NOT in the gate.** `tsc --noEmit` in `media-src`
+currently fails: `media-src/tsconfig.json` sets `moduleResolution: "bundler"` (a
+**TS 5.0+** option) while media-src is on **TS 4.9.5** — esbuild ignores it so the
+build is fine, but CLI `tsc` can't parse the config. To add a webview type-check
+step, first reconcile this (switch to `moduleResolution: "node"`/`"node16"` under
+TS 4.9, or bump media-src to TS 5.x — note the user chose TS 4.9). The webview is
+still exercised by the 56 e2e on the real bundle.
+
+Original step notes (for reference):
+1. `actions/checkout@v4`, `actions/setup-node@v4`.
 2. Install root + `media-src`.
-3. `foy build` (must pass).
-4. **Unit tests** — add a root `test` script that delegates:
-   `"test": "npm --prefix media-src test"`, then run `npm test`.
-5. **E2e** — `npx playwright install --with-deps chromium`, then
-   `npm --prefix media-src run test:e2e` (harness already in `media-src/e2e/`).
+3. Build (`node build.mjs`) — must pass.
+4. **Unit tests** — `npm test` (root vitest).
+5. **E2e** — `playwright install --with-deps chromium`, then
+   `npm --prefix media-src run test:e2e` (harness in `media-src/e2e/`).
 6. **Lint / type-check** — `tsc --noEmit` (eslint if adopted); wire as a `lint` script.
 7. Make these **required status checks** on `main` (branch protection).
 

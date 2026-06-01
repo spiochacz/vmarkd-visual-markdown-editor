@@ -1,0 +1,37 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install (root)
+        run: npm ci
+      - name: Install (media-src)
+        run: npm --prefix media-src ci
+
+      # Compiles the host with tsc (type-checks it) and bundles the webview.
+      - name: Build
+        run: node build.mjs
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Playwright browser
+        run: npm --prefix media-src exec -- playwright install --with-deps chromium
+      - name: E2e tests
+        run: npm --prefix media-src run test:e2e
