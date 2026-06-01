@@ -24,49 +24,10 @@ export function setupCustomRenderer(
     if (!entering) {
       return ['', WalkContinue]
     }
-
-    const text = node.TokensStr()
-    WikiLinkPattern.lastIndex = 0
-
-    if (!options.enabled || !WikiLinkPattern.test(text)) {
-      WikiLinkPattern.lastIndex = 0
-      return [escapeHTML(text), WalkContinue]
-    }
-
-    WikiLinkPattern.lastIndex = 0
-    const fragments: string[] = []
-    let lastIndex = 0
-    let match: RegExpExecArray | null
-
-    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec() loop, explicit `!== null`
-    while ((match = WikiLinkPattern.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        fragments.push(escapeHTML(text.slice(lastIndex, match.index)))
-      }
-
-      const source = match[0]
-      const payload = parseWikiLinkPayload(match[1])
-      const displayText = payload.label || payload.target
-      const isMissing = options.knownPages
-        ? !options.knownPages.has(normalizeWikiTarget(payload.target))
-        : false
-
-      fragments.push(
-        `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${escapeAttribute(
-          payload.target,
-        )}" data-wiki-source="${escapeAttribute(source)}"${isMissing ? ' data-wiki-missing="1"' : ''} title="${isMissing ? 'Missing wiki page' : 'Open wiki page'} ${escapeAttribute(
-          payload.target,
-        )}" role="link" tabindex="0">${escapeHTML(displayText)}</span>`,
-      )
-
-      lastIndex = WikiLinkPattern.lastIndex
-    }
-
-    if (lastIndex < text.length) {
-      fragments.push(escapeHTML(text.slice(lastIndex)))
-    }
-
-    return [fragments.join(''), WalkContinue]
+    return [
+      wikiTextToHtml(node.TokensStr(), options.enabled, options.knownPages),
+      WalkContinue,
+    ]
   }
 
   const renderInlineHTML = (node: any, entering: boolean) => {
@@ -95,6 +56,58 @@ export function setupCustomRenderer(
       HTML2Md: { renderInlineHTML },
     },
   })
+}
+
+// Render a Lute text token to HTML: turn [[wiki]] / [[wiki|label]] spans into
+// chips (flagged data-wiki-missing when a knownPages set is given and the
+// normalized target isn't in it) and HTML-escape everything else. When wiki
+// links are disabled it's a plain escape. Pure — extracted from the renderText
+// callback above so it can be unit-tested directly.
+export function wikiTextToHtml(
+  text: string,
+  enabled: boolean,
+  knownPages?: Set<string>,
+): string {
+  WikiLinkPattern.lastIndex = 0
+  if (!enabled || !WikiLinkPattern.test(text)) {
+    WikiLinkPattern.lastIndex = 0
+    return escapeHTML(text)
+  }
+
+  WikiLinkPattern.lastIndex = 0
+  const fragments: string[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec() loop, explicit `!== null`
+  while ((match = WikiLinkPattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      fragments.push(escapeHTML(text.slice(lastIndex, match.index)))
+    }
+
+    const source = match[0]
+    const payload = parseWikiLinkPayload(match[1])
+    const displayText = payload.label || payload.target
+    const isMissing = knownPages
+      ? !knownPages.has(normalizeWikiTarget(payload.target))
+      : false
+
+    fragments.push(
+      `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${escapeAttribute(
+        payload.target,
+      )}" data-wiki-source="${escapeAttribute(source)}"${isMissing ? ' data-wiki-missing="1"' : ''} title="${isMissing ? 'Missing wiki page' : 'Open wiki page'} ${escapeAttribute(
+        payload.target,
+      )}" role="link" tabindex="0">${escapeHTML(displayText)}</span>`,
+    )
+
+    lastIndex = WikiLinkPattern.lastIndex
+  }
+
+  if (lastIndex < text.length) {
+    fragments.push(escapeHTML(text.slice(lastIndex)))
+  }
+
+  return fragments.join('')
 }
 
 function parseWikiLinkPayload(payload: string) {
