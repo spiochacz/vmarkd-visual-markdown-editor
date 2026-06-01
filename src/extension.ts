@@ -1317,10 +1317,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const toMediaPath = (f: string) => `media/dist/${f}`
     const JsFiles = ['main.js'].map(toMediaPath).map(toUri)
     const CssFiles = ['main.css'].map(toMediaPath).map(toUri)
-    const iconScript = toUri('media/vditor/dist/js/icons/ant.js')
-    // Codicon restyle of the toolbar: loaded right after ant.js, it mutates the
-    // injected <symbol> defs in place (see media-src/build-icon-sprite.mjs, task 44).
-    const iconOverrideScript = toUri('media/vditor-icons-codicon.js')
+    // Single baked icon sprite (ant symbols with our toolbar glyphs swapped for
+    // codicons — see media-src/build-icon-sprite.mjs, task 44). Loaded under
+    // id="vditorIconScript" so Vditor skips loading its own ant.js.
+    const iconScript = toUri('media/vditor-icons.js')
     // i18n bundle for the VS Code UI language. Loaded *before* main.js (below) so
     // `window.VditorI18n` is set when Vditor is constructed → it skips its async
     // i18n fetch and builds the toolbar synchronously (see resolveVditorI18nLang).
@@ -1457,7 +1457,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
-				<script nonce="${nonce}" id="vditorIconOverride" src="${iconOverrideScript}"></script>
 				${JsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
 			</body>
 			</html>`

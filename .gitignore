@@ -65,7 +65,7 @@ lib
 out/
 media/dist/
 media/vditor/dist/
-media/vditor-icons-codicon.js
+media/vditor-icons.js
 media-src/dist/
 media-src/dist-ssr/
 

@@ -28,16 +28,20 @@ data is inlined): `save`→`save`, `edit-in-vscode`→`go-to-file`,
 `wiki-pages`→`book`, `navigate-back`→`arrow-left`, `settings`→`settings-gear`.
 
 ### 3. Vditor's built-in toolbar icons (the `ant` set)
-Restyled to codicons via a generated runtime override:
+Restyled to codicons via a single **build-time merged sprite** (was: load ant.js +
+mutate at runtime; consolidated 2026-06-01 for one file + no runtime DOM work):
 - **Source of truth:** `media-src/icons/<name>.svg` — 30 codicon-style glyphs,
   where `<name>` maps to Vditor's `vditor-icon-<name>` symbol id.
 - **Generator:** `media-src/build-icon-sprite.mjs` (run by `build.mjs` after the
-  Vditor asset sync) emits `media/vditor-icons-codicon.js`.
-- **Wiring:** `src/extension.ts` loads that script **right after** Vditor's icon
-  script (`ant.js`). `ant.js` synchronously injects all `<symbol>` defs; the
-  override then mutates the 30 we care about **in place** by id (sets viewBox
-  `0 0 16 16` + codicon `innerHTML`). Untouched symbols keep their `ant` glyph,
-  so nothing else in Vditor (dialogs, panels) loses its icon.
+  Vditor asset sync) reads `ant.js` **plus** our overrides and emits
+  `media/vditor-icons.js` — Vditor's full ant symbol set with our 30 swapped for
+  codicons (53 symbols: 30 codicon + 23 ant kept verbatim for table-panel
+  align/insert/delete, resize, trashcan, …).
+- **Wiring:** `src/extension.ts` loads that one file under
+  `id="vditorIconScript"`, which makes Vditor **skip loading its own ant.js**
+  (it guards by that id). The sprite injects all symbols via `insertAdjacentHTML`,
+  exactly like ant.js — no runtime mutation, one ~41 KB file instead of ant.js
+  (42 KB) + a 23 KB override.
 
 **Mapping (24 official codicons + 6 hand-drawn in codicon style):**
 - Direct codicon: bold, italic, strike→`strikethrough`, link, list→`list-unordered`,

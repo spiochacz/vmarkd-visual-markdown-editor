@@ -42,9 +42,11 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     expect(html).toMatch(/<link[^>]+href="[^"]*main\.css"/)
   })
 
-  it('loads the Vditor icon sprite script before the bundle', () => {
+  it('loads the merged Vditor icon sprite script before the bundle', () => {
     const { html } = resolveAndGetHtml()
-    expect(html).toMatch(/id="vditorIconScript"[^>]+src="[^"]*ant\.js"/)
+    expect(html).toMatch(
+      /id="vditorIconScript"[^>]+src="[^"]*vditor-icons\.js"/,
+    )
   })
 
   it('injects the Vditor i18n bundle before main.js (sync toolbar build)', () => {
