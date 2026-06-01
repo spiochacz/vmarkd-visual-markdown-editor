@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeBlockMarkers, BlockBox } from './diff-markers'
+import { computeBlockMarkers, type BlockBox } from './diff-markers'
 import type { DiffChange } from './diff-markers'
 
 // computeBlockMarkers is the pure core of the git gutter: given each top-level
@@ -7,9 +7,14 @@ import type { DiffChange } from './diff-markers'
 // which blocks get a bar and of what type. Block→source mapping uses the same
 // sample+indexOf trick as the cursor mapping; overlap picks the highest-priority
 // change (removed > modified > added).
-const md = ['# Title', '', 'First paragraph.', '', 'Second paragraph.', ''].join(
-  '\n'
-)
+const md = [
+  '# Title',
+  '',
+  'First paragraph.',
+  '',
+  'Second paragraph.',
+  '',
+].join('\n')
 
 function box(text: string, top: number, height = 20): BlockBox {
   return { text, top, height }

@@ -15,12 +15,12 @@ import { fileURLToPath } from 'node:url'
 const vditorVersion = JSON.parse(
   readFileSync(
     new URL('./node_modules/vditor/package.json', import.meta.url),
-    'utf8'
-  )
+    'utf8',
+  ),
 ).version
 
 const stubPath = fileURLToPath(
-  new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url)
+  new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url),
 )
 
 export const stubUnusedVditorButtons = {
@@ -29,11 +29,13 @@ export const stubUnusedVditorButtons = {
     build.onResolve(
       { filter: /^\.\/(Br|Fullscreen|Record|Export)$/ },
       (args) => {
-        if (args.importer.replace(/\\/g, '/').includes('vditor/src/ts/toolbar')) {
+        if (
+          args.importer.replace(/\\/g, '/').includes('vditor/src/ts/toolbar')
+        ) {
           return { path: stubPath }
         }
         return null
-      }
+      },
     )
   },
 }
@@ -57,10 +59,10 @@ const fixDmpInterop = {
           loader: 'ts',
           contents: code.replace(
             /import \* as DiffMatchPatch from "diff-match-patch";/,
-            'import DiffMatchPatch from "diff-match-patch";'
+            'import DiffMatchPatch from "diff-match-patch";',
           ),
         }
-      }
+      },
     )
   },
 }

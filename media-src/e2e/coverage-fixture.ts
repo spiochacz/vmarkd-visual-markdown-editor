@@ -11,7 +11,7 @@ import coverageOptions from './coverage-options'
 
 const COVERAGE_ENABLED = !!process.env.E2E_COVERAGE
 
-export const test = base.extend<{ collectCoverage: void }>({
+export const test = base.extend<{ collectCoverage: undefined }>({
   collectCoverage: [
     async ({ page, browserName }, use) => {
       // page.coverage is Chromium-only.

@@ -30,6 +30,10 @@ jobs:
       - name: Audit (media-src)
         run: npm --prefix media-src audit --audit-level=moderate
 
+      # Lint + format gate (Biome). `ci` is the no-write, CI-optimized mode.
+      - name: Lint (biome)
+        run: npx biome ci
+
       # Compiles the host with tsc (type-checks it) and bundles the webview.
       - name: Build
         run: node build.mjs

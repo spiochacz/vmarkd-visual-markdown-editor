@@ -31,7 +31,7 @@ import {
 import {
   renderDiffMarkers,
   clearDiffMarkers,
-  DiffChange,
+  type DiffChange,
 } from './diff-markers'
 import './main.css'
 
@@ -112,7 +112,7 @@ function initVditor(msg) {
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
   // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
   applyMermaidTheme(window, msg.options?.mermaidTheme)
-  let inputTimer
+  let inputTimer: ReturnType<typeof setTimeout> | undefined
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   if (msg.theme === 'dark') {
     // vditor.setTheme('dark', 'dark')
@@ -125,7 +125,7 @@ function initVditor(msg) {
         hljs: {
           style: 'github-dark',
         },
-      }
+      },
     })
   } else {
     // Explicit light code theme — matched pair to github-dark, avoids any
@@ -135,19 +135,19 @@ function initVditor(msg) {
         hljs: {
           style: 'github',
         },
-      }
+      },
     })
   }
   defaultOptions = deepMerge(defaultOptions, msg.options, {
     preview: {
       math: {
         inlineDigit: true,
-      }
-    }
+      },
+    },
   })
   // Code-block line numbers (rendered preview only). deepMerge keeps the
   // dark-theme hljs.style sibling intact.
-  if (msg.options && msg.options.codeBlockLineNumbers) {
+  if (msg.options?.codeBlockLineNumbers) {
     defaultOptions = deepMerge(defaultOptions, {
       preview: { hljs: { lineNumber: true } },
     })
@@ -176,7 +176,7 @@ function initVditor(msg) {
     toolbar:
       msg.options?.showToolbar === false
         ? []
-        : createToolbar({ wikiEnabled: Boolean(msg.wiki && msg.wiki.enabled) }),
+        : createToolbar({ wikiEnabled: Boolean(msg.wiki?.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
@@ -187,19 +187,26 @@ function initVditor(msg) {
       // Force the theme through setTheme at init (constructor options don't
       // reliably apply content/code theme — see applyVditorTheme).
       applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
-      const wikiEnabled = Boolean(msg.wiki && msg.wiki.enabled)
+      const wikiEnabled = Boolean(msg.wiki?.enabled)
       setupCustomRenderer(window.vditor, {
         enabled: wikiEnabled,
-        knownPages: wikiEnabled && msg.wiki.pageKeys
-          ? new Set(msg.wiki.pageKeys as string[])
-          : undefined,
+        knownPages:
+          wikiEnabled && msg.wiki.pageKeys
+            ? new Set(msg.wiki.pageKeys as string[])
+            : undefined,
       })
-      if (wikiEnabled && typeof msg.content === 'string' && msg.content.includes('[[')) {
+      if (
+        wikiEnabled &&
+        typeof msg.content === 'string' &&
+        msg.content.includes('[[')
+      ) {
         applyingExtensionUpdate = true
         try {
           vditor.setValue(msg.content)
         } finally {
-          setTimeout(() => { applyingExtensionUpdate = false }, 0)
+          setTimeout(() => {
+            applyingExtensionUpdate = false
+          }, 0)
         }
       }
       fixDarkTheme()
@@ -224,16 +231,16 @@ function initVditor(msg) {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409
       async handler(files) {
         // console.log('files', files)
-        let fileInfos = await Promise.all(
+        const fileInfos = await Promise.all(
           files.map(async (f) => {
             return {
               base64: await fileToBase64(f),
               name: `${formatTimestamp(new Date())}_${f.name}`.replace(
                 /[^\w-_.]+/,
-                '_'
+                '_',
               ),
             }
-          })
+          }),
         )
         vscode.postMessage({
           command: 'upload',
@@ -255,7 +262,7 @@ window.addEventListener('message', (e) => {
         clearDiffMarkers()
         document.body.setAttribute(
           'data-wiki-file',
-          msg.wiki && msg.wiki.enabled ? '1' : '0'
+          msg.wiki?.enabled ? '1' : '0',
         )
         applyBodyOptions(msg.options)
         try {
@@ -349,7 +356,7 @@ window.addEventListener('message', (e) => {
       msg.files.forEach((f) => {
         if (f.endsWith('.wav')) {
           vditor.insertValue(
-            `\n\n<audio controls="controls" src="${f}"></audio>\n\n`
+            `\n\n<audio controls="controls" src="${f}"></audio>\n\n`,
           )
         } else {
           const i = new Image()

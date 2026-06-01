@@ -18,7 +18,9 @@ function activateAndGetCommand(id: string) {
 }
 
 function openWithCalls() {
-  return mock.calls.executeCommand.filter((c) => c.command === 'vscode.openWith')
+  return mock.calls.executeCommand.filter(
+    (c) => c.command === 'vscode.openWith',
+  )
 }
 
 describe('command: markdown-editor.openEditor', () => {
@@ -45,7 +47,9 @@ describe('command: markdown-editor.openEditor', () => {
     const open = activateAndGetCommand('markdown-editor.openEditor')
     await open()
     expect(openWithCalls()).toHaveLength(0)
-    expect(mock.calls.showError.join(' ')).toContain('Cannot find markdown file')
+    expect(mock.calls.showError.join(' ')).toContain(
+      'Cannot find markdown file',
+    )
   })
 
   it('rejects non-markdown files', async () => {
@@ -72,7 +76,10 @@ describe('command: markdown-editor.openEditor — tab dedup (task 36)', () => {
     const open = activateAndGetCommand('markdown-editor.openEditor')
     const uri = Uri.file('/workspace/note.md')
     mock.setTabGroups([
-      { viewColumn: 1, inputs: [new TabInputText(Uri.file('/workspace/other.md'))] },
+      {
+        viewColumn: 1,
+        inputs: [new TabInputText(Uri.file('/workspace/other.md'))],
+      },
       { viewColumn: 2, inputs: [new TabInputCustom(uri, VIEW_TYPE)] },
     ])
     await open(uri)
@@ -202,7 +209,7 @@ function resolveProvider(fsPath = '/workspace/note.md', text = '# doc\n') {
   const panel = mock.createWebviewPanel()
   new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
     document as any,
-    panel as any
+    panel as any,
   )
   return { document, panel }
 }
@@ -218,12 +225,14 @@ describe('message handler: upload', () => {
     })
 
     expect(
-      mock.calls.fsDirsCreated.some((u) => u.fsPath === '/workspace/assets')
+      mock.calls.fsDirsCreated.some((u) => u.fsPath === '/workspace/assets'),
     ).toBe(true)
 
     expect(mock.calls.fsWrites).toHaveLength(1)
     expect(mock.calls.fsWrites[0].uri.fsPath).toBe('/workspace/assets/img.png')
-    expect(Buffer.from(mock.calls.fsWrites[0].content).toString('utf8')).toBe('hi')
+    expect(Buffer.from(mock.calls.fsWrites[0].content).toString('utf8')).toBe(
+      'hi',
+    )
 
     expect(mock.calls.postMessage).toContainEqual({
       command: 'uploaded',
@@ -265,7 +274,9 @@ describe('message handler: open-link', () => {
       command: 'open-link',
       href: 'https://example.com/page',
     })
-    const call = mock.calls.executeCommand.find((c) => c.command === 'vscode.open')
+    const call = mock.calls.executeCommand.find(
+      (c) => c.command === 'vscode.open',
+    )
     expect(call).toBeDefined()
     expect(call!.args[0].toString()).toContain('example.com')
   })
@@ -273,7 +284,9 @@ describe('message handler: open-link', () => {
   it('resolves a relative link against the document directory', async () => {
     const { panel } = resolveProvider('/workspace/note.md')
     await panel._receiveMessage({ command: 'open-link', href: 'docs/page.md' })
-    const call = mock.calls.executeCommand.find((c) => c.command === 'vscode.open')
+    const call = mock.calls.executeCommand.find(
+      (c) => c.command === 'vscode.open',
+    )
     expect(call).toBeDefined()
     expect(call!.args[0].fsPath).toBe('/workspace/docs/page.md')
   })

@@ -2,7 +2,7 @@
  * ir 模式下支持 table 编辑
  */
 import { t } from './lang'
-import { dispatchTableHotkey, TableAction } from './table-hotkey'
+import { dispatchTableHotkey, type TableAction } from './table-hotkey'
 
 const tablePanelId = 'fix-table-ir-wrapper'
 let disableVscodeHotkeys = false
@@ -124,7 +124,7 @@ export function fixTableIr() {
       tablePanel.addEventListener('mousedown', (e) => e.preventDefault())
       tablePanel.addEventListener('click', (e) => {
         const icon = (e.target as HTMLElement).closest<HTMLElement>(
-          '.vditor-icon'
+          '.vditor-icon',
         )
         if (!icon || !tablePanel.contains(icon)) return
         const type = icon.getAttribute('data-type') as TableAction
@@ -142,14 +142,14 @@ export function fixTableIr() {
     return tablePanel
   }
 
-  eventRoot.addEventListener('click', (e) => {
+  eventRoot.addEventListener('click', (_e) => {
     if (vditor.getCurrentMode() !== 'ir') return
     const tablePanel = insertTablePanel()
     const anchorNode = window.getSelection()?.anchorNode
     const anchorEl =
       anchorNode instanceof HTMLElement
         ? anchorNode
-        : anchorNode?.parentElement ?? null
+        : (anchorNode?.parentElement ?? null)
     // Walk up to the enclosing cell — the caret may sit inside inline content
     // (e.g. a <code> span when the cell is only inline code), so
     // anchorNode.parentElement is not always the TD/TH/TR itself.
@@ -178,7 +178,7 @@ export function fixTableIr() {
     }
   })
   // don't bubble keyboardEvent to vscode when trigger vditor table hot keys, prevent hotkey conflicts with vscode
-  let stopEvent = (e: KeyboardEvent) => {
+  const stopEvent = (e: KeyboardEvent) => {
     if (disableVscodeHotkeys) {
       e.preventDefault()
       e.stopPropagation()

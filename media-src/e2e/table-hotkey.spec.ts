@@ -2,7 +2,7 @@ import { test, expect } from './coverage-fixture'
 import type { Page } from '@playwright/test'
 import type { TableAction } from '../src/table-hotkey'
 
-const SEED = '| a | b |\n| - | - |\n| 1 | 2 |\n'
+const _SEED = '| a | b |\n| - | - |\n| 1 | 2 |\n'
 
 async function gotoEditor(page: Page) {
   await page.goto('/')
@@ -26,7 +26,11 @@ function parseTable(md: string): Parsed {
     .split('\n')
     .filter((l) => l.trim().startsWith('|'))
   const cols = (lines[0]?.match(/\|/g)?.length ?? 1) - 1
-  return { cols, bodyRows: Math.max(0, lines.length - 2), separator: lines[1] ?? '' }
+  return {
+    cols,
+    bodyRows: Math.max(0, lines.length - 2),
+    separator: lines[1] ?? '',
+  }
 }
 
 // expected effect of each action relative to the seed table
@@ -50,7 +54,10 @@ test.describe('dispatch-level: dispatchTableHotkey triggers the Vditor action', 
       await gotoEditor(page)
       const before = parseTable(await getValue(page))
       await selectFirstCell(page)
-      await page.evaluate((a) => (window as any).__dispatchTableHotkey(a), action)
+      await page.evaluate(
+        (a) => (window as any).__dispatchTableHotkey(a),
+        action,
+      )
       await page.waitForTimeout(100)
       const after = parseTable(await getValue(page))
       CHECKS[action](before, after)
@@ -67,7 +74,7 @@ test('panel appears horizontally aligned with the clicked cell, not pinned far l
   await page.waitForTimeout(120)
   const { panelLeft, cellLeft } = await page.evaluate(() => {
     const cell = (window as any).vditor.vditor.ir.element.querySelectorAll(
-      'td'
+      'td',
     )[1] as HTMLElement
     const panel = document
       .getElementById('fix-table-ir-wrapper')!
@@ -86,7 +93,7 @@ test('clicking a non-table paragraph reserves no flow space (no editing gap)', a
   await gotoEditor(page)
   await page.evaluate(() => {
     ;(window as any).vditor.setValue(
-      'A paragraph.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail paragraph.\n'
+      'A paragraph.\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nTail paragraph.\n',
     )
   })
   await page.waitForTimeout(120)
@@ -118,7 +125,7 @@ test('table panel shows for a cell containing only inline code', async ({
   // <code> span, not the cell, which used to hide the panel.
   await page.evaluate(() => {
     ;(window as any).vditor.setValue(
-      '| `a/b/*.spec.ts` | x |\n| - | - |\n| 1 | 2 |\n'
+      '| `a/b/*.spec.ts` | x |\n| - | - |\n| 1 | 2 |\n',
     )
   })
   await page.waitForTimeout(100)
@@ -126,20 +133,25 @@ test('table panel shows for a cell containing only inline code', async ({
   await page.waitForTimeout(100)
   const display = await page.evaluate(() => {
     const panel = document.querySelector(
-      '#fix-table-ir-wrapper .vditor-panel'
+      '#fix-table-ir-wrapper .vditor-panel',
     ) as HTMLElement | null
     return panel?.style.display
   })
   expect(display).toBe('block')
 })
 
-test('the table panel is excluded from the editable region', async ({ page }) => {
+test('the table panel is excluded from the editable region', async ({
+  page,
+}) => {
   await gotoEditor(page)
   await page.locator('.vditor-ir td').nth(0).click()
   await page.waitForTimeout(120)
   const props = await page.evaluate(() => {
     const el = document.getElementById('fix-table-ir-wrapper')!
-    return { contentEditable: el.contentEditable, userSelect: el.style.userSelect }
+    return {
+      contentEditable: el.contentEditable,
+      userSelect: el.style.userSelect,
+    }
   })
   expect(props.contentEditable).toBe('false')
   expect(props.userSelect).toBe('none')

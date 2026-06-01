@@ -22,12 +22,17 @@ function run(command, opts = {}) {
     const child = spawn(command, {
       stdio: 'inherit',
       shell: true,
-      env: { ...process.env, PATH: `${BIN}${path.delimiter}${process.env.PATH}` },
+      env: {
+        ...process.env,
+        PATH: `${BIN}${path.delimiter}${process.env.PATH}`,
+      },
       ...opts,
     })
     child.on('error', reject)
     child.on('exit', (code) =>
-      code === 0 ? resolve() : reject(new Error(`\`${command}\` exited with ${code}`))
+      code === 0
+        ? resolve()
+        : reject(new Error(`\`${command}\` exited with ${code}`)),
     )
   })
 }
@@ -50,7 +55,7 @@ async function syncVditorAssets() {
     }),
     fs.copyFile(
       path.join(sourceDir, 'index.css'),
-      path.join(targetDir, 'index.css')
+      path.join(targetDir, 'index.css'),
     ),
   ])
   // Drop unused MathJax (~6.5 MB, the largest renderer asset). Vditor defaults
@@ -76,7 +81,7 @@ async function removeMacMetadata(dirPath) {
       if (entry.name === '.DS_Store') {
         await fs.rm(entryPath, { force: true })
       }
-    })
+    }),
   )
 }
 
@@ -93,6 +98,9 @@ if (watch) {
     run('npm run start', { cwd: 'media-src' }),
   ])
 } else {
-  await Promise.all([run('tsc -p ./'), run('npm run build', { cwd: 'media-src' })])
+  await Promise.all([
+    run('tsc -p ./'),
+    run('npm run build', { cwd: 'media-src' }),
+  ])
   await run('git add -A')
 }

@@ -67,7 +67,7 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     expect(html).toContain('<style id="custom-css">')
     // external loads first so customCss (later) wins on conflicts
     expect(html.indexOf('id="external-css"')).toBeLessThan(
-      html.indexOf('id="custom-css"')
+      html.indexOf('id="custom-css"'),
     )
     expect(html).toContain('/* sentinel */ body{}')
   })
@@ -90,7 +90,7 @@ describe('security: scoped localResourceRoots (task 18 §2a)', () => {
   it('falls back to the document directory when there is no workspace', () => {
     const roots = MarkdownEditorProvider.webviewRoots(
       Uri.file('/ext'),
-      Uri.file('/notes/sub/note.md')
+      Uri.file('/notes/sub/note.md'),
     )
     const paths = roots.map((r) => r.fsPath)
     expect(paths).toEqual(['/ext/media', '/notes/sub'])
@@ -99,7 +99,7 @@ describe('security: scoped localResourceRoots (task 18 §2a)', () => {
   it('uses only the media root for a non-file (untitled) document with no workspace', () => {
     const roots = MarkdownEditorProvider.webviewRoots(
       Uri.file('/ext'),
-      Uri.parse('untitled:Untitled-1')
+      Uri.parse('untitled:Untitled-1'),
     )
     expect(roots.map((r) => r.fsPath)).toEqual(['/ext/media'])
   })
@@ -120,7 +120,7 @@ describe('security: augment webview options + drop command URIs (task 27)', () =
     }
     new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
       document as any,
-      panel as any
+      panel as any,
     )
     const opts = panel.webview.options as any
     // our controlled fields applied…
@@ -137,7 +137,7 @@ describe('security: augment webview options + drop command URIs (task 27)', () =
   it('getWebviewOptions does not set command URIs and omits panel-level keys', () => {
     const opts: any = MarkdownEditorProvider.getWebviewOptions(
       Uri.file('/ext'),
-      Uri.file('/workspace/note.md')
+      Uri.file('/workspace/note.md'),
     )
     expect(opts.enableCommandUris).toBe(false)
     expect(opts.enableScripts).toBe(true)
@@ -151,7 +151,7 @@ describe('security: customCss/external CSS sanitization (task 18 §2b)', () => {
 
   it('neutralizes a </style> breakout in customCss', () => {
     const { html } = resolveAndGetHtml(
-      'body{}</style><script>alert(1)</script>'
+      'body{}</style><script>alert(1)</script>',
     )
     // no premature </style> closes our block to start a real <script> element
     expect(html).not.toContain('</style><script>')

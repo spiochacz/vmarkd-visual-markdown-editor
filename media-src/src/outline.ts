@@ -1,4 +1,4 @@
-import Vditor from 'vditor'
+import type Vditor from 'vditor'
 
 // Flash the heading you click in the outline (task 13). Vditor's outline items
 // carry `span[data-target-id]` = the heading element's id; after Vditor scrolls
@@ -29,7 +29,7 @@ export function setupOutlineFlash(vditor: Vditor): void {
       // Let Vditor scroll first, then flash the heading it landed on.
       setTimeout(() => flashHeading(id), SCROLL_SETTLE_MS)
     },
-    true
+    true,
   )
 }
 

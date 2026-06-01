@@ -38,7 +38,7 @@ const PRIORITY: Record<DiffChange['type'], number> = {
 // its text in the markdown. Returns null when the text is empty or not found.
 function blockLineRange(
   blockText: string,
-  md: string
+  md: string,
 ): { startLine: number; lineCount: number } | null {
   const trimmed = blockText.trim()
   if (!trimmed) return null
@@ -58,7 +58,7 @@ function blockLineRange(
 export function computeBlockMarkers(
   blocks: BlockBox[],
   md: string,
-  changes: DiffChange[]
+  changes: DiffChange[],
 ): BlockMarker[] {
   if (changes.length === 0) return []
   const markers: BlockMarker[] = []
@@ -95,7 +95,9 @@ function findEditorElement(vditor: any): HTMLElement | null {
 }
 
 export function clearDiffMarkers(root: ParentNode = document): void {
-  root.querySelectorAll('.' + MARKER_CLASS).forEach((el) => el.remove())
+  root.querySelectorAll(`.${MARKER_CLASS}`).forEach((el) => {
+    el.remove()
+  })
 }
 
 // DOM wrapper: read the live block geometry, compute the markers, and render a
@@ -128,8 +130,8 @@ export function renderDiffMarkers(vditor: any, changes: DiffChange[]): number {
   for (const m of markers) {
     const bar = document.createElement('div')
     bar.className = `${MARKER_CLASS} ${MARKER_CLASS}--${m.type}`
-    bar.style.top = m.top + 'px'
-    bar.style.height = m.height + 'px'
+    bar.style.top = `${m.top}px`
+    bar.style.height = `${m.height}px`
     bar.contentEditable = 'false'
     editor.appendChild(bar)
   }

@@ -15,7 +15,7 @@ test('outline renders heading items and opens on the configured (right) side', a
 }) => {
   await gotoOutline(page)
   await expect(page.locator('.vditor-outline')).toHaveClass(
-    /vditor-outline--right/
+    /vditor-outline--right/,
   )
   const items = page.locator('.vditor-outline li span[data-target-id]')
   // one per heading in the harness document (H1/H2/H3)
@@ -28,7 +28,7 @@ test('clicking an outline item flashes the target heading (task 13)', async ({
   await gotoOutline(page)
   const targetId = await page.evaluate(() => {
     const span = document.querySelector(
-      '.vditor-outline li span[data-target-id]'
+      '.vditor-outline li span[data-target-id]',
     ) as HTMLElement
     span.click() // bubbles to the outline container → setupOutlineFlash
     return span.getAttribute('data-target-id')
@@ -37,7 +37,7 @@ test('clicking an outline item flashes the target heading (task 13)', async ({
   await page.waitForTimeout(150)
   const flashed = await page.evaluate(
     (id) => document.getElementById(id!)?.classList.contains('heading-flash'),
-    targetId
+    targetId,
   )
   expect(flashed).toBe(true)
 })
@@ -88,10 +88,10 @@ test('showHeadingMarkers toggle hides the gutter markers and tightens the gutter
   await gotoOutline(page)
   const result = await page.evaluate(() => {
     const h1 = document.querySelector(
-      '.vditor-ir .vditor-reset > h1'
+      '.vditor-ir .vditor-reset > h1',
     ) as HTMLElement
     const reset = document.querySelector(
-      '.vditor-ir .vditor-reset'
+      '.vditor-ir .vditor-reset',
     ) as HTMLElement
     document.body.setAttribute('data-heading-markers', '1')
     const shown = getComputedStyle(h1, '::before').display

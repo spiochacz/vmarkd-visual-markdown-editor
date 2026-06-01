@@ -61,7 +61,8 @@ describe('selectionForLine', () => {
   // differ by Vditor's on-load reflow (blank lines after headings, quote
   // normalization), so prefer matching the line CONTENT in the real doc and fall
   // back to the reported line number.
-  const doc = '# Title\n\nNo blank after heading.\nTight paragraph two.\n> a quote\n'
+  const doc =
+    '# Title\n\nNo blank after heading.\nTight paragraph two.\n> a quote\n'
 
   it('finds the line by its content even when the reported index is off', () => {
     // webview said line 2 (its space had a blank line), but on disk the text is

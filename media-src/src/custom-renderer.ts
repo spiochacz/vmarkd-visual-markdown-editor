@@ -1,4 +1,4 @@
-import Vditor from 'vditor'
+import type Vditor from 'vditor'
 
 const WalkContinue = 0
 const WikiLinkPattern = /\[\[([^[\]\n]+?)\]\]/g
@@ -10,7 +10,7 @@ interface WikiRendererOptions {
 
 export function setupCustomRenderer(
   vditor: Vditor,
-  options: WikiRendererOptions
+  options: WikiRendererOptions,
 ) {
   // Only override Lute's renderers when wiki links are actually enabled.
   // For ordinary files this keeps Vditor's default rendering intact across
@@ -38,6 +38,7 @@ export function setupCustomRenderer(
     let lastIndex = 0
     let match: RegExpExecArray | null
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex exec() loop, explicit `!== null`
     while ((match = WikiLinkPattern.exec(text)) !== null) {
       if (match.index > lastIndex) {
         fragments.push(escapeHTML(text.slice(lastIndex, match.index)))
@@ -52,10 +53,10 @@ export function setupCustomRenderer(
 
       fragments.push(
         `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${escapeAttribute(
-          payload.target
+          payload.target,
         )}" data-wiki-source="${escapeAttribute(source)}"${isMissing ? ' data-wiki-missing="1"' : ''} title="${isMissing ? 'Missing wiki page' : 'Open wiki page'} ${escapeAttribute(
-          payload.target
-        )}" role="link" tabindex="0">${escapeHTML(displayText)}</span>`
+          payload.target,
+        )}" role="link" tabindex="0">${escapeHTML(displayText)}</span>`,
       )
 
       lastIndex = WikiLinkPattern.lastIndex

@@ -92,6 +92,8 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Fork ecosystem analysis turned into an actionable `tasks/` backlog
   (`tasks/README.md` — priority order, dependencies, status).
 - VSIX hygiene: internal docs/tests excluded from the package (455→402 files).
+- Adopt Biome (lint + format) — single-tool, tuned to the existing style, gating
+  CI (`biome ci`).
 
 ## [0.2.32] — 2026-04-17
 

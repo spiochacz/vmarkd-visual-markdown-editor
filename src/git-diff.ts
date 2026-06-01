@@ -4,8 +4,8 @@
 // (diff-lines.ts). The git-extension dependency is injected so this is unit
 // testable without a real Extension Host.
 
-import * as NodePath from 'path'
-import { computeDiffChanges, DiffChange } from './diff-lines'
+import * as NodePath from 'node:path'
+import { computeDiffChanges, type DiffChange } from './diff-lines'
 
 // Don't diff giant files — the gutter is block-level anyway and the LCS cost
 // isn't worth it past this size.
@@ -20,7 +20,7 @@ interface ExtensionsLike {
 // read (untracked / brand-new file). Never throws.
 export async function getHeadContent(
   fsPath: string,
-  extensions: ExtensionsLike
+  extensions: ExtensionsLike,
 ): Promise<string | null> {
   try {
     const gitExtension = extensions.getExtension('vscode.git')
@@ -47,7 +47,7 @@ export type DiffComputer = (currentContent: string) => Promise<DiffChange[]>
 // Combine HEAD lookup + line diff into a single computer bound to a file.
 export function makeDiffComputer(
   fsPath: string,
-  extensions: ExtensionsLike
+  extensions: ExtensionsLike,
 ): DiffComputer {
   return async (currentContent: string) => {
     if (currentContent.length > MAX_DIFF_CONTENT_SIZE) return []
@@ -63,7 +63,7 @@ export function makeDiffComputer(
 export function createDiffScheduler(
   post: (msg: { command: 'diff-info'; changes: DiffChange[] }) => void,
   compute: DiffComputer,
-  delayMs = 300
+  delayMs = 300,
 ) {
   let timer: ReturnType<typeof setTimeout> | undefined
   let lastContent: string | undefined

@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { activate, MarkdownEditorProvider } from '../../src/extension'
 import { mock, ColorThemeKind, Uri, ViewColumn } from './vscode-mock'
 
-function resolveProvider(fsPath = '/workspace/note.md', text = 'old content\n') {
+function resolveProvider(
+  fsPath = '/workspace/note.md',
+  text = 'old content\n',
+) {
   mock.setWorkspaceFolder('/workspace')
   const context = mock.createExtensionContext()
   const document = mock.createTextDocument(fsPath, text)
@@ -28,7 +31,7 @@ describe('activate()', () => {
       expect.arrayContaining([
         'markdown-editor.openEditor',
         'markdown-editor.openTextEditor',
-      ])
+      ]),
     )
     expect(mock.calls.customEditor?.viewType).toBe('markdown-editor.editor')
     expect(mock.calls.customEditor?.options.webviewOptions).toMatchObject({
@@ -51,14 +54,18 @@ describe('activate()', () => {
     expect(ch!.options).toMatchObject({ log: true })
     // disposed with the extension (added to context.subscriptions)
     expect(context.subscriptions.length).toBeGreaterThan(0)
-    context.subscriptions.forEach((d) => d.dispose())
+    context.subscriptions.forEach((d) => {
+      d.dispose()
+    })
     expect(ch!.disposed).toBe(true)
   })
 
   it('routes content-bearing debug logs at trace level only (task 18 §2d)', async () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    const open = mock.calls.registeredCommands.get('markdown-editor.openEditor')!
+    const open = mock.calls.registeredCommands.get(
+      'markdown-editor.openEditor',
+    )!
     await open(Uri.file('/workspace/secret.md'))
     const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')!
     // nothing logged above trace — content never surfaces at the default level
@@ -131,13 +138,18 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
     await panel._receiveMessage({ command: 'edit', content: 'new content\n' })
 
     expect(mock.calls.appliedEdits).toHaveLength(1)
-    expect(mock.calls.appliedEdits[0].replacements[0].content).toBe('new content\n')
+    expect(mock.calls.appliedEdits[0].replacements[0].content).toBe(
+      'new content\n',
+    )
     expect(document.getText()).toBe('new content\n')
   })
 
   it('does NOT apply an edit when content is unchanged (CRLF-insensitive)', async () => {
     const { panel } = resolveProvider('/workspace/note.md', 'line a\nline b\n')
-    await panel._receiveMessage({ command: 'edit', content: 'line a\r\nline b\r\n' })
+    await panel._receiveMessage({
+      command: 'edit',
+      content: 'line a\r\nline b\r\n',
+    })
     expect(mock.calls.appliedEdits).toHaveLength(0)
   })
 
@@ -153,7 +165,10 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
 
   it('persists vditor options on "save-options"', async () => {
     const { panel } = resolveProvider()
-    await panel._receiveMessage({ command: 'save-options', options: { mode: 'ir' } })
+    await panel._receiveMessage({
+      command: 'save-options',
+      options: { mode: 'ir' },
+    })
     expect(mock.calls.globalStateUpdates).toContainEqual({
       key: 'vditor.options',
       value: { mode: 'ir' },
@@ -175,7 +190,7 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
       },
     })
     const saved = mock.calls.globalStateUpdates.find(
-      (u) => u.key === 'vditor.options'
+      (u) => u.key === 'vditor.options',
     )!.value
     // the baked path is gone; stable prefs survive
     expect(saved.preview.theme.path).toBeUndefined()
@@ -200,7 +215,7 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
     const panel = mock.createWebviewPanel()
     new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
       document as any,
-      panel as any
+      panel as any,
     )
     await panel._receiveMessage({ command: 'ready' })
     const init = mock.calls.postMessage
@@ -261,14 +276,20 @@ describe('sanitizeVditorOptions (colors-401 bug)', () => {
   })
 
   it('does not mutate the input and passes through clean options', () => {
-    const input = { theme: 'dark', mode: 'ir', preview: { theme: { current: 'dark' } } }
+    const input = {
+      theme: 'dark',
+      mode: 'ir',
+      preview: { theme: { current: 'dark' } },
+    }
     const out = MarkdownEditorProvider.sanitizeVditorOptions(input)
     expect(out).toEqual(input)
     expect(out).not.toBe(input) // returns a clone
   })
 
   it('is a no-op for nullish / non-object input', () => {
-    expect(MarkdownEditorProvider.sanitizeVditorOptions(undefined)).toBeUndefined()
+    expect(
+      MarkdownEditorProvider.sanitizeVditorOptions(undefined),
+    ).toBeUndefined()
     expect(MarkdownEditorProvider.sanitizeVditorOptions(null as any)).toBeNull()
   })
 })
@@ -295,7 +316,7 @@ describe('resolveCustomTextEditor — editor → webview sync', () => {
 
   it('pushes external file changes to the webview after the debounce', async () => {
     vi.useFakeTimers()
-    const { panel, document } = resolveProvider('/workspace/note.md', 'old\n')
+    const { document } = resolveProvider('/workspace/note.md', 'old\n')
 
     // Simulate an out-of-band edit (git checkout, external editor, …).
     ;(document as any).__setText('changed on disk\n')
@@ -366,7 +387,7 @@ describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
     await panel._receiveMessage({ command: 'edit', content: 'changed\n' })
     expect(mock.calls.appliedEdits).toHaveLength(1)
     expect(mock.calls.appliedEdits[0].replacements[0].uri.fsPath).toBe(
-      '/workspace/new.md'
+      '/workspace/new.md',
     )
   })
 
@@ -374,7 +395,7 @@ describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
     const { panel } = resolveProvider('/workspace/note.md', 'x\n')
     mock.fireDidRenameFiles(
       Uri.file('/workspace/other.md'),
-      Uri.file('/workspace/renamed.md')
+      Uri.file('/workspace/renamed.md'),
     )
     expect(panel.title).toBe('note.md')
   })
@@ -385,7 +406,11 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
 
   it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
     resolveProvider()
-    mock.setConfig({ enableFullWidth: false, fontSize: '15', customCss: '/* x */' })
+    mock.setConfig({
+      enableFullWidth: false,
+      fontSize: '15',
+      customCss: '/* x */',
+    })
     mock.fireDidChangeConfiguration()
 
     const posted = mock.calls.postMessage
@@ -401,7 +426,7 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
 
     const cssMsgs = posted.filter((m) => m.command === 'reload-css')
     expect(cssMsgs.map((m) => m.id)).toEqual(
-      expect.arrayContaining(['custom-css', 'external-css'])
+      expect.arrayContaining(['custom-css', 'external-css']),
     )
     expect(cssMsgs.find((m) => m.id === 'custom-css')?.css).toBe('/* x */')
   })
@@ -435,9 +460,9 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
         postMessage: vi.fn((msg: any) => {
           if (msg.command === 'get-cursor-offset') {
             // host registers its reply listener before posting → reply now
-            listeners.forEach((l) =>
+            listeners.forEach((l) => {
               l({ command: 'cursor-offset', ...reply })
-            )
+            })
           }
           return true
         }),
@@ -447,11 +472,14 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
         },
       },
     }
-    MarkdownEditorProvider.activePanels.add({ panel: panel as any, uri: docUri })
+    MarkdownEditorProvider.activePanels.add({
+      panel: panel as any,
+      uri: docUri,
+    })
     mock.setDocument(docUri.fsPath, docText)
 
     const cmd = mock.calls.registeredCommands.get(
-      'markdown-editor.openSourceToSide'
+      'markdown-editor.openSourceToSide',
     )!
     return { run: () => cmd(docUri), docUri }
   }
@@ -460,7 +488,7 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
     expect([...mock.calls.registeredCommands.keys()]).toContain(
-      'markdown-editor.openSourceToSide'
+      'markdown-editor.openSourceToSide',
     )
   })
 
@@ -505,13 +533,13 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
     activate(context as any)
     mock.setDocument('/orphan.md', 'a\nb\n')
     const cmd = mock.calls.registeredCommands.get(
-      'markdown-editor.openSourceToSide'
+      'markdown-editor.openSourceToSide',
     )!
     await cmd(Uri.file('/orphan.md'))
     // no panel → opens via vscode.openWith default; never queries the cursor
     expect(mock.calls.shownTextEditors).toHaveLength(0)
     expect(mock.calls.executeCommand).toContainEqual(
-      expect.objectContaining({ command: 'vscode.openWith' })
+      expect.objectContaining({ command: 'vscode.openWith' }),
     )
   })
 })

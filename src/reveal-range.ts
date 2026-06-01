@@ -12,7 +12,10 @@ export interface LineSelection {
 // the offset falls on and the range spanning that whole line (start..end). The
 // offset is clamped into [0, text.length] so out-of-range replies degrade to the
 // first/last line rather than throwing.
-export function selectionForOffset(text: string, offset: number): LineSelection {
+export function selectionForOffset(
+  text: string,
+  offset: number,
+): LineSelection {
   const clamped = Math.max(0, Math.min(offset, text.length))
   const lines = text.split('\n')
   const line = text.substring(0, clamped).split('\n').length - 1
@@ -30,7 +33,7 @@ export function selectionForOffset(text: string, offset: number): LineSelection 
 export function selectionForLine(
   text: string,
   reportedLine: number,
-  lineText: string
+  lineText: string,
 ): LineSelection {
   const lines = text.split('\n')
   const lastLine = Math.max(0, lines.length - 1)

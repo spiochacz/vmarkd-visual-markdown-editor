@@ -1,7 +1,7 @@
 import '../src/preload'
 import Vditor from 'vditor'
 import { fixTableIr } from '../src/fix-table-ir'
-import { dispatchTableHotkey, TableAction } from '../src/table-hotkey'
+import { dispatchTableHotkey, type TableAction } from '../src/table-hotkey'
 import { setupCustomRenderer } from '../src/custom-renderer'
 import * as sourceMap from '../src/source-map'
 import * as diffMarkers from '../src/diff-markers'
@@ -12,9 +12,8 @@ import * as diffMarkers from '../src/diff-markers'
 const editor = new Vditor('app', {
   cache: { enable: false },
   mode: 'ir',
-  cdn: location.origin + '/vditor',
-  value:
-    '| Header One | Header Two |\n| - | - |\n| value one | value two |\n',
+  cdn: `${location.origin}/vditor`,
+  value: '| Header One | Header Two |\n| - | - |\n| value one | value two |\n',
   after() {
     ;(window as any).vditor = editor
     ;(window as any).vditorTest = editor

@@ -22,7 +22,7 @@ export class Uri {
     public readonly authority: string,
     public readonly path: string,
     public readonly query: string,
-    public readonly fragment: string
+    public readonly fragment: string,
   ) {}
 
   static file(path: string): Uri {
@@ -51,7 +51,7 @@ export class Uri {
       base.authority,
       NodePath.posix.join(base.path, ...segments),
       '',
-      ''
+      '',
     )
   }
 
@@ -65,7 +65,10 @@ export class Uri {
 }
 
 export class Position {
-  constructor(public readonly line: number, public readonly character: number) {}
+  constructor(
+    public readonly line: number,
+    public readonly character: number,
+  ) {}
 }
 
 export class Range {
@@ -76,7 +79,7 @@ export class Range {
     startLineOrPos: number | Position,
     startCharOrPos: number | Position,
     endLine?: number,
-    endChar?: number
+    endChar?: number,
   ) {
     if (typeof startLineOrPos === 'number') {
       this.start = new Position(startLineOrPos, startCharOrPos as number)
@@ -98,7 +101,8 @@ export class Selection extends Range {
 }
 
 export class WorkspaceEdit {
-  public readonly replacements: { uri: Uri; range: Range; content: string }[] = []
+  public readonly replacements: { uri: Uri; range: Range; content: string }[] =
+    []
 
   replace(uri: Uri, range: Range, content: string): void {
     this.replacements.push({ uri, range, content })
@@ -106,7 +110,10 @@ export class WorkspaceEdit {
 }
 
 export class RelativePattern {
-  constructor(public readonly base: unknown, public readonly pattern: string) {}
+  constructor(
+    public readonly base: unknown,
+    public readonly pattern: string,
+  ) {}
 }
 
 export class Disposable {
@@ -115,7 +122,11 @@ export class Disposable {
     this.fn?.()
   }
   static from(...items: { dispose(): void }[]): Disposable {
-    return new Disposable(() => items.forEach((i) => i.dispose()))
+    return new Disposable(() => {
+      items.forEach((i) => {
+        i.dispose()
+      })
+    })
   }
 }
 
@@ -146,17 +157,26 @@ export class EventEmitter<T = any> {
 
 // Classes used purely for `instanceof` discrimination of tab inputs.
 export class ThemeIcon {
-  constructor(public readonly id: string, public readonly color?: unknown) {}
+  constructor(
+    public readonly id: string,
+    public readonly color?: unknown,
+  ) {}
 }
 
 export class TabInputText {
   constructor(public readonly uri: Uri) {}
 }
 export class TabInputCustom {
-  constructor(public readonly uri: Uri, public readonly viewType: string) {}
+  constructor(
+    public readonly uri: Uri,
+    public readonly viewType: string,
+  ) {}
 }
 export class TabInputTextDiff {
-  constructor(public readonly original: Uri, public readonly modified: Uri) {}
+  constructor(
+    public readonly original: Uri,
+    public readonly modified: Uri,
+  ) {}
 }
 
 export const ColorThemeKind = {
@@ -214,8 +234,13 @@ function freshState() {
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
     activeTabInput: undefined as unknown,
-    tabGroups: [] as Array<{ viewColumn: number; tabs: Array<{ input: unknown; group: any }> }>,
-    workspaceFolder: undefined as { uri: Uri; name: string; index: number } | undefined,
+    tabGroups: [] as Array<{
+      viewColumn: number
+      tabs: Array<{ input: unknown; group: any }>
+    }>,
+    workspaceFolder: undefined as
+      | { uri: Uri; name: string; index: number }
+      | undefined,
     documents: [] as MockTextDocument[],
     watchers: [] as MockWatcher[],
     globalState: {} as Record<string, any>,
@@ -225,7 +250,9 @@ function freshState() {
       showWarningMessage: undefined as any,
       gitExtension: undefined as any,
       cursorReply: undefined as { line: number; lineText: string } | undefined,
-      executeCommand: undefined as ((command: string, args: any[]) => any) | undefined,
+      executeCommand: undefined as
+        | ((command: string, args: any[]) => any)
+        | undefined,
     },
     calls: {
       executeCommand: [] as { command: string; args: any[] }[],
@@ -292,9 +319,13 @@ export const window = {
   get tabGroups() {
     return {
       all: state.tabGroups,
-      activeTabGroup: { get activeTab() {
-        return state.activeTabInput ? { input: state.activeTabInput } : undefined
-      } },
+      activeTabGroup: {
+        get activeTab() {
+          return state.activeTabInput
+            ? { input: state.activeTabInput }
+            : undefined
+        },
+      },
       onDidChangeTabs: state.emitters.didChangeTabs.event,
     }
   },
@@ -318,7 +349,7 @@ export const window = {
     (viewType: string, provider: any, options: any) => {
       state.calls.customEditor = { viewType, provider, options }
       return new Disposable()
-    }
+    },
   ),
   createOutputChannel: vi.fn((name: string, options?: any) => {
     const record = { name, options, logs: [], disposed: false } as {
@@ -393,13 +424,13 @@ export const workspace = {
   })),
   getWorkspaceFolder: vi.fn((_uri: Uri) => state.workspaceFolder),
   asRelativePath: vi.fn((uri: Uri | string) =>
-    typeof uri === 'string' ? uri : uri.fsPath
+    typeof uri === 'string' ? uri : uri.fsPath,
   ),
   applyEdit: vi.fn(async (edit: WorkspaceEdit) => {
     state.calls.appliedEdits.push(edit)
     for (const r of edit.replacements) {
       const doc = state.documents.find(
-        (d) => d.uri.toString() === r.uri.toString()
+        (d) => d.uri.toString() === r.uri.toString(),
       )
       doc?.__setText(r.content)
     }
@@ -423,11 +454,16 @@ export const workspace = {
     state.watchers.push(watcher)
     return watcher
   }),
-  onDidOpenTextDocument: (l: any) => state.emitters.didOpenTextDocument.event(l),
-  onDidCloseTextDocument: (l: any) => state.emitters.didCloseTextDocument.event(l),
-  onDidChangeTextDocument: (l: any) => state.emitters.didChangeTextDocument.event(l),
-  onDidSaveTextDocument: (l: any) => state.emitters.didSaveTextDocument.event(l),
-  onDidChangeConfiguration: (l: any) => state.emitters.didChangeConfiguration.event(l),
+  onDidOpenTextDocument: (l: any) =>
+    state.emitters.didOpenTextDocument.event(l),
+  onDidCloseTextDocument: (l: any) =>
+    state.emitters.didCloseTextDocument.event(l),
+  onDidChangeTextDocument: (l: any) =>
+    state.emitters.didChangeTextDocument.event(l),
+  onDidSaveTextDocument: (l: any) =>
+    state.emitters.didSaveTextDocument.event(l),
+  onDidChangeConfiguration: (l: any) =>
+    state.emitters.didChangeConfiguration.event(l),
   onDidRenameFiles: (l: any) => state.emitters.didRenameFiles.event(l),
   fs: {
     createDirectory: vi.fn(async (uri: Uri) => {
@@ -445,15 +481,17 @@ export const workspace = {
 // state.responses.gitExtension.
 export const extensions = {
   getExtension: vi.fn((id: string) =>
-    id === 'vscode.git' ? state.responses.gitExtension : undefined
+    id === 'vscode.git' ? state.responses.gitExtension : undefined,
   ),
 }
 
 export const commands = {
-  registerCommand: vi.fn((command: string, handler: (...args: any[]) => any) => {
-    state.calls.registeredCommands.set(command, handler)
-    return new Disposable()
-  }),
+  registerCommand: vi.fn(
+    (command: string, handler: (...args: any[]) => any) => {
+      state.calls.registeredCommands.set(command, handler)
+      return new Disposable()
+    },
+  ),
   executeCommand: vi.fn(async (command: string, ...args: any[]) => {
     state.calls.executeCommand.push({ command, args })
     if (command === 'setContext') return undefined
@@ -508,7 +546,8 @@ function createWebviewPanel() {
       html: '',
       cspSource: 'vscode-resource:',
       asWebviewUri: (uri: Uri) => ({
-        toString: () => `https://file.vscode-resource.vscode-cdn.net${uri.path}`,
+        toString: () =>
+          `https://file.vscode-resource.vscode-cdn.net${uri.path}`,
       }),
       postMessage: vi.fn((message: any) => {
         state.calls.postMessage.push(message)
@@ -518,7 +557,10 @@ function createWebviewPanel() {
           message?.command === 'get-cursor-offset' &&
           state.responses.cursorReply
         ) {
-          messages.fire({ command: 'cursor-offset', ...state.responses.cursorReply })
+          messages.fire({
+            command: 'cursor-offset',
+            ...state.responses.cursorReply,
+          })
         }
         return Promise.resolve(true)
       }),
@@ -568,7 +610,11 @@ export const mock = {
     state.activeColorThemeKind = kind
   },
   setWorkspaceFolder(fsPath: string) {
-    state.workspaceFolder = { uri: Uri.file(fsPath), name: NodePath.basename(fsPath), index: 0 }
+    state.workspaceFolder = {
+      uri: Uri.file(fsPath),
+      name: NodePath.basename(fsPath),
+      index: 0,
+    }
   },
   setActiveTextEditor(uri: Uri | undefined) {
     state.activeTextEditor = uri ? { document: { uri } } : undefined
@@ -611,7 +657,10 @@ export const mock = {
   setCursorReply(reply: { line: number; lineText: string }) {
     state.responses.cursorReply = reply
   },
-  fireDidChangeTextDocument(document: MockTextDocument, extra: Record<string, any> = {}) {
+  fireDidChangeTextDocument(
+    document: MockTextDocument,
+    extra: Record<string, any> = {},
+  ) {
     return state.emitters.didChangeTextDocument.fire({ document, ...extra })
   },
   fireDidSaveTextDocument(document: MockTextDocument) {

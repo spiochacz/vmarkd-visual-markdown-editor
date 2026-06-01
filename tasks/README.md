@@ -64,6 +64,7 @@ checked here **only when the task is fully complete**.
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
 - [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md) — Part A (PR gate `ci.yml`) ✅ done; Part B (single release path / version policy) open
 - [x] [45 — Build toolchain (drop foy/ts-node)](45-build-toolchain.md) — landed on plain Node + npm: `build.mjs` run by `node`, no `foy`/`ts-node`/Bun (tried Bun, reverted to minimise tooling)
+- [x] [49 — Adopt Biome (lint + format)](49-biome-lint-format.md) — single-tool lint+format, tuned to existing style, wired into CI (`biome ci`)
 
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)

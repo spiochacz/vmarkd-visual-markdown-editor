@@ -28,7 +28,7 @@ test.describe('init construction benchmark', () => {
       await ready(page)
       cold[doc] = await page.evaluate(
         (d) => (window as any).__benchCold({ doc: d }),
-        doc
+        doc,
       )
     }
 
@@ -53,15 +53,18 @@ test.describe('init construction benchmark', () => {
 
     const lines: string[] = []
     lines.push('')
-    lines.push('=== COLD construct (fresh page; includes 3.8MB Lute load+eval) ===')
-    for (const d of coldDocs) lines.push(`  ${d.padEnd(14)} ${cold[d].toFixed(1)} ms`)
+    lines.push(
+      '=== COLD construct (fresh page; includes 3.8MB Lute load+eval) ===',
+    )
+    for (const d of coldDocs)
+      lines.push(`  ${d.padEnd(14)} ${cold[d].toFixed(1)} ms`)
     lines.push('')
     lines.push('=== WARM construct (Lute resident; median of 5) ===')
     lines.push(`  ${'spec'.padEnd(24)} ${'median'.padStart(9)}   runs`)
     for (const r of warm) {
       lines.push(
-        `  ${r.name.padEnd(24)} ${(r.median.toFixed(1) + 'ms').padStart(9)}   ` +
-          r.runs.map((x) => x.toFixed(0)).join('/')
+        `  ${r.name.padEnd(24)} ${(`${r.median.toFixed(1)}ms`).padStart(9)}   ` +
+          r.runs.map((x) => x.toFixed(0)).join('/'),
       )
     }
     lines.push('')
