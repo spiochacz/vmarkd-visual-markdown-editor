@@ -49,6 +49,9 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
   `$(go-to-file)`; the in-webview Vditor toolbar is restyled to codicons via a
   generated override (24 codicons + 6 codicon-style customs for glyphs codicons
   lack — headings, indent/outdent, inline-code, insert-before/after).
+- Split view (`sv`) scroll sync is heading-anchored instead of proportional:
+  the section at the centre of the source pane stays aligned with the same
+  section in the rendered pane (Vditor's proportional sync drifts).
 - Tree-shake Vditor from source — webview bundle main.js ~310→261 KB (−16%).
 - Native `KeyboardEvent` dispatch replaces `@testing-library/user-event`.
 - Backend tests on vitest (host + pure webview helpers).
