@@ -3,7 +3,6 @@ import './preload'
 import {
   fileToBase64,
   fixCut,
-  fixDarkTheme,
   fixLinkClick,
   fixPanelHover,
   fixResponsiveTables,
@@ -116,6 +115,56 @@ function applyVditorTheme(theme: 'dark' | 'light') {
   }
 }
 
+// Show the REAL toolbar in the instant-paint overlay. Vditor builds its toolbar
+// element synchronously in the constructor — with the real icons — but only
+// attaches it to #app later, in its post-Lute initUI (~150 ms later). So right
+// after `new Vditor()` we can clone that built element into the overlay's empty
+// placeholder bar: the teaser shows the actual toolbar (exact layout + icons, no
+// host-side replication) during the Lute wait, and it's dropped with the overlay
+// at the swap. Best-effort — a missing element just leaves the empty bar.
+function showRealToolbarInOverlay() {
+  // Vditor builds the editor (toolbar included) asynchronously — inside its i18n
+  // load callback — so the element isn't there the instant `new Vditor()` returns;
+  // it appears ~tens of ms later, still well before Lute resolves. Poll per frame
+  // until it exists (then clone it in) or the overlay is gone (swap happened).
+  let tries = 0
+  const tick = () => {
+    const bar = document.querySelector('#vmarkd-prerender .vditor-toolbar')
+    if (!bar) return // overlay already swapped out — nothing to do
+    const real = (window.vditor as any)?.vditor?.toolbar?.element as
+      | HTMLElement
+      | undefined
+    if (real) {
+      try {
+        const clone = real.cloneNode(true) as HTMLElement
+        // indent/outdent start disabled in the live editor (Vditor's EditMode
+        // calls disableToolbar(["outdent","indent"]) until the caret is in a
+        // list). The static clone hasn't run that, so grey them out to match the
+        // default state and avoid a flicker when the real toolbar takes over.
+        clone
+          .querySelectorAll('[data-type="indent"],[data-type="outdent"]')
+          .forEach((el) => {
+            el.classList.add('vditor-menu--disabled')
+          })
+        bar.replaceWith(clone)
+      } catch {}
+      return
+    }
+    if (tries++ < 90) requestAnimationFrame(tick)
+  }
+  tick()
+}
+
+// Remove the host-side instant-paint overlay (see src/lute-host.ts). Called once
+// the live editor is built AND themed (right after applyVditorTheme), so the
+// reveal is seamless — no rAF needed. Idempotent + never throws, so it's safe to
+// call from a finally as a guaranteed swap even if a later after() helper throws.
+function removePrerenderOverlay() {
+  try {
+    document.getElementById('vmarkd-prerender')?.remove()
+  } catch {}
+}
+
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
@@ -202,41 +251,50 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
-      // Force the theme through setTheme at init (constructor options don't
-      // reliably apply content/code theme — see applyVditorTheme).
-      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
-      const wikiEnabled = Boolean(msg.wiki?.enabled)
-      setupCustomRenderer(window.vditor, {
-        enabled: wikiEnabled,
-        knownPages:
-          wikiEnabled && msg.wiki.pageKeys
-            ? new Set(msg.wiki.pageKeys as string[])
-            : undefined,
-      })
-      if (
-        wikiEnabled &&
-        typeof msg.content === 'string' &&
-        msg.content.includes('[[')
-      ) {
-        applyingExtensionUpdate = true
-        try {
-          vditor.setValue(msg.content)
-        } finally {
-          setTimeout(() => {
-            applyingExtensionUpdate = false
-          }, 0)
+      try {
+        // Force the theme through setTheme at init (constructor options don't
+        // reliably apply content/code theme — see applyVditorTheme).
+        applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+        // The live editor is now built AND themed — swap it in for the host-side
+        // instant-paint overlay here, BEFORE the remaining (non-visual) helpers,
+        // so a throw in any of them can't leave the overlay stuck on top.
+        removePrerenderOverlay()
+        const wikiEnabled = Boolean(msg.wiki?.enabled)
+        setupCustomRenderer(window.vditor, {
+          enabled: wikiEnabled,
+          knownPages:
+            wikiEnabled && msg.wiki.pageKeys
+              ? new Set(msg.wiki.pageKeys as string[])
+              : undefined,
+        })
+        if (
+          wikiEnabled &&
+          typeof msg.content === 'string' &&
+          msg.content.includes('[[')
+        ) {
+          applyingExtensionUpdate = true
+          try {
+            vditor.setValue(msg.content)
+          } finally {
+            setTimeout(() => {
+              applyingExtensionUpdate = false
+            }, 0)
+          }
         }
+        handleToolbarClick()
+        fixTableIr()
+        fixResponsiveTables()
+        fixPanelHover()
+        if (msg.options?.outlineHighlight !== false) {
+          setupOutlineFlash(window.vditor)
+        }
+        // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
+        setupSplitScrollSync()
+      } finally {
+        // Belt-and-suspenders: guarantee the overlay is gone even if a helper
+        // (or applyVditorTheme) above threw. Idempotent.
+        removePrerenderOverlay()
       }
-      fixDarkTheme()
-      handleToolbarClick()
-      fixTableIr()
-      fixResponsiveTables()
-      fixPanelHover()
-      if (msg.options?.outlineHighlight !== false) {
-        setupOutlineFlash(window.vditor)
-      }
-      // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
-      setupSplitScrollSync()
     },
     input() {
       if (applyingExtensionUpdate) {
@@ -269,6 +327,16 @@ function initVditor(msg) {
       },
     },
   })
+  // Vditor built its toolbar synchronously above (icons and all); surface it in
+  // the instant-paint overlay now, while Lute is still loading (see helper).
+  showRealToolbarInOverlay()
+  // Failsafe: after() normally drops the overlay in ~150 ms. But if the webview's
+  // own Lute script never loads (network/resource failure), after() never fires
+  // and the overlay would stay forever — a frozen, non-interactive teaser. Force
+  // it gone after a generous grace period so a broken load degrades to the (empty)
+  // editor the user can reload, instead of an indefinite hang. Idempotent no-op
+  // on the normal path.
+  setTimeout(removePrerenderOverlay, 8000)
 }
 
 window.addEventListener('message', (e) => {

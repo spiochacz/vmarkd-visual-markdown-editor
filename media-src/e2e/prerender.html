@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>instant-paint overlay harness</title>
+    <link rel="stylesheet" href="/main.css" />
+    <link
+      id="vditorContentTheme"
+      rel="stylesheet"
+      href="/vditor/dist/css/content-theme/dark.css"
+    />
+  </head>
+  <body
+    data-use-vscode-theme-color="1"
+    data-full-width="1"
+    data-heading-markers="1"
+  >
+    <div id="app"></div>
+    <!-- host-style instant-paint overlay (IR mode), mirroring _getHtmlForWebview -->
+    <div id="vmarkd-prerender" class="vditor vditor--dark" style="height: 100%">
+      <div
+        class="vditor-toolbar vditor-toolbar--pin"
+        style="height: 35px; box-sizing: content-box"
+      ></div>
+      <div class="vditor-content">
+        <div class="vditor-ir">
+          <pre class="vditor-reset"><h1 data-block="0" class="vditor-ir__node" data-marker="#"><span class="vditor-ir__marker vditor-ir__marker--heading"># </span>Hello world</h1></pre>
+        </div>
+      </div>
+    </div>
+    <script id="vditorIconScript" src="/vditor/dist/js/icons/ant.js"></script>
+    <script src="/prerender.js"></script>
+  </body>
+</html>

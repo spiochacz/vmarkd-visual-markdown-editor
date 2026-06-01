@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import { readingTime } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
+import { type EditorMode, prewarmLute, renderForMode } from './lute-host'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -283,6 +284,10 @@ async function revealCaretInSource(
 export function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('vMarkd', { log: true })
   context.subscriptions.push(logger)
+
+  // Warm the host-side Lute now so the first file open already gets the instant
+  // pre-rendered paint (see src/lute-host.ts). Deferred off the activation path.
+  prewarmLute(context.extensionPath)
 
   const updateStatusBar = setupStatusBar(context)
   const refreshContexts = () => {
@@ -648,6 +653,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.html = this._getHtmlForWebview(
       webviewPanel.webview,
       document.uri,
+      document.getText(),
+      currentThemeKind(),
     )
 
     const syncToEditor = async (content: string) => {
@@ -1201,7 +1208,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     )
   }
 
-  private _getHtmlForWebview(webview: vscode.Webview, uri: vscode.Uri) {
+  private _getHtmlForWebview(
+    webview: vscode.Webview,
+    uri: vscode.Uri,
+    content?: string,
+    theme: 'dark' | 'light' = 'light',
+  ) {
     const toUri = (f: string) =>
       webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, f))
     const baseHref = `${NodePath.dirname(
@@ -1225,6 +1237,91 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
     //     we inject <style> for custom/external CSS).
     //   - images: same-origin + data:/blob: + https: (remote images in markdown).
+    // Instant paint (perf): render the document to Vditor IR DOM host-side and
+    // inline it as a static, read-only overlay. It shows during HTML parse —
+    // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
+    // — and is removed once the live editor is ready (media-src/src/main.ts).
+    // Falls back to nothing (normal render path) when Lute isn't warm yet.
+    const showToolbar =
+      MarkdownEditorProvider.config.get<boolean>('showToolbar') !== false
+    // Set the body data-attrs statically so the overlay gets the SAME themed
+    // colours/layout the live editor will. Every colour rule in main.css is
+    // gated on `body[data-use-vscode-theme-color="1"] .vditor…`, so without
+    // these the swap shows a colour jump. Mirrors applyBodyOptions() +
+    // resolveFontSize() in media-src/src/live-config.ts — keep in sync.
+    const cfg = MarkdownEditorProvider.config
+    const bodyAttrs =
+      `data-use-vscode-theme-color="${cfg.get<boolean>('useVscodeThemeColor') ? '1' : '0'}" ` +
+      `data-full-width="${cfg.get<boolean>('enableFullWidth') ? '1' : '0'}" ` +
+      `data-highlight-headings="${cfg.get<boolean>('highlightHeadings') ? '1' : '0'}" ` +
+      `data-heading-markers="${cfg.get<boolean>('showHeadingMarkers') === false ? '0' : '1'}"`
+    const fontSizeOpt = cfg.get<string>('fontSize')
+    const fontSizeCss =
+      !fontSizeOpt || fontSizeOpt === 'editor'
+        ? 'var(--vscode-editor-font-size, 14px)'
+        : fontSizeOpt === 'vditor'
+          ? '16px'
+          : Number.isFinite(parseFloat(fontSizeOpt)) &&
+              parseFloat(fontSizeOpt) > 0
+            ? `${parseFloat(fontSizeOpt)}px`
+            : 'var(--vscode-editor-font-size, 14px)'
+    // The editor opens in whatever mode was last saved (Vditor's currentMode,
+    // persisted via save-options) — default 'ir'. Pre-render in THAT mode so the
+    // overlay matches; mismatch showed up as the H1/H2 gutter markers landing
+    // wrong when the editor was in WYSIWYG.
+    const savedOpts = MarkdownEditorProvider.sanitizeVditorOptions(
+      this._context.globalState.get(KeyVditorOptions),
+    ) as { mode?: string } | undefined
+    const mode: EditorMode =
+      savedOpts?.mode === 'wysiwyg'
+        ? 'wysiwyg'
+        : savedOpts?.mode === 'sv'
+          ? 'sv'
+          : 'ir'
+    const innerClass = mode === 'wysiwyg' ? 'vditor-wysiwyg' : 'vditor-ir'
+    const preIR =
+      content !== undefined
+        ? renderForMode(this._context.extensionPath, content, mode)
+        : undefined
+    // A static, empty themed toolbar bar (no icons) so the chrome region looks
+    // present during the instant paint — the real toolbar can't be reused here, it
+    // isn't attached to the DOM until Vditor's post-Lute initUI (~the swap moment).
+    // The real icons fade in at the swap. .vditor-toolbar/--pin inherit the themed
+    // bg + bottom border from the .vditor wrapper; min-height set in the style.
+    const prerenderToolbar = showToolbar
+      ? '<div class="vditor-toolbar vditor-toolbar--pin" style="height:35px;box-sizing:content-box;padding-top:0;padding-bottom:0;"></div>'
+      : ''
+    // Mirror the live editor's DOM exactly: .vditor > toolbar + .vditor-content >
+    // .vditor-ir > pre.vditor-reset. The .vditor-content wrapper matters — it lets
+    // Vditor's own CSS make .vditor-reset the scroll container (overflow:auto =
+    // a BFC), which both gives a single scrollbar AND stops the first heading's
+    // margin-top from collapsing through and pushing content down 24px. Measured
+    // (Playwright): content lands at the same offset as the live editor → no jump.
+    const prerenderOverlay = preIR
+      ? `<div id="vmarkd-prerender" class="vditor${
+          theme === 'dark' ? ' vditor--dark' : ''
+        }" style="height:100%" aria-hidden="true">${prerenderToolbar}<div class="vditor-content"><div class="${innerClass}"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
+      : ''
+    // The base content text colour comes from Vditor's content-theme CSS, which
+    // the live editor loads at runtime via setTheme. Link the SAME file here so
+    // the overlay text/headings match exactly (otherwise they render dim — the
+    // index.css light-theme fallback on a dark background).
+    // id="vditorContentTheme": the live editor's setContentTheme() reuses a link
+    // with this id (leaves it if the href already matches), so the overlay's
+    // theme link becomes the editor's — no duplicate, no stale link on a later
+    // live theme switch.
+    const prerenderThemeLink = preIR
+      ? `<link id="vditorContentTheme" href="${toUri(
+          `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
+        )}" rel="stylesheet">`
+      : ''
+    // The overlay just positions the mirrored editor over #app and clips
+    // (overflow:hidden) — the inner .vditor-reset scrolls natively via Vditor's
+    // own CSS, exactly like the live editor (single scrollbar, correct margins).
+    const prerenderStyle = preIR
+      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}</style>`
+      : ''
+
     const nonce = getNonce()
     const csp = webview.cspSource
     const cspMeta =
@@ -1253,11 +1350,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
 				<title>markdown editor</title>
         ` +
+      prerenderThemeLink +
       MarkdownEditorProvider._cssStyleTags() +
+      prerenderStyle +
       `
 			</head>
-			<body>
+			<body ${bodyAttrs} style="--me-font-size:${fontSizeCss}">
 				<div id="app"></div>
+				${prerenderOverlay}
 
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
 				<script nonce="${nonce}" id="vditorIconOverride" src="${iconOverrideScript}"></script>
