@@ -26,7 +26,7 @@ checked here **only when the task is fully complete**.
 - [x] [12 — External CSS files + live reload](12-external-css-live-reload.md)
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)
 - [x] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
-- [ ] [44 — Unify the "open source" button icons](44-unify-source-button-icons.md) — toolbar SVG → match the title-bar `go-to-file` codicon
+- [x] [44 — Unify the toolbar/chrome icons on codicons](44-unify-source-button-icons.md) — full codicon restyle: chrome `$(…)`, toolbar via icon-override sprite (24 codicons + 6 codicon-style customs)
 
 ## Features
 - [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
@@ -44,6 +44,7 @@ checked here **only when the task is fully complete**.
 ## Security
 - [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
 - [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
+- [ ] [47 — Render inline-HTML / data-URI images](47-render-inline-html-data-uri-images.md) — Vditor sanitizer strips `<img data:…>` (CSP already allows it); investigate or document as limitation
 
 ## Marketplace / publication
 - [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)
