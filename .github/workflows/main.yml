@@ -9,16 +9,15 @@ jobs:
       VS_MARKETPLACE_TOKEN: ${{ secrets.VS_MARKETPLACE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
+          bun-version: latest
       - name: Install
-        run: npm ci && npm --prefix media-src ci
+        run: bun install --frozen-lockfile && cd media-src && bun install --frozen-lockfile
       - name: Build
-        run: npm exec foy build
+        run: bun ./build.ts
       - name: Test
-        run: npm test
+        run: bun run test
       - name: Publish to Open VSX Registry
         if: env.OPEN_VSX_TOKEN != ''
         uses: HaaLeo/publish-vscode-extension@v0

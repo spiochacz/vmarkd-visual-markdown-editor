@@ -8,7 +8,7 @@ const vditorJs = `${repoRoot}/media/vditor/dist/js`
 describe('synced Vditor assets', () => {
   it('does not ship MathJax (KaTeX-only — see task 40)', () => {
     if (!existsSync(vditorJs)) {
-      // Assets only exist after `foy build` (gitignored). In CI the build runs
+      // Assets only exist after `bun ./build.ts` (gitignored). In CI the build runs
       // before tests, so this guard is meaningful there.
       return
     }

@@ -8,6 +8,18 @@
 ## Current state (verified 2026-05-30)
 Everything below was read in full; the bones exist but there are real gaps.
 
+> **Update 2026-06-01 — toolchain moved to Bun (task 45).** The npm + `foy` +
+> `ts-node` specifics described below are **superseded**: install is now
+> `bun install --frozen-lockfile`, build is `bun ./build.ts` (was `foy build`),
+> `Foyfile.ts` → `build.ts`, lockfiles are `bun.lock` (root + `media-src`), and
+> both workflows install/build via Bun. The CI/release **plan** below still
+> stands — just read `npm ci`→`bun install`, `foy build`→`bun ./build.ts`,
+> `npm test`→`bun run test`. What this task still owns:
+> - **Part C #2** — `build.ts` still ends with `git add -A` (carried over 1:1).
+> - **§5** — doc/cruft exclusion **done 2026-06-01** (see below); source maps
+>   (`**/*.map`) still ship by choice; MathJax already excluded (task 40).
+> - Parts A/B (PR gate, single release path, version-bump policy) — still open.
+
 - **`.github/workflows/main.yml` ("Deploy Extension")** — manual `workflow_dispatch`.
   `npm ci` (root + `media-src`) → `foy build` → **`npm test`** → publish to **Open VSX**
   and **VS Marketplace** (HaaLeo action, tokens `OPEN_VSX_TOKEN` / `VS_MARKETPLACE_TOKEN`).
@@ -50,7 +62,7 @@ Everything below was read in full; the bones exist but there are real gaps.
   (patch/minor/major), committed back, and tagged. No bump per change.
 - Fix the broken bits (root `test`, dual deploy, `git add -A`).
 
-Publisher `oleksiiko`; build via `foy` (Foyfile.ts) → esbuild.
+Publisher `oleksiiko`; build via `build.ts` (Bun) → `tsc` + esbuild (task 45).
 
 ---
 
@@ -118,8 +130,11 @@ Consolidate to **one** release path and put the bump in it, done right.
      in the production build). Easy ~1–3 MB cut, zero runtime value to users.
    - **MathJax dead weight (6.5 MB):** the single biggest cut — tracked separately in
      `40-drop-unused-mathjax.md` (exclude in `syncVditorAssets` + `.vscodeignore`).
-   - **Doc/cruft ships:** `AGENTS.md`, `publish_reminder.txt`,
-     `source_control_view_report.md`, `out/*.map` — add to `.vscodeignore`.
+   - **Doc/cruft ships:** ✅ **done 2026-06-01 (task 45 cleanup).** `.vscodeignore`
+     now excludes `AGENTS.md`, `publish_reminder.txt`, `source_control_view_report.md`,
+     `tasks/`, `test-results/`, `out/*.md`, and `out/**/*.test.js` (a stale compiled
+     test was shipping). Package dropped 455→402 files. `out/*.map` **not** excluded —
+     source maps kept (see the `**/*.map` bullet above; still open).
      (`demo.gif`, 2.4 MB, stays — Marketplace listing asset.)
    - Verify `sharp` (dev-only, `package.json:156`) and build sources (`media-src/`,
      `src/`, `node_modules/`) are excluded. After `vsce package`, `vsce ls` / unzip to

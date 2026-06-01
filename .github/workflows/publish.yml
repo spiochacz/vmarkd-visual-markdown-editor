@@ -8,13 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
-      - run: npm ci
-      - run: npm --prefix media-src ci
-      - run: npm exec foy build
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: cd media-src && bun install --frozen-lockfile
+      - run: bun ./build.ts
       - name: Publish to Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT != '' && secrets.VSCE_PAT || secrets.VS_MARKETPLACE_TOKEN }}
@@ -23,4 +22,4 @@ jobs:
             echo "No Marketplace token configured in VSCE_PAT or VS_MARKETPLACE_TOKEN" >&2
             exit 1
           fi
-          npx @vscode/vsce publish -p "$VSCE_PAT"
+          bunx @vscode/vsce publish -p "$VSCE_PAT"
