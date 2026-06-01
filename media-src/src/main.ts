@@ -142,7 +142,11 @@ function initVditor(msg) {
     preview: {
       math: {
         inlineDigit: true,
-      }
+      },
+      // Drop Vditor's default preview action bar (Desktop/Tablet/Mobile device
+      // widths + the China-specific "copy for WeChat 公众号 / Zhihu" buttons) —
+      // irrelevant in a VS Code markdown editor.
+      actions: [],
     }
   })
   // Code-block line numbers (rendered preview only). deepMerge keeps the

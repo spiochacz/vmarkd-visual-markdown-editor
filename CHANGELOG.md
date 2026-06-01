@@ -42,6 +42,9 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Playwright e2e harness covering the 9 table-editing hotkeys (`media-src/e2e/`).
 
 ### Changed
+- Hide Vditor's preview action bar (`preview.actions: []`) — drops the
+  Desktop/Tablet/Mobile device-width switch and the China-specific "copy for
+  WeChat 公众号 / Zhihu" buttons, irrelevant in a VS Code markdown editor.
 - Unified icons on VS Code codicons: title-bar buttons use `$(markdown)` /
   `$(go-to-file)`; the in-webview Vditor toolbar is restyled to codicons via a
   generated override (24 codicons + 6 codicon-style customs for glyphs codicons
