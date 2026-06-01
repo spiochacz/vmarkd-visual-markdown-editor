@@ -136,7 +136,17 @@ function showRealToolbarInOverlay() {
       | undefined
     if (real) {
       try {
-        bar.replaceWith(real.cloneNode(true))
+        const clone = real.cloneNode(true) as HTMLElement
+        // indent/outdent start disabled in the live editor (Vditor's EditMode
+        // calls disableToolbar(["outdent","indent"]) until the caret is in a
+        // list). The static clone hasn't run that, so grey them out to match the
+        // default state and avoid a flicker when the real toolbar takes over.
+        clone
+          .querySelectorAll('[data-type="indent"],[data-type="outdent"]')
+          .forEach((el) => {
+            el.classList.add('vditor-menu--disabled')
+          })
+        bar.replaceWith(clone)
       } catch {}
       return
     }
