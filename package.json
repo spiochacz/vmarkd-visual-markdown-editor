@@ -9,7 +9,8 @@
   "license": "MIT",
   "private": false,
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.110.0",
+    "node": ">=22"
   },
   "capabilities": {
     "untrustedWorkspaces": {
