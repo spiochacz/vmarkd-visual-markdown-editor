@@ -84,6 +84,19 @@ export function resolveVditorI18nLang(envLang: string | undefined): string {
   return byBase[l.split('-')[0]] ?? 'en_US'
 }
 
+// Resolve the `fontSize` setting to a CSS value for the editor's --me-font-size:
+// 'editor'/unset → the VS Code editor font, 'vditor' → Vditor's 16px default, a
+// positive number → that many px, anything else → the editor font. Pure/exported
+// for unit tests. (The webview has its own resolveFontSize in live-config.ts —
+// separate bundle, so they can't share a module.)
+export function resolveFontSizeCss(opt: string | undefined): string {
+  const editorFont = 'var(--vscode-editor-font-size, 14px)'
+  if (!opt || opt === 'editor') return editorFont
+  if (opt === 'vditor') return '16px'
+  const n = parseFloat(opt)
+  return Number.isFinite(n) && n > 0 ? `${n}px` : editorFont
+}
+
 function normalizeContent(content: string) {
   return content.replace(/\r\n/g, '\n')
 }
@@ -627,6 +640,30 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return clone
   }
 
+  // The user-configurable Vditor options read from VS Code settings, in one place.
+  // Both the initial `update`/init payload and the live `config-changed` push send
+  // exactly these keys (init additionally spreads the saved Vditor options on top),
+  // so adding a setting means touching only this list.
+  static collectConfigOptions() {
+    const c = MarkdownEditorProvider.config
+    return {
+      useVscodeThemeColor: c.get<boolean>('useVscodeThemeColor'),
+      enableFullWidth: c.get<boolean>('enableFullWidth'),
+      wordCount: c.get<boolean>('wordCount'),
+      codeBlockLineNumbers: c.get<boolean>('codeBlockLineNumbers'),
+      mermaidTheme: c.get<string>('mermaidTheme'),
+      showToolbar: c.get<boolean>('showToolbar'),
+      highlightHeadings: c.get<boolean>('highlightHeadings'),
+      showHeadingMarkers: c.get<boolean>('showHeadingMarkers'),
+      fontSize: c.get<string>('fontSize'),
+      outlinePosition: c.get<string>('outlinePosition'),
+      outlineWidth: c.get<number>('outlineWidth'),
+      showOutlineByDefault: c.get<boolean>('showOutlineByDefault'),
+      outlineHighlight: c.get<boolean>('outlineHighlight'),
+      codeTheme: c.get<string>('codeTheme'),
+    }
+  }
+
   // Id'd <style> tags so external + custom CSS can be live-swapped by id
   // (tasks 12/26). External loads first, customCss last, so customCss always
   // wins on conflicting rules (later tag = higher priority). Both are sanitized
@@ -782,37 +819,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const postLiveConfig = () => {
       webviewPanel.webview.postMessage({
         command: 'config-changed',
-        options: {
-          useVscodeThemeColor: MarkdownEditorProvider.config.get<boolean>(
-            'useVscodeThemeColor',
-          ),
-          enableFullWidth:
-            MarkdownEditorProvider.config.get<boolean>('enableFullWidth'),
-          highlightHeadings:
-            MarkdownEditorProvider.config.get<boolean>('highlightHeadings'),
-          showHeadingMarkers:
-            MarkdownEditorProvider.config.get<boolean>('showHeadingMarkers'),
-          fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
-          outlineWidth:
-            MarkdownEditorProvider.config.get<number>('outlineWidth'),
-          // constructor-only options — a change re-inits Vditor (webview side)
-          showToolbar:
-            MarkdownEditorProvider.config.get<boolean>('showToolbar'),
-          wordCount: MarkdownEditorProvider.config.get<boolean>('wordCount'),
-          codeBlockLineNumbers: MarkdownEditorProvider.config.get<boolean>(
-            'codeBlockLineNumbers',
-          ),
-          mermaidTheme:
-            MarkdownEditorProvider.config.get<string>('mermaidTheme'),
-          outlinePosition:
-            MarkdownEditorProvider.config.get<string>('outlinePosition'),
-          showOutlineByDefault: MarkdownEditorProvider.config.get<boolean>(
-            'showOutlineByDefault',
-          ),
-          outlineHighlight:
-            MarkdownEditorProvider.config.get<boolean>('outlineHighlight'),
-          codeTheme: MarkdownEditorProvider.config.get<string>('codeTheme'),
-        },
+        // Same settings as the init payload; the webview decides which are live vs
+        // constructor-only (see INIT_ONLY_OPTIONS in live-config.ts).
+        options: MarkdownEditorProvider.collectConfigOptions(),
       })
       webviewPanel.webview.postMessage({
         command: 'reload-css',
@@ -943,44 +952,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               type: 'init',
               cdn: vditorBaseUri,
               options: {
-                useVscodeThemeColor: MarkdownEditorProvider.config.get<boolean>(
-                  'useVscodeThemeColor',
-                ),
-                enableFullWidth:
-                  MarkdownEditorProvider.config.get<boolean>('enableFullWidth'),
-                wordCount:
-                  MarkdownEditorProvider.config.get<boolean>('wordCount'),
-                codeBlockLineNumbers:
-                  MarkdownEditorProvider.config.get<boolean>(
-                    'codeBlockLineNumbers',
-                  ),
-                mermaidTheme:
-                  MarkdownEditorProvider.config.get<string>('mermaidTheme'),
-                showToolbar:
-                  MarkdownEditorProvider.config.get<boolean>('showToolbar'),
-                highlightHeadings:
-                  MarkdownEditorProvider.config.get<boolean>(
-                    'highlightHeadings',
-                  ),
-                showHeadingMarkers:
-                  MarkdownEditorProvider.config.get<boolean>(
-                    'showHeadingMarkers',
-                  ),
-                fontSize: MarkdownEditorProvider.config.get<string>('fontSize'),
-                outlinePosition:
-                  MarkdownEditorProvider.config.get<string>('outlinePosition'),
-                outlineWidth:
-                  MarkdownEditorProvider.config.get<number>('outlineWidth'),
-                showOutlineByDefault:
-                  MarkdownEditorProvider.config.get<boolean>(
-                    'showOutlineByDefault',
-                  ),
-                outlineHighlight:
-                  MarkdownEditorProvider.config.get<boolean>(
-                    'outlineHighlight',
-                  ),
-                codeTheme:
-                  MarkdownEditorProvider.config.get<string>('codeTheme'),
+                ...MarkdownEditorProvider.collectConfigOptions(),
                 ...MarkdownEditorProvider.sanitizeVditorOptions(
                   this._context.globalState.get(KeyVditorOptions),
                 ),
@@ -1074,8 +1046,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
                 vscode.Uri.file(assetsFolder),
               )
             } catch (error) {
-              console.error(error)
+              debug('upload: createDirectory failed', error)
               showError(`Invalid image folder: ${assetsFolder}`)
+              break // can't write into a folder we failed to create
             }
             await Promise.all(
               message.files.map(async (file: any) => {
@@ -1288,16 +1261,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       `data-full-width="${cfg.get<boolean>('enableFullWidth') ? '1' : '0'}" ` +
       `data-highlight-headings="${cfg.get<boolean>('highlightHeadings') ? '1' : '0'}" ` +
       `data-heading-markers="${cfg.get<boolean>('showHeadingMarkers') === false ? '0' : '1'}"`
-    const fontSizeOpt = cfg.get<string>('fontSize')
-    const fontSizeCss =
-      !fontSizeOpt || fontSizeOpt === 'editor'
-        ? 'var(--vscode-editor-font-size, 14px)'
-        : fontSizeOpt === 'vditor'
-          ? '16px'
-          : Number.isFinite(parseFloat(fontSizeOpt)) &&
-              parseFloat(fontSizeOpt) > 0
-            ? `${parseFloat(fontSizeOpt)}px`
-            : 'var(--vscode-editor-font-size, 14px)'
+    const fontSizeCss = resolveFontSizeCss(cfg.get<string>('fontSize'))
     // The editor opens in whatever mode was last saved (Vditor's currentMode,
     // persisted via save-options) — default 'ir'. Pre-render in THAT mode so the
     // overlay matches; mismatch showed up as the H1/H2 gutter markers landing
