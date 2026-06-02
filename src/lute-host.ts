@@ -23,12 +23,14 @@ import * as vm from 'node:vm'
 
 const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 
-// Hard cap on the document size we pre-render. renderIR runs SYNCHRONOUSLY on the
+// Hard cap on how much markdown we pre-render. renderIR runs SYNCHRONOUSLY on the
 // extension-host thread, and Lute's render time grows super-linearly: ~150 ms at
 // 12 KB but seconds for large docs (a 189 KB table-heavy file measured ~26 s),
-// which would freeze the whole host and stall the webview open. Above the cap we
-// skip the instant paint (normal path, no host block) — the masking is a
-// nice-to-have only worth a small, bounded host pause on a typical small file.
+// which would freeze the whole host and stall the webview open. So we never feed
+// Lute more than this many chars: a small doc renders whole; a LONG doc renders
+// only a clean prefix (~the first viewport, see prerenderPrefix) for the overlay,
+// while the live editor loads the FULL document underneath and swaps in. Either
+// way the host render is bounded to the same small, safe budget.
 const MAX_PRERENDER_CHARS = 12_000
 
 export type EditorMode = 'ir' | 'wysiwyg' | 'sv'
@@ -86,6 +88,33 @@ export function prewarmLute(extensionFsPath: string): void {
   setTimeout(() => loadLute(extensionFsPath), 0)
 }
 
+// For a document over the cap, pre-render only a clean leading slice so even long
+// files get an instant top-of-document paint (toolbar + first screen) without
+// feeding Lute the whole doc. The live editor still renders the FULL document and
+// swaps the overlay out, so the truncation is invisible — it only needs to look
+// right for the first screen. Cut on a block boundary (blank line, else newline)
+// so we emit whole blocks, and drop a dangling unterminated ``` fence so the tail
+// of the slice doesn't get swallowed as code. Docs within the cap pass through
+// unchanged. Exported for unit tests.
+export function prerenderPrefix(markdown: string): string {
+  if (markdown.length <= MAX_PRERENDER_CHARS) return markdown
+  let slice = markdown.slice(0, MAX_PRERENDER_CHARS)
+  const blank = slice.lastIndexOf('\n\n')
+  if (blank >= MAX_PRERENDER_CHARS / 2) {
+    slice = slice.slice(0, blank)
+  } else {
+    const nl = slice.lastIndexOf('\n')
+    if (nl > 0) slice = slice.slice(0, nl)
+  }
+  // Odd number of fence lines → the last code block is unterminated; drop it so it
+  // can't turn the rest of the overlay into a code block.
+  if ((slice.match(/^```/gm) || []).length % 2 === 1) {
+    const lastFence = slice.lastIndexOf('\n```')
+    if (lastFence > 0) slice = slice.slice(0, lastFence)
+  }
+  return slice
+}
+
 // Render markdown → IR DOM for the instant paint. Returns undefined (caller
 // falls back to the normal webview render, no regression) when Lute isn't warm
 // yet — we never block HTML generation on the 250 ms load; we only kick a
@@ -102,16 +131,15 @@ export function renderForMode(
   mode: EditorMode,
 ): string | undefined {
   if (mode === 'sv') return undefined
-  // Too large → skip (a synchronous host render here would freeze the host).
-  if (markdown.length > MAX_PRERENDER_CHARS) return undefined
   if (!lute) {
     prewarmLute(extensionFsPath)
     return undefined
   }
+  // Long docs render only a clean prefix (bounded host cost); the live editor
+  // renders the full document and swaps in. Small docs pass through whole.
+  const md = prerenderPrefix(markdown)
   try {
-    return mode === 'wysiwyg'
-      ? lute.Md2VditorDOM(markdown)
-      : lute.Md2VditorIRDOM(markdown)
+    return mode === 'wysiwyg' ? lute.Md2VditorDOM(md) : lute.Md2VditorIRDOM(md)
   } catch {
     return undefined
   }

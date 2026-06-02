@@ -65,9 +65,15 @@ describe('_getHtmlForWebview instant-paint overlay (host pre-render)', () => {
     expect(html).toContain('<div id="app">')
   })
 
-  it('skips the overlay for a document over the size cap', () => {
-    const html = htmlFor({ content: `# H\n\n${'word '.repeat(4000)}` })
-    expect(html).not.toContain('vmarkd-prerender')
+  it('pre-renders a truncated prefix for a document over the size cap', () => {
+    // ~17 KB of clean blocks → over the 12 KB cap. The overlay shows the top of
+    // the doc (instant paint) while the live editor loads the full document.
+    let content = '# Big Doc\n\n'
+    for (let i = 0; i < 800; i++) content += `## Section ${i}\n\nbody text.\n\n`
+    const html = htmlFor({ content })
+    expect(html).toContain('id="vmarkd-prerender"')
+    expect(html).toContain('Big Doc') // top is painted
+    expect(html).not.toContain('Section 799') // tail truncated
     expect(html).toContain('<div id="app">')
   })
 })

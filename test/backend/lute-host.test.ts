@@ -1,21 +1,56 @@
 import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { prewarmLute, renderForMode } from '../../src/lute-host'
+import {
+  prerenderPrefix,
+  prewarmLute,
+  renderForMode,
+} from '../../src/lute-host'
 
 // The real extension root — lute-host reads media/vditor/dist/js/lute/lute.min.js
 // from here and runs it in an isolated vm (same path the host uses at runtime).
 const ROOT = fileURLToPath(new URL('../..', import.meta.url))
 
-describe('lute-host renderForMode', () => {
-  // These short-circuit before Lute is even consulted, so they're deterministic
-  // regardless of warm state — and they guard the host-freeze / hang fixes.
-  it('skips documents over the 12 KB size cap (would block the host)', () => {
-    const big = 'x '.repeat(20_000) // ~40 KB
-    expect(renderForMode(ROOT, big, 'ir')).toBeUndefined()
+// prerenderPrefix is pure — no Lute needed. It bounds what we feed Lute: small
+// docs pass through; long docs are cut to a clean leading slice for the overlay.
+describe('prerenderPrefix', () => {
+  it('passes through a document within the cap unchanged', () => {
+    const md = '# Title\n\nshort body\n'
+    expect(prerenderPrefix(md)).toBe(md)
   })
 
+  it('truncates a long document to a clean block boundary', () => {
+    const para = (n: number) => `## Section ${n}\n\nLorem ipsum dolor sit.\n\n`
+    let md = '# Title\n\n'
+    for (let i = 0; i < 500; i++) md += para(i)
+    const out = prerenderPrefix(md)
+    expect(out.length).toBeLessThan(md.length)
+    expect(out.length).toBeLessThanOrEqual(12_000)
+    // keeps the very top, drops the far tail
+    expect(out).toContain('Section 0')
+    expect(out).not.toContain('Section 499')
+    // cut on a block boundary → ends with a whole block, not a half-written line
+    expect(/(Lorem ipsum dolor sit\.|## Section \d+)$/.test(out)).toBe(true)
+  })
+
+  it('drops a dangling unterminated code fence at the cut', () => {
+    // a long lead-in, then an opened-but-not-closed fence near the cap
+    const head = `${'filler paragraph text.\n\n'.repeat(450)}`
+    const md = `${head}\`\`\`js\nconst x = 1\n${'// line\n'.repeat(2000)}`
+    const out = prerenderPrefix(md)
+    // even number of fence lines (the unterminated one was dropped)
+    expect((out.match(/^```/gm) || []).length % 2).toBe(0)
+  })
+})
+
+describe('lute-host renderForMode', () => {
   it('skips split (sv) mode — structurally different, no overlay', () => {
     expect(renderForMode(ROOT, '# Heading\n', 'sv')).toBeUndefined()
+  })
+
+  it('returns undefined before Lute is warm (no host block on first open)', () => {
+    // a freshly imported module: Lute not loaded yet → no synchronous host render,
+    // it only kicks a prewarm so the NEXT open is covered.
+    expect(renderForMode(ROOT, '# Heading\n', 'ir')).toBeUndefined()
   })
 
   describe('after warmup', () => {
@@ -38,8 +73,17 @@ describe('lute-host renderForMode', () => {
       expect(html).not.toContain('vditor-ir__marker--heading')
     })
 
-    it('still honors the size cap once warm', () => {
-      expect(renderForMode(ROOT, 'x '.repeat(20_000), 'ir')).toBeUndefined()
+    it('pre-renders a truncated prefix for a long document (no host freeze)', () => {
+      const para = (n: number) => `## Section ${n}\n\nbody text here.\n\n`
+      let md = '# Top Heading\n\n'
+      for (let i = 0; i < 600; i++) md += para(i)
+      const html = renderForMode(ROOT, md, 'ir')
+      expect(html).toBeDefined()
+      // the top of the document is painted…
+      expect(html).toContain('Top Heading')
+      expect(html).toContain('Section 0')
+      // …but the far tail is not (it was truncated for the overlay)
+      expect(html).not.toContain('Section 599')
     })
 
     it('does not leak Lute into the shared host global', () => {
