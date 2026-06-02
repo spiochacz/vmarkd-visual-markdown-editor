@@ -112,6 +112,17 @@ body[data-use-vscode-theme-color="1"]
   font-family: var(--vscode-editor-font-family)!important;
   font-size: var(--me-font-size, var(--vscode-editor-font-size, 14px))!important;
 }
+/* The editor chrome (toolbar, dropdown menus, autocomplete hint, tooltips, tips)
+   follows VS Code's UI font — --vscode-font-family — so the menus match VS Code's
+   own menus, NOT the content/editor font above. Vditor's default is a hardcoded
+   "Helvetica Neue" stack; override it on every menu surface. Tooltip text is a
+   ::after on .vditor-tooltipped (inside the toolbar), so it inherits this. */
+.vditor-toolbar,
+.vditor-panel,
+.vditor-hint,
+.vditor-tip {
+  font-family: var(--vscode-font-family, sans-serif)!important;
+}
 /* fix code block color in dark mode */
 .vditor--dark .vditor-reset code:not(.hljs):not(.highlight-chroma) {
   background-color: rgba(66,133,244,.1);
