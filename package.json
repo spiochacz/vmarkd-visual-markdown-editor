@@ -235,7 +235,8 @@
           "markdown-editor.css.custom": {
             "type": "string",
             "default": "",
-            "description": "Custom CSS injected into the editor webview."
+            "editPresentation": "multilineText",
+            "markdownDescription": "Custom CSS injected into the editor webview. Applies live (no reload). Target Vditor classes such as `.vditor-reset`, e.g.:\n\n```css\n.vditor-reset { line-height: 1.7; }\n.vditor-reset h1 { color: #6cb6ff; }\n```\n\nFor stylesheet files instead, use `#markdown-editor.css.external#`."
           },
           "markdown-editor.css.external": {
             "type": "array",
