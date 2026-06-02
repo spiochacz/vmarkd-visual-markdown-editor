@@ -129,19 +129,21 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.imageSaveFolder']).toMatchObject({
+    expect(props['markdown-editor.image.saveFolder']).toMatchObject({
       type: 'string',
       default: 'assets',
     })
-    expect(props['markdown-editor.useVscodeThemeColor']).toMatchObject({
+    expect(props['markdown-editor.theme.useVscodeColors']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.enableFullWidth']).toMatchObject({
+    expect(props['markdown-editor.editor.fullWidth']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.customCss']).toMatchObject({ type: 'string' })
+    expect(props['markdown-editor.css.custom']).toMatchObject({
+      type: 'string',
+    })
   })
 
   it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
@@ -149,19 +151,19 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.wordCount']).toMatchObject({
+    expect(props['markdown-editor.editor.wordCount']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.codeBlockLineNumbers']).toMatchObject({
+    expect(props['markdown-editor.editor.codeLineNumbers']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.showToolbar']).toMatchObject({
+    expect(props['markdown-editor.editor.toolbar']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.retainHiddenEditors']).toMatchObject({
+    expect(props['markdown-editor.editor.retainHidden']).toMatchObject({
       type: 'boolean',
       default: true,
     })
@@ -172,28 +174,28 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.highlightHeadings']).toMatchObject({
+    expect(props['markdown-editor.theme.highlightHeadings']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.showHeadingMarkers']).toMatchObject({
+    expect(props['markdown-editor.editor.headingMarkers']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.outlinePosition']).toMatchObject({
+    expect(props['markdown-editor.outline.position']).toMatchObject({
       type: 'string',
       enum: ['left', 'right'],
       default: 'right',
     })
-    expect(props['markdown-editor.outlineWidth']).toMatchObject({
+    expect(props['markdown-editor.outline.width']).toMatchObject({
       type: 'number',
       default: 200,
     })
-    expect(props['markdown-editor.showOutlineByDefault']).toMatchObject({
+    expect(props['markdown-editor.outline.openByDefault']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.outlineHighlight']).toMatchObject({
+    expect(props['markdown-editor.outline.highlight']).toMatchObject({
       type: 'boolean',
       default: true,
     })
@@ -204,11 +206,11 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.mermaidTheme']).toMatchObject({
+    expect(props['markdown-editor.theme.mermaid']).toMatchObject({
       type: 'string',
       default: 'auto',
     })
-    expect(props['markdown-editor.mermaidTheme'].enum).toEqual(
+    expect(props['markdown-editor.theme.mermaid'].enum).toEqual(
       expect.arrayContaining(['auto', 'default', 'forest']),
     )
   })
@@ -218,7 +220,7 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.fontSize']).toMatchObject({
+    expect(props['markdown-editor.editor.fontSize']).toMatchObject({
       type: 'string',
       default: 'editor',
     })
@@ -226,7 +228,7 @@ describe('package.json manifest', () => {
       (c: any) => c.title === 'Appearance',
     )
     expect(Object.keys(appearance.properties)).toContain(
-      'markdown-editor.fontSize',
+      'markdown-editor.editor.fontSize',
     )
   })
 
@@ -235,7 +237,7 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.externalCssFiles']).toMatchObject({
+    expect(props['markdown-editor.css.external']).toMatchObject({
       type: 'array',
       default: [],
     })
@@ -252,9 +254,9 @@ describe('package.json manifest', () => {
     )
     expect(Object.keys(appearance.properties)).toEqual(
       expect.arrayContaining([
-        'markdown-editor.highlightHeadings',
-        'markdown-editor.showHeadingMarkers',
-        'markdown-editor.enableFullWidth',
+        'markdown-editor.theme.highlightHeadings',
+        'markdown-editor.editor.headingMarkers',
+        'markdown-editor.editor.fullWidth',
       ]),
     )
   })

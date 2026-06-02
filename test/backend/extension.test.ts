@@ -108,13 +108,13 @@ describe('resolveCustomTextEditor — init handshake', () => {
 
   it('passes the outline settings into the init options', async () => {
     mock.setConfig({
-      highlightHeadings: true,
-      showHeadingMarkers: false,
-      fontSize: 'vditor',
-      outlinePosition: 'left',
-      outlineWidth: 320,
-      showOutlineByDefault: true,
-      outlineHighlight: false,
+      'theme.highlightHeadings': true,
+      'editor.headingMarkers': false,
+      'editor.fontSize': 'vditor',
+      'outline.position': 'left',
+      'outline.width': 320,
+      'outline.openByDefault': true,
+      'outline.highlight': false,
     })
     const { panel } = resolveProvider()
     await panel._receiveMessage({ command: 'ready' })
@@ -407,9 +407,9 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
   it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
     resolveProvider()
     mock.setConfig({
-      enableFullWidth: false,
-      fontSize: '15',
-      customCss: '/* x */',
+      'editor.fullWidth': false,
+      'editor.fontSize': '15',
+      'css.custom': '/* x */',
     })
     mock.fireDidChangeConfiguration()
 

@@ -220,11 +220,11 @@ interface MockTextDocument {
 }
 
 const DEFAULT_CONFIG: Record<string, any> = {
-  imageSaveFolder: 'assets',
-  useVscodeThemeColor: true,
-  customCss: '',
-  enableFullWidth: true,
-  retainHiddenEditors: true,
+  'image.saveFolder': 'assets',
+  'theme.useVscodeColors': true,
+  'css.custom': '',
+  'editor.fullWidth': true,
+  'editor.retainHidden': true,
 }
 
 function freshState() {

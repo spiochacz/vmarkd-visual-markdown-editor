@@ -476,7 +476,7 @@ export function activate(context: vscode.ExtensionContext) {
           // default. Memory-conscious users with many tabs can disable it.
           // The bounded retain-cache (keep N) is tasks/41.
           retainContextWhenHidden:
-            MarkdownEditorProvider.config.get<boolean>('retainHiddenEditors') ??
+            MarkdownEditorProvider.config.get<boolean>('editor.retainHidden') ??
             true,
           enableFindWidget: true,
         },
@@ -633,7 +633,7 @@ export class EditorSession {
     this.webviewPanel.webview.postMessage({
       command: 'reload-css',
       id: 'custom-css',
-      css: MarkdownEditorProvider.config.get<string>('customCss') || '',
+      css: MarkdownEditorProvider.config.get<string>('css.custom') || '',
     })
     this.postExternalCss()
   }
@@ -1134,7 +1134,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // files are skipped. Local-fs only — a no-op in virtual workspaces.
   static readExternalCss(): string {
     const files =
-      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+      MarkdownEditorProvider.config.get<string[]>('css.external') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     const chunks: string[] = []
     for (const f of files) {
@@ -1151,7 +1151,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
   static resolveExternalCssPaths(): string[] {
     const files =
-      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+      MarkdownEditorProvider.config.get<string[]>('css.external') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     return files
       .filter(Boolean)
@@ -1209,20 +1209,20 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   static collectConfigOptions() {
     const c = MarkdownEditorProvider.config
     return {
-      useVscodeThemeColor: c.get<boolean>('useVscodeThemeColor'),
-      enableFullWidth: c.get<boolean>('enableFullWidth'),
-      wordCount: c.get<boolean>('wordCount'),
-      codeBlockLineNumbers: c.get<boolean>('codeBlockLineNumbers'),
-      mermaidTheme: c.get<string>('mermaidTheme'),
-      showToolbar: c.get<boolean>('showToolbar'),
-      highlightHeadings: c.get<boolean>('highlightHeadings'),
-      showHeadingMarkers: c.get<boolean>('showHeadingMarkers'),
-      fontSize: c.get<string>('fontSize'),
-      outlinePosition: c.get<string>('outlinePosition'),
-      outlineWidth: c.get<number>('outlineWidth'),
-      showOutlineByDefault: c.get<boolean>('showOutlineByDefault'),
-      outlineHighlight: c.get<boolean>('outlineHighlight'),
-      codeTheme: c.get<string>('codeTheme'),
+      useVscodeThemeColor: c.get<boolean>('theme.useVscodeColors'),
+      enableFullWidth: c.get<boolean>('editor.fullWidth'),
+      wordCount: c.get<boolean>('editor.wordCount'),
+      codeBlockLineNumbers: c.get<boolean>('editor.codeLineNumbers'),
+      mermaidTheme: c.get<string>('theme.mermaid'),
+      showToolbar: c.get<boolean>('editor.toolbar'),
+      highlightHeadings: c.get<boolean>('theme.highlightHeadings'),
+      showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),
+      fontSize: c.get<string>('editor.fontSize'),
+      outlinePosition: c.get<string>('outline.position'),
+      outlineWidth: c.get<number>('outline.width'),
+      showOutlineByDefault: c.get<boolean>('outline.openByDefault'),
+      outlineHighlight: c.get<boolean>('outline.highlight'),
+      codeTheme: c.get<string>('theme.code'),
     }
   }
 
@@ -1232,7 +1232,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // against `</style>` breakout (task 18 §2b).
   static _cssStyleTags(): string {
     const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss())}</style>`
-    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('customCss'))}</style>`
+    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('css.custom'))}</style>`
     return external + custom
   }
 
@@ -1253,7 +1253,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
   static getAssetsFolder(uri: vscode.Uri) {
     const imageSaveFolder = (
-      MarkdownEditorProvider.config.get<string>('imageSaveFolder') || 'assets'
+      MarkdownEditorProvider.config.get<string>('image.saveFolder') || 'assets'
     )
       .replace(
         '${projectRoot}',
@@ -1312,7 +1312,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // — and is removed once the live editor is ready (media-src/src/main.ts).
     // Falls back to nothing (normal render path) when Lute isn't warm yet.
     const showToolbar =
-      MarkdownEditorProvider.config.get<boolean>('showToolbar') !== false
+      MarkdownEditorProvider.config.get<boolean>('editor.toolbar') !== false
     // Set the body data-attrs statically so the overlay gets the SAME themed
     // colours/layout the live editor will. Every colour rule in main.css is
     // gated on `body[data-use-vscode-theme-color="1"] .vditor…`, so without
@@ -1320,11 +1320,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // resolveFontSize() in media-src/src/live-config.ts — keep in sync.
     const cfg = MarkdownEditorProvider.config
     const bodyAttrs =
-      `data-use-vscode-theme-color="${cfg.get<boolean>('useVscodeThemeColor') ? '1' : '0'}" ` +
-      `data-full-width="${cfg.get<boolean>('enableFullWidth') ? '1' : '0'}" ` +
-      `data-highlight-headings="${cfg.get<boolean>('highlightHeadings') ? '1' : '0'}" ` +
-      `data-heading-markers="${cfg.get<boolean>('showHeadingMarkers') === false ? '0' : '1'}"`
-    const fontSizeCss = resolveFontSizeCss(cfg.get<string>('fontSize'))
+      `data-use-vscode-theme-color="${cfg.get<boolean>('theme.useVscodeColors') ? '1' : '0'}" ` +
+      `data-full-width="${cfg.get<boolean>('editor.fullWidth') ? '1' : '0'}" ` +
+      `data-highlight-headings="${cfg.get<boolean>('theme.highlightHeadings') ? '1' : '0'}" ` +
+      `data-heading-markers="${cfg.get<boolean>('editor.headingMarkers') === false ? '0' : '1'}"`
+    const fontSizeCss = resolveFontSizeCss(cfg.get<string>('editor.fontSize'))
     // The editor opens in whatever mode was last saved (Vditor's currentMode,
     // persisted via save-options) — default 'ir'. Pre-render in THAT mode so the
     // overlay matches; mismatch showed up as the H1/H2 gutter markers landing
@@ -1343,7 +1343,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // both the read-only content teaser and the placeholder toolbar. Off → preIR
     // stays undefined, so the overlay/toolbar/theme-link/style are all skipped and
     // the editor opens straight into the live (post-Lute) render.
-    const instantPreview = cfg.get<boolean>('instantPreview') !== false
+    const instantPreview = cfg.get<boolean>('advanced.instantPreview') !== false
     const preIR =
       instantPreview && content !== undefined
         ? renderForMode(this._context.extensionPath, content, mode)

@@ -51,7 +51,7 @@ describe('_getHtmlForWebview instant-paint overlay (host pre-render)', () => {
   })
 
   it('skips the whole pre-render when instantPreview is disabled (Advanced)', () => {
-    mock.setConfig({ instantPreview: false })
+    mock.setConfig({ 'advanced.instantPreview': false })
     const html = htmlFor()
     // no overlay, no placeholder toolbar, no overlay theme link — even warm
     expect(html).not.toContain('vmarkd-prerender')
