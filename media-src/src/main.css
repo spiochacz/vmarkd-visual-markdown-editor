@@ -39,6 +39,60 @@ body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
   --toolbar-icon-hover-color: var(--vscode-textLink-foreground, #fff);
   --resize-icon-color: var(--vscode-editor-foreground, #b9b9b9);
 }
+
+/* VS Code-native look for the editor chrome (gated on the use-VS-Code-colours
+   toggle, like the rest of the theme rules). Dropdown panels (more / emoji /
+   headings / theme pickers) and the autocomplete hint render as VS Code menus
+   (menu surface + 1px border + widget shadow), hovered items use the menu
+   selection highlight, and tooltips render as a VS Code hover widget — Vditor's
+   base tooltip colours are hardcoded #fff-on-#3b3e43, so they need overriding. */
+body[data-use-vscode-theme-color="1"] .vditor-panel,
+body[data-use-vscode-theme-color="1"] .vditor-hint {
+  background-color: var(
+    --vscode-menu-background,
+    var(--vscode-editorWidget-background)
+  ) !important;
+  color: var(
+    --vscode-menu-foreground,
+    var(--vscode-editor-foreground)
+  ) !important;
+  border: 1px solid
+    var(
+      --vscode-menu-border,
+      var(--vscode-editorWidget-border, var(--vscode-panel-border, transparent))
+    ) !important;
+  box-shadow: 0 2px 8px
+    var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36)) !important;
+}
+/* hovered / selected menu + hint item → VS Code menu selection highlight */
+body[data-use-vscode-theme-color="1"] .vditor-hint--current,
+body[data-use-vscode-theme-color="1"]
+  .vditor-hint
+  button:not(.vditor-menu--disabled):hover,
+body[data-use-vscode-theme-color="1"]
+  .vditor-panel
+  button:not(.vditor-menu--disabled):hover {
+  background-color: var(
+    --vscode-menu-selectionBackground,
+    var(
+      --vscode-list-activeSelectionBackground,
+      var(--vscode-list-hoverBackground)
+    )
+  ) !important;
+  color: var(
+    --vscode-menu-selectionForeground,
+    var(--vscode-list-activeSelectionForeground, var(--vscode-menu-foreground))
+  ) !important;
+}
+/* tooltips → VS Code hover widget (body + the little arrow Vditor tints via `color`) */
+body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
+  background: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
+  color: var(--vscode-editorHoverWidget-foreground, #fff) !important;
+  border: 1px solid var(--vscode-editorHoverWidget-border, transparent) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-tooltipped::before {
+  color: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
+}
 /* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
    colours instead of Vditor's fixed content-theme palette (which clashes with
    custom themes). Only when the use-VS-Code-colour option is on; the --vscode-*
