@@ -47,6 +47,16 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     expect(html).toMatch(/id="vditorIconScript"[^>]+src="[^"]*ant\.js"/)
   })
 
+  it('injects the Vditor i18n bundle before main.js (sync toolbar build)', () => {
+    const { html } = resolveAndGetHtml()
+    // matches the VS Code UI language (mock env.language = 'en' -> en_US)
+    expect(html).toMatch(
+      /id="vditorI18nScript[^"]*"[^>]+src="[^"]*i18n\/en_US\.js"/,
+    )
+    // must load before the bundle so window.VditorI18n is set when Vditor inits
+    expect(html.indexOf('i18n/en_US.js')).toBeLessThan(html.indexOf('main.js'))
+  })
+
   it('sets a base href rooted at the document directory', () => {
     const { html } = resolveAndGetHtml()
     const base = /<base href="([^"]+)"/.exec(html)?.[1]
