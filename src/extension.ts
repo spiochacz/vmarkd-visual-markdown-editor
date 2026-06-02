@@ -1339,8 +1339,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           ? 'sv'
           : 'ir'
     const innerClass = mode === 'wysiwyg' ? 'vditor-wysiwyg' : 'vditor-ir'
+    // Advanced: `instantPreview` (default on) gates the whole host pre-render —
+    // both the read-only content teaser and the placeholder toolbar. Off → preIR
+    // stays undefined, so the overlay/toolbar/theme-link/style are all skipped and
+    // the editor opens straight into the live (post-Lute) render.
+    const instantPreview = cfg.get<boolean>('instantPreview') !== false
     const preIR =
-      content !== undefined
+      instantPreview && content !== undefined
         ? renderForMode(this._context.extensionPath, content, mode)
         : undefined
     // A static, empty themed toolbar bar (no icons) so the chrome region looks

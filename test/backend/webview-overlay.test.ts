@@ -50,6 +50,17 @@ describe('_getHtmlForWebview instant-paint overlay (host pre-render)', () => {
     expect(html).toMatch(/data-use-vscode-theme-color="1"/)
   })
 
+  it('skips the whole pre-render when instantPreview is disabled (Advanced)', () => {
+    mock.setConfig({ instantPreview: false })
+    const html = htmlFor()
+    // no overlay, no placeholder toolbar, no overlay theme link — even warm
+    expect(html).not.toContain('vmarkd-prerender')
+    expect(html).not.toContain('vditor-toolbar')
+    expect(html).not.toContain('id="vditorContentTheme"')
+    // the live editor still opens normally
+    expect(html).toContain('<div id="app">')
+  })
+
   it('uses the WYSIWYG wrapper when the saved mode is wysiwyg', () => {
     const html = htmlFor({ mode: 'wysiwyg' })
     expect(html).toContain('id="vmarkd-prerender"')

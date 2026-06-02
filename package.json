@@ -276,6 +276,17 @@
             "description": "Briefly flash a heading when you click it in the outline."
           }
         }
+      },
+      {
+        "title": "Advanced",
+        "order": 5,
+        "properties": {
+          "markdown-editor.instantPreview": {
+            "type": "boolean",
+            "default": true,
+            "description": "Instant preview: before the live editor finishes loading, paint a fast read-only preview of the document and a placeholder toolbar so the file appears immediately, then swap to the live editor seamlessly. Turn off to open straight into the live editor with no pre-render."
+          }
+        }
       }
     ],
     "configurationDefaults": {
