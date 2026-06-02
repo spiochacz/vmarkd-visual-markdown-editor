@@ -116,6 +116,21 @@ body[data-use-vscode-theme-color="1"]
 body[data-use-vscode-theme-color="1"] .vditor-menu--current {
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
 }
+/* Make the hover/active highlight hug a centered band (~23px) like VS Code instead
+   of filling the full 35px button: transparent top/bottom borders shrink the
+   padding-box, and background-clip keeps the fill inside it. Padding is reduced to
+   match so the icon stays centered (6px border + 4px padding + 15px icon ×2 = 35).
+   Applied to the base button so the icon position is identical whether or not it's
+   highlighted; the colours below only paint on hover/open. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  border-top: 6px solid transparent !important;
+  border-bottom: 6px solid transparent !important;
+  background-clip: padding-box !important;
+}
 body[data-use-vscode-theme-color="1"]
   .vditor-toolbar__item
   .vditor-tooltipped:hover {
