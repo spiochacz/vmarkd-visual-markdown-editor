@@ -498,188 +498,38 @@ interface ActivePanelEntry {
   uri: vscode.Uri
 }
 
-export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
-  // Live registry of open vMarkd panels (task 16). Commands like revealInSource
-  // need the focused panel + its document; CustomTextEditorProvider gives us no
-  // singleton, so we track them here and pick the active one.
-  static activePanels = new Set<ActivePanelEntry>()
+// One open editor tab. Holds the per-panel state + behaviour that previously lived
+// as closures inside MarkdownEditorProvider.resolveCustomTextEditor (SRP step 1:
+// god-method -> class). For now the state stays local to start(); later steps
+// promote it to fields and split the closures into methods. The HTML builder is
+// injected so this class needn't reach back into the provider's private members.
+export class EditorSession {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly document: vscode.TextDocument,
+    private readonly webviewPanel: vscode.WebviewPanel,
+    private readonly htmlForWebview: (
+      webview: vscode.Webview,
+      uri: vscode.Uri,
+      content?: string,
+      theme?: 'dark' | 'light',
+    ) => string,
+  ) {}
 
-  static findActivePanel(): ActivePanelEntry | undefined {
-    for (const entry of MarkdownEditorProvider.activePanels) {
-      if (entry.panel.active) return entry
-    }
-    return undefined
+  private documentRange(document: vscode.TextDocument) {
+    const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0))
+    return new vscode.Range(
+      0,
+      0,
+      lastLine.range.end.line,
+      lastLine.range.end.character,
+    )
   }
 
-  static findPanelForUri(uri: vscode.Uri): ActivePanelEntry | undefined {
-    const want = uri.toString()
-    for (const entry of MarkdownEditorProvider.activePanels) {
-      if (entry.uri.toString() === want) return entry
-    }
-    return undefined
-  }
+  start() {
+    const document = this.document
+    const webviewPanel = this.webviewPanel
 
-  // Scope the webview's filesystem reach (task 18 §2a). Previously the roots were
-  // the whole disk (`/` + every Windows drive), letting the webview load any local
-  // file. Narrow to exactly what we serve:
-  //   - the extension's `media` dir (Vditor assets: the local `cdn` base where
-  //     Mermaid/KaTeX/etc. are self-hosted — MUST stay in the roots or diagram/
-  //     math rendering silently 404s),
-  //   - the document's workspace folder (covers images referenced relative to the
-  //     doc or the workspace), or its own directory when there is no workspace.
-  static webviewRoots(
-    extensionUri: vscode.Uri,
-    documentUri: vscode.Uri,
-  ): vscode.Uri[] {
-    const roots = [vscode.Uri.joinPath(extensionUri, 'media')]
-    const ws = vscode.workspace.getWorkspaceFolder(documentUri)
-    if (ws) roots.push(ws.uri)
-    else if (documentUri.scheme === 'file')
-      roots.push(vscode.Uri.file(NodePath.dirname(documentUri.fsPath)))
-    return roots
-  }
-
-  // Only the webview options we deliberately control (task 27). The caller spreads
-  // these over the existing `webview.options` so VS Code's sensible custom-editor
-  // defaults are augmented, not wholesale-replaced. `retainContextWhenHidden` is a
-  // panel-level option set at registerCustomEditorProvider (task 37) — it is not a
-  // WebviewOptions field, so it does not belong here.
-  static getWebviewOptions(
-    extensionUri: vscode.Uri,
-    documentUri: vscode.Uri,
-  ): vscode.WebviewOptions {
-    return {
-      // Enable javascript in the webview
-      enableScripts: true,
-      // Narrowed to the extension media dir + the document's workspace (task 18 §2a).
-      localResourceRoots: MarkdownEditorProvider.webviewRoots(
-        extensionUri,
-        documentUri,
-      ),
-      // Navigation goes through postMessage (open-link / navigate-back / …), never
-      // `command:` URIs, so keep them disabled to reduce webview privilege (task 27).
-      enableCommandUris: false,
-    }
-  }
-
-  static get config() {
-    return vscode.workspace.getConfiguration('markdown-editor')
-  }
-
-  // External CSS files (task 12): resolve each `externalCssFiles` entry (absolute,
-  // or relative to the first workspace folder) and concatenate their contents.
-  // Read synchronously so it can feed the (sync) HTML build; unreadable/missing
-  // files are skipped. Local-fs only — a no-op in virtual workspaces.
-  static readExternalCss(): string {
-    const files =
-      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-    const chunks: string[] = []
-    for (const f of files) {
-      if (!f) continue
-      const p = NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f
-      try {
-        chunks.push(fs.readFileSync(p, 'utf8'))
-      } catch {
-        // skip missing / unreadable / non-file-scheme
-      }
-    }
-    return chunks.join('\n')
-  }
-
-  static resolveExternalCssPaths(): string[] {
-    const files =
-      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-    return files
-      .filter(Boolean)
-      .map((f) =>
-        NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f,
-      )
-  }
-
-  // Neutralize a `</style>` breakout in user CSS (task 18 §2b). When CSS is
-  // baked into the HTML string inside a <style> block, a literal `</style` in
-  // the value closes the tag early and everything after it is parsed as markup
-  // — i.e. arbitrary `<script>` injection. Strip the closing-tag sequence
-  // (case-insensitive). The live `reload-css` path is already safe: swapStyle
-  // assigns `textContent`, which never parses markup.
-  static sanitizeCss(css: string | undefined): string {
-    return (css || '').replace(/<\/style/gi, '')
-  }
-
-  // Vditor's saved options can bake absolute webview-resource URLs that embed
-  // the extension's *versioned* install dir — e.g. `preview.theme.path` ends up
-  // as `…/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme`.
-  // We persist these in globalState (and mark the key for Settings Sync), then
-  // spread them back into the init options on every open. After the extension
-  // updates (or on another machine), that stale path points at a dir that no
-  // longer exists / is outside localResourceRoots → the content/code-theme CSS
-  // 401s and the editor renders with no colors. Strip any baked resource URL so
-  // Vditor recomputes every path from the current `cdn`. Applied on both read
-  // (heals existing dirty/synced state) and write (never re-persists it).
-  static sanitizeVditorOptions<T>(options: T): T {
-    if (!options || typeof options !== 'object') return options
-    const isBakedResourceUrl = (s: string) =>
-      /vscode-resource|vscode-cdn\.net|[/\\]extensions[/\\]spiochacz\.vmarkd-|\.vscode-server[/\\]extensions/.test(
-        s,
-      )
-    const clone = JSON.parse(JSON.stringify(options))
-    const walk = (o: any) => {
-      if (!o || typeof o !== 'object') return
-      for (const k of Object.keys(o)) {
-        const v = o[k]
-        if (typeof v === 'string') {
-          if (isBakedResourceUrl(v)) delete o[k]
-        } else if (typeof v === 'object') {
-          walk(v)
-        }
-      }
-    }
-    walk(clone)
-    return clone
-  }
-
-  // The user-configurable Vditor options read from VS Code settings, in one place.
-  // Both the initial `update`/init payload and the live `config-changed` push send
-  // exactly these keys (init additionally spreads the saved Vditor options on top),
-  // so adding a setting means touching only this list.
-  static collectConfigOptions() {
-    const c = MarkdownEditorProvider.config
-    return {
-      useVscodeThemeColor: c.get<boolean>('useVscodeThemeColor'),
-      enableFullWidth: c.get<boolean>('enableFullWidth'),
-      wordCount: c.get<boolean>('wordCount'),
-      codeBlockLineNumbers: c.get<boolean>('codeBlockLineNumbers'),
-      mermaidTheme: c.get<string>('mermaidTheme'),
-      showToolbar: c.get<boolean>('showToolbar'),
-      highlightHeadings: c.get<boolean>('highlightHeadings'),
-      showHeadingMarkers: c.get<boolean>('showHeadingMarkers'),
-      fontSize: c.get<string>('fontSize'),
-      outlinePosition: c.get<string>('outlinePosition'),
-      outlineWidth: c.get<number>('outlineWidth'),
-      showOutlineByDefault: c.get<boolean>('showOutlineByDefault'),
-      outlineHighlight: c.get<boolean>('outlineHighlight'),
-      codeTheme: c.get<string>('codeTheme'),
-    }
-  }
-
-  // Id'd <style> tags so external + custom CSS can be live-swapped by id
-  // (tasks 12/26). External loads first, customCss last, so customCss always
-  // wins on conflicting rules (later tag = higher priority). Both are sanitized
-  // against `</style>` breakout (task 18 §2b).
-  static _cssStyleTags(): string {
-    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss())}</style>`
-    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('customCss'))}</style>`
-    return external + custom
-  }
-
-  constructor(private readonly _context: vscode.ExtensionContext) {}
-
-  public resolveCustomTextEditor(
-    document: vscode.TextDocument,
-    webviewPanel: vscode.WebviewPanel,
-  ) {
     const disposables: vscode.Disposable[] = []
     // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
     // watcher, edits and asset paths follow a renamed file. (Wiki context below
@@ -691,7 +541,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)
     const vditorBaseUri = webviewPanel.webview
       .asWebviewUri(
-        vscode.Uri.joinPath(this._context.extensionUri, 'media', 'vditor'),
+        vscode.Uri.joinPath(this.context.extensionUri, 'media', 'vditor'),
       )
       .toString()
     let textEditTimer: NodeJS.Timeout | undefined
@@ -711,11 +561,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     webviewPanel.webview.options = {
       ...webviewPanel.webview.options,
       ...MarkdownEditorProvider.getWebviewOptions(
-        this._context.extensionUri,
+        this.context.extensionUri,
         document.uri,
       ),
     }
-    webviewPanel.webview.html = this._getHtmlForWebview(
+    webviewPanel.webview.html = this.htmlForWebview(
       webviewPanel.webview,
       document.uri,
       document.getText(),
@@ -731,7 +581,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       pendingWebviewContent = content
       try {
         const edit = new vscode.WorkspaceEdit()
-        edit.replace(activeUri, this._documentRange(document), content)
+        edit.replace(activeUri, this.documentRange(document), content)
         await vscode.workspace.applyEdit(edit)
         lastSyncedContent = document.getText()
       } finally {
@@ -874,7 +724,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           options: {
             ...MarkdownEditorProvider.collectConfigOptions(),
             ...MarkdownEditorProvider.sanitizeVditorOptions(
-              this._context.globalState.get(KeyVditorOptions),
+              this.context.globalState.get(KeyVditorOptions),
             ),
           },
           theme: currentThemeKind(),
@@ -882,7 +732,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         })
       },
       'save-options': async (message) => {
-        await this._context.globalState.update(
+        await this.context.globalState.update(
           KeyVditorOptions,
           MarkdownEditorProvider.sanitizeVditorOptions(message.options),
         )
@@ -897,7 +747,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         await syncToEditor(message.content)
       },
       'reset-config': async () => {
-        await this._context.globalState.update(KeyVditorOptions, {})
+        await this.context.globalState.update(KeyVditorOptions, {})
       },
       save: async (message) => {
         await syncToEditor(message.content)
@@ -1173,6 +1023,198 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       }),
     )
   }
+}
+
+export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
+  // Live registry of open vMarkd panels (task 16). Commands like revealInSource
+  // need the focused panel + its document; CustomTextEditorProvider gives us no
+  // singleton, so we track them here and pick the active one.
+  static activePanels = new Set<ActivePanelEntry>()
+
+  static findActivePanel(): ActivePanelEntry | undefined {
+    for (const entry of MarkdownEditorProvider.activePanels) {
+      if (entry.panel.active) return entry
+    }
+    return undefined
+  }
+
+  static findPanelForUri(uri: vscode.Uri): ActivePanelEntry | undefined {
+    const want = uri.toString()
+    for (const entry of MarkdownEditorProvider.activePanels) {
+      if (entry.uri.toString() === want) return entry
+    }
+    return undefined
+  }
+
+  // Scope the webview's filesystem reach (task 18 §2a). Previously the roots were
+  // the whole disk (`/` + every Windows drive), letting the webview load any local
+  // file. Narrow to exactly what we serve:
+  //   - the extension's `media` dir (Vditor assets: the local `cdn` base where
+  //     Mermaid/KaTeX/etc. are self-hosted — MUST stay in the roots or diagram/
+  //     math rendering silently 404s),
+  //   - the document's workspace folder (covers images referenced relative to the
+  //     doc or the workspace), or its own directory when there is no workspace.
+  static webviewRoots(
+    extensionUri: vscode.Uri,
+    documentUri: vscode.Uri,
+  ): vscode.Uri[] {
+    const roots = [vscode.Uri.joinPath(extensionUri, 'media')]
+    const ws = vscode.workspace.getWorkspaceFolder(documentUri)
+    if (ws) roots.push(ws.uri)
+    else if (documentUri.scheme === 'file')
+      roots.push(vscode.Uri.file(NodePath.dirname(documentUri.fsPath)))
+    return roots
+  }
+
+  // Only the webview options we deliberately control (task 27). The caller spreads
+  // these over the existing `webview.options` so VS Code's sensible custom-editor
+  // defaults are augmented, not wholesale-replaced. `retainContextWhenHidden` is a
+  // panel-level option set at registerCustomEditorProvider (task 37) — it is not a
+  // WebviewOptions field, so it does not belong here.
+  static getWebviewOptions(
+    extensionUri: vscode.Uri,
+    documentUri: vscode.Uri,
+  ): vscode.WebviewOptions {
+    return {
+      // Enable javascript in the webview
+      enableScripts: true,
+      // Narrowed to the extension media dir + the document's workspace (task 18 §2a).
+      localResourceRoots: MarkdownEditorProvider.webviewRoots(
+        extensionUri,
+        documentUri,
+      ),
+      // Navigation goes through postMessage (open-link / navigate-back / …), never
+      // `command:` URIs, so keep them disabled to reduce webview privilege (task 27).
+      enableCommandUris: false,
+    }
+  }
+
+  static get config() {
+    return vscode.workspace.getConfiguration('markdown-editor')
+  }
+
+  // External CSS files (task 12): resolve each `externalCssFiles` entry (absolute,
+  // or relative to the first workspace folder) and concatenate their contents.
+  // Read synchronously so it can feed the (sync) HTML build; unreadable/missing
+  // files are skipped. Local-fs only — a no-op in virtual workspaces.
+  static readExternalCss(): string {
+    const files =
+      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+    const chunks: string[] = []
+    for (const f of files) {
+      if (!f) continue
+      const p = NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f
+      try {
+        chunks.push(fs.readFileSync(p, 'utf8'))
+      } catch {
+        // skip missing / unreadable / non-file-scheme
+      }
+    }
+    return chunks.join('\n')
+  }
+
+  static resolveExternalCssPaths(): string[] {
+    const files =
+      MarkdownEditorProvider.config.get<string[]>('externalCssFiles') || []
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+    return files
+      .filter(Boolean)
+      .map((f) =>
+        NodePath.isAbsolute(f) ? f : root ? NodePath.join(root, f) : f,
+      )
+  }
+
+  // Neutralize a `</style>` breakout in user CSS (task 18 §2b). When CSS is
+  // baked into the HTML string inside a <style> block, a literal `</style` in
+  // the value closes the tag early and everything after it is parsed as markup
+  // — i.e. arbitrary `<script>` injection. Strip the closing-tag sequence
+  // (case-insensitive). The live `reload-css` path is already safe: swapStyle
+  // assigns `textContent`, which never parses markup.
+  static sanitizeCss(css: string | undefined): string {
+    return (css || '').replace(/<\/style/gi, '')
+  }
+
+  // Vditor's saved options can bake absolute webview-resource URLs that embed
+  // the extension's *versioned* install dir — e.g. `preview.theme.path` ends up
+  // as `…/extensions/spiochacz.vmarkd-0.4.0/media/vditor/dist/css/content-theme`.
+  // We persist these in globalState (and mark the key for Settings Sync), then
+  // spread them back into the init options on every open. After the extension
+  // updates (or on another machine), that stale path points at a dir that no
+  // longer exists / is outside localResourceRoots → the content/code-theme CSS
+  // 401s and the editor renders with no colors. Strip any baked resource URL so
+  // Vditor recomputes every path from the current `cdn`. Applied on both read
+  // (heals existing dirty/synced state) and write (never re-persists it).
+  static sanitizeVditorOptions<T>(options: T): T {
+    if (!options || typeof options !== 'object') return options
+    const isBakedResourceUrl = (s: string) =>
+      /vscode-resource|vscode-cdn\.net|[/\\]extensions[/\\]spiochacz\.vmarkd-|\.vscode-server[/\\]extensions/.test(
+        s,
+      )
+    const clone = JSON.parse(JSON.stringify(options))
+    const walk = (o: any) => {
+      if (!o || typeof o !== 'object') return
+      for (const k of Object.keys(o)) {
+        const v = o[k]
+        if (typeof v === 'string') {
+          if (isBakedResourceUrl(v)) delete o[k]
+        } else if (typeof v === 'object') {
+          walk(v)
+        }
+      }
+    }
+    walk(clone)
+    return clone
+  }
+
+  // The user-configurable Vditor options read from VS Code settings, in one place.
+  // Both the initial `update`/init payload and the live `config-changed` push send
+  // exactly these keys (init additionally spreads the saved Vditor options on top),
+  // so adding a setting means touching only this list.
+  static collectConfigOptions() {
+    const c = MarkdownEditorProvider.config
+    return {
+      useVscodeThemeColor: c.get<boolean>('useVscodeThemeColor'),
+      enableFullWidth: c.get<boolean>('enableFullWidth'),
+      wordCount: c.get<boolean>('wordCount'),
+      codeBlockLineNumbers: c.get<boolean>('codeBlockLineNumbers'),
+      mermaidTheme: c.get<string>('mermaidTheme'),
+      showToolbar: c.get<boolean>('showToolbar'),
+      highlightHeadings: c.get<boolean>('highlightHeadings'),
+      showHeadingMarkers: c.get<boolean>('showHeadingMarkers'),
+      fontSize: c.get<string>('fontSize'),
+      outlinePosition: c.get<string>('outlinePosition'),
+      outlineWidth: c.get<number>('outlineWidth'),
+      showOutlineByDefault: c.get<boolean>('showOutlineByDefault'),
+      outlineHighlight: c.get<boolean>('outlineHighlight'),
+      codeTheme: c.get<string>('codeTheme'),
+    }
+  }
+
+  // Id'd <style> tags so external + custom CSS can be live-swapped by id
+  // (tasks 12/26). External loads first, customCss last, so customCss always
+  // wins on conflicting rules (later tag = higher priority). Both are sanitized
+  // against `</style>` breakout (task 18 §2b).
+  static _cssStyleTags(): string {
+    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss())}</style>`
+    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('customCss'))}</style>`
+    return external + custom
+  }
+
+  constructor(private readonly _context: vscode.ExtensionContext) {}
+
+  public resolveCustomTextEditor(
+    document: vscode.TextDocument,
+    webviewPanel: vscode.WebviewPanel,
+  ) {
+    new EditorSession(
+      this._context,
+      document,
+      webviewPanel,
+      (webview, uri, content, theme) =>
+        this._getHtmlForWebview(webview, uri, content, theme),
+    ).start()
+  }
 
   static getAssetsFolder(uri: vscode.Uri) {
     const imageSaveFolder = (
@@ -1193,16 +1235,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       imageSaveFolder,
     )
     return assetsFolder
-  }
-
-  private _documentRange(document: vscode.TextDocument) {
-    const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0))
-    return new vscode.Range(
-      0,
-      0,
-      lastLine.range.end.line,
-      lastLine.range.end.character,
-    )
   }
 
   private _getHtmlForWebview(
