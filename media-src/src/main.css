@@ -99,6 +99,29 @@ body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
 body[data-use-vscode-theme-color="1"] .vditor-tooltipped::before {
   color: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
 }
+/* Toolbar icons keep the foreground colour on hover / focus / active — Vditor
+   tints them with the link colour (blue), which also lingered via :focus after a
+   dropdown (e.g. the "…" more menu) closed, leaving the icon stuck blue. Feedback
+   is a VS Code-style hover background instead, applied only while actually
+   hovering so a closed menu's button doesn't stay highlighted. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:hover,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:focus,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped.vditor-menu--current,
+body[data-use-vscode-theme-color="1"] .vditor-menu--current {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
+  border-radius: 5px !important;
+}
 /* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
    colours instead of Vditor's fixed content-theme palette (which clashes with
    custom themes). Only when the use-VS-Code-colour option is on; the --vscode-*
