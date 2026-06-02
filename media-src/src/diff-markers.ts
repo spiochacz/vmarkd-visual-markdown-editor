@@ -8,6 +8,8 @@
 // Split into a pure core (computeBlockMarkers) that is unit-tested, and a DOM
 // wrapper (renderDiffMarkers) covered by e2e on the real editor.
 
+import { activeModeElement } from './source-map'
+
 export interface DiffChange {
   startLine: number
   endLine: number
@@ -86,14 +88,6 @@ export function computeBlockMarkers(
 
 const MARKER_CLASS = 'me-diff-marker'
 
-// Resolve the active mode's editable element (IR / WYSIWYG / SV).
-function findEditorElement(vditor: any): HTMLElement | null {
-  const inner = vditor?.vditor
-  const mode = inner?.currentMode
-  const el = mode ? inner?.[mode]?.element : undefined
-  return (el as HTMLElement) || null
-}
-
 export function clearDiffMarkers(root: ParentNode = document): void {
   root.querySelectorAll(`.${MARKER_CLASS}`).forEach((el) => {
     el.remove()
@@ -103,7 +97,7 @@ export function clearDiffMarkers(root: ParentNode = document): void {
 // DOM wrapper: read the live block geometry, compute the markers, and render a
 // bar per changed block. Returns the number of markers rendered (handy for e2e).
 export function renderDiffMarkers(vditor: any, changes: DiffChange[]): number {
-  const editor = findEditorElement(vditor)
+  const editor = activeModeElement(vditor)
   if (!editor) return 0
   clearDiffMarkers(editor)
   if (!changes || changes.length === 0) return 0

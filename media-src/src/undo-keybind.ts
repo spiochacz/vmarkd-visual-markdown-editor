@@ -10,6 +10,8 @@
 // call the toolbar button makes), then preventDefault + stopPropagation so neither
 // the native nor the VS Code undo fires. Result: keyboard == toolbar button.
 
+import { isMac } from './platform'
+
 export type HistoryKind = 'undo' | 'redo'
 
 // Pure mapping from a keydown to an undo/redo action (or null when it isn't a
@@ -24,9 +26,9 @@ export function historyActionFor(
     KeyboardEvent,
     'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'
   >,
-  isMac: boolean,
+  mac: boolean,
 ): HistoryKind | null {
-  const historyMod = isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey
+  const historyMod = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey
   if (!historyMod || event.altKey) return null
   const key = event.key.toLowerCase()
   if (key === 'z') return event.shiftKey ? 'redo' : 'undo'
@@ -55,11 +57,11 @@ export function runVditorHistory(win: any, kind: HistoryKind): void {
 // stopImmediatePropagation here prevents VS Code from ever seeing the key. The
 // document undo never fires; only Vditor's own in-place undo runs.
 export function setupHistoryKeybind(win: Window & typeof globalThis): void {
-  const isMac = win.navigator.platform.toLowerCase().includes('mac')
+  const onMac = isMac(win.navigator)
   win.addEventListener(
     'keydown',
     (event) => {
-      const kind = historyActionFor(event, isMac)
+      const kind = historyActionFor(event, onMac)
       if (!kind) return
       event.preventDefault()
       event.stopImmediatePropagation()

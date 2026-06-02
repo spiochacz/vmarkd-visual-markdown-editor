@@ -17,6 +17,7 @@ import 'vditor/dist/index.css'
 import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
+import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
 import { setupSplitScrollSync } from './split-scroll-sync'
@@ -483,8 +484,7 @@ fixLinkClick()
 fixCut()
 
 window.addEventListener('keydown', (event) => {
-  const isMac = navigator.platform.toLowerCase().includes('mac')
-  const modifierPressed = isMac
+  const modifierPressed = isMac()
     ? event.metaKey && event.ctrlKey
     : event.ctrlKey && event.altKey
   if (modifierPressed && event.key.toLowerCase() === 'e') {

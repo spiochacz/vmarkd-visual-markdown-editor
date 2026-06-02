@@ -2,13 +2,14 @@
  * ir 模式下支持 table 编辑
  */
 import { t } from './lang'
+import { isMac } from './platform'
 import { dispatchTableHotkey, type TableAction } from './table-hotkey'
 
 const tablePanelId = 'fix-table-ir-wrapper'
 let disableVscodeHotkeys = false
 
 function formatHotkeyTip(hotkey: string) {
-  if (navigator.platform.toLowerCase().includes('mac')) {
+  if (isMac()) {
     return hotkey
   }
 
@@ -128,10 +129,9 @@ export function fixTableIr() {
         )
         if (!icon || !tablePanel.contains(icon)) return
         const type = icon.getAttribute('data-type') as TableAction
-        const isMac = navigator.platform.toLowerCase().includes('mac')
         disableVscodeHotkeys = true
         try {
-          dispatchTableHotkey(eventRoot, type, isMac)
+          dispatchTableHotkey(eventRoot, type, isMac())
         } finally {
           disableVscodeHotkeys = false
         }
