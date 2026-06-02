@@ -41,7 +41,8 @@ fixing the main **SRP** debt and unlocking unit tests of the editor logic.
   `EditorSession.start()`; provider just does `new EditorSession(...).start()`.
   HTML builder injected; `_documentRange` moved onto the session. (commit 383b439)
 
-- [ ] **Step 2 — promote state to fields.** The 13 closure vars
+- [x] **Step 2 — promote state to fields.** (commit 7b99e98) Rename-by-reference
+  verified intact (scheduleDiffInfo reads this.activeFsPath lazily). The 13 closure vars
   (`activeUri`, `activeFsPath`, `suppressCloseDispose`, `textEditTimer`,
   `applyingWebviewEdit`, `pendingWebviewContent`, `lastSyncedContent`,
   `currentWatcher`, `externalCssWatcher`, `disposables`, `wiki`,
