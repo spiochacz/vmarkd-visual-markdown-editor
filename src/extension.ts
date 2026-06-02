@@ -14,7 +14,7 @@ import {
   resolveWikiLink,
 } from './wiki'
 
-const KeyVditorOptions = 'vditor.options'
+const KeyVditorOptions = 'vmarkd.options'
 const MarkdownEditorViewType = 'vmarkd.editor'
 const WikiFileContextKey = 'vmarkd.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])

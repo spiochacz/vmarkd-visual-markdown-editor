@@ -37,10 +37,10 @@ describe('activate()', () => {
     })
   })
 
-  it('marks the vditor.options key for settings sync', () => {
+  it('marks the vmarkd.options key for settings sync', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    expect(mock.calls.setKeysForSync).toContainEqual(['vditor.options'])
+    expect(mock.calls.setKeysForSync).toContainEqual(['vmarkd.options'])
   })
 
   it('creates a levelled log channel and registers it for disposal (task 18 §2d)', () => {
@@ -165,7 +165,7 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
       options: { mode: 'ir' },
     })
     expect(mock.calls.globalStateUpdates).toContainEqual({
-      key: 'vditor.options',
+      key: 'vmarkd.options',
       value: { mode: 'ir' },
     })
   })
@@ -185,7 +185,7 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
       },
     })
     const saved = mock.calls.globalStateUpdates.find(
-      (u) => u.key === 'vditor.options',
+      (u) => u.key === 'vmarkd.options',
     )!.value
     // the baked path is gone; stable prefs survive
     expect(saved.preview.theme.path).toBeUndefined()
@@ -196,7 +196,7 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
   it('does not let a stale saved theme.path leak into the init options', async () => {
     const context = mock.createExtensionContext()
     // simulate dirty globalState carried over from an older install / Settings Sync
-    await context.globalState.update('vditor.options', {
+    await context.globalState.update('vmarkd.options', {
       mode: 'ir',
       preview: {
         theme: {

@@ -15,7 +15,7 @@ function htmlFor(opts: { mode?: string; content?: string } = {}) {
   const context = { ...mock.createExtensionContext(), extensionPath: ROOT }
   if (opts.mode) {
     // saved Vditor options carry the last mode; the host pre-renders in it
-    context.globalState.update('vditor.options', { mode: opts.mode })
+    context.globalState.update('vmarkd.options', { mode: opts.mode })
   }
   const document = mock.createTextDocument(
     '/workspace/note.md',
