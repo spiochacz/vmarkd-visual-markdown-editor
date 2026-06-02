@@ -230,6 +230,9 @@ const DEFAULT_CONFIG: Record<string, any> = {
 function freshState() {
   return {
     config: { ...DEFAULT_CONFIG } as Record<string, any>,
+    // Per-resource overrides keyed by uri.toString() (task 51 #3, scope:"resource").
+    // getConfiguration(section, uri) consults this first, then falls back to `config`.
+    resourceConfig: {} as Record<string, Record<string, any>>,
     isTrusted: true,
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeTextEditor: undefined as { document: { uri: Uri } } | undefined,
@@ -419,10 +422,15 @@ export const workspace = {
   get textDocuments() {
     return state.documents
   },
-  getConfiguration: vi.fn((_section?: string) => ({
-    get: <T>(key: string, defaultValue?: T): T =>
-      (key in state.config ? state.config[key] : defaultValue) as T,
-  })),
+  getConfiguration: vi.fn((_section?: string, scope?: Uri) => {
+    const overrides = scope ? state.resourceConfig[scope.toString()] : undefined
+    return {
+      get: <T>(key: string, defaultValue?: T): T => {
+        if (overrides && key in overrides) return overrides[key] as T
+        return (key in state.config ? state.config[key] : defaultValue) as T
+      },
+    }
+  }),
   getWorkspaceFolder: vi.fn((_uri: Uri) => state.workspaceFolder),
   asRelativePath: vi.fn((uri: Uri | string) =>
     typeof uri === 'string' ? uri : uri.fsPath,
@@ -614,6 +622,12 @@ export const mock = {
   },
   setConfig(values: Record<string, any>) {
     Object.assign(state.config, values)
+  },
+  // Resource-scoped override for a specific document uri (task 51 #3). A read via
+  // getConfiguration('vmarkd', uri) sees these in preference to the global config.
+  setResourceConfig(uri: Uri | string, values: Record<string, any>) {
+    const key = typeof uri === 'string' ? uri : uri.toString()
+    state.resourceConfig[key] = { ...state.resourceConfig[key], ...values }
   },
   setThemeKind(kind: number) {
     state.activeColorThemeKind = kind

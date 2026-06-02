@@ -158,7 +158,8 @@
           "vmarkd.image.saveFolder": {
             "type": "string",
             "default": "assets",
-            "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`."
+            "scope": "resource",
+            "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
           },
           "vmarkd.editor.retainHidden": {
             "type": "boolean",
@@ -248,6 +249,7 @@
           "vmarkd.css.custom": {
             "type": "string",
             "default": "",
+            "scope": "resource",
             "editPresentation": "multilineText",
             "markdownDescription": "Custom CSS injected into the editor webview. Applies live (no reload). Target Vditor classes such as `.vditor-reset`, e.g.:\n\n```css\n.vditor-reset { line-height: 1.7; }\n.vditor-reset h1 { color: #6cb6ff; }\n```\n\nFor stylesheet files instead, use `#vmarkd.css.external#`."
           },
@@ -257,7 +259,8 @@
               "type": "string"
             },
             "default": [],
-            "description": "Paths to external CSS files (absolute, or relative to the workspace root) injected into the editor. They reload live when edited. customCss is loaded after them, so it always wins on conflicting rules."
+            "scope": "resource",
+            "description": "Paths to external CSS files (absolute, or relative to the workspace root) injected into the editor. They reload live when edited. customCss is loaded after them, so it always wins on conflicting rules. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
           }
         }
       },

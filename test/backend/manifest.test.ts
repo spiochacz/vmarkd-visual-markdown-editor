@@ -147,6 +147,16 @@ describe('package.json manifest', () => {
     })
   })
 
+  it('scopes css.custom / css.external / image.saveFolder to resource (task 51 #3)', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
+    )
+    expect(props['vmarkd.css.custom'].scope).toBe('resource')
+    expect(props['vmarkd.css.external'].scope).toBe('resource')
+    expect(props['vmarkd.image.saveFolder'].scope).toBe('resource')
+  })
+
   it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
     const props = Object.assign(
       {},

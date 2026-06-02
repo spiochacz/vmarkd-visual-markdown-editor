@@ -81,6 +81,42 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
     )
     expect(html).toContain('/* sentinel */ body{}')
   })
+
+  it('reads css.custom resource-scoped — a per-document override wins (task 51 #3)', () => {
+    mock.setConfig({ 'css.custom': '/* global-css */' })
+    mock.setWorkspaceFolder('/workspace')
+    const docUri = Uri.file('/workspace/note.md')
+    mock.setResourceConfig(docUri, { 'css.custom': '/* per-project-css */' })
+    const context = mock.createExtensionContext()
+    const document = mock.createTextDocument('/workspace/note.md', '# Hi\n')
+    const panel = mock.createWebviewPanel()
+    new MarkdownEditorProvider(context as any).resolveCustomTextEditor(
+      document as any,
+      panel as any,
+    )
+    // the URI-scoped read must surface the folder override, not the global value
+    expect(panel.webview.html).toContain('/* per-project-css */')
+    expect(panel.webview.html).not.toContain('/* global-css */')
+  })
+})
+
+describe('getAssetsFolder — resource-scoped image.saveFolder (task 51 #3)', () => {
+  beforeEach(() => mock.reset())
+
+  it('honours a per-document image.saveFolder override over the global value', () => {
+    mock.setConfig({ 'image.saveFolder': 'assets' })
+    const docUri = Uri.file('/workspace/note.md')
+    mock.setResourceConfig(docUri, { 'image.saveFolder': 'docs/img' })
+    const folder = MarkdownEditorProvider.getAssetsFolder(docUri as any)
+    expect(folder.replace(/\\/g, '/')).toBe('/workspace/docs/img')
+  })
+
+  it('falls back to the global value when no override is set', () => {
+    mock.setConfig({ 'image.saveFolder': 'assets' })
+    const docUri = Uri.file('/workspace/note.md')
+    const folder = MarkdownEditorProvider.getAssetsFolder(docUri as any)
+    expect(folder.replace(/\\/g, '/')).toBe('/workspace/assets')
+  })
 })
 
 describe('security: scoped localResourceRoots (task 18 §2a)', () => {

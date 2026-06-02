@@ -1,7 +1,7 @@
 # Task 51 — Config & manifest polish (settings UX)
 
-**Status:** partly done — 1, 2 + 4 shipped on `feat/config-manifest-polish` (PR #41);
-3 (`scope: resource`, needs URI threading) still open.
+**Status:** ✅ done. 1, 2 + 4 shipped on `feat/config-manifest-polish` (PR #41);
+3 (`scope: resource` + URI threading) shipped on `feat/config-resource-scope`.
 
 ## Problem
 
@@ -28,15 +28,20 @@ nonsense values. `manifest.test.ts` asserts both.
 
 ## Scope — worth it, but needs code (separate, deliberate)
 
-### 3. `scope: "resource"` on `css.custom` / `css.external` / `image.saveFolder`
+### 3. `scope: "resource"` on `css.custom` / `css.external` / `image.saveFolder` — ✅ done
 Lets a repo override these per-project via `.vscode/settings.json` (project-specific
-CSS / asset folder). **Requires a code change**: today config is read globally
-(`MarkdownEditorProvider.config` = `getConfiguration('markdown-editor')`). For
-`resource` scope to actually apply per-file, reads must pass the document URI
-(`getConfiguration('markdown-editor', doc.uri)`). Declaring `scope` in package.json
-WITHOUT changing the read path is a no-op (still uses the window/default value).
-Thread the active document URI through the relevant reads (CSS aggregation,
-`getAssetsFolder`) before declaring the scope.
+CSS / asset folder). Required a code change — config was read globally
+(`MarkdownEditorProvider.config` = `getConfiguration('vmarkd')`); for `resource`
+scope to apply per-file the reads must pass the document URI. Implemented:
+- New helper `MarkdownEditorProvider.cfgFor(uri?)` → `getConfiguration('vmarkd', uri)`.
+- Threaded `this.activeUri` (and the `_getHtmlForWebview` `uri` param) through the
+  scoped reads: `readExternalCss`, `resolveExternalCssPaths`, `_cssStyleTags`
+  (css.custom + css.external) and `getAssetsFolder` (image.saveFolder).
+- `onDidChangeConfiguration` now checks `affectsConfiguration('vmarkd', this.activeUri)`
+  so a folder's `.vscode/settings.json` change reloads the right editor (and an
+  unrelated folder's change doesn't reload editors it doesn't affect).
+- Mock gained `resourceConfig` + `setResourceConfig(uri, values)`; tests prove a
+  per-document `css.custom` and `image.saveFolder` override wins over the global.
 
 ## Scope — optional / defensive
 

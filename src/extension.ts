@@ -616,7 +616,7 @@ export class EditorSession {
     this.webviewPanel.webview.postMessage({
       command: 'reload-css',
       id: 'external-css',
-      css: MarkdownEditorProvider.readExternalCss(),
+      css: MarkdownEditorProvider.readExternalCss(this.activeUri),
     })
   }
 
@@ -630,14 +630,17 @@ export class EditorSession {
     this.webviewPanel.webview.postMessage({
       command: 'reload-css',
       id: 'custom-css',
-      css: MarkdownEditorProvider.config.get<string>('css.custom') || '',
+      css:
+        MarkdownEditorProvider.cfgFor(this.activeUri).get<string>(
+          'css.custom',
+        ) || '',
     })
     this.postExternalCss()
   }
 
   private refreshExternalCssWatchers() {
     this.externalCssWatcher?.dispose()
-    const paths = MarkdownEditorProvider.resolveExternalCssPaths()
+    const paths = MarkdownEditorProvider.resolveExternalCssPaths(this.activeUri)
     if (paths.length === 0) {
       this.externalCssWatcher = undefined
       return
@@ -963,7 +966,10 @@ export class EditorSession {
 
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (!e.affectsConfiguration('vmarkd')) {
+        // Scope to this document's uri so resource-scoped overrides (task 51 #3)
+        // in a folder's .vscode/settings.json trigger a reload — and so an
+        // unrelated folder's change doesn't reload editors it doesn't affect.
+        if (!e.affectsConfiguration('vmarkd', this.activeUri)) {
           return
         }
         this.postLiveConfig()
@@ -1130,13 +1136,21 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return vscode.workspace.getConfiguration('vmarkd')
   }
 
+  // Resource-scoped config read (task 51 #3). The settings declared with
+  // `scope: "resource"` (css.custom / css.external / image.saveFolder) can be
+  // overridden per-project via .vscode/settings.json — but only if the read
+  // passes the document URI. Without a uri this is identical to `config`.
+  static cfgFor(uri?: vscode.Uri) {
+    return vscode.workspace.getConfiguration('vmarkd', uri)
+  }
+
   // External CSS files (task 12): resolve each `externalCssFiles` entry (absolute,
   // or relative to the first workspace folder) and concatenate their contents.
   // Read synchronously so it can feed the (sync) HTML build; unreadable/missing
   // files are skipped. Local-fs only — a no-op in virtual workspaces.
-  static readExternalCss(): string {
+  static readExternalCss(uri?: vscode.Uri): string {
     const files =
-      MarkdownEditorProvider.config.get<string[]>('css.external') || []
+      MarkdownEditorProvider.cfgFor(uri).get<string[]>('css.external') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     const chunks: string[] = []
     for (const f of files) {
@@ -1151,9 +1165,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return chunks.join('\n')
   }
 
-  static resolveExternalCssPaths(): string[] {
+  static resolveExternalCssPaths(uri?: vscode.Uri): string[] {
     const files =
-      MarkdownEditorProvider.config.get<string[]>('css.external') || []
+      MarkdownEditorProvider.cfgFor(uri).get<string[]>('css.external') || []
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     return files
       .filter(Boolean)
@@ -1232,9 +1246,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // (tasks 12/26). External loads first, customCss last, so customCss always
   // wins on conflicting rules (later tag = higher priority). Both are sanitized
   // against `</style>` breakout (task 18 §2b).
-  static _cssStyleTags(): string {
-    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss())}</style>`
-    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.config.get<string>('css.custom'))}</style>`
+  static _cssStyleTags(uri?: vscode.Uri): string {
+    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss(uri))}</style>`
+    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.cfgFor(uri).get<string>('css.custom'))}</style>`
     return external + custom
   }
 
@@ -1255,7 +1269,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
   static getAssetsFolder(uri: vscode.Uri) {
     const imageSaveFolder = (
-      MarkdownEditorProvider.config.get<string>('image.saveFolder') || 'assets'
+      MarkdownEditorProvider.cfgFor(uri).get<string>('image.saveFolder') ||
+      'assets'
     )
       .replace(
         '${projectRoot}',
@@ -1418,7 +1433,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 				<title>markdown editor</title>
         ` +
       prerenderThemeLink +
-      MarkdownEditorProvider._cssStyleTags() +
+      MarkdownEditorProvider._cssStyleTags(uri) +
       prerenderStyle +
       `
 			</head>
