@@ -551,7 +551,7 @@ export class EditorSession {
     this.disposables = []
     // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
     // watcher, edits and asset paths follow a renamed file. (Wiki context below
-    // stays init-frozen — cross-folder this.wiki rename is a known Phase-1 limit.)
+    // stays init-frozen — cross-folder wiki rename is a known Phase-1 limit.)
     this.activeUri = document.uri
     this.activeFsPath = document.uri.fsPath
     this.suppressCloseDispose = false
@@ -784,7 +784,7 @@ export class EditorSession {
       'open-settings': async () => {
         await vscode.commands.executeCommand('markdown-editor.openSettings')
       },
-      'list-this.wiki-pages': async () => {
+      'list-wiki-pages': async () => {
         const wikiRoot = getWikiRoot(document.uri)
         if (!wikiRoot) {
           return
@@ -806,7 +806,7 @@ export class EditorSession {
           })),
           {
             title: 'Wiki Pages',
-            placeHolder: 'Select a this.wiki page to open',
+            placeHolder: 'Select a wiki page to open',
           },
         )
         if (picked?.uri) {
@@ -871,11 +871,11 @@ export class EditorSession {
         switch (resolution.kind) {
           case 'disabled':
             showError(
-              `Wiki links are only enabled for Markdown files inside a this.wiki folder.`,
+              `Wiki links are only enabled for Markdown files inside a wiki folder.`,
             )
             break
           case 'invalid':
-            showError(`Invalid this.wiki link target.`)
+            showError(`Invalid wiki link target.`)
             break
           case 'missing': {
             const createChoice = await vscode.window.showWarningMessage(
@@ -917,8 +917,8 @@ export class EditorSession {
                 uri: candidate,
               })),
               {
-                title: `Select this.wiki page for "${message.target}"`,
-                placeHolder: 'Multiple this.wiki pages match this link.',
+                title: `Select wiki page for "${message.target}"`,
+                placeHolder: 'Multiple wiki pages match this link.',
               },
             )
 
