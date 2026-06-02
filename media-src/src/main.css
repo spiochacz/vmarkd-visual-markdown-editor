@@ -56,8 +56,9 @@ body[data-use-vscode-theme-color="1"] .vditor-hint {
     --vscode-menu-foreground,
     var(--vscode-editor-foreground)
   ) !important;
-  /* VS Code menus use the UI font-size (13px), not Vditor's 14px panel size. */
-  font-size: var(--vscode-font-size, 13px) !important;
+  /* VS Code menu rows are 13px; --vscode-font-size can be larger than that here,
+     so pin it rather than inherit the workbench size. */
+  font-size: 13px !important;
   border: 1px solid
     var(
       --vscode-menu-border,
@@ -69,9 +70,16 @@ body[data-use-vscode-theme-color="1"] .vditor-hint {
      (now-hidden) pointer beak. */
   margin-top: 0 !important;
 }
-/* VS Code menus have no pointer beak — drop Vditor's dropdown arrow. */
+/* VS Code menus have no pointer beak — drop Vditor's dropdown arrow, and tuck the
+   dropdown flush under its trigger (Vditor sits it ~14px lower to leave room for
+   the now-hidden beak). Only the downward arrow panels — nested level-2 submenus
+   have no arrow class and open to the side, so they're left alone. */
 body[data-use-vscode-theme-color="1"] .vditor-panel--arrow::before {
   display: none !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-panel--arrow {
+  top: 100% !important;
+  margin-top: 0 !important;
 }
 /* hovered / selected menu + hint item → VS Code menu selection highlight */
 body[data-use-vscode-theme-color="1"] .vditor-hint--current,
@@ -81,17 +89,15 @@ body[data-use-vscode-theme-color="1"]
 body[data-use-vscode-theme-color="1"]
   .vditor-panel
   button:not(.vditor-menu--disabled):hover {
-  /* VS Code menus highlight the hovered row with the subtle list-hover colour,
-     not the saturated active-selection blue (which isn't exposed to webviews, so
-     it was leaking through as bright blue). */
+  /* Hover the row with the SAME subtle background as the toolbar buttons — not
+     --vscode-menu-selectionBackground, which IS exposed to webviews and is the
+     saturated accent blue. Keep the text at the normal foreground (Vditor tints
+     it with the link colour otherwise). */
   background-color: var(
-    --vscode-menu-selectionBackground,
+    --vscode-toolbar-hoverBackground,
     var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.2))
   ) !important;
-  color: var(
-    --vscode-menu-selectionForeground,
-    var(--vscode-list-hoverForeground, var(--vscode-menu-foreground))
-  ) !important;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
 }
 /* Text-menu rows (the "…" more menu, export/theme submenus = .vditor-hint; the
    headings dropdown = .vditor-panel) get VS Code menu sizing: the UI font-size and
@@ -101,7 +107,7 @@ body[data-use-vscode-theme-color="1"] .vditor-hint button,
 body[data-use-vscode-theme-color="1"]
   .vditor-panel:not(:has(.vditor-emojis))
   button {
-  font-size: var(--vscode-font-size, 13px) !important;
+  font-size: 13px !important;
   line-height: 18px !important;
   padding: 3px 14px !important;
   display: block !important;
@@ -155,7 +161,7 @@ body[data-use-vscode-theme-color="1"]
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
   /* radius is measured on the (transparent) border box; the visible fill is the
      padding-box inside a 6px border, so its corner radius = 10 − 6 = 4px. */
-  border-radius: 10px !important;
+  border-radius: 8px !important;
 }
 /* While a dropdown is OPEN, keep its trigger highlighted (VS Code shows the active
    toolbar button highlighted). Vditor leaves a tooltipped trigger (e.g. the "…"
@@ -169,7 +175,7 @@ body[data-use-vscode-theme-color="1"]
   .vditor-toolbar__item:has(> .vditor-panel[style*="block"])
   > .vditor-tooltipped {
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
 }
 /* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
