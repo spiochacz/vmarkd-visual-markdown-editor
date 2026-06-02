@@ -697,6 +697,18 @@ export class EditorSession {
     showError(message.content)
   }
 
+  // Copy HTML / Markdown via the host clipboard (task 53 #1). The webview posts the
+  // content and we write it with vscode.env.clipboard — rock-solid regardless of
+  // iframe focus/permissions, unlike navigator.clipboard inside the webview.
+  private async onCopyToClipboard(message: any, label: string) {
+    try {
+      await vscode.env.clipboard.writeText(String(message.content ?? ''))
+      vscode.window.showInformationMessage(`Copy ${label} successfully!`)
+    } catch (error: any) {
+      showError(`Copy ${label} failed! ${error?.message ?? error}`)
+    }
+  }
+
   private async onEdit(message: any) {
     await this.syncToEditor(message.content)
   }
@@ -962,6 +974,8 @@ export class EditorSession {
       upload: (message) => this.onUpload(message),
       'open-link': (message) => this.onOpenLink(message),
       'open-wikilink': (message) => this.onOpenWikilink(message),
+      'copy-html': (message) => this.onCopyToClipboard(message, 'HTML'),
+      'copy-markdown': (message) => this.onCopyToClipboard(message, 'Markdown'),
     }
 
     this.disposables.push(

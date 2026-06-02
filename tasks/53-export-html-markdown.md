@@ -36,11 +36,15 @@ concrete, commonly-wanted feature.
   variant (write `.html` next to the source, then offer "Open"/"Reveal in Explorer").
   Defer unless save-to-file is wanted. (Pattern already used: wiki "Create Page".)
 
-### Optional — move Copy to host clipboard (#1 from the request)
-- `navigator.clipboard.writeText` in the webview works (covered by e2e) but is
-  focus/permission-sensitive in an iframe. While here, optionally route Copy HTML /
-  Copy Markdown through the host: webview posts `copy-html`/`copy-markdown` →
-  `env.clipboard.writeText(...)` (rock-solid). Small robustness win; one round-trip.
+### Move Copy to host clipboard (#1 from the request) — ✅ done
+- `navigator.clipboard.writeText` in the webview was focus/permission-sensitive in
+  the iframe (could silently no-op). Copy HTML / Copy Markdown now route through the
+  host: the webview posts `copy-html`/`copy-markdown` with the content →
+  `EditorSession.onCopyToClipboard` writes it via `vscode.env.clipboard.writeText`
+  (rock-solid) and shows the success/failure toast host-side. One extra round-trip.
+- Mock gained `env.clipboard.writeText` + `calls.clipboard`. Backend tests assert
+  both copies hit the clipboard and report success; the e2e now asserts the toolbar
+  posts the `copy-*` command with content (no longer writes `navigator.clipboard`).
 
 ## Out of scope
 
@@ -73,4 +77,6 @@ From the same "export / clipboard / links" idea list, one item was done separate
   this task — recorded here only so the idea-list item has a trail.
 
 Other items from that list: `withProgress` (#3) — skipped (renders are instant);
-host-side clipboard for Copy (#1) — captured above as optional within this task.
+host-side clipboard for Copy (#1) — **shipped** (`feat/host-clipboard-copy`, see the
+"Move Copy to host clipboard" section above). Export HTML (the primary scope) is the
+remaining net-new work.

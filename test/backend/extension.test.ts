@@ -158,6 +158,26 @@ describe('resolveCustomTextEditor — webview → editor sync', () => {
     expect(document.isDirty).toBe(false)
   })
 
+  it('copies HTML to the host clipboard and reports success (task 53 #1)', async () => {
+    const { panel } = resolveProvider('/workspace/note.md', '# Hi\n')
+    await panel._receiveMessage({
+      command: 'copy-html',
+      content: '<p>Hi</p>',
+    })
+    expect(mock.calls.clipboard).toEqual(['<p>Hi</p>'])
+    expect(mock.calls.showInformation).toContain('Copy HTML successfully!')
+  })
+
+  it('copies Markdown to the host clipboard and reports success (task 53 #1)', async () => {
+    const { panel } = resolveProvider('/workspace/note.md', '# Hi\n')
+    await panel._receiveMessage({
+      command: 'copy-markdown',
+      content: '# Hi\n',
+    })
+    expect(mock.calls.clipboard).toEqual(['# Hi\n'])
+    expect(mock.calls.showInformation).toContain('Copy Markdown successfully!')
+  })
+
   it('persists vditor options on "save-options"', async () => {
     const { panel } = resolveProvider()
     await panel._receiveMessage({

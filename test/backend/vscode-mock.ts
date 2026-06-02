@@ -260,6 +260,7 @@ function freshState() {
     calls: {
       executeCommand: [] as { command: string; args: any[] }[],
       openExternal: [] as Uri[],
+      clipboard: [] as string[],
       registeredCommands: new Map<string, (...args: any[]) => any>(),
       showError: [] as string[],
       showInformation: [] as string[],
@@ -500,6 +501,11 @@ export const env = {
     state.calls.openExternal.push(uri)
     return true
   }),
+  clipboard: {
+    writeText: vi.fn(async (text: string) => {
+      state.calls.clipboard.push(text)
+    }),
+  },
 }
 
 export const commands = {

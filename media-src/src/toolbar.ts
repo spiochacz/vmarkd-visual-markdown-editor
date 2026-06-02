@@ -194,37 +194,25 @@ export function createToolbar(options: ToolbarOptions = {}) {
         {
           name: 'copy-markdown',
           icon: t('copyMarkdown'),
-          async click() {
-            try {
-              await navigator.clipboard.writeText(vditor.getValue())
-              vscode.postMessage({
-                command: 'info',
-                content: 'Copy Markdown successfully!',
-              })
-            } catch (error) {
-              vscode.postMessage({
-                command: 'error',
-                content: `Copy Markdown failed! ${error.message}`,
-              })
-            }
+          // Copy on the host (vscode.env.clipboard) instead of the webview's
+          // navigator.clipboard — the latter is focus/permission-sensitive in a
+          // sandboxed iframe and can silently no-op. The host writes the clipboard
+          // and reports success/failure (task 53 #1).
+          click() {
+            vscode.postMessage({
+              command: 'copy-markdown',
+              content: vditor.getValue(),
+            })
           },
         },
         {
           name: 'copy-html',
           icon: t('copyHtml'),
-          async click() {
-            try {
-              await navigator.clipboard.writeText(vditor.getHTML())
-              vscode.postMessage({
-                command: 'info',
-                content: 'Copy HTML successfully!',
-              })
-            } catch (error) {
-              vscode.postMessage({
-                command: 'error',
-                content: `Copy HTML failed! ${error.message}`,
-              })
-            }
+          click() {
+            vscode.postMessage({
+              command: 'copy-html',
+              content: vditor.getHTML(),
+            })
           },
         },
         {
