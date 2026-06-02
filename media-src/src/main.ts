@@ -348,136 +348,142 @@ function initVditor(msg) {
   setTimeout(removePrerenderOverlay, 8000)
 }
 
+// Host→webview message handlers, one per `command`. Adding a command means adding
+// a handler + a map entry — no central switch to edit (Open/Closed). Each handler
+// owns one command and reads the shared module state directly, exactly as the
+// previous switch cases did.
+
+function handleUpdate(msg: any) {
+  if (msg.type === 'init') {
+    // A fresh editor: drop any stale gutter bars from a previous instance.
+    lastDiffChanges = []
+    clearDiffMarkers()
+    document.body.setAttribute('data-wiki-file', msg.wiki?.enabled ? '1' : '0')
+    applyBodyOptions(msg.options)
+    try {
+      initVditor(msg)
+    } catch (error) {
+      // reset options when error
+      console.error(error)
+      initVditor({ content: msg.content })
+      saveVditorOptions()
+    }
+    console.log('initVditor')
+  } else if (vditor.getValue() !== msg.content) {
+    applyingExtensionUpdate = true
+    try {
+      vditor.setValue(msg.content)
+    } finally {
+      setTimeout(() => {
+        applyingExtensionUpdate = false
+        // setValue re-rendered the blocks → re-apply the gutter bars.
+        if (window.vditor && lastDiffChanges.length) {
+          renderDiffMarkers(window.vditor, lastDiffChanges)
+        }
+      }, 0)
+    }
+    console.log('setValue')
+  }
+}
+
+function handleSetTheme(msg: any) {
+  // Live re-theme without re-initialising (keeps cursor/scroll). Chrome colors
+  // already follow via --vscode-* CSS vars.
+  applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+}
+
+function handleConfigChanged(msg: any) {
+  // Live config reload (task 26): body-attr / CSS-var options apply without
+  // touching Vditor. Constructor-only options (toolbar, word count, …) can't
+  // — re-init Vditor with the merged options, preserving the current content.
+  applyBodyOptions(msg.options)
+  const codeThemeChanged =
+    lastInitMsg && lastInitMsg.options?.codeTheme !== msg.options?.codeTheme
+  if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
+    const content =
+      window.vditor && !applyingExtensionUpdate
+        ? vditor.getValue()
+        : lastInitMsg.content
+    initVditor({
+      ...lastInitMsg,
+      content,
+      options: { ...lastInitMsg.options, ...msg.options },
+    })
+  } else if (codeThemeChanged && window.vditor) {
+    // Code-block theme isn't a constructor-only option — apply it live via
+    // setTheme (swaps the hljs stylesheet) without re-init, keeping cursor.
+    lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
+    applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
+  }
+}
+
+function handleReloadCss(msg: any) {
+  // Live CSS swap (tasks 12/26): replace the customCss or external-CSS <style>
+  // node in place.
+  swapStyle(msg.id, msg.css)
+}
+
+function handleGetCursorOffset(_msg: any) {
+  // Reveal-in-Source (task 16): report the caret position so the host can select
+  // the matching line. Restore the last in-editor caret first (the toolbar button
+  // blurs the iframe and collapses the live selection). Reply with the line number
+  // AND that line's text — both measured against vditor.getValue() — so the host
+  // can match by content in the on-disk doc (which may differ by Vditor's on-load
+  // reflow) rather than a raw offset that drifts across the two text spaces. Always
+  // reply (line -1 when unresolved) so the host's awaited round-trip never hangs.
+  let line = -1
+  let lineText = ''
+  if (window.vditor) {
+    restoreEditorCaretIfLost()
+    const offset = getCursorSourceOffset(window.vditor)
+    if (offset >= 0) {
+      const res = lineAndTextForOffset(window.vditor.getValue(), offset)
+      line = res.line
+      lineText = res.lineText
+    }
+  }
+  vscode.postMessage({ command: 'cursor-offset', line, lineText })
+}
+
+function handleDiffInfo(msg: any) {
+  // Git gutters (task 17): stash + render the change bars.
+  lastDiffChanges = (msg.changes || []) as DiffChange[]
+  if (window.vditor) renderDiffMarkers(window.vditor, lastDiffChanges)
+}
+
+function handleUploaded(msg: any) {
+  msg.files.forEach((f) => {
+    if (f.endsWith('.wav')) {
+      vditor.insertValue(
+        `\n\n<audio controls="controls" src="${f}"></audio>\n\n`,
+      )
+    } else {
+      const i = new Image()
+      i.src = f
+      i.onload = () => {
+        vditor.insertValue(`\n\n![](${f})\n\n`)
+      }
+      i.onerror = () => {
+        vditor.insertValue(`\n\n[${f.split('/').slice(-1)[0]}](${f})\n\n`)
+      }
+    }
+  })
+}
+
+const messageHandlers: Record<string, (msg: any) => void> = {
+  update: handleUpdate,
+  'set-theme': handleSetTheme,
+  'config-changed': handleConfigChanged,
+  'reload-css': handleReloadCss,
+  'get-cursor-offset': handleGetCursorOffset,
+  'diff-info': handleDiffInfo,
+  uploaded: handleUploaded,
+}
+
 window.addEventListener('message', (e) => {
   const msg = e.data
   // console.log('msg from vscode', msg)
-  switch (msg.command) {
-    case 'update': {
-      if (msg.type === 'init') {
-        // A fresh editor: drop any stale gutter bars from a previous instance.
-        lastDiffChanges = []
-        clearDiffMarkers()
-        document.body.setAttribute(
-          'data-wiki-file',
-          msg.wiki?.enabled ? '1' : '0',
-        )
-        applyBodyOptions(msg.options)
-        try {
-          initVditor(msg)
-        } catch (error) {
-          // reset options when error
-          console.error(error)
-          initVditor({ content: msg.content })
-          saveVditorOptions()
-        }
-        console.log('initVditor')
-      } else {
-        if (vditor.getValue() !== msg.content) {
-          applyingExtensionUpdate = true
-          try {
-            vditor.setValue(msg.content)
-          } finally {
-            setTimeout(() => {
-              applyingExtensionUpdate = false
-              // setValue re-rendered the blocks → re-apply the gutter bars.
-              if (window.vditor && lastDiffChanges.length) {
-                renderDiffMarkers(window.vditor, lastDiffChanges)
-              }
-            }, 0)
-          }
-          console.log('setValue')
-        }
-      }
-      break
-    }
-    case 'set-theme': {
-      // Live re-theme without re-initialising (keeps cursor/scroll). Chrome
-      // colors already follow via --vscode-* CSS vars.
-      applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
-      break
-    }
-    case 'config-changed': {
-      // Live config reload (task 26): body-attr / CSS-var options apply without
-      // touching Vditor. Constructor-only options (toolbar, word count, …) can't
-      // — re-init Vditor with the merged options, preserving the current content.
-      applyBodyOptions(msg.options)
-      const codeThemeChanged =
-        lastInitMsg && lastInitMsg.options?.codeTheme !== msg.options?.codeTheme
-      if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
-        const content =
-          window.vditor && !applyingExtensionUpdate
-            ? vditor.getValue()
-            : lastInitMsg.content
-        initVditor({
-          ...lastInitMsg,
-          content,
-          options: { ...lastInitMsg.options, ...msg.options },
-        })
-      } else if (codeThemeChanged && window.vditor) {
-        // Code-block theme isn't a constructor-only option — apply it live via
-        // setTheme (swaps the hljs stylesheet) without re-init, keeping cursor.
-        lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
-        applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
-      }
-      break
-    }
-    case 'reload-css': {
-      // Live CSS swap (tasks 12/26): replace the customCss or external-CSS
-      // <style> node in place.
-      swapStyle(msg.id, msg.css)
-      break
-    }
-    case 'get-cursor-offset': {
-      // Reveal-in-Source (task 16): report the caret position so the host can
-      // select the matching line. Restore the last in-editor caret first (the
-      // toolbar button blurs the iframe and collapses the live selection). Reply
-      // with the line number AND that line's text — both measured against
-      // vditor.getValue() — so the host can match by content in the on-disk doc
-      // (which may differ by Vditor's on-load reflow) rather than a raw offset
-      // that drifts across the two text spaces. Always reply (line -1 when
-      // unresolved) so the host's awaited round-trip never hangs past its timeout.
-      let line = -1
-      let lineText = ''
-      if (window.vditor) {
-        restoreEditorCaretIfLost()
-        const offset = getCursorSourceOffset(window.vditor)
-        if (offset >= 0) {
-          const res = lineAndTextForOffset(window.vditor.getValue(), offset)
-          line = res.line
-          lineText = res.lineText
-        }
-      }
-      vscode.postMessage({ command: 'cursor-offset', line, lineText })
-      break
-    }
-    case 'diff-info': {
-      // Git gutters (task 17): stash + render the change bars.
-      lastDiffChanges = (msg.changes || []) as DiffChange[]
-      if (window.vditor) renderDiffMarkers(window.vditor, lastDiffChanges)
-      break
-    }
-    case 'uploaded': {
-      msg.files.forEach((f) => {
-        if (f.endsWith('.wav')) {
-          vditor.insertValue(
-            `\n\n<audio controls="controls" src="${f}"></audio>\n\n`,
-          )
-        } else {
-          const i = new Image()
-          i.src = f
-          i.onload = () => {
-            vditor.insertValue(`\n\n![](${f})\n\n`)
-          }
-          i.onerror = () => {
-            vditor.insertValue(`\n\n[${f.split('/').slice(-1)[0]}](${f})\n\n`)
-          }
-        }
-      })
-      break
-    }
-    default:
-      break
-  }
+  messageHandlers[msg?.command]?.(msg)
 })
 
 fixLinkClick()
