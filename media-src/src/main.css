@@ -122,6 +122,21 @@ body[data-use-vscode-theme-color="1"]
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
   border-radius: 5px !important;
 }
+/* While a dropdown is OPEN, keep its trigger highlighted (VS Code shows the active
+   toolbar button highlighted). Vditor leaves a tooltipped trigger (e.g. the "…"
+   more menu) with no open-state class — only :focus, which lingers after close —
+   so key off the child panel/hint actually being displayed (display:block). The
+   highlight clears the moment the panel hides. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item:has(> .vditor-hint[style*="block"])
+  > .vditor-tooltipped,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item:has(> .vditor-panel[style*="block"])
+  > .vditor-tooltipped {
+  background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
+  border-radius: 5px !important;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
 /* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
    colours instead of Vditor's fixed content-theme palette (which clashes with
    custom themes). Only when the use-VS-Code-colour option is on; the --vscode-*
