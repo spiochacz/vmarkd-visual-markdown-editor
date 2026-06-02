@@ -37,9 +37,9 @@
     "markdown-editor"
   ],
   "activationEvents": [
-    "onCommand:markdown-editor.openEditor",
-    "onCommand:markdown-editor.openTextEditor",
-    "onCustomEditor:markdown-editor.editor"
+    "onCommand:vmarkd.openEditor",
+    "onCommand:vmarkd.openTextEditor",
+    "onCustomEditor:vmarkd.editor"
   ],
   "repository": {
     "type": "git",
@@ -49,39 +49,39 @@
   "contributes": {
     "commands": [
       {
-        "command": "markdown-editor.openEditor",
+        "command": "vmarkd.openEditor",
         "title": "Open with markdown editor",
-        "category": "markdown-editor",
+        "category": "vMarkd",
         "icon": "$(markdown)"
       },
       {
-        "command": "markdown-editor.openTextEditor",
+        "command": "vmarkd.openTextEditor",
         "title": "Edit in Text Editor",
-        "category": "markdown-editor",
+        "category": "vMarkd",
         "icon": "$(go-to-file)"
       },
       {
-        "command": "markdown-editor.openSettings",
+        "command": "vmarkd.openSettings",
         "title": "Open vMarkd Settings",
-        "category": "markdown-editor",
+        "category": "vMarkd",
         "icon": "$(settings-gear)"
       },
       {
-        "command": "markdown-editor.openInSplit",
+        "command": "vmarkd.openInSplit",
         "title": "Open with markdown editor to the side",
-        "category": "markdown-editor",
+        "category": "vMarkd",
         "icon": "$(split-horizontal)"
       },
       {
-        "command": "markdown-editor.openSourceToSide",
+        "command": "vmarkd.openSourceToSide",
         "title": "Open source to the side",
-        "category": "markdown-editor",
+        "category": "vMarkd",
         "icon": "$(go-to-file)"
       }
     ],
     "customEditors": [
       {
-        "viewType": "markdown-editor.editor",
+        "viewType": "vmarkd.editor",
         "displayName": "Visual Markdown Editor",
         "selector": [
           {
@@ -108,42 +108,42 @@
       "explorer/context": [
         {
           "when": "resourceLangId == markdown",
-          "command": "markdown-editor.openEditor",
+          "command": "vmarkd.openEditor",
           "group": "navigation"
         }
       ],
       "editor/title": [
         {
-          "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
-          "command": "markdown-editor.openEditor",
+          "when": "!isInDiffEditor && activeCustomEditorId != vmarkd.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
+          "command": "vmarkd.openEditor",
           "group": "navigation@10"
         },
         {
-          "when": "!isInDiffEditor && activeCustomEditorId != markdown-editor.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
-          "command": "markdown-editor.openInSplit",
+          "when": "!isInDiffEditor && activeCustomEditorId != vmarkd.editor && (resourceExtname == .md || resourceExtname == .markdown) && (resourceScheme == file || resourceScheme == untitled)",
+          "command": "vmarkd.openInSplit",
           "group": "navigation@11"
         },
         {
-          "when": "activeCustomEditorId == markdown-editor.editor",
-          "command": "markdown-editor.openSourceToSide",
+          "when": "activeCustomEditorId == vmarkd.editor",
+          "command": "vmarkd.openSourceToSide",
           "group": "navigation@19"
         }
       ],
       "editor/title/context": [
         {
-          "when": "activeCustomEditorId == markdown-editor.editor",
-          "command": "markdown-editor.openTextEditor",
+          "when": "activeCustomEditorId == vmarkd.editor",
+          "command": "vmarkd.openTextEditor",
           "group": "1_open"
         }
       ],
       "commandPalette": [
         {
-          "command": "markdown-editor.openEditor",
+          "command": "vmarkd.openEditor",
           "when": "false"
         },
         {
-          "command": "markdown-editor.openSourceToSide",
-          "when": "activeCustomEditorId == markdown-editor.editor"
+          "command": "vmarkd.openSourceToSide",
+          "when": "activeCustomEditorId == vmarkd.editor"
         }
       ]
     },
@@ -152,12 +152,12 @@
         "title": "General",
         "order": 1,
         "properties": {
-          "markdown-editor.image.saveFolder": {
+          "vmarkd.image.saveFolder": {
             "type": "string",
             "default": "assets",
             "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`."
           },
-          "markdown-editor.editor.retainHidden": {
+          "vmarkd.editor.retainHidden": {
             "type": "boolean",
             "default": true,
             "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
@@ -168,32 +168,32 @@
         "title": "Appearance",
         "order": 2,
         "properties": {
-          "markdown-editor.theme.useVscodeColors": {
+          "vmarkd.theme.useVscodeColors": {
             "type": "boolean",
             "default": true,
             "description": "Use vscode theme's background color as the markdown editor's background color."
           },
-          "markdown-editor.editor.fullWidth": {
+          "vmarkd.editor.fullWidth": {
             "type": "boolean",
             "default": true,
             "description": "Enable full-width layout for the editor (removes max-width centering)."
           },
-          "markdown-editor.editor.fontSize": {
+          "vmarkd.editor.fontSize": {
             "type": "string",
             "default": "editor",
             "description": "Base font size of the editor content. \"editor\" follows VS Code's editor font size (recommended), \"vditor\" keeps Vditor's larger 16px reading size, or enter a number for an explicit pixel size (e.g. \"15\"). Headings scale proportionally."
           },
-          "markdown-editor.theme.highlightHeadings": {
+          "vmarkd.theme.highlightHeadings": {
             "type": "boolean",
             "default": true,
             "description": "Apply a themed background to headings (h1–h6) for easier scanning."
           },
-          "markdown-editor.editor.headingMarkers": {
+          "vmarkd.editor.headingMarkers": {
             "type": "boolean",
             "default": true,
             "description": "Show the IR-mode left-gutter markers (heading levels H1–H6, the link-reference ↩, etc.). Turn off to hide them and tighten the left margin."
           },
-          "markdown-editor.theme.mermaid": {
+          "vmarkd.theme.mermaid": {
             "type": "string",
             "enum": [
               "auto",
@@ -205,23 +205,23 @@
             "default": "auto",
             "description": "Theme for Mermaid diagrams. \"auto\" follows the editor (dark in a dark theme) — which renders a plain flowchart mostly monochrome; pick \"default\"/\"forest\"/\"neutral\" for colour, or \"dark\" to force the dark palette."
           },
-          "markdown-editor.editor.codeLineNumbers": {
+          "vmarkd.editor.codeLineNumbers": {
             "type": "boolean",
             "default": false,
             "description": "Show line numbers in fenced code blocks (rendered preview). Off by default — adds a line-number gutter per code block."
           },
-          "markdown-editor.theme.code": {
+          "vmarkd.theme.code": {
             "type": "string",
             "enum": ["auto", "a11y-dark", "a11y-light", "agate", "an-old-hope", "androidstudio", "ant-design", "arduino-light", "arta", "ascetic", "atom-one-dark", "atom-one-dark-reasonable", "atom-one-light", "brown-paper", "codepen-embed", "color-brewer", "dark", "default", "devibeans", "docco", "far", "felipec", "foundation", "github", "github-dark", "github-dark-dimmed", "gml", "googlecode", "gradient-dark", "gradient-light", "grayscale", "hybrid", "idea", "intellij-light", "ir-black", "isbl-editor-dark", "isbl-editor-light", "kimbie-dark", "kimbie-light", "lightfair", "lioshi", "magula", "mono-blue", "monokai", "monokai-sublime", "night-owl", "nnfx-dark", "nnfx-light", "nord", "obsidian", "panda-syntax-dark", "panda-syntax-light", "paraiso-dark", "paraiso-light", "pojoaque", "purebasic", "qtcreator-dark", "qtcreator-light", "rainbow", "routeros", "school-book", "shades-of-purple", "srcery", "stackoverflow-dark", "stackoverflow-light", "sunburst", "tokyo-night-dark", "tokyo-night-light", "tomorrow-night-blue", "tomorrow-night-bright", "vs", "vs2015", "xcode", "xt256"],
             "default": "auto",
             "description": "Syntax-highlight theme for code blocks (highlight.js). \"auto\" follows the VS Code light/dark theme (github / github-dark); pick any of the 73 highlight.js styles to override. Applies live."
           },
-          "markdown-editor.editor.toolbar": {
+          "vmarkd.editor.toolbar": {
             "type": "boolean",
             "default": true,
             "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
           },
-          "markdown-editor.editor.wordCount": {
+          "vmarkd.editor.wordCount": {
             "type": "boolean",
             "default": false,
             "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
@@ -232,13 +232,13 @@
         "title": "Custom CSS",
         "order": 3,
         "properties": {
-          "markdown-editor.css.custom": {
+          "vmarkd.css.custom": {
             "type": "string",
             "default": "",
             "editPresentation": "multilineText",
-            "markdownDescription": "Custom CSS injected into the editor webview. Applies live (no reload). Target Vditor classes such as `.vditor-reset`, e.g.:\n\n```css\n.vditor-reset { line-height: 1.7; }\n.vditor-reset h1 { color: #6cb6ff; }\n```\n\nFor stylesheet files instead, use `#markdown-editor.css.external#`."
+            "markdownDescription": "Custom CSS injected into the editor webview. Applies live (no reload). Target Vditor classes such as `.vditor-reset`, e.g.:\n\n```css\n.vditor-reset { line-height: 1.7; }\n.vditor-reset h1 { color: #6cb6ff; }\n```\n\nFor stylesheet files instead, use `#vmarkd.css.external#`."
           },
-          "markdown-editor.css.external": {
+          "vmarkd.css.external": {
             "type": "array",
             "items": {
               "type": "string"
@@ -252,12 +252,12 @@
         "title": "Outline",
         "order": 4,
         "properties": {
-          "markdown-editor.outline.openByDefault": {
+          "vmarkd.outline.openByDefault": {
             "type": "boolean",
             "default": false,
             "description": "Open the outline panel automatically when an editor opens."
           },
-          "markdown-editor.outline.position": {
+          "vmarkd.outline.position": {
             "type": "string",
             "enum": [
               "left",
@@ -266,12 +266,12 @@
             "default": "right",
             "description": "Which side the outline panel opens on."
           },
-          "markdown-editor.outline.width": {
+          "vmarkd.outline.width": {
             "type": "number",
             "default": 200,
             "description": "Width of the outline panel, in pixels."
           },
-          "markdown-editor.outline.highlight": {
+          "vmarkd.outline.highlight": {
             "type": "boolean",
             "default": true,
             "description": "Briefly flash a heading when you click it in the outline."
@@ -282,7 +282,7 @@
         "title": "Advanced",
         "order": 5,
         "properties": {
-          "markdown-editor.advanced.instantPreview": {
+          "vmarkd.advanced.instantPreview": {
             "type": "boolean",
             "default": true,
             "description": "Instant preview: before the live editor finishes loading, paint a fast read-only preview of the document and a placeholder toolbar so the file appears immediately, then swap to the live editor seamlessly. Turn off to open straight into the live editor with no pre-render."
@@ -299,15 +299,15 @@
     "keybindings": [
       {
         "key": "ctrl+alt+e",
-        "command": "markdown-editor.openTextEditor",
+        "command": "vmarkd.openTextEditor",
         "mac": "cmd+ctrl+e",
-        "when": "activeCustomEditorId == markdown-editor.editor"
+        "when": "activeCustomEditorId == vmarkd.editor"
       },
       {
         "key": "ctrl+f",
         "command": "editor.action.webvieweditor.showFind",
         "mac": "cmd+f",
-        "when": "activeCustomEditorId == markdown-editor.editor"
+        "when": "activeCustomEditorId == vmarkd.editor"
       }
     ]
   },

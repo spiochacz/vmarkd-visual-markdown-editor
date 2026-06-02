@@ -15,8 +15,8 @@ import {
 } from './wiki'
 
 const KeyVditorOptions = 'vditor.options'
-const MarkdownEditorViewType = 'markdown-editor.editor'
-const WikiFileContextKey = 'markdown-editor.isWikiFile'
+const MarkdownEditorViewType = 'vmarkd.editor'
+const WikiFileContextKey = 'vmarkd.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])
 const SupportedMarkdownExtensions = new Set(['.md', '.markdown'])
 
@@ -43,7 +43,7 @@ function debug(...args: any[]) {
 }
 
 function showError(msg: string) {
-  vscode.window.showErrorMessage(`[markdown-editor] ${msg}`)
+  vscode.window.showErrorMessage(`[vMarkd] ${msg}`)
 }
 
 // Random per-render nonce so only our own <script> tags are allowed to run
@@ -118,13 +118,13 @@ function currentThemeKind(): 'dark' | 'light' {
 function ensureCanWriteFiles(uri: vscode.Uri): boolean {
   if (uri.scheme !== 'file') {
     vscode.window.showInformationMessage(
-      `[markdown-editor] Image upload and wiki page creation are unavailable in virtual workspaces.`,
+      `[vMarkd] Image upload and wiki page creation are unavailable in virtual workspaces.`,
     )
     return false
   }
   if (!vscode.workspace.isTrusted) {
     vscode.window.showWarningMessage(
-      `[markdown-editor] Trust this workspace to upload images and create wiki pages.`,
+      `[vMarkd] Trust this workspace to upload images and create wiki pages.`,
     )
     return false
   }
@@ -247,7 +247,7 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       showFor(input.uri)
       mode.text = '$(eye) WYSIWYG'
       mode.tooltip = 'Markdown: visual editor — click to edit as source'
-      mode.command = 'markdown-editor.openTextEditor'
+      mode.command = 'vmarkd.openTextEditor'
       mode.show()
     } else if (
       input instanceof vscode.TabInputText &&
@@ -256,7 +256,7 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       showFor(input.uri)
       mode.text = '$(code) Source'
       mode.tooltip = 'Markdown: source view — click to open the visual editor'
-      mode.command = 'markdown-editor.openEditor'
+      mode.command = 'vmarkd.openEditor'
       mode.show()
     } else {
       reading.hide()
@@ -344,7 +344,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'markdown-editor.openEditor',
+      'vmarkd.openEditor',
       async (uri?: vscode.Uri, ...args) => {
         debug('command', uri, args)
         const target = getCommandTarget(uri)
@@ -380,7 +380,7 @@ export function activate(context: vscode.ExtensionContext) {
       },
     ),
     vscode.commands.registerCommand(
-      'markdown-editor.openInSplit',
+      'vmarkd.openInSplit',
       async (uri?: vscode.Uri, ...args) => {
         debug('command', uri, args)
         const target = getCommandTarget(uri)
@@ -406,7 +406,7 @@ export function activate(context: vscode.ExtensionContext) {
       },
     ),
     vscode.commands.registerCommand(
-      'markdown-editor.openTextEditor',
+      'vmarkd.openTextEditor',
       async (uri?: vscode.Uri, ...args) => {
         debug('command', uri, args)
         const target = getCommandTarget(uri)
@@ -422,7 +422,7 @@ export function activate(context: vscode.ExtensionContext) {
       },
     ),
     vscode.commands.registerCommand(
-      'markdown-editor.openSourceToSide',
+      'vmarkd.openSourceToSide',
       async (uri?: vscode.Uri, ...args) => {
         debug('command', uri, args)
         const target = getCommandTarget(uri)
@@ -456,16 +456,13 @@ export function activate(context: vscode.ExtensionContext) {
         }
       },
     ),
-    vscode.commands.registerCommand(
-      'markdown-editor.openSettings',
-      async () => {
-        // Open the Settings UI filtered to this extension's options.
-        await vscode.commands.executeCommand(
-          'workbench.action.openSettings',
-          '@ext:spiochacz.vmarkd',
-        )
-      },
-    ),
+    vscode.commands.registerCommand('vmarkd.openSettings', async () => {
+      // Open the Settings UI filtered to this extension's options.
+      await vscode.commands.executeCommand(
+        'workbench.action.openSettings',
+        '@ext:spiochacz.vmarkd',
+      )
+    }),
     vscode.window.registerCustomEditorProvider(
       MarkdownEditorViewType,
       new MarkdownEditorProvider(context),
@@ -725,7 +722,7 @@ export class EditorSession {
   }
 
   private async onOpenSettings() {
-    await vscode.commands.executeCommand('markdown-editor.openSettings')
+    await vscode.commands.executeCommand('vmarkd.openSettings')
   }
 
   private async onListWikiPages() {
@@ -961,7 +958,7 @@ export class EditorSession {
 
     this.disposables.push(
       vscode.workspace.onDidChangeConfiguration((e) => {
-        if (!e.affectsConfiguration('markdown-editor')) {
+        if (!e.affectsConfiguration('vmarkd')) {
           return
         }
         this.postLiveConfig()
@@ -1125,7 +1122,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   }
 
   static get config() {
-    return vscode.workspace.getConfiguration('markdown-editor')
+    return vscode.workspace.getConfiguration('vmarkd')
   }
 
   // External CSS files (task 12): resolve each `externalCssFiles` entry (absolute,

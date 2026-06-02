@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { activate } from '../../src/extension'
 import { mock, Uri, TabInputCustom, TabInputText } from './vscode-mock'
 
-const VIEW_TYPE = 'markdown-editor.editor'
+const VIEW_TYPE = 'vmarkd.editor'
 
 // statusBarItems are created in order: [reading (prio 100), mode (prio 99)]
 function bar() {
@@ -35,7 +35,7 @@ describe('status bar — reading time + mode (task 35)', () => {
     expect(reading.text).toContain('~2 min read')
     expect(modeItem.visible).toBe(true)
     expect(modeItem.text).toContain('WYSIWYG')
-    expect(modeItem.command).toBe('markdown-editor.openTextEditor') // click → source
+    expect(modeItem.command).toBe('vmarkd.openTextEditor') // click → source
   })
 
   it('shows Source + open-editor toggle when the file is in the text editor', () => {
@@ -47,7 +47,7 @@ describe('status bar — reading time + mode (task 35)', () => {
     expect(reading.visible).toBe(true)
     expect(reading.text).toContain('~1 min read')
     expect(modeItem.text).toContain('Source')
-    expect(modeItem.command).toBe('markdown-editor.openEditor') // click → visual
+    expect(modeItem.command).toBe('vmarkd.openEditor') // click → visual
   })
 
   it('hides both items on a non-markdown tab', () => {

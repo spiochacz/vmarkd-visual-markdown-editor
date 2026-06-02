@@ -28,12 +28,9 @@ describe('activate()', () => {
     activate(context as any)
 
     expect([...mock.calls.registeredCommands.keys()]).toEqual(
-      expect.arrayContaining([
-        'markdown-editor.openEditor',
-        'markdown-editor.openTextEditor',
-      ]),
+      expect.arrayContaining(['vmarkd.openEditor', 'vmarkd.openTextEditor']),
     )
-    expect(mock.calls.customEditor?.viewType).toBe('markdown-editor.editor')
+    expect(mock.calls.customEditor?.viewType).toBe('vmarkd.editor')
     expect(mock.calls.customEditor?.options.webviewOptions).toMatchObject({
       retainContextWhenHidden: true,
       enableFindWidget: true,
@@ -63,9 +60,7 @@ describe('activate()', () => {
   it('routes content-bearing debug logs at trace level only (task 18 §2d)', async () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    const open = mock.calls.registeredCommands.get(
-      'markdown-editor.openEditor',
-    )!
+    const open = mock.calls.registeredCommands.get('vmarkd.openEditor')!
     await open(Uri.file('/workspace/secret.md'))
     const ch = mock.calls.outputChannels.find((c) => c.name === 'vMarkd')!
     // nothing logged above trace — content never surfaces at the default level
@@ -404,7 +399,7 @@ describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
 describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
   beforeEach(() => mock.reset())
 
-  it('pushes config-changed + reload-css on a markdown-editor config change', async () => {
+  it('pushes config-changed + reload-css on a vmarkd config change', async () => {
     resolveProvider()
     mock.setConfig({
       'editor.fullWidth': false,
@@ -431,7 +426,7 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
     expect(cssMsgs.find((m) => m.id === 'custom-css')?.css).toBe('/* x */')
   })
 
-  it('ignores config changes outside the markdown-editor section', async () => {
+  it('ignores config changes outside the vmarkd section', async () => {
     resolveProvider()
     const before = mock.calls.postMessage.length
     mock.fireDidChangeConfiguration('editor')
@@ -478,9 +473,7 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
     })
     mock.setDocument(docUri.fsPath, docText)
 
-    const cmd = mock.calls.registeredCommands.get(
-      'markdown-editor.openSourceToSide',
-    )!
+    const cmd = mock.calls.registeredCommands.get('vmarkd.openSourceToSide')!
     return { run: () => cmd(docUri), docUri }
   }
 
@@ -488,7 +481,7 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
     expect([...mock.calls.registeredCommands.keys()]).toContain(
-      'markdown-editor.openSourceToSide',
+      'vmarkd.openSourceToSide',
     )
   })
 
@@ -532,9 +525,7 @@ describe('openSourceToSide reveals the caret (tasks 16 + 36)', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
     mock.setDocument('/orphan.md', 'a\nb\n')
-    const cmd = mock.calls.registeredCommands.get(
-      'markdown-editor.openSourceToSide',
-    )!
+    const cmd = mock.calls.registeredCommands.get('vmarkd.openSourceToSide')!
     await cmd(Uri.file('/orphan.md'))
     // no panel → opens via vscode.openWith default; never queries the cursor
     expect(mock.calls.shownTextEditors).toHaveLength(0)
