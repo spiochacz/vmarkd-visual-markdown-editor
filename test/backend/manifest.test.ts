@@ -16,6 +16,10 @@ describe('package.json manifest', () => {
     expect(pkg.engines.vscode).toBe('^1.110.0')
   })
 
+  it('pins extensionKind to workspace — it reads the local FS (task 51)', () => {
+    expect(pkg.extensionKind).toEqual(['workspace'])
+  })
+
   it('declares untrusted + virtual workspace capabilities as limited', () => {
     expect(pkg.capabilities.untrustedWorkspaces.supported).toBe('limited')
     expect(pkg.capabilities.virtualWorkspaces.supported).toBe('limited')

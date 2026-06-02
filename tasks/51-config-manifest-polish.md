@@ -1,7 +1,7 @@
 # Task 51 — Config & manifest polish (settings UX)
 
-**Status:** partly done — quick wins (1 + 2) shipped on `feat/config-manifest-polish`;
-3 (`scope: resource`, needs URI threading) and 4 (`extensionKind`) still open.
+**Status:** partly done — 1, 2 + 4 shipped on `feat/config-manifest-polish` (PR #41);
+3 (`scope: resource`, needs URI threading) still open.
 
 ## Problem
 
@@ -40,10 +40,11 @@ Thread the active document URI through the relevant reads (CSS aggregation,
 
 ## Scope — optional / defensive
 
-### 4. `extensionKind: ["workspace"]`
+### 4. `extensionKind: ["workspace"]` — ✅ done
 Defensive for Remote-SSH / WSL / Dev Containers — the extension reads the local FS
 (lute.min.js, images, wiki), so it must run on the workspace side. VS Code usually
-infers this for a node extension with `main`, so this is belt-and-suspenders.
+infers this for a node extension with `main`, so this is belt-and-suspenders. Pinned
+explicitly; `manifest.test.ts` asserts `extensionKind === ['workspace']`.
 
 ## Decided against (don't re-litigate)
 
