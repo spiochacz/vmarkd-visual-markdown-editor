@@ -119,3 +119,36 @@ describe('message handler: open-wikilink', () => {
     ).toBe(true)
   })
 })
+
+// Regression guard: the `list-wiki-pages` command must stay registered under that
+// exact key. A field-promotion refactor once rewrote the map key to
+// 'list-this.wiki-pages', silently unregistering the command — uncaught because it
+// had no test. These cover the picker flow end to end.
+describe('message handler: list-wiki-pages', () => {
+  beforeEach(() => mock.reset())
+
+  it('lists the wiki pages and opens the chosen one', async () => {
+    mountFs({
+      '/ws/wiki': [
+        ['Home.md', F],
+        ['Other Page.md', F],
+      ],
+    })
+    mock.setQuickPickResponse({ uri: Uri.file('/ws/wiki/Other Page.md') })
+    const panel = openWiki()
+    await panel._receiveMessage({ command: 'list-wiki-pages' })
+    expect(
+      openWithCalls().some(
+        (c) =>
+          c.args[0].fsPath === '/ws/wiki/Other Page.md' && c.args[1] === VIEW,
+      ),
+    ).toBe(true)
+  })
+
+  it('opens nothing when the file is not inside a wiki', async () => {
+    mountFs({})
+    const panel = openWiki('/ws/docs/note.md')
+    await panel._receiveMessage({ command: 'list-wiki-pages' })
+    expect(openWithCalls()).toHaveLength(0)
+  })
+})

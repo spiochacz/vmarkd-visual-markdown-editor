@@ -61,7 +61,7 @@ fixing the main **SRP** debt and unlocking unit tests of the editor logic.
   become `private on<Command>(message)` methods; the map binds to them. `start()`
   no longer defines handler bodies.
 
-- [ ] **Step 5 — tests (+ optional DI).** Add `test/backend/editor-session.test.ts`
+- [x] **Step 5 — tests.** (done; optional ConfigReader DI deferred) Add `test/backend/editor-session.test.ts`
   constructing an `EditorSession` with the vscode-mock and calling handler methods
   directly (assert `applyEdit`/`postMessage`). Optionally inject a `ConfigReader`
   to start paying down the DIP debt (static `config` global).
