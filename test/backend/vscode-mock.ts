@@ -256,6 +256,7 @@ function freshState() {
     },
     calls: {
       executeCommand: [] as { command: string; args: any[] }[],
+      openExternal: [] as Uri[],
       registeredCommands: new Map<string, (...args: any[]) => any>(),
       showError: [] as string[],
       showInformation: [] as string[],
@@ -487,6 +488,10 @@ export const extensions = {
 
 export const env = {
   language: 'en',
+  openExternal: vi.fn(async (uri: Uri) => {
+    state.calls.openExternal.push(uri)
+    return true
+  }),
 }
 
 export const commands = {
