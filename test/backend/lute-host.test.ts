@@ -40,6 +40,14 @@ describe('prerenderPrefix', () => {
     // even number of fence lines (the unterminated one was dropped)
     expect((out.match(/^```/gm) || []).length % 2).toBe(0)
   })
+
+  it('drops an unterminated fence even when the doc OPENS with it (offset 0)', () => {
+    // the only fence is on the very first line — the old guard missed this because
+    // it cut on '\n```' (which needs a preceding newline) while counting '^```'
+    const md = `\`\`\`js\n${'const x = 1\n'.repeat(3000)}`
+    const out = prerenderPrefix(md)
+    expect((out.match(/^```/gm) || []).length % 2).toBe(0)
+  })
 })
 
 describe('lute-host renderForMode', () => {

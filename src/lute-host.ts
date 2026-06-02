@@ -106,11 +106,13 @@ export function prerenderPrefix(markdown: string): string {
     const nl = slice.lastIndexOf('\n')
     if (nl > 0) slice = slice.slice(0, nl)
   }
-  // Odd number of fence lines → the last code block is unterminated; drop it so it
-  // can't turn the rest of the overlay into a code block.
-  if ((slice.match(/^```/gm) || []).length % 2 === 1) {
-    const lastFence = slice.lastIndexOf('\n```')
-    if (lastFence > 0) slice = slice.slice(0, lastFence)
+  // Odd number of fence lines → the last code block is unterminated; cut from the
+  // start of that last ``` line so it can't turn the rest of the overlay into one
+  // code block. Count and cut use the SAME matcher (a ``` at line start, offset 0
+  // included) so a doc that opens with an unterminated fence is handled too.
+  const fences = [...slice.matchAll(/^```/gm)]
+  if (fences.length % 2 === 1) {
+    slice = slice.slice(0, fences[fences.length - 1].index)
   }
   return slice
 }
