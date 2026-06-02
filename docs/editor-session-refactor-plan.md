@@ -51,7 +51,7 @@ fixing the main **SRP** debt and unlocking unit tests of the editor logic.
   `this.x` (mind `wiki`). Keep `document`/`webviewPanel` as local aliases.
   Do it in SMALL hand-edits or a guarded script, tsc after each chunk.
 
-- [ ] **Step 3 — closures → methods.** Extract `postUpdate`, `syncToEditor`,
+- [x] **Step 3 — closures → methods.** (done) Extract `postUpdate`, `syncToEditor`,
   `schedulePostUpdate`, `postExternalCss`, `postLiveConfig`,
   `refreshExternalCssWatchers`, `setupFileWatcher`, `scheduleDiffInfo` into
   `private` methods reading the fields. `start()` shrinks to: html + state init +

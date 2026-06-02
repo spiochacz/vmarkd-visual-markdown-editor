@@ -544,6 +544,121 @@ export class EditorSession {
     )
   }
 
+  private async syncToEditor(content: string) {
+    const document = this.document
+    if (normalizeContent(content) === normalizeContent(document.getText())) {
+      this.lastSyncedContent = document.getText()
+      return
+    }
+    this.applyingWebviewEdit = true
+    this.pendingWebviewContent = content
+    try {
+      const edit = new vscode.WorkspaceEdit()
+      edit.replace(this.activeUri, this.documentRange(document), content)
+      await vscode.workspace.applyEdit(edit)
+      this.lastSyncedContent = document.getText()
+    } finally {
+      this.applyingWebviewEdit = false
+    }
+  }
+
+  private async postUpdate(
+    props: {
+      type?: 'init' | 'update'
+      cdn?: string
+      options?: any
+      theme?: 'dark' | 'light'
+      wiki?: any
+    } = { options: void 0 },
+  ) {
+    const content = this.document.getText()
+    const force = props.type === 'init'
+    if (
+      !force &&
+      normalizeContent(content) === normalizeContent(this.lastSyncedContent)
+    ) {
+      return
+    }
+    this.lastSyncedContent = content
+    this.webviewPanel.webview.postMessage({
+      command: 'update',
+      content,
+      ...props,
+    })
+  }
+
+  private schedulePostUpdate() {
+    if (this.textEditTimer) {
+      clearTimeout(this.textEditTimer)
+    }
+    this.textEditTimer = setTimeout(() => {
+      this.postUpdate()
+    }, 75)
+  }
+
+  // Extracted so it can be disposed + recreated when the file is renamed.
+  private setupFileWatcher(uri: vscode.Uri): vscode.Disposable | undefined {
+    if (!this.workspaceFolder) {
+      return undefined
+    }
+    const relativePath = NodePath.relative(
+      this.workspaceFolder.uri.fsPath,
+      uri.fsPath,
+    ).replace(/\\/g, '/')
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(this.workspaceFolder, relativePath),
+    )
+    return vscode.Disposable.from(
+      watcher,
+      watcher.onDidChange(() => this.schedulePostUpdate()),
+      watcher.onDidCreate(() => this.schedulePostUpdate()),
+    )
+  }
+
+  private postExternalCss() {
+    this.webviewPanel.webview.postMessage({
+      command: 'reload-css',
+      id: 'external-css',
+      css: MarkdownEditorProvider.readExternalCss(),
+    })
+  }
+
+  // Live config reload (tasks 12/26): push config-driven body options + CSS to the
+  // open editor (no Vditor re-init, so cursor/scroll are preserved).
+  private postLiveConfig() {
+    this.webviewPanel.webview.postMessage({
+      command: 'config-changed',
+      options: MarkdownEditorProvider.collectConfigOptions(),
+    })
+    this.webviewPanel.webview.postMessage({
+      command: 'reload-css',
+      id: 'custom-css',
+      css: MarkdownEditorProvider.config.get<string>('customCss') || '',
+    })
+    this.postExternalCss()
+  }
+
+  private refreshExternalCssWatchers() {
+    this.externalCssWatcher?.dispose()
+    const paths = MarkdownEditorProvider.resolveExternalCssPaths()
+    if (paths.length === 0) {
+      this.externalCssWatcher = undefined
+      return
+    }
+    this.externalCssWatcher = vscode.Disposable.from(
+      ...paths.map((p) => {
+        const w = vscode.workspace.createFileSystemWatcher(p)
+        return vscode.Disposable.from(
+          w,
+          w.onDidChange(() => this.postExternalCss()),
+          w.onDidCreate(() => this.postExternalCss()),
+          w.onDidDelete(() => this.postExternalCss()),
+        )
+      }),
+    )
+    this.disposables.push(this.externalCssWatcher)
+  }
+
   start() {
     const document = this.document
     const webviewPanel = this.webviewPanel
@@ -588,57 +703,6 @@ export class EditorSession {
       currentThemeKind(),
     )
 
-    const syncToEditor = async (content: string) => {
-      if (normalizeContent(content) === normalizeContent(document.getText())) {
-        this.lastSyncedContent = document.getText()
-        return
-      }
-      this.applyingWebviewEdit = true
-      this.pendingWebviewContent = content
-      try {
-        const edit = new vscode.WorkspaceEdit()
-        edit.replace(this.activeUri, this.documentRange(document), content)
-        await vscode.workspace.applyEdit(edit)
-        this.lastSyncedContent = document.getText()
-      } finally {
-        this.applyingWebviewEdit = false
-      }
-    }
-
-    const postUpdate = async (
-      props: {
-        type?: 'init' | 'update'
-        cdn?: string
-        options?: any
-        theme?: 'dark' | 'light'
-        wiki?: any
-      } = { options: void 0 },
-    ) => {
-      const content = document.getText()
-      const force = props.type === 'init'
-      if (
-        !force &&
-        normalizeContent(content) === normalizeContent(this.lastSyncedContent)
-      ) {
-        return
-      }
-      this.lastSyncedContent = content
-      webviewPanel.webview.postMessage({
-        command: 'update',
-        content,
-        ...props,
-      })
-    }
-
-    const schedulePostUpdate = () => {
-      if (this.textEditTimer) {
-        clearTimeout(this.textEditTimer)
-      }
-      this.textEditTimer = setTimeout(() => {
-        postUpdate()
-      }, 75)
-    }
-
     // Git gutters (task 17): debounced HEAD↔current diff pushed to the webview.
     // The computer reads `this.activeFsPath` lazily so it follows a rename. Self-
     // disables (posts []) when there's no git / the file is untracked.
@@ -649,26 +713,7 @@ export class EditorSession {
     )
 
     // Extracted so it can be disposed + recreated when the file is renamed.
-    const setupFileWatcher = (
-      uri: vscode.Uri,
-    ): vscode.Disposable | undefined => {
-      if (!this.workspaceFolder) {
-        return undefined
-      }
-      const relativePath = NodePath.relative(
-        this.workspaceFolder.uri.fsPath,
-        uri.fsPath,
-      ).replace(/\\/g, '/')
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(this.workspaceFolder, relativePath),
-      )
-      return vscode.Disposable.from(
-        watcher,
-        watcher.onDidChange(() => schedulePostUpdate()),
-        watcher.onDidCreate(() => schedulePostUpdate()),
-      )
-    }
-    this.currentWatcher = setupFileWatcher(this.activeUri)
+    this.currentWatcher = this.setupFileWatcher(this.activeUri)
     if (this.currentWatcher) {
       this.disposables.push(this.currentWatcher)
     }
@@ -676,54 +721,13 @@ export class EditorSession {
     // Live config reload (tasks 12/26): on settings change push the config-driven
     // body options + CSS to the open editor, and watch external CSS files so
     // edits apply without reopening. No Vditor re-init (cursor/scroll preserved).
-    const postExternalCss = () => {
-      webviewPanel.webview.postMessage({
-        command: 'reload-css',
-        id: 'external-css',
-        css: MarkdownEditorProvider.readExternalCss(),
-      })
-    }
-    const postLiveConfig = () => {
-      webviewPanel.webview.postMessage({
-        command: 'config-changed',
-        // Same settings as the init payload; the webview decides which are live vs
-        // constructor-only (see INIT_ONLY_OPTIONS in live-config.ts).
-        options: MarkdownEditorProvider.collectConfigOptions(),
-      })
-      webviewPanel.webview.postMessage({
-        command: 'reload-css',
-        id: 'custom-css',
-        css: MarkdownEditorProvider.config.get<string>('customCss') || '',
-      })
-      postExternalCss()
-    }
-    const refreshExternalCssWatchers = () => {
-      this.externalCssWatcher?.dispose()
-      const paths = MarkdownEditorProvider.resolveExternalCssPaths()
-      if (paths.length === 0) {
-        this.externalCssWatcher = undefined
-        return
-      }
-      this.externalCssWatcher = vscode.Disposable.from(
-        ...paths.map((p) => {
-          const w = vscode.workspace.createFileSystemWatcher(p)
-          return vscode.Disposable.from(
-            w,
-            w.onDidChange(postExternalCss),
-            w.onDidCreate(postExternalCss),
-            w.onDidDelete(postExternalCss),
-          )
-        }),
-      )
-      this.disposables.push(this.externalCssWatcher)
-    }
-    refreshExternalCssWatchers()
+    this.refreshExternalCssWatchers()
 
     // Webview→host message handlers, one per command (replaces a 15-case switch).
-    // Defined once here so each arrow closes over this panel's state (document,
-    // this.activeUri, postUpdate, syncToEditor, … — the `let` ones read by reference, so
-    // they see renames) exactly as the switch cases did. Adding a command means
-    // adding an entry, not editing a central switch (Open/Closed).
+    // Each arrow delegates to the session's fields/methods (this.postUpdate,
+    // this.syncToEditor, …). Adding a command means adding an entry, not editing a
+    // central switch (Open/Closed). Step 4 will promote these into on<Command>
+    // methods; for now they stay inline.
     const messageHandlers: Record<string, (message: any) => unknown> = {
       ready: async () => {
         let wikiInit: any = this.wiki
@@ -734,7 +738,7 @@ export class EditorSession {
             wikiInit = { ...this.wiki, pageKeys }
           }
         }
-        await postUpdate({
+        await this.postUpdate({
           type: 'init',
           cdn: this.vditorBaseUri,
           options: {
@@ -760,13 +764,13 @@ export class EditorSession {
         showError(message.content)
       },
       edit: async (message) => {
-        await syncToEditor(message.content)
+        await this.syncToEditor(message.content)
       },
       'reset-config': async () => {
         await this.context.globalState.update(KeyVditorOptions, {})
       },
       save: async (message) => {
-        await syncToEditor(message.content)
+        await this.syncToEditor(message.content)
         await document.save()
       },
       'edit-in-vscode': async () => {
@@ -947,8 +951,8 @@ export class EditorSession {
         if (!e.affectsConfiguration('markdown-editor')) {
           return
         }
-        postLiveConfig()
-        refreshExternalCssWatchers()
+        this.postLiveConfig()
+        this.refreshExternalCssWatchers()
       }),
       vscode.workspace.onDidChangeTextDocument((event) => {
         if (event.document.uri.toString() !== this.activeUri.toString()) {
@@ -970,14 +974,14 @@ export class EditorSession {
         if (this.applyingWebviewEdit) {
           return
         }
-        schedulePostUpdate()
+        this.schedulePostUpdate()
       }),
       vscode.workspace.onDidSaveTextDocument((savedDocument) => {
         if (savedDocument.uri.toString() !== this.activeUri.toString()) {
           return
         }
         scheduleDiffInfo(savedDocument.getText())
-        schedulePostUpdate()
+        this.schedulePostUpdate()
       }),
       vscode.workspace.onDidRenameFiles((e) => {
         // Phase 1: direct file rename only. Re-point identity, tab, watcher and
@@ -994,7 +998,7 @@ export class EditorSession {
         this.panelEntry.uri = hit.newUri // keep the active-panel registry in sync
         webviewPanel.title = NodePath.basename(this.activeFsPath)
         this.currentWatcher?.dispose()
-        this.currentWatcher = setupFileWatcher(this.activeUri)
+        this.currentWatcher = this.setupFileWatcher(this.activeUri)
         if (this.currentWatcher) {
           this.disposables.push(this.currentWatcher)
         }
