@@ -47,6 +47,7 @@ checked here **only when the task is fully complete**.
 - [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
 - [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
 - [ ] [47 — Render inline-HTML / data-URI images](47-render-inline-html-data-uri-images.md) — Vditor sanitizer strips `<img data:…>` (CSP already allows it); investigate or document as limitation
+- [ ] [67 — Webview CSP + Lute Sanitize hardening](67-webview-csp-sanitize-hardening.md) — 🟡 remote script-exec already blocked; close the CSS/image exfil channel (`img-src https:` + inline `style`) + add `frame-src/object-src/base-uri 'none'`; optional esbuild patch adding iframe/embed/base to Sanitize skip-list. From `out/lute-security-analiza.md`.
 
 ## Marketplace / publication
 - [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)
@@ -95,3 +96,6 @@ Bugs verified to still exist in the Vditor source we ship (`media-src/node_modul
 - _Already fixed upstream (no task):_ code copy-button expanding a collapsed block — `codeRender.ts:48` already has `stopPropagation`.
 - **Export (V4):** already tracked as [53 — Export HTML/Markdown](53-export-html-markdown.md). Best technique source: tuanpmt `getFullyRenderedHTML` (standalone HTML, inline CSS/fonts/SVG, awaits mermaid+math).
 - Already covered by our architecture (no task needed): offline mermaid/i18n/CDN, host-clipboard, image paste→disk, image paths via `<base href>`, capture-phase key interception, outline focus, IR table popover, live theme. See report §4.
+
+### Dependency / engine (2026-06-03)
+- [ ] [66 — Upgrade the Lute markdown engine](66-lute-engine-upgrade.md) — 🟡 vditor ships Lute v1.7.6 (2023); `master` is +515 commits ahead with a `Sanitize` security fix + table/math/inline + direct vditor fixes. API verified compatible (one `New()` signature change). Vendor the prebuilt `lute.min.js` + `build.mjs` step; main risk is round-trip fidelity drift. Full analysis: `out/lute-upgrade-analiza.md`.
