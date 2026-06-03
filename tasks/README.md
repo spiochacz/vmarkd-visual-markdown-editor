@@ -76,3 +76,22 @@ checked here **only when the task is fully complete**.
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md)
 - [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — init-latency investigation; finding in task file
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
+
+## Vditor-fork-derived (2026-06-03 fork analysis)
+Cross-referenced from the Vditor fork survey against our code — see `out/vditor-co-aplikuje-raport.md` (applicability audit) and `out/vditor-forki-analiza.md` (full feature catalog). Listed roughly cheap→large so the decision set is in one place.
+- [ ] [56 — Vditor `listToggle` bugfixes](56-vditor-listtoggle-bugfixes.md) — 🟢 null-deref + sibling-scope bugs in the Vditor source we ship (Aloklok); esbuild `onLoad` patch. Cheap, safe.
+- [ ] [57 — KaTeX error resilience](57-katex-error-resilience.md) — 🟢 `throwOnError:false`/`strict:false` so a bad formula shows inline error, not a broken render (GongXunSS). ≈1 line.
+- [ ] [58 — Flush pending edit on Ctrl/Cmd+S](58-flush-pending-edit-on-save.md) — 🟢 250ms debounce can save stale content; flush before save (GongXunSS). Cheap.
+- [ ] [59 — Live re-theme Mermaid](59-mermaid-live-retheme.md) — 🟡 code follows theme live, mermaid doesn't; completes task 25 (tuanpmt). Medium.
+- [ ] [60 — Table-cell space-trimming fidelity](60-table-cell-space-trimming-fidelity.md) — 🟡 leading space before inline markers trimmed in our vendored Vditor (tuanpmt); reproduce first.
+- [ ] [61 — Minimal-diff write-back](61-minimal-diff-writeback.md) — 🟢🟢 any edit reserializes the whole doc → noisy git diff; write only changed ranges (tuanpmt). Largest, highest value.
+
+### Bug-hunt (2026-06-03) — confirmed against our `vditor@3.11.2`
+Bugs verified to still exist in the Vditor source we ship (`media-src/node_modules/vditor/src/ts/...`), found in fork fix-commits. See `out/vditor-co-aplikuje-raport.md` bug-hunt addendum.
+- [ ] [62 — IR link click is dead in the webview](62-ir-link-click-webview.md) — 🟢🟢 `link.isOpen:true` default + no override → `window.open` (sandboxed) → click neither opens nor edits (tuanpmt). Config-level fix in `main.ts`.
+- [ ] [63 — WYSIWYG tab+text → code block](63-wysiwyg-tab-text-codeblock.md) — 🟡 missing `isUnexceptCodeBlock` guard at `wysiwyg/input.ts:148` (GongXunSS). Source patch.
+- [ ] [64 — Image empty-alt protective rewrite missing](64-image-empty-alt.md) — 🟡 no `alt=""`→`alt="img"` (GongXunSS); vanish is runtime-dependent — reproduce first.
+- [ ] [65 — Repro batch: unverified editing bugs](65-editing-bug-repro-batch.md) — 🟡 WizTeam/Ficus core-handler bugs (backspace-soft-linebreak corruption, code-newline cursor jump, heading-Enter, select-all deselect, …) needing runtime repro → split off fixes.
+- _Already fixed upstream (no task):_ code copy-button expanding a collapsed block — `codeRender.ts:48` already has `stopPropagation`.
+- **Export (V4):** already tracked as [53 — Export HTML/Markdown](53-export-html-markdown.md). Best technique source: tuanpmt `getFullyRenderedHTML` (standalone HTML, inline CSS/fonts/SVG, awaits mermaid+math).
+- Already covered by our architecture (no task needed): offline mermaid/i18n/CDN, host-clipboard, image paste→disk, image paths via `<base href>`, capture-phase key interception, outline focus, IR table popover, live theme. See report §4.

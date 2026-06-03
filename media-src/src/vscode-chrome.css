@@ -103,19 +103,6 @@ body[data-use-vscode-theme-color="1"]
   width: 100% !important;
   text-align: left !important;
 }
-/* The Settings row pairs a gear icon with a text label — lay it out as a flex row
-   and shrink the (32px) gear to match the 12px menu text. Scoped to the button so
-   the icon-only built-in rows in the same menu are untouched. */
-.vditor-hint button[data-type="settings"] {
-  display: flex !important;
-  align-items: center;
-  gap: 7px;
-}
-.vditor-hint button[data-type="settings"] svg {
-  width: 14px !important;
-  height: 14px !important;
-  flex: 0 0 auto;
-}
 /* tooltips → VS Code hover widget (body + the little arrow Vditor tints via `color`) */
 body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
   background: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
