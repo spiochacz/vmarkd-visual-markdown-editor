@@ -167,25 +167,33 @@ body[data-use-vscode-theme-color="1"]
 
 /* The IR table toolbar (#fix-table-ir-wrapper) collapses to a "…" puck near the
    caret; its base puck is a hardcoded white-on-black box (main.css). Theme it like
-   a small toolbar button. The menu-surface rule above also matches this
-   .vditor-panel, so strip its border/shadow on the COLLAPSED puck (only the "…"
-   pseudo shows there); on hover it expands and keeps the themed menu surface. */
+   a small toolbar button.
+
+   The collapsed container holds the (clipped) table-edit icons with the "…" pseudo
+   painted on top. Round the container and clip it (overflow:hidden) so the icons
+   can't peek past the puck's rounded corners, strip the menu-surface border/shadow
+   the rule above adds, and make the "…" pseudo fill the WHOLE container (inset:0)
+   so nothing shows through. On hover it expands and keeps the themed menu surface. */
 body[data-use-vscode-theme-color="1"]
   #fix-table-ir-wrapper
   .vditor-panel:not(:hover):not(.vditor-panel_hover) {
   border: 0 !important;
   box-shadow: none !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
 }
 body[data-use-vscode-theme-color="1"]
   #fix-table-ir-wrapper
   .vditor-panel::after {
-  box-sizing: border-box !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   background-color: var(
     --vscode-toolbar-hoverBackground,
     var(--vscode-editorWidget-background, var(--vscode-editor-background))
   ) !important;
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
-  border: 1px solid
-    var(--vscode-menu-border, var(--vscode-panel-border, transparent)) !important;
-  border-radius: 4px !important;
 }
