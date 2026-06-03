@@ -171,6 +171,9 @@ replacing the constructor `value` path for over-cap docs.
 - Keep the existing overlay: it covers the brief read-only window so the open still
   *looks* instant.
 
+## Reported upstream (repro + verify these)
+- Vditor **#1906** — request for **incremental preview update** for streaming LLM output; reporter notes `insertValue` does **not** render mermaid and `insertMd` renders scrambled. We append rendered chunks via `processCodeRender` (`stream-render.ts:35`) — **explicitly verify mermaid (and other diagrams) render correctly in streamed chunks**, since that's the exact upstream pain point. https://github.com/Vanessa219/vditor/issues/1906
+
 ## Verify
 - `node bench-streaming.mjs` — chunked total ≤ monolithic, worst chunk ≤ ~100 ms.
   (If the script is gone, recreate from the §Approach `chunkize` impl.)

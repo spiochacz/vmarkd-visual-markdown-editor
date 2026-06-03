@@ -23,5 +23,12 @@ Inserting an image without alt text leaves a stable, visible image that survives
 - `media-src/src/main.ts:612-629` (upload → `insertValue('![](…)')`).
 - `out/vditor-forki-analiza.md` §3c.
 
+## Reported upstream (repro + verify while in the image path)
+- Vditor **#1336** — inserting multiple images, switching mode and back → **image data lost**. https://github.com/Vanessa219/vditor/issues/1336
+- Vditor **#1918** — uploading a same-name file causes a duplicate render. https://github.com/Vanessa219/vditor/issues/1918
+- Vditor **#1136** — Firefox: clicking the upload-image button offsets the cursor, image lands in the wrong place. https://github.com/Vanessa219/vditor/issues/1136
+- Vditor **PR #1872** — `options.preview.markdown.imgPathAllowSpace` (image paths with spaces). Relevant if our image refs can contain spaces. https://github.com/Vanessa219/vditor/pull/1872
+- _These are distinct image bugs from the empty-alt focus — verify alongside; split out if they need separate fixes._
+
 ## Verify
 Insert an image with no alt text (popover and paste/upload paths); it renders and survives editing the surrounding text + a save/reload round-trip. If not reproducible in 3.11.2, document as already-fixed and close.

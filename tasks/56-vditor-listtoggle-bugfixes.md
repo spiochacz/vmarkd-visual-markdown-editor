@@ -28,6 +28,9 @@ Toggling list type / checklist on one item affects **only that item**, and never
 - `media-src/esbuild-shared.mjs` — `fixDmpInterop` / `stubUnusedVditorButtons` are the precedent for source-level patching.
 - `out/vditor-forki-analiza.md` §4 (exact Aloklok commits `474336c1`, `eaf07e42`, `71e16a38`).
 
+## Reported upstream (repro + verify these)
+- Vditor **#460** — "checkbox is not working (Windows/Firefox)" — same checklist/`listToggle` area; reproduce and confirm our fix also covers it. https://github.com/Vanessa219/vditor/issues/460
+
 ## Verify
 - Repro doc no longer crashes on toggle; toggling one item leaves siblings' checkboxes untouched (IR **and** WYSIWYG).
 - Build (`node build.mjs`) succeeds; the patch-guard throws if `fixBrowserBehavior.ts` no longer matches (version-bump safety).

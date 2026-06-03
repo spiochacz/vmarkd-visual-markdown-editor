@@ -66,6 +66,9 @@ weakening the CSP/nonce model (task 18).
 - If the risk/benefit doesn't justify it, **document the limitation** (README /
   known-limitations) instead of changing the renderer, and close this as wontfix.
 
+## Reported upstream (repro + verify these)
+- Vditor **#1923** — "Render inline HTML-Code" — users expect inline HTML to render; confirms the demand. Verify our outcome (render vs documented limitation) against this case. https://github.com/Vanessa219/vditor/issues/1923
+
 ## Verify
 Open a `.md` that embeds `<img src="data:image/svg+xml;base64,…">` (in a table and
 in a paragraph) → the images render in vMarkd, matching VS Code's Markdown

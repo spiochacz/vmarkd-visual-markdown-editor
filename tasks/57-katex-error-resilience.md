@@ -23,5 +23,9 @@ Invalid math renders as KaTeX's inline error (red) and never throws; valid math 
 - `tasks/40-drop-unused-mathjax.md` (KaTeX is the sole engine).
 - `out/vditor-forki-analiza.md` §3a (GongXunSS `mathRender.ts` `extPath` + allow-errors commit).
 
+## Reported upstream (repro + verify these)
+- Vditor **#1915** — "输入单行数学公式时空指针错误" / null-pointer when typing a single-line math formula (wysiwyg + ir), editing blocked. ⚠️ The trace is a **Lute** nil-pointer (`lute.min.js … genASTByVditorDOM`), not a KaTeX throw — so `throwOnError:false` may NOT catch it. Reproduce; if it's Lute-level, either guard the math-input path or document as Lute-bound (separate from the KaTeX-render hardening this task delivers). https://github.com/Vanessa219/vditor/issues/1915
+- Vditor **#1262** — "The math formula cannot be shown completely" — verify long formulas render/scroll, not just that errors don't throw. https://github.com/Vanessa219/vditor/issues/1262
+
 ## Verify
 Open a doc containing a deliberately broken formula (e.g. `$\frac{1}{$`) alongside valid math: the broken one shows the red KaTeX error inline, valid formulas render normally, and the rest of the document is unaffected. Toggle IR/WYSIWYG/SV.

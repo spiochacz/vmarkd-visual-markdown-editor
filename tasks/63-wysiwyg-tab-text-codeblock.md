@@ -1,8 +1,8 @@
 # Task: WYSIWYG — tab+text wrongly turns into a code block
 
 > **Status:** ⬜ Not started.
-> **Source:** `GongXunSS/vditor` (`feat-vscode`) — `isUnexceptCodeBlock` guard. Verified still present in our `vditor@3.11.2`. See bug-hunt addendum.
-> **Value / Risk:** 🟡 fixes a surprising content-corruption in WYSIWYG / medium (source patch + needs careful guard)
+> **Source (preferred):** upstream **PR #1921** (`Vanessa219/vditor`, open, unmerged) — "auto code-block detection: switch from IDE-source heuristic to actual-content heuristic", touches `src/ts/util/processCode.ts` **with a test** (`__test__/util/processCode.test.ts`). Fixes reported issues #1917 (paste HTML → forced code block) and #1914 (paste math → forced ```` ``` ````); also relates to #1924 (tab indent). Fallback source: `GongXunSS/vditor` `isUnexceptCodeBlock` guard in `wysiwyg/input.ts`.
+> **Value / Risk:** 🟡 fixes a surprising content-corruption (paste/tab → forced code block) / medium (source patch). Verified still present in our `vditor@3.11.2`. See `out/vditor-upstream-issues-pr-analiza.md` §1 and the bug-hunt addendum.
 
 ## Problem
 In WYSIWYG, typing a leading tab (`\t`) before text can spin the block into a code block. `wysiwyg/input.ts:148` assigns the Lute-spun HTML unconditionally:
@@ -16,14 +16,21 @@ There is **no** `isUnexceptCodeBlock`-style guard anywhere in our vendored tree 
 A leading tab in a normal paragraph stays a paragraph (or indents), and does not silently convert to a code block in WYSIWYG.
 
 ## Steps
-1. **Reproduce first**: in WYSIWYG, start a line, press Tab, type text — confirm it becomes a `vditor-wysiwyg__pre` code block in the serialized markdown.
-2. Port GongXunSS's guard: before `blockElement.outerHTML = html` at `wysiwyg/input.ts:148`, detect the unintended-code-block case (the spun `html` matches `vditor-wysiwyg__pre` while the *previous* html had no ```` ``` ```` fence) and skip the conversion (keep the paragraph / apply indentation instead).
-3. Apply via the esbuild `onLoad` patch mechanism in `media-src/esbuild-shared.mjs` (same pattern as `fixDmpInterop` / task 56), with an anchored string replace + a version-mismatch guard that throws.
-4. Confirm intentional code blocks (```` ``` ````-fenced, or the code toolbar button) are unaffected.
+1. **Reproduce first**: (a) in WYSIWYG, start a line, press Tab, type text; (b) paste HTML-containing markdown / a math formula (issues #1917/#1914) — confirm content is forced into a `vditor-wysiwyg__pre` code block in the serialized markdown.
+2. **Preferred:** port **PR #1921**'s `processCode.ts` change — the auto-code-block detector keys off *actual content features* instead of IDE-source markers, so legitimate paste/tab content stays prose. Bring its test (`__test__/util/processCode.test.ts`) as a reference for our regression test.
+   - Fallback (if #1921's diff doesn't cover the tab case): also port GongXunSS's guard before `blockElement.outerHTML = html` at `wysiwyg/input.ts:148` (skip conversion when the spun `html` matches `vditor-wysiwyg__pre` but the previous html had no ```` ``` ```` fence).
+3. Apply via the esbuild `onLoad` patch mechanism in `media-src/esbuild-shared.mjs` (same pattern as `fixDmpInterop` / task 56), with an anchored string replace + a version-mismatch guard that throws. (Repo is dormant since 2026-02, so #1921 won't land upstream — we vendor it.)
+4. Confirm intentional code blocks (```` ``` ````-fenced, or the code toolbar button) are unaffected, and that pasting actual code still becomes a code block.
 
 ## See also
 - `media-src/esbuild-shared.mjs` (patch precedent), `tasks/56-vditor-listtoggle-bugfixes.md` (same mechanism).
 - `out/vditor-forki-analiza.md` §3c (GongXunSS `input.ts` guard).
+
+## Reported upstream (repro + verify these — fixed by PR #1921)
+- Vditor **#1917** — copying markdown containing HTML tags then Ctrl+V into the editor triggers auto code-block detection → content forced into a code block. https://github.com/Vanessa219/vditor/issues/1917
+- Vditor **#1914** — pasting a math formula auto-adds a ```` ``` ```` code fence. https://github.com/Vanessa219/vditor/issues/1914
+- Vditor **#1924** — tab indent inside a code block uses the wrong (too-wide) width. https://github.com/Vanessa219/vditor/issues/1924
+- (Source PR for the fix: **#1921**, with `__test__/util/processCode.test.ts`.)
 
 ## Verify
 Tab+text in WYSIWYG stays a paragraph; ```` ``` ````-fenced and toolbar-inserted code blocks still work; build's patch-guard throws on a Vditor version mismatch. Add a regression test if feasible.

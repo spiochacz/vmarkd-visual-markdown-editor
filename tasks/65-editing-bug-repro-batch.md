@@ -18,6 +18,14 @@ The fork bug-hunt surfaced several editing-logic bugs in files that still exist 
 8. **Completion mid-formula + Enter jumps the cursor past the formula** — Ficus `d3fa812`; `wysiwyg/input.ts` (only relevant if/when we add math autocomplete — likely defer).
 9. **Ordered-list renumbering** off — likely Lute-side; `fixBrowserBehavior.ts:273-277` looked correct. Low priority.
 
+### Also reported on upstream Vditor (verify on 3.11.2)
+- **#1925** (2026-06-03) — list + `>` blockquote: pressing Enter after the quote creates a new list item instead of a newline inside the quote. https://github.com/Vanessa219/vditor/issues/1925
+- **#1922** — Enter produces two `\n` in `getValue()` output. https://github.com/Vanessa219/vditor/issues/1922
+- **#1912** — `setValue` jumps the cursor to position 0. **We call `setValue` on host update/streaming** (`media-src/src/main.ts:443,533`) — confirm the caret/scroll isn't reset on an external update (we have an `applyingExtensionUpdate` guard). https://github.com/Vanessa219/vditor/issues/1912
+- **#939** — first Enter in a list should align with the sibling block. https://github.com/Vanessa219/vditor/issues/939
+- **#110 / #851** — code-block editing experience (newline + tab). https://github.com/Vanessa219/vditor/issues/110
+- **#1476** — IR paste of reference-style links adds a URL per link. https://github.com/Vanessa219/vditor/issues/1476
+
 ## Steps
 1. Build a single repro markdown fixture exercising each scenario; run them in the dev build (IR/WYSIWYG/SV as relevant).
 2. For each: mark 🔴 confirmed / 🟢 already-fixed / ⚪ not-applicable, with file:line.

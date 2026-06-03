@@ -23,5 +23,11 @@ Editing a table cell preserves intentional spacing before inline markers — no 
 - `tasks/61-minimal-diff-writeback.md` — a minimal-diff write would *contain* the blast radius of this and similar reflow bugs; consider sequencing.
 - `out/vditor-forki-analiza.md` §2f (tuanpmt V9 commits).
 
+## Reported upstream (repro + verify these)
+- Vditor **#645** — "表格单元格内文本换行显示异常" / text wrapping inside a table cell displays abnormally. https://github.com/Vanessa219/vditor/issues/645
+- Vditor **#1904** — table cell containing a math formula with a `|` char renders scrambled. https://github.com/Vanessa219/vditor/issues/1904
+- Vditor **#905** — can't copy/paste across multiple table cells. https://github.com/Vanessa219/vditor/issues/905
+- _Distinct table bugs from the space-trim focus — verify alongside while you're in the table serialize/render path; split into their own tasks if they need separate fixes._
+
 ## Verify
 Round-trip test passes; manual edit of an adjacent cell does not alter the spacing of the target cell in the saved file. Patch-guard throws on a Vditor version mismatch.

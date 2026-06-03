@@ -31,5 +31,9 @@ Clicking a link in IR does something correct and intentional: either (a) enters 
 - `src/extension.ts` — existing `open-link` / `onOpenLink` → `vscode.env.openExternal` path.
 - `media-src/node_modules/vditor/src/ts/ir/index.ts:154-162`, `util/Options.ts:68-69`.
 
+## Reported upstream (repro + verify these)
+- Vditor **#1476** — IR: pasting reference-style links adds a URL after each link on mode switch (link handling/round-trip near the same code). Verify our link-click change doesn't worsen it; ideally confirm it's unaffected. https://github.com/Vanessa219/vditor/issues/1476
+- Vditor **PR #1899** — "Refactor link creation logic in fixBrowserBehavior.ts" (paste hyperlink uses URL as title) — same link area; reference when touching link behavior. https://github.com/Vanessa219/vditor/pull/1899
+
 ## Verify
 In IR: plain-click a link → caret enters the link for editing (or your chosen behavior); Ctrl/Cmd-click → opens in the OS browser via the host. No silent dead click. Same behavior verified in WYSIWYG and SV.

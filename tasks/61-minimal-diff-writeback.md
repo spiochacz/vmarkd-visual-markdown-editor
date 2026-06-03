@@ -28,5 +28,10 @@ After an edit, the document on disk differs from the original by a **minimal dif
 - `tasks/60-table-cell-space-trimming-fidelity.md` — a minimal-diff write would *contain* such reflow bugs.
 - `tasks/46-rendered-diff-view.md` — diff infra/UX neighbour.
 
+## Reported upstream (repro + verify these — fidelity)
+- Vditor **#1898** — ⚠️ **DATA LOSS:** applying a heading to a multi-line paragraph shows all lines as heading, but after save + reopen it's **truncated to the first line only**. Minimal-diff write (or detecting the lossy reserialization) should prevent the loss. https://github.com/Vanessa219/vditor/issues/1898
+- Vditor **#1922** — pressing Enter yields **two `\n`** in `getValue()` output (inconsistent with pasted single-`\n` content). Verify our write-back doesn't inflate blank lines. https://github.com/Vanessa219/vditor/issues/1922
+- Vditor **#1476** — IR: pasting reference-style links (`[x][1]`) adds a URL after each link on mode switch (lossy round-trip). https://github.com/Vanessa219/vditor/issues/1476
+
 ## Verify
 Open a multi-section doc, edit one paragraph, save: `git diff` shows **only** that paragraph changed (no heading/blockquote/list reflow elsewhere). Reveal-in-source, git gutters, streaming, and undo all still work. Round-trip fidelity tests pass.
