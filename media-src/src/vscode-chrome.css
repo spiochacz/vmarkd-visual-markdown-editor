@@ -87,9 +87,13 @@ body[data-use-vscode-theme-color="1"]
 /* Text-menu rows (the "…" more menu, export/theme submenus = .vditor-hint; the
    headings dropdown = .vditor-panel) get VS Code menu sizing: the UI font-size and
    tight rows. The emoji picker is also a .vditor-panel but is a 30×30 icon grid —
-   exclude it via :not(:has(.vditor-emojis)) so its buttons keep their layout. */
+   exclude it via :not(:has(.vditor-emojis)). The .vditor-panel branch is scoped to
+   .vditor-toolbar so it does NOT hit the IR table toolbar (a .vditor-panel that
+   lives in the editor content, #fix-table-ir-wrapper) — its icon buttons must stay
+   a horizontal row, not get stacked vertically by display:block/width:100%. */
 body[data-use-vscode-theme-color="1"] .vditor-hint button,
 body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar
   .vditor-panel:not(:has(.vditor-emojis))
   button {
   font-size: 12px !important;
@@ -108,22 +112,33 @@ body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
 body[data-use-vscode-theme-color="1"] .vditor-tooltipped::before {
   color: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
 }
-/* Toolbar icons keep the foreground colour on hover / focus / active — Vditor
-   tints them with the link colour (blue), which also lingered via :focus after a
-   dropdown (e.g. the "…" more menu) closed, leaving the icon stuck blue. Feedback
-   is a VS Code-style hover background instead, applied only while actually
-   hovering so a closed menu's button doesn't stay highlighted. */
+/* Toolbar icons keep the foreground colour on hover / focus — Vditor tints them
+   with the link colour (blue), which also lingered via :focus after a dropdown
+   (e.g. the "…" more menu) closed, leaving the icon stuck blue. Feedback is a VS
+   Code-style hover background instead, applied only while actually hovering.
+
+   NOTE: deliberately does NOT touch .vditor-menu--current — that class marks a
+   genuinely SELECTED item (current editor mode wysiwyg/ir/split, active outline /
+   devtools, current table alignment via .vditor-icon--current). Vditor highlights
+   those with the accent colour; leave that intact so the selection stays visible. */
 body[data-use-vscode-theme-color="1"]
   .vditor-toolbar__item
-  .vditor-tooltipped:hover,
+  .vditor-tooltipped:hover:not(.vditor-menu--current),
 body[data-use-vscode-theme-color="1"]
   .vditor-toolbar__item
-  .vditor-tooltipped:focus,
-body[data-use-vscode-theme-color="1"]
-  .vditor-toolbar__item
-  .vditor-tooltipped.vditor-menu--current,
-body[data-use-vscode-theme-color="1"] .vditor-menu--current {
+  .vditor-tooltipped:focus:not(.vditor-menu--current) {
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+/* The selected/current highlight (editor mode, active outline/devtools, current
+   table alignment) follows the VS Code theme accent — --vscode-focusBorder, which
+   tracks the active theme — instead of Vditor's fixed link blue
+   (--toolbar-icon-hover-color = --vscode-textLink-foreground). */
+body[data-use-vscode-theme-color="1"] .vditor-menu--current,
+body[data-use-vscode-theme-color="1"] .vditor-icon--current {
+  color: var(
+    --vscode-focusBorder,
+    var(--vscode-textLink-foreground)
+  ) !important;
 }
 /* Make the hover/active highlight hug a centered band (~23px) like VS Code instead
    of filling the full 35px button: transparent top/bottom borders shrink the
@@ -163,4 +178,36 @@ body[data-use-vscode-theme-color="1"]
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
   border-radius: 5px / 11px !important;
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+
+/* The IR table "…" puck — theme ONLY its colour, nothing else. The base rule
+   (main.css) is a 21px opaque white square that covers the panel's icons cleanly;
+   keep that exact geometry (changing size/radius/inset made the icons peek). Use
+   an OPAQUE theme background so nothing bleeds through. */
+body[data-use-vscode-theme-color="1"]
+  #fix-table-ir-wrapper
+  .vditor-panel::after {
+  background-color: var(
+    --vscode-editorWidget-background,
+    var(--vscode-editor-background, #fff)
+  ) !important;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+
+/* Keep the EXPANDED table toolbar a single horizontal icon row. The buttons are
+   .vditor-icon (float:left), but once expanded the panel's shrink-to-fit width can
+   collapse to one button wide, wrapping the floats into a vertical column. Force a
+   flex row sized to its content. Only on the expanded (hover) state — the collapsed
+   "…" puck is untouched. */
+body[data-use-vscode-theme-color="1"] #fix-table-ir-wrapper .vditor-panel:hover,
+body[data-use-vscode-theme-color="1"]
+  #fix-table-ir-wrapper
+  .vditor-panel_hover {
+  display: flex !important;
+  flex-direction: row !important;
+  width: max-content !important;
+  max-width: none !important;
+  /* base rule sets opacity:0.86 on the expanded panel (Vditor "unobtrusive"), which
+     makes the whole menu translucent so content shows through — keep it solid. */
+  opacity: 1 !important;
 }
