@@ -1,6 +1,6 @@
 # Task: Upgrade the Lute markdown engine to the latest from 88250/lute
 
-> **Status:** ⬜ Not started (test round-trip drift before committing).
+> **Status:** ✅ Done (2026-06-04) — pinned to master `36ea9e0`, vendored + build-integrated, 281 tests green, VSIX verified, confirmed in-editor.
 > **Source:** User request (2026-06-03) — bump the Lute parser vditor uses to the newest `master`. Full analysis: `out/lute-upgrade-analiza.md`.
 > **Value / Risk:** 🟡 security (`Sanitize` advisory) + parse/table/math fidelity fixes / medium — fidelity-drift risk, vditor mode is lightly tested upstream now
 
