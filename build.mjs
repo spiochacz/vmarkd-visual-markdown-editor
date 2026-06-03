@@ -11,6 +11,7 @@
 import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 
 // node_modules/.bin so `tsc` resolves whether this is run via `npm run build`
 // or directly as `node build.mjs`.
@@ -85,9 +86,62 @@ async function removeMacMetadata(dirPath) {
   )
 }
 
+// Overwrite Vditor's bundled lute.min.js with our pinned, vendored Lute build
+// (media-src/vendor/lute, pinned to an explicit 88250/lute commit — see tasks/66).
+// Verifies the vendored file against source.json (tamper/corruption guard) and
+// propagates the Mulan PSL v2 LICENSE + NOTICE into the shipped media/ tree
+// (.vscodeignore excludes media-src/, so the notices must live under media/).
+async function syncLute() {
+  const vendorDir = path.resolve('media-src/vendor/lute')
+  const luteTargetDir = path.resolve('media/vditor/dist/js/lute')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    // No vendored Lute pinned — fall back to Vditor's bundled copy.
+    console.log(
+      '[lute] no vendored pin (media-src/vendor/lute) — using Vditor default',
+    )
+    return
+  }
+
+  const js = await fs.readFile(path.join(vendorDir, 'lute.min.js'))
+  const got = createHash('sha256').update(js).digest('hex')
+  if (got !== source.sha256) {
+    throw new Error(
+      `[lute] vendored lute.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
+        `Re-pin with: node media-src/scripts/fetch-lute.mjs <sha>`,
+    )
+  }
+
+  await fs.mkdir(luteTargetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'lute.min.js'),
+    path.join(luteTargetDir, 'lute.min.js'),
+  )
+  await fs.copyFile(
+    path.join(vendorDir, 'lute.min.js.map'),
+    path.join(luteTargetDir, 'lute.min.js.map'),
+  )
+  // Ship the license + attribution alongside the binary (Mulan PSL v2 §4).
+  for (const f of ['LICENSE', 'NOTICE']) {
+    await fs.copyFile(
+      path.join(vendorDir, f),
+      path.join(luteTargetDir, `lute.${f}`),
+    )
+  }
+  console.log(
+    `[lute] vendored ${source.commit.slice(0, 10)} (${source.goVersion}) verified + installed`,
+  )
+}
+
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
+await syncLute()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')
