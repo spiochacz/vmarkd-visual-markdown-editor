@@ -5,7 +5,7 @@ const pkg = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 )
 
-const VIEW_TYPE = 'markdown-editor.editor'
+const VIEW_TYPE = 'vmarkd.editor'
 
 describe('package.json manifest', () => {
   it('points main at the compiled extension entry', () => {
@@ -44,22 +44,19 @@ describe('package.json manifest', () => {
   it('contributes the open/edit commands', () => {
     const ids = pkg.contributes.commands.map((c: any) => c.command)
     expect(ids).toEqual(
-      expect.arrayContaining([
-        'markdown-editor.openEditor',
-        'markdown-editor.openTextEditor',
-      ]),
+      expect.arrayContaining(['vmarkd.openEditor', 'vmarkd.openTextEditor']),
     )
   })
 
   it('contributes an Open-in-Split command shown in the editor title (task 10)', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openInSplit',
+      (c: any) => c.command === 'vmarkd.openInSplit',
     )
     expect(cmd).toBeDefined()
     expect(cmd.icon).toBe('$(split-horizontal)')
     const inTitle = pkg.contributes.menus['editor/title'].some(
       (m: any) =>
-        m.command === 'markdown-editor.openInSplit' &&
+        m.command === 'vmarkd.openInSplit' &&
         m.when.includes(`activeCustomEditorId != ${VIEW_TYPE}`),
     )
     expect(inTitle).toBe(true)
@@ -67,12 +64,12 @@ describe('package.json manifest', () => {
 
   it('contributes an Open-source-to-the-side command in the custom-editor title (task 36)', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openSourceToSide',
+      (c: any) => c.command === 'vmarkd.openSourceToSide',
     )
     expect(cmd).toBeDefined()
     const inTitle = pkg.contributes.menus['editor/title'].some(
       (m: any) =>
-        m.command === 'markdown-editor.openSourceToSide' &&
+        m.command === 'vmarkd.openSourceToSide' &&
         m.when === `activeCustomEditorId == ${VIEW_TYPE}`,
     )
     expect(inTitle).toBe(true)
@@ -80,19 +77,19 @@ describe('package.json manifest', () => {
 
   it('contributes an Open-Settings command but NOT in the editor title bar', () => {
     const cmd = pkg.contributes.commands.find(
-      (c: any) => c.command === 'markdown-editor.openSettings',
+      (c: any) => c.command === 'vmarkd.openSettings',
     )
     expect(cmd).toBeDefined() // available via the command palette
     // intentionally absent from the editor title bar to keep it uncluttered
     const inTitle = pkg.contributes.menus['editor/title'].some(
-      (m: any) => m.command === 'markdown-editor.openSettings',
+      (m: any) => m.command === 'vmarkd.openSettings',
     )
     expect(inTitle).toBe(false)
   })
 
   it('binds the "edit in text editor" keybinding scoped to the custom editor', () => {
     const binding = pkg.contributes.keybindings.find(
-      (k: any) => k.command === 'markdown-editor.openTextEditor',
+      (k: any) => k.command === 'vmarkd.openTextEditor',
     )
     expect(binding).toBeDefined()
     expect(binding.key).toBe('ctrl+alt+e')
@@ -113,9 +110,9 @@ describe('package.json manifest', () => {
   it('activates on the custom editor and the open commands', () => {
     expect(pkg.activationEvents).toEqual(
       expect.arrayContaining([
-        'onCustomEditor:markdown-editor.editor',
-        'onCommand:markdown-editor.openEditor',
-        'onCommand:markdown-editor.openTextEditor',
+        'onCustomEditor:vmarkd.editor',
+        'onCommand:vmarkd.openEditor',
+        'onCommand:vmarkd.openTextEditor',
       ]),
     )
   })
@@ -129,19 +126,19 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.image.saveFolder']).toMatchObject({
+    expect(props['vmarkd.image.saveFolder']).toMatchObject({
       type: 'string',
       default: 'assets',
     })
-    expect(props['markdown-editor.theme.useVscodeColors']).toMatchObject({
+    expect(props['vmarkd.theme.useVscodeColors']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.editor.fullWidth']).toMatchObject({
+    expect(props['vmarkd.editor.fullWidth']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.css.custom']).toMatchObject({
+    expect(props['vmarkd.css.custom']).toMatchObject({
       type: 'string',
     })
   })
@@ -151,19 +148,19 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.editor.wordCount']).toMatchObject({
+    expect(props['vmarkd.editor.wordCount']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.editor.codeLineNumbers']).toMatchObject({
+    expect(props['vmarkd.editor.codeLineNumbers']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.editor.toolbar']).toMatchObject({
+    expect(props['vmarkd.editor.toolbar']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.editor.retainHidden']).toMatchObject({
+    expect(props['vmarkd.editor.retainHidden']).toMatchObject({
       type: 'boolean',
       default: true,
     })
@@ -174,28 +171,28 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.theme.highlightHeadings']).toMatchObject({
+    expect(props['vmarkd.theme.highlightHeadings']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.editor.headingMarkers']).toMatchObject({
+    expect(props['vmarkd.editor.headingMarkers']).toMatchObject({
       type: 'boolean',
       default: true,
     })
-    expect(props['markdown-editor.outline.position']).toMatchObject({
+    expect(props['vmarkd.outline.position']).toMatchObject({
       type: 'string',
       enum: ['left', 'right'],
       default: 'right',
     })
-    expect(props['markdown-editor.outline.width']).toMatchObject({
+    expect(props['vmarkd.outline.width']).toMatchObject({
       type: 'number',
       default: 200,
     })
-    expect(props['markdown-editor.outline.openByDefault']).toMatchObject({
+    expect(props['vmarkd.outline.openByDefault']).toMatchObject({
       type: 'boolean',
       default: false,
     })
-    expect(props['markdown-editor.outline.highlight']).toMatchObject({
+    expect(props['vmarkd.outline.highlight']).toMatchObject({
       type: 'boolean',
       default: true,
     })
@@ -206,11 +203,11 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.theme.mermaid']).toMatchObject({
+    expect(props['vmarkd.theme.mermaid']).toMatchObject({
       type: 'string',
       default: 'auto',
     })
-    expect(props['markdown-editor.theme.mermaid'].enum).toEqual(
+    expect(props['vmarkd.theme.mermaid'].enum).toEqual(
       expect.arrayContaining(['auto', 'default', 'forest']),
     )
   })
@@ -220,7 +217,7 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.editor.fontSize']).toMatchObject({
+    expect(props['vmarkd.editor.fontSize']).toMatchObject({
       type: 'string',
       default: 'editor',
     })
@@ -228,7 +225,7 @@ describe('package.json manifest', () => {
       (c: any) => c.title === 'Appearance',
     )
     expect(Object.keys(appearance.properties)).toContain(
-      'markdown-editor.editor.fontSize',
+      'vmarkd.editor.fontSize',
     )
   })
 
@@ -237,7 +234,7 @@ describe('package.json manifest', () => {
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['markdown-editor.css.external']).toMatchObject({
+    expect(props['vmarkd.css.external']).toMatchObject({
       type: 'array',
       default: [],
     })
@@ -254,9 +251,9 @@ describe('package.json manifest', () => {
     )
     expect(Object.keys(appearance.properties)).toEqual(
       expect.arrayContaining([
-        'markdown-editor.theme.highlightHeadings',
-        'markdown-editor.editor.headingMarkers',
-        'markdown-editor.editor.fullWidth',
+        'vmarkd.theme.highlightHeadings',
+        'vmarkd.editor.headingMarkers',
+        'vmarkd.editor.fullWidth',
       ]),
     )
   })
