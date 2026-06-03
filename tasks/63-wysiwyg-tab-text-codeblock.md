@@ -27,9 +27,9 @@ A leading tab in a normal paragraph stays a paragraph (or indents), and does not
 - Reference: GongXunSS `feat-vscode` added an `isUnexceptCodeBlock` guard before `blockElement.outerHTML = html` in `src/ts/wysiwyg/input.ts`.
 
 ## Reported upstream (repro + verify these — fixed by PR #1921)
-- Vditor **#1917** — copying markdown containing HTML tags then Ctrl+V into the editor triggers auto code-block detection → content forced into a code block. https://github.com/Vanessa219/vditor/issues/1917
-- Vditor **#1914** — pasting a math formula auto-adds a ```` ``` ```` code fence. https://github.com/Vanessa219/vditor/issues/1914
-- Vditor **#1924** — tab indent inside a code block uses the wrong (too-wide) width. https://github.com/Vanessa219/vditor/issues/1924
+- Vditor **#1917** — paste of HTML-containing markdown forced into a code block. **Manifests:** copy markdown that includes raw HTML (the reporter's case: a pandas-export block with `<div><style scoped>…`) and Ctrl+V into the editor → the **whole pasted block is force-converted to a code block** (all three modes). https://github.com/Vanessa219/vditor/issues/1917
+- Vditor **#1914** — pasting math auto-adds a ```` ``` ```` fence. **Manifests:** paste text like `设 $2(z+\bar{z})…=4+6i$ , 则 $z=(\quad)$ .` → the editor wraps it in a ``` code fence, so the math renders as **raw `$…$` string** instead of a formula; the user has to manually delete the fence. https://github.com/Vanessa219/vditor/issues/1914
+- Vditor **#1924** — tab indent inside a code block uses the wrong width. **Manifests:** editing e.g. Python in a code block, pressing Tab inserts a **single too-wide character** rather than a 4-space indent, so indentation looks wrong/misaligned. https://github.com/Vanessa219/vditor/issues/1924
 - (Source PR for the fix: **#1921**, with `__test__/util/processCode.test.ts`.)
 
 ## Verify

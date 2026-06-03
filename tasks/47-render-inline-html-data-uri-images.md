@@ -67,7 +67,7 @@ weakening the CSP/nonce model (task 18).
   known-limitations) instead of changing the renderer, and close this as wontfix.
 
 ## Reported upstream (repro + verify these)
-- Vditor **#1923** — "Render inline HTML-Code" — users expect inline HTML to render; confirms the demand. Verify our outcome (render vs documented limitation) against this case. https://github.com/Vanessa219/vditor/issues/1923
+- Vditor **#1923** — "Render inline HTML-Code". **Manifests (feature request):** users want the HTML inside a ```` ```html ```` fenced block to be **rendered as a live preview** (to see how it looks), not just shown as syntax-highlighted source. Confirms the demand; verify our outcome (render vs documented limitation) against this case. https://github.com/Vanessa219/vditor/issues/1923
 
 ## Verify
 Open a `.md` that embeds `<img src="data:image/svg+xml;base64,…">` (in a table and

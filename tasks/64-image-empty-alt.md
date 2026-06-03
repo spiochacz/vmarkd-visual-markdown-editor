@@ -24,10 +24,10 @@ Inserting an image without alt text leaves a stable, visible image that survives
 - Reference: GongXunSS `feat-vscode` rewrote `alt=""`→`alt="img"` on the image insert/update path ("Fix cannot create img").
 
 ## Reported upstream (repro + verify while in the image path)
-- Vditor **#1336** — inserting multiple images, switching mode and back → **image data lost**. https://github.com/Vanessa219/vditor/issues/1336
-- Vditor **#1918** — uploading a same-name file causes a duplicate render. https://github.com/Vanessa219/vditor/issues/1918
-- Vditor **#1136** — Firefox: clicking the upload-image button offsets the cursor, image lands in the wrong place. https://github.com/Vanessa219/vditor/issues/1136
-- Vditor **PR #1872** — `options.preview.markdown.imgPathAllowSpace` (image paths with spaces). Relevant if our image refs can contain spaces. https://github.com/Vanessa219/vditor/pull/1872
+- Vditor **#1336** — **image data lost** on mode switch. **Manifests:** insert several images (incl. linked `[![alt](img)](url)` forms), switch edit mode and back → some images/markup are gone from the content. https://github.com/Vanessa219/vditor/issues/1336
+- Vditor **#1918** — same-name upload leaves stray markup. **Manifests:** when the backend rejects a duplicate filename (returns `errFiles`), the editor shows the error toast correctly **but also leaves an extra empty `p>span>img` structure** behind in the document. https://github.com/Vanessa219/vditor/issues/1918
+- Vditor **#1136** — Firefox: cursor offset on toolbar image upload. **Manifests:** in WYSIWYG with the caret at the bottom of the doc, clicking the upload-image button inserts the image at the **start of the document** (or before existing text) instead of at the caret — the cursor position is lost. https://github.com/Vanessa219/vditor/issues/1136
+- Vditor **PR #1872** — `options.preview.markdown.imgPathAllowSpace` (fixes #1871). **Manifests (the bug):** an image whose path contains a space (`![](my image.png)`) fails to render; the new option allows spaces in image paths. Relevant — our local image refs (and `saveFolder` tokens) can contain spaces. https://github.com/Vanessa219/vditor/pull/1872
 - _These are distinct image bugs from the empty-alt focus — verify alongside; split out if they need separate fixes._
 
 ## Verify

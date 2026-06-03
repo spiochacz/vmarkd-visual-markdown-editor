@@ -24,9 +24,9 @@ Editing a table cell preserves intentional spacing before inline markers — no 
 - Reference: tuanpmt fixed this in Vditor's table reverse-render (the `.trimLeft()` path in `fixBrowserBehavior.ts` + the IR/WYSIWYG table `…DOM2Md` serializer).
 
 ## Reported upstream (repro + verify these)
-- Vditor **#645** — "表格单元格内文本换行显示异常" / text wrapping inside a table cell displays abnormally. https://github.com/Vanessa219/vditor/issues/645
-- Vditor **#1904** — table cell containing a math formula with a `|` char renders scrambled. https://github.com/Vanessa219/vditor/issues/1904
-- Vditor **#905** — can't copy/paste across multiple table cells. https://github.com/Vanessa219/vditor/issues/905
+- Vditor **#645** — text wrapping inside a table cell displays abnormally. **Manifests:** in IR/SV, type multiple lines in one cell (`1` Enter `2` Enter `3`) → it collapses to a single line; the line breaks become inline `<br />` markers (`<code class="vditor-ir__marker">&lt;br /&gt;</code>`) instead of wrapping. https://github.com/Vanessa219/vditor/issues/645
+- Vditor **#1904** — table cell with inline math containing `|` renders scrambled. **Manifests:** a cell like `\( |+\rangle\langle+| \)` — the `|` inside the math is parsed as a **column separator**, so the row's columns split/shift and the table renders mangled. (Overlaps the Lute `|`-in-math-in-table fix referenced by task 66.) https://github.com/Vanessa219/vditor/issues/1904
+- Vditor **#905** — can't copy/paste across multiple table cells. **Manifests:** copy a multi-cell/table region (e.g. from another doc) and paste into an existing table → **everything lands in the single focused cell** instead of being distributed across the corresponding cells (Typora-style). https://github.com/Vanessa219/vditor/issues/905
 - _Distinct table bugs from the space-trim focus — verify alongside while you're in the table serialize/render path; split into their own tasks if they need separate fixes._
 
 ## Verify

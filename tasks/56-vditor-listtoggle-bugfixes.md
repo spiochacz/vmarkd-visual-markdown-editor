@@ -29,7 +29,7 @@ Toggling list type / checklist on one item affects **only that item**, and never
 - Aloklok commits: `474336c1` (scope to current `<li>`), `eaf07e42` / `71e16a38` (null-deref → `?.`).
 
 ## Reported upstream (repro + verify these)
-- Vditor **#460** — "checkbox is not working (Windows/Firefox)" — same checklist/`listToggle` area; reproduce and confirm our fix also covers it. https://github.com/Vanessa219/vditor/issues/460
+- Vditor **#460** — "checkbox is not working (Windows/Firefox)". **Manifests:** clicking a task-list `[ ]`/`[x]` checkbox toggles correctly in Chrome but does **nothing** in Firefox (issue has before/after GIFs). Same checklist/`listToggle` area we patch — our webview is Chromium so it may not repro the browser half, but confirm toggling checklist items works and doesn't throw after our fix. https://github.com/Vanessa219/vditor/issues/460
 
 ## Verify
 - Repro doc no longer crashes on toggle; toggling one item leaves siblings' checkboxes untouched (IR **and** WYSIWYG).

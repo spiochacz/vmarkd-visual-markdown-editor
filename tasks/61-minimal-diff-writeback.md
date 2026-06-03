@@ -29,9 +29,9 @@ After an edit, the document on disk differs from the original by a **minimal dif
 - `tasks/46-rendered-diff-view.md` — diff infra/UX neighbour.
 
 ## Reported upstream (repro + verify these — fidelity)
-- Vditor **#1898** — ⚠️ **DATA LOSS:** applying a heading to a multi-line paragraph shows all lines as heading, but after save + reopen it's **truncated to the first line only**. Minimal-diff write (or detecting the lossy reserialization) should prevent the loss. https://github.com/Vanessa219/vditor/issues/1898
-- Vditor **#1922** — pressing Enter yields **two `\n`** in `getValue()` output (inconsistent with pasted single-`\n` content). Verify our write-back doesn't inflate blank lines. https://github.com/Vanessa219/vditor/issues/1922
-- Vditor **#1476** — IR: pasting reference-style links (`[x][1]`) adds a URL after each link on mode switch (lossy round-trip). https://github.com/Vanessa219/vditor/issues/1476
+- Vditor **#1898** — ⚠️ **DATA LOSS.** **Manifests:** take a paragraph that contains soft line breaks (a multi-line block) and apply a heading to it → the editor shows *all* the lines styled as the heading; **save and reopen → only the first line survives, the rest is silently gone**. Minimal-diff write (or detecting the lossy reserialization) should prevent the loss. https://github.com/Vanessa219/vditor/issues/1898
+- Vditor **#1922** — pressing Enter yields **two `\n`** in `getValue()`. **Manifests:** typing `title`+Enter+`content` produces `title\n\ncontent`, but pasting the same template gives a single `\n` — so the same visible text serializes differently depending on how it was entered (breaks delimiter/line-count-based parsing). Verify our write-back doesn't inflate blank lines. https://github.com/Vanessa219/vditor/issues/1922
+- Vditor **#1476** — IR: pasting reference-style links is lossy. **Manifests:** paste text using `[label][1]` + `[1]: https://…` definitions — looks fine in IR, but switch to another mode and **each link gets a literal URL appended after it**; switching back keeps the corruption. https://github.com/Vanessa219/vditor/issues/1476
 
 ## Verify
 Open a multi-section doc, edit one paragraph, save: `git diff` shows **only** that paragraph changed (no heading/blockquote/list reflow elsewhere). Reveal-in-source, git gutters, streaming, and undo all still work. Round-trip fidelity tests pass.

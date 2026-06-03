@@ -25,7 +25,7 @@ Ctrl/Cmd+S always persists the current editor content — never a stale snapshot
 - `src/extension.ts:719-722` (`onSave`), `:967` (save handler).
 
 ## Reported upstream (related — align with this)
-- Vditor **PR #1916** "fix: make undo work after recent edits" — flushes pending undo state before undo/redo (touches `ir/process.ts`, `sv/process.ts`, `editorCommonEvent.ts`, `wysiwyg/afterRenderEvent.ts`). Same "flush the debounced pending state before an action" pattern as this task's save-flush — consider a shared `flushPending()` and verify undo (our `undo-keybind.ts`) doesn't miss the latest edit either. https://github.com/Vanessa219/vditor/pull/1916
+- Vditor **PR #1916** "fix: make undo work after recent edits". **Manifests (the bug it fixes):** type something, then immediately press Ctrl+Z — the **most recent edit isn't reverted**, because it hadn't been pushed to the undo stack yet (same debounce-window race as our stale-save). The PR flushes pending undo state before undo/redo (touches `ir/process.ts`, `sv/process.ts`, `editorCommonEvent.ts`, `wysiwyg/afterRenderEvent.ts`). Consider a shared `flushPending()` and verify undo (our `undo-keybind.ts`) doesn't miss the latest edit either. https://github.com/Vanessa219/vditor/pull/1916
 
 ## Verify
 Type a character and immediately (<250ms) press Ctrl+S: the saved file on disk contains the just-typed character. Repeat rapidly several times. Confirm normal VS Code save UX (dirty dot clears) still works and no double-write occurs.
