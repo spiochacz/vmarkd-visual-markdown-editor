@@ -926,12 +926,12 @@ export class EditorSession {
         document.uri,
       ),
     }
-    webviewPanel.webview.html = this.htmlForWebview(
-      webviewPanel.webview,
-      document.uri,
-      document.getText(),
-      currentThemeKind(),
-    )
+    // NOTE: webview.html is intentionally set LAST (after onDidReceiveMessage is
+    // registered below) — see the assignment at the end of this method. Setting it
+    // here loads main.js, which posts `ready` almost immediately; if the host's
+    // message listener isn't attached yet, that `ready` is dropped and the editor
+    // never gets its `init` payload (blank/"hung" editor — intermittent, races the
+    // bundle load). Attaching the listener first closes that race.
 
     // Git gutters (task 17): debounced HEAD↔current diff pushed to the webview.
     // The computer reads `this.activeFsPath` lazily so it follows a rename. Self-
@@ -1076,6 +1076,17 @@ export class EditorSession {
           this.disposables.pop()?.dispose()
         }
       }),
+    )
+
+    // Set the HTML LAST — only now that onDidReceiveMessage (above) is attached.
+    // This loads main.js, which posts `ready` and triggers the init handshake; with
+    // the listener already live, the `ready` can't be dropped, so the editor always
+    // gets its content (fixes the intermittent blank/"hung" editor on window reload).
+    webviewPanel.webview.html = this.htmlForWebview(
+      webviewPanel.webview,
+      document.uri,
+      document.getText(),
+      currentThemeKind(),
     )
   }
 }
