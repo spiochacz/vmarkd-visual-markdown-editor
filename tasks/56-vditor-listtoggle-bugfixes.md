@@ -1,7 +1,7 @@
 # Task: Vditor `listToggle` upstream bugfixes (null-deref + sibling scope)
 
 > **Status:** ⬜ Not started.
-> **Source:** `Aloklok/vditor` fork (4 ahead, 0 behind) — pure bugfixes. See `out/vditor-co-aplikuje-raport.md` §1.1 and `out/vditor-forki-analiza.md` §4.
+> **Source:** `Aloklok/vditor` fork (4 ahead, 0 behind) — pure bugfixes (commits `474336c1`, `eaf07e42`, `71e16a38`). Verified still present in our `vditor@3.11.2` (evidence in Problem below).
 > **Value / Risk:** 🟢 fixes a real, reproducible bug in code we ship / low (string-replace patch, no behaviour change beyond the fix)
 
 ## Problem
@@ -26,7 +26,7 @@ Toggling list type / checklist on one item affects **only that item**, and never
 
 ## See also
 - `media-src/esbuild-shared.mjs` — `fixDmpInterop` / `stubUnusedVditorButtons` are the precedent for source-level patching.
-- `out/vditor-forki-analiza.md` §4 (exact Aloklok commits `474336c1`, `eaf07e42`, `71e16a38`).
+- Aloklok commits: `474336c1` (scope to current `<li>`), `eaf07e42` / `71e16a38` (null-deref → `?.`).
 
 ## Reported upstream (repro + verify these)
 - Vditor **#460** — "checkbox is not working (Windows/Firefox)" — same checklist/`listToggle` area; reproduce and confirm our fix also covers it. https://github.com/Vanessa219/vditor/issues/460

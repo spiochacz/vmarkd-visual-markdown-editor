@@ -1,7 +1,7 @@
 # Task: Live re-theme Mermaid diagrams on VS Code color-theme change
 
 > **Status:** ⬜ Not started.
-> **Source:** `tuanpmt/vditor` — "auto dark/light mode switching for mermaid". See `out/vditor-co-aplikuje-raport.md` §2.1. Completes the mermaid half of task 25.
+> **Source:** `tuanpmt/vditor` — "auto dark/light mode switching for mermaid". Completes the mermaid half of task 25.
 > **Value / Risk:** 🟡 closes a visible gap in live theming / medium (needs diagram re-render, not just config)
 
 ## Problem

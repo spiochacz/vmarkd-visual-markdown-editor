@@ -1,7 +1,7 @@
 # Task: IR link click is dead in the webview (window.open sandboxed)
 
 > **Status:** ⬜ Not started.
-> **Source:** `tuanpmt/vditor` `d9ba522` "fix(ir): click on link opens edit mode instead of opening URL". Verified still present in our `vditor@3.11.2`. See `out/vditor-co-aplikuje-raport.md` (bug-hunt addendum).
+> **Source:** `tuanpmt/vditor` `d9ba522` "fix(ir): click on link opens edit mode instead of opening URL". Verified still present in our `vditor@3.11.2` (evidence in Problem below).
 > **Value / Risk:** 🟢🟢 fixes a dead interaction in our exact environment / low (config-level, no source patch)
 
 ## Problem

@@ -1,7 +1,7 @@
 # Task: Minimal-diff write-back (preserve untouched markdown on edit)
 
 > **Status:** ⬜ Not started (larger — design first).
-> **Source:** `tuanpmt/vditor` — "Preserve original markdown format when no user edits". See `out/vditor-co-aplikuje-raport.md` §2.3. Core fidelity concern.
+> **Source:** `tuanpmt/vditor` — "Preserve original markdown format when no user edits". Core fidelity concern.
 > **Value / Risk:** 🟢🟢 highest product value (clean git diffs) / medium-high (touches the host write path; needs careful design)
 
 ## Problem

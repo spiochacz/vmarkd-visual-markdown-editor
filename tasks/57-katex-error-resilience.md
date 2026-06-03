@@ -1,7 +1,7 @@
 # Task: KaTeX error resilience (`throwOnError: false`, `strict: false`)
 
 > **Status:** ⬜ Not started.
-> **Source:** `GongXunSS/vditor` (`feat-vscode`) — "Allow errors in katex". See `out/vditor-co-aplikuje-raport.md` §1.2.
+> **Source:** `GongXunSS/vditor` (`feat-vscode`) — "Allow errors in katex" (added `strict:false, throwOnError:false` to `katex.renderToString` in `src/ts/markdown/mathRender.ts`).
 > **Value / Risk:** 🟢 a malformed formula shows a red inline error instead of breaking render / very low (≈1 line of config)
 
 ## Problem
@@ -21,7 +21,7 @@ Invalid math renders as KaTeX's inline error (red) and never throws; valid math 
 
 ## See also
 - `tasks/40-drop-unused-mathjax.md` (KaTeX is the sole engine).
-- `out/vditor-forki-analiza.md` §3a (GongXunSS `mathRender.ts` `extPath` + allow-errors commit).
+- Reference: GongXunSS `feat-vscode` set `strict:false, throwOnError:false` on `katex.renderToString` in `src/ts/markdown/mathRender.ts`.
 
 ## Reported upstream (repro + verify these)
 - Vditor **#1915** — "输入单行数学公式时空指针错误" / null-pointer when typing a single-line math formula (wysiwyg + ir), editing blocked. ⚠️ The trace is a **Lute** nil-pointer (`lute.min.js … genASTByVditorDOM`), not a KaTeX throw — so `throwOnError:false` may NOT catch it. Reproduce; if it's Lute-level, either guard the math-input path or document as Lute-bound (separate from the KaTeX-render hardening this task delivers). https://github.com/Vanessa219/vditor/issues/1915

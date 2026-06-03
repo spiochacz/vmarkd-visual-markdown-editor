@@ -1,7 +1,7 @@
 # Task: Flush the debounced edit on Ctrl/Cmd+S (avoid saving stale content)
 
 > **Status:** ⬜ Not started.
-> **Source:** `GongXunSS/vditor` (`feat-vscode`) — `handlerHistoryEvent` force-flush on ^s/^x/^v. See `out/vditor-co-aplikuje-raport.md` §1.3.
+> **Source:** `GongXunSS/vditor` (`feat-vscode`) — `handlerHistoryEvent` force-flush on ^s/^x/^v.
 > **Value / Risk:** 🟢 fixes a real save-correctness bug / low (reuses the existing capture-phase keybind pattern)
 
 ## Problem

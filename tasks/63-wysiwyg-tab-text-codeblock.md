@@ -2,7 +2,7 @@
 
 > **Status:** ⬜ Not started.
 > **Source (preferred):** upstream **PR #1921** (`Vanessa219/vditor`, open, unmerged) — "auto code-block detection: switch from IDE-source heuristic to actual-content heuristic", touches `src/ts/util/processCode.ts` **with a test** (`__test__/util/processCode.test.ts`). Fixes reported issues #1917 (paste HTML → forced code block) and #1914 (paste math → forced ```` ``` ````); also relates to #1924 (tab indent). Fallback source: `GongXunSS/vditor` `isUnexceptCodeBlock` guard in `wysiwyg/input.ts`.
-> **Value / Risk:** 🟡 fixes a surprising content-corruption (paste/tab → forced code block) / medium (source patch). Verified still present in our `vditor@3.11.2`. See `out/vditor-upstream-issues-pr-analiza.md` §1 and the bug-hunt addendum.
+> **Value / Risk:** 🟡 fixes a surprising content-corruption (paste/tab → forced code block) / medium (source patch). Verified still present in our `vditor@3.11.2` (evidence in Problem below).
 
 ## Problem
 In WYSIWYG, typing a leading tab (`\t`) before text can spin the block into a code block. `wysiwyg/input.ts:148` assigns the Lute-spun HTML unconditionally:
@@ -24,7 +24,7 @@ A leading tab in a normal paragraph stays a paragraph (or indents), and does not
 
 ## See also
 - `media-src/esbuild-shared.mjs` (patch precedent), `tasks/56-vditor-listtoggle-bugfixes.md` (same mechanism).
-- `out/vditor-forki-analiza.md` §3c (GongXunSS `input.ts` guard).
+- Reference: GongXunSS `feat-vscode` added an `isUnexceptCodeBlock` guard before `blockElement.outerHTML = html` in `src/ts/wysiwyg/input.ts`.
 
 ## Reported upstream (repro + verify these — fixed by PR #1921)
 - Vditor **#1917** — copying markdown containing HTML tags then Ctrl+V into the editor triggers auto code-block detection → content forced into a code block. https://github.com/Vanessa219/vditor/issues/1917

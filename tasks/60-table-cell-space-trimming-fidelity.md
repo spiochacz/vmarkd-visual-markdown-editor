@@ -1,7 +1,7 @@
 # Task: Fidelity — space trimmed before inline markers in table cells
 
 > **Status:** ⬜ Not started (reproduce first).
-> **Source:** `tuanpmt/vditor` — "Fix space trimmed before bold/inline markers in table cells (all modes)". See `out/vditor-co-aplikuje-raport.md` §2.2.
+> **Source:** `tuanpmt/vditor` — commits "Fix space trimmed before bold text in table cells" + "… before inline markers in table cells (all modes)".
 > **Value / Risk:** 🟡 markdown fidelity (core project concern) / medium — confirm the repro before patching
 
 ## Problem
@@ -21,7 +21,7 @@ Editing a table cell preserves intentional spacing before inline markers — no 
 ## See also
 - `tasks/06-table-panel-contenteditable-fix.md`, `tasks/52-source-to-webview-cursor-sync.md` (table/fidelity neighbours).
 - `tasks/61-minimal-diff-writeback.md` — a minimal-diff write would *contain* the blast radius of this and similar reflow bugs; consider sequencing.
-- `out/vditor-forki-analiza.md` §2f (tuanpmt V9 commits).
+- Reference: tuanpmt fixed this in Vditor's table reverse-render (the `.trimLeft()` path in `fixBrowserBehavior.ts` + the IR/WYSIWYG table `…DOM2Md` serializer).
 
 ## Reported upstream (repro + verify these)
 - Vditor **#645** — "表格单元格内文本换行显示异常" / text wrapping inside a table cell displays abnormally. https://github.com/Vanessa219/vditor/issues/645

@@ -1,7 +1,7 @@
 # Task: Upgrade the Lute markdown engine to the latest from 88250/lute
 
 > **Status:** ✅ Done (2026-06-04) — pinned to master `36ea9e0`, vendored + build-integrated, 281 tests green, VSIX verified, confirmed in-editor.
-> **Source:** User request (2026-06-03) — bump the Lute parser vditor uses to the newest `master`. Full analysis: `out/lute-upgrade-analiza.md`.
+> **Source:** User request (2026-06-03) — bump the Lute parser vditor uses to the newest `master`.
 > **Value / Risk:** 🟡 security (`Sanitize` advisory) + parse/table/math fidelity fixes / medium — fidelity-drift risk, vditor mode is lightly tested upstream now
 
 ## Problem
@@ -43,6 +43,6 @@ Build a differential harness: load two `lute.min.js` builds in plain Node (Gophe
 - Keep the old `lute.min.js` for rollback.
 
 ## See also
-- `out/lute-upgrade-analiza.md` — full analysis (mechanics, API compat, commit breakdown).
+- Lute upstream: `88250/lute` `master` (HEAD `36ea9e0`, 2026-06-03), Mulan PSL v2; pin a specific commit SHA. API compat + baseline diff results are inline above.
 - **Not fixed by this task:** `tasks/56` (listToggle) and `tasks/57` (KaTeX `throwOnError`) are vditor TS code, not Lute. `tasks/60` (table-cell trim) *may* partially benefit (the `|`-in-math-in-table commit).
 - Build pipeline: `build.mjs` (`syncVditorAssets`), Lute load at `vditor/src/ts/markdown/previewRender.ts:59`, `setLute.ts`.

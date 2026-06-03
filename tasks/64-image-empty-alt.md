@@ -1,7 +1,7 @@
 # Task: Image with empty alt — protective rewrite missing (possible vanish)
 
 > **Status:** ⬜ Not started (reproduce first).
-> **Source:** `GongXunSS/vditor` (`feat-vscode`) — `alt=""`→`alt="img"` rewrite ("Fix cannot create img"). Verified the rewrite is absent in our `vditor@3.11.2`. See bug-hunt addendum.
+> **Source:** `GongXunSS/vditor` (`feat-vscode`) — `alt=""`→`alt="img"` rewrite ("Fix cannot create img"). Verified the rewrite is absent in our `vditor@3.11.2` (evidence in Problem below).
 > **Value / Risk:** 🟡 image may disappear after insertion / low-medium (confirm the vanish before patching)
 
 ## Problem
@@ -21,7 +21,7 @@ Inserting an image without alt text leaves a stable, visible image that survives
 
 ## See also
 - `media-src/src/main.ts:612-629` (upload → `insertValue('![](…)')`).
-- `out/vditor-forki-analiza.md` §3c.
+- Reference: GongXunSS `feat-vscode` rewrote `alt=""`→`alt="img"` on the image insert/update path ("Fix cannot create img").
 
 ## Reported upstream (repro + verify while in the image path)
 - Vditor **#1336** — inserting multiple images, switching mode and back → **image data lost**. https://github.com/Vanessa219/vditor/issues/1336

@@ -1,7 +1,7 @@
 # Task: Repro batch — unverified editing bugs from fork bug-hunt
 
 > **Status:** ⬜ Not started (investigation/repro task; spawns fixes if confirmed).
-> **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — bugs NOT yet confirmed against our `vditor@3.11.2`. See `out/vditor-co-aplikuje-raport.md` bug-hunt addendum.
+> **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — bugs NOT yet confirmed against our `vditor@3.11.2` (candidates listed below with fork commit + engine file).
 > **Value / Risk:** 🟡 each is a plausible editing-correctness bug in core handlers / low to investigate, value depends on repro
 
 ## Problem
@@ -33,7 +33,7 @@ The fork bug-hunt surfaced several editing-logic bugs in files that still exist 
 4. Prioritize #1 (content corruption) and #5 (heading Enter) — these are the most impactful if confirmed.
 
 ## See also
-- `tasks/56-vditor-listtoggle-bugfixes.md` (patch mechanism), `out/vditor-forki-analiza.md` §8 (Ficus) / §7 (WizTeam).
+- `tasks/56-vditor-listtoggle-bugfixes.md` (esbuild `onLoad` patch mechanism for Vditor-source fixes).
 
 ## Verify
 Each candidate has a recorded verdict + evidence; confirmed bugs have follow-up fix tasks; the repro fixture is kept for regression. No code change lands from this task itself beyond confirmed fixes (which get their own tasks).

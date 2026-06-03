@@ -1,7 +1,7 @@
 # Task: Webview CSP + Lute Sanitize hardening (defense-in-depth)
 
 > **Status:** ⬜ Not started.
-> **Source:** Lute master security review (2026-06-03). Full analysis: `out/lute-security-analiza.md`.
+> **Source:** Lute master security review (2026-06-03).
 > **Value / Risk:** 🟡 security hardening / low — narrows an exfiltration channel + adds defense-in-depth; no functional change expected (verify image rendering).
 
 ## Problem
@@ -27,7 +27,7 @@ Close the exfiltration channel and add belt-and-suspenders so the security postu
 - (If step 2) Sanitize patch-guard throws on a Lute version mismatch.
 
 ## See also
-- `out/lute-security-analiza.md` — full review (Sanitize allowlist, CSP analysis, remote-script verdict).
+- Key facts inline above: Lute `Sanitize` allowlist in `render/sanitizer.go`; our CSP at `src/extension.ts:1448-1458`; remote script-exec already blocked (verdict in Problem).
 - `tasks/66-lute-engine-upgrade.md` — Lute bump brings 4 GHSA `Sanitize` fixes; sequence step 2 of this task against the upgraded source.
 - `tasks/56-vditor-listtoggle-bugfixes.md` — esbuild `onLoad` patch pattern to reuse.
 - CSP origin: `src/extension.ts:1448` (task 18 §2c); sanitize on by default: vditor `constants.ts:64`.
