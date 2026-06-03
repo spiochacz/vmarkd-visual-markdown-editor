@@ -118,15 +118,17 @@ function applyVditorTheme(theme: 'dark' | 'light') {
 // Show the REAL toolbar in the instant-paint overlay. Vditor builds its toolbar
 // element synchronously in the constructor — with the real icons — but only
 // attaches it to #app later, in its post-Lute initUI (~150 ms later). So right
-// after `new Vditor()` we can clone that built element into the overlay's empty
+// after `new Vditor()` (it builds synchronously now that i18n is inline) we can
+// clone that built element into the overlay's empty
 // placeholder bar: the teaser shows the actual toolbar (exact layout + icons, no
 // host-side replication) during the Lute wait, and it's dropped with the overlay
 // at the swap. Best-effort — a missing element just leaves the empty bar.
 function showRealToolbarInOverlay() {
-  // Vditor builds the editor (toolbar included) asynchronously — inside its i18n
-  // load callback — so the element isn't there the instant `new Vditor()` returns;
-  // it appears ~tens of ms later, still well before Lute resolves. Poll per frame
-  // until it exists (then clone it in) or the overlay is gone (swap happened).
+  // With i18n passed inline (window.VditorI18n, injected by the host before main.js)
+  // Vditor builds the toolbar synchronously in its constructor, so the element is
+  // usually present the instant `new Vditor()` returns. Still poll per frame as a
+  // fallback — if i18n was missing Vditor loads it async and the toolbar appears a
+  // few frames later — until it exists (clone it in) or the overlay is gone (swap).
   let tries = 0
   const tick = () => {
     const bar = document.querySelector('#vmarkd-prerender .vditor-toolbar')
@@ -235,6 +237,12 @@ function initVditor(msg) {
     height: '100%',
     minHeight: '100%',
     lang,
+    // The host injects the Vditor i18n bundle as a <script> before main.js, so
+    // window.VditorI18n is already set here. Passing it inline makes Vditor build
+    // the editor (toolbar included) synchronously in the constructor instead of
+    // waiting on its own async i18n fetch — so the toolbar is available for the
+    // overlay clone immediately. Falls back to Vditor's async load if it's absent.
+    i18n: (window as any).VditorI18n,
     value: msg.content,
     mode: 'ir',
     cache: { enable: false },

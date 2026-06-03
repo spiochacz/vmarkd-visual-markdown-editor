@@ -485,6 +485,10 @@ export const extensions = {
   ),
 }
 
+export const env = {
+  language: 'en',
+}
+
 export const commands = {
   registerCommand: vi.fn(
     (command: string, handler: (...args: any[]) => any) => {

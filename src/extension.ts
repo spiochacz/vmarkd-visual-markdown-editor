@@ -56,6 +56,34 @@ function getNonce(): string {
   return text
 }
 
+// Map the VS Code UI language (vscode.env.language, a lowercase BCP-47 tag like
+// "en", "zh-cn", "pt-br") to the closest Vditor i18n bundle that ships under
+// media/vditor/dist/js/i18n/*.js (de_DE, en_US, es_ES, fr_FR, ja_JP, ko_KR, pt_BR,
+// ru_RU, sv_SE, vi_VN, zh_CN, zh_TW). Default en_US. The host injects the matching
+// bundle into the webview HTML *before* main.js so `window.VditorI18n` is set when
+// Vditor is constructed; with i18n inline Vditor skips its async i18n fetch and
+// builds the editor (toolbar included) synchronously inside the constructor — so
+// the toolbar can be cloned into the instant-paint overlay right away, instead of
+// after an extra network round-trip (see media-src/src/main.ts).
+export function resolveVditorI18nLang(envLang: string | undefined): string {
+  const l = (envLang || 'en').toLowerCase().replace('_', '-')
+  if (l === 'zh-tw' || l === 'zh-hant') return 'zh_TW'
+  if (l.startsWith('zh')) return 'zh_CN'
+  const byBase: Record<string, string> = {
+    de: 'de_DE',
+    en: 'en_US',
+    es: 'es_ES',
+    fr: 'fr_FR',
+    ja: 'ja_JP',
+    ko: 'ko_KR',
+    pt: 'pt_BR',
+    ru: 'ru_RU',
+    sv: 'sv_SE',
+    vi: 'vi_VN',
+  }
+  return byBase[l.split('-')[0]] ?? 'en_US'
+}
+
 function normalizeContent(content: string) {
   return content.replace(/\r\n/g, '\n')
 }
@@ -1226,6 +1254,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Codicon restyle of the toolbar: loaded right after ant.js, it mutates the
     // injected <symbol> defs in place (see media-src/build-icon-sprite.mjs, task 44).
     const iconOverrideScript = toUri('media/vditor-icons-codicon.js')
+    // i18n bundle for the VS Code UI language. Loaded *before* main.js (below) so
+    // `window.VditorI18n` is set when Vditor is constructed → it skips its async
+    // i18n fetch and builds the toolbar synchronously (see resolveVditorI18nLang).
+    const i18nLang = resolveVditorI18nLang(vscode.env?.language)
+    const i18nScript = toUri(`media/vditor/dist/js/i18n/${i18nLang}.js`)
 
     // Content-Security-Policy (task 18 §2c). default-src 'none' denies
     // everything, then we re-allow only what the editor needs, all scoped to the
@@ -1359,6 +1392,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 				<div id="app"></div>
 				${prerenderOverlay}
 
+				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
 				<script nonce="${nonce}" id="vditorIconOverride" src="${iconOverrideScript}"></script>
 				${JsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
