@@ -20,6 +20,7 @@ import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
+import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
@@ -35,6 +36,8 @@ import {
   type DiffChange,
 } from './diff-markers'
 import './main.css'
+// loaded after main.css so the VS Code-native chrome rules win on the cascade
+import './vscode-chrome.css'
 
 let applyingExtensionUpdate = false
 // The last message Vditor was initialised from — used to re-init when a
@@ -63,6 +66,10 @@ function trackEditorCaret() {
   lastEditorRange = sel.getRangeAt(0).cloneRange()
 }
 document.addEventListener('selectionchange', trackEditorCaret)
+
+// Close toolbar dropdowns when clicking outside them (VS Code-native menu
+// behaviour; see toolbar-dismiss.ts).
+setupToolbarDismiss()
 
 // Restore the remembered caret when the live selection is missing or collapsed
 // to the editor start (focus left the iframe). Returns true if a restore ran.

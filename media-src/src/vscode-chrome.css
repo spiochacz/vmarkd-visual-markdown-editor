@@ -1,0 +1,166 @@
+/* ===========================================================================
+   VS Code-native editor chrome — toolbar, dropdown menus, autocomplete hint,
+   tooltips. Makes Vditor's chrome look/behave like VS Code's own menus.
+
+   Split out of main.css (it was iterated heavily and is a self-contained
+   concern). Imported AFTER main.css so these rules win on the cascade.
+
+   Two layers:
+   - the font-family rule is UNGATED (the UI font is always an improvement);
+   - everything else is GATED on body[data-use-vscode-theme-color="1"] (the
+     `vmarkd.theme.useVscodeColors` toggle), like the rest of the theme rules —
+     turn the toggle off and you get Vditor's native chrome back.
+
+   The click-outside-to-close behaviour lives in toolbar-dismiss.ts (JS).
+   =========================================================================== */
+
+/* The editor chrome (toolbar, dropdown menus, autocomplete hint, tooltips, tips)
+   follows VS Code's UI font — --vscode-font-family — so the menus match VS Code's
+   own menus, NOT the content/editor font. Vditor's default is a hardcoded
+   "Helvetica Neue" stack; override it on every menu surface. Tooltip text is a
+   ::after on .vditor-tooltipped (inside the toolbar), so it inherits this. */
+.vditor-toolbar,
+.vditor-panel,
+.vditor-hint,
+.vditor-tip {
+  font-family: var(--vscode-font-family, sans-serif)!important;
+}
+
+/* Dropdown panels (more / emoji / headings / theme pickers) and the autocomplete
+   hint render as VS Code menus (menu surface + border + widget shadow), hovered
+   items use the menu selection highlight, and tooltips render as a VS Code hover
+   widget — Vditor's base tooltip colours are hardcoded #fff-on-#3b3e43. */
+body[data-use-vscode-theme-color="1"] .vditor-panel,
+body[data-use-vscode-theme-color="1"] .vditor-hint {
+  background-color: var(
+    --vscode-menu-background,
+    var(--vscode-editorWidget-background)
+  ) !important;
+  color: var(
+    --vscode-menu-foreground,
+    var(--vscode-editor-foreground)
+  ) !important;
+  /* Pin the row size below VS Code's workbench font (--vscode-font-size can be
+     larger here) so the menu reads compact. */
+  font-size: 12px !important;
+  border: 2px solid
+    var(
+      --vscode-menu-border,
+      var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.45)))
+    ) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px 2px
+    var(--vscode-widget-shadow, rgba(0, 0, 0, 0.5)) !important;
+  /* tuck the dropdown flush under its trigger — Vditor leaves a gap for the
+     (now-hidden) pointer beak. */
+  margin-top: 0 !important;
+}
+/* VS Code menus have no pointer beak — drop Vditor's dropdown arrow, and tuck the
+   dropdown flush under its trigger (Vditor sits it ~14px lower to leave room for
+   the now-hidden beak). Only the downward arrow panels — nested level-2 submenus
+   have no arrow class and open to the side, so they're left alone. */
+body[data-use-vscode-theme-color="1"] .vditor-panel--arrow::before {
+  display: none !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-panel--arrow {
+  top: 100% !important;
+  margin-top: 0 !important;
+}
+/* hovered / selected menu + hint item → VS Code menu selection highlight */
+body[data-use-vscode-theme-color="1"] .vditor-hint--current,
+body[data-use-vscode-theme-color="1"]
+  .vditor-hint
+  button:not(.vditor-menu--disabled):hover,
+body[data-use-vscode-theme-color="1"]
+  .vditor-panel
+  button:not(.vditor-menu--disabled):hover {
+  /* Hover the row with the SAME subtle background as the toolbar buttons — not
+     --vscode-menu-selectionBackground, which IS exposed to webviews and is the
+     saturated accent blue. Keep the text at the normal foreground (Vditor tints
+     it with the link colour otherwise). */
+  background-color: var(
+    --vscode-toolbar-hoverBackground,
+    var(--vscode-list-hoverBackground, rgba(128, 128, 128, 0.2))
+  ) !important;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+/* Text-menu rows (the "…" more menu, export/theme submenus = .vditor-hint; the
+   headings dropdown = .vditor-panel) get VS Code menu sizing: the UI font-size and
+   tight rows. The emoji picker is also a .vditor-panel but is a 30×30 icon grid —
+   exclude it via :not(:has(.vditor-emojis)) so its buttons keep their layout. */
+body[data-use-vscode-theme-color="1"] .vditor-hint button,
+body[data-use-vscode-theme-color="1"]
+  .vditor-panel:not(:has(.vditor-emojis))
+  button {
+  font-size: 12px !important;
+  line-height: 18px !important;
+  padding: 3px 14px !important;
+  display: block !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+/* tooltips → VS Code hover widget (body + the little arrow Vditor tints via `color`) */
+body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
+  background: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
+  color: var(--vscode-editorHoverWidget-foreground, #fff) !important;
+  border: 1px solid var(--vscode-editorHoverWidget-border, transparent) !important;
+}
+body[data-use-vscode-theme-color="1"] .vditor-tooltipped::before {
+  color: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
+}
+/* Toolbar icons keep the foreground colour on hover / focus / active — Vditor
+   tints them with the link colour (blue), which also lingered via :focus after a
+   dropdown (e.g. the "…" more menu) closed, leaving the icon stuck blue. Feedback
+   is a VS Code-style hover background instead, applied only while actually
+   hovering so a closed menu's button doesn't stay highlighted. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:hover,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:focus,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped.vditor-menu--current,
+body[data-use-vscode-theme-color="1"] .vditor-menu--current {
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
+/* Make the hover/active highlight hug a centered band (~23px) like VS Code instead
+   of filling the full 35px button: transparent top/bottom borders shrink the
+   padding-box, and background-clip keeps the fill inside it. Padding is reduced to
+   match so the icon stays centered (6px border + 4px padding + 15px icon ×2 = 35).
+   Applied to the base button so the icon position is identical whether or not it's
+   highlighted; the colours below only paint on hover/open. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  border-top: 6px solid transparent !important;
+  border-bottom: 6px solid transparent !important;
+  background-clip: padding-box !important;
+}
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item
+  .vditor-tooltipped:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
+  /* radius is measured on the (transparent) border box; the visible fill is the
+     padding-box inside a 6px border, so a 5px / 11px x/y radius nets a uniform
+     ~5px corner (5−0 horizontal, 11−6 vertical). */
+  border-radius: 5px / 11px !important;
+}
+/* While a dropdown is OPEN, keep its trigger highlighted (VS Code shows the active
+   toolbar button highlighted). Vditor leaves a tooltipped trigger (e.g. the "…"
+   more menu) with no open-state class — only :focus, which lingers after close —
+   so key off the child panel/hint actually being displayed (display:block). The
+   highlight clears the moment the panel hides. */
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item:has(> .vditor-hint[style*="block"])
+  > .vditor-tooltipped,
+body[data-use-vscode-theme-color="1"]
+  .vditor-toolbar__item:has(> .vditor-panel[style*="block"])
+  > .vditor-tooltipped {
+  background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
+  border-radius: 5px / 11px !important;
+  color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
+}
