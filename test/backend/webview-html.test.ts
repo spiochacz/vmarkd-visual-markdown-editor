@@ -3,7 +3,7 @@ import { MarkdownEditorProvider } from '../../src/extension'
 import { mock, ThemeIcon, Uri } from './vscode-mock'
 
 function resolveAndGetHtml(customCss = '') {
-  mock.setConfig({ customCss })
+  mock.setConfig({ 'css.custom': customCss })
   mock.setWorkspaceFolder('/workspace')
   const context = mock.createExtensionContext()
   const document = mock.createTextDocument('/workspace/note.md', '# Hello\n')
