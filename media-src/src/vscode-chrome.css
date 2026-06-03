@@ -267,3 +267,17 @@ body[data-use-vscode-theme-color="1"]
     transform: rotate(360deg);
   }
 }
+
+/* Keep the toolbar on a single row. When a tab is hidden the webview collapses to
+   zero width; Vditor floats its toolbar items (`.vditor-toolbar__item { float:left }`),
+   so at zero width they stack into a grid, and that wrapped frame is briefly painted
+   on the way back (the "crooked toolbar" flash on tab switch — the webview is RETAINED,
+   not rebuilt, so it's a reflow artifact, not a re-render). white-space/flex-wrap don't
+   affect floats, so we switch the toolbar to a flex row: flex parents IGNORE child
+   float entirely, and flex-wrap:nowrap means the row never collapses into a grid. No
+   visual change at normal width — the items already sit left-to-right in one line. */
+.vditor-toolbar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}

@@ -1,5 +1,4 @@
 import { t } from './lang'
-import { confirm } from './utils'
 
 function getEditorRange(): Range | undefined {
   const mode = vditor.getCurrentMode()
@@ -165,30 +164,6 @@ export function createToolbar(options: ToolbarOptions = {}) {
         'outline',
         'preview',
         {
-          name: 'copy-markdown',
-          icon: t('copyMarkdown'),
-          // Copy on the host (vscode.env.clipboard) instead of the webview's
-          // navigator.clipboard — the latter is focus/permission-sensitive in a
-          // sandboxed iframe and can silently no-op. The host writes the clipboard
-          // and reports success/failure (task 53 #1).
-          click() {
-            vscode.postMessage({
-              command: 'copy-markdown',
-              content: vditor.getValue(),
-            })
-          },
-        },
-        {
-          name: 'copy-html',
-          icon: t('copyHtml'),
-          click() {
-            vscode.postMessage({
-              command: 'copy-html',
-              content: vditor.getHTML(),
-            })
-          },
-        },
-        {
           name: 'settings',
           tip: 'Settings',
           // In the "…" more dropdown the button's content is the `icon` field, so
@@ -201,32 +176,6 @@ export function createToolbar(options: ToolbarOptions = {}) {
             })
           },
         },
-        {
-          name: 'reset-config',
-          icon: t('resetConfig'),
-          async click() {
-            confirm(t('resetConfirm'), async () => {
-              try {
-                await vscode.postMessage({
-                  command: 'reset-config',
-                })
-                await vscode.postMessage({
-                  command: 'ready',
-                })
-                vscode.postMessage({
-                  command: 'info',
-                  content: 'Reset config successfully!',
-                })
-              } catch (_error) {
-                vscode.postMessage({
-                  command: 'error',
-                  content: 'Reset config failed!',
-                })
-              }
-            })
-          },
-        },
-        'devtools',
         'info',
         'help',
       ],

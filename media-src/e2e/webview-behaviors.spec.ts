@@ -411,23 +411,4 @@ test.describe('createToolbar (task 44/wiki) — custom item click handlers', () 
     // no selection -> inserts an empty link
     expect(calls.insertValue).toContain('[]()')
   })
-
-  test('copy-markdown / copy-html post their content to the host clipboard (task 53 #1)', async ({
-    page,
-  }) => {
-    await buildToolbar(page, false)
-    await click(page, 'copy-markdown')
-    await click(page, 'copy-html')
-    // Copy now routes through the host (vscode.env.clipboard), so the webview
-    // posts the content rather than writing navigator.clipboard itself.
-    const msgs = await posted(page)
-    expect(msgs).toContainEqual(
-      expect.objectContaining({ command: 'copy-markdown', content: 'MD' }),
-    )
-    expect(msgs).toContainEqual(
-      expect.objectContaining({ command: 'copy-html', content: '<p>H</p>' }),
-    )
-    const calls = await page.evaluate(() => (window as any).__tbCalls)
-    expect(calls.clip).toEqual([])
-  })
 })

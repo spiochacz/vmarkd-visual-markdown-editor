@@ -140,7 +140,7 @@ describe('package.json manifest', () => {
     })
     expect(props['vmarkd.editor.fullWidth']).toMatchObject({
       type: 'boolean',
-      default: true,
+      default: false,
     })
     expect(props['vmarkd.css.custom']).toMatchObject({
       type: 'string',
@@ -183,7 +183,7 @@ describe('package.json manifest', () => {
     )
     expect(props['vmarkd.theme.highlightHeadings']).toMatchObject({
       type: 'boolean',
-      default: true,
+      default: false,
     })
     expect(props['vmarkd.editor.headingMarkers']).toMatchObject({
       type: 'boolean',

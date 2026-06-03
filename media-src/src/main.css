@@ -251,6 +251,25 @@ body[data-full-width="1"] :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset {
   padding-left: 35px !important;
 }
 
+/* Host prerender overlay, full-width OFF. The LIVE editor sets the editing pre's
+   right padding via Vditor's JS setPadding() — inline `padding: 10px max(35,
+   (parentWidth - 800) / 2)px` — but the global `.vditor-reset { padding-left: 35px
+   !important }` rule above (line ~164) overrides the LEFT back to a fixed 35px
+   gutter. Net live layout: 35px left gutter, large right margin (content is
+   left-aligned, not centered). The static overlay never runs setPadding, so without
+   this it paints full-width → a width jump at swap. Mirror the live layout for the
+   overlay only (scoped to #vmarkd-prerender): set the RIGHT padding to the same
+   amount and leave the left to the global 35px rule — do NOT set padding-left here
+   or it would add a left margin the live editor doesn't have. The 100% resolves
+   against the pre's containing block = .vditor-ir/.vditor-wysiwyg width, exactly
+   what setPadding reads as parentElement.clientWidth. Full-width ON keeps the
+   data-full-width="1" rules above. */
+body[data-full-width="0"] #vmarkd-prerender :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  padding-right: max(35px, calc((100% - 800px) / 2)) !important;
+}
+
 /* Vertically center the heading-level markers (H1…H6). Vditor floats them at the
    TOP of the heading line. Rather than centering on the heading box (which the
    H1/H2 underline makes taller — top:50% then drifts per level), give the

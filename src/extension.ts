@@ -716,10 +716,6 @@ export class EditorSession {
     await this.syncToEditor(message.content)
   }
 
-  private async onResetConfig() {
-    await this.context.globalState.update(KeyVditorOptions, {})
-  }
-
   private async onSave(message: any) {
     await this.syncToEditor(message.content)
     await this.document.save()
@@ -968,7 +964,6 @@ export class EditorSession {
       info: (message) => this.onInfo(message),
       error: (message) => this.onError(message),
       edit: (message) => this.onEdit(message),
-      'reset-config': () => this.onResetConfig(),
       save: (message) => this.onSave(message),
       'edit-in-vscode': () => this.onEditInVscode(),
       'navigate-back': () => this.onNavigateBack(),
