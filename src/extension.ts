@@ -498,6 +498,551 @@ interface ActivePanelEntry {
   uri: vscode.Uri
 }
 
+// One open editor tab. Holds the per-panel state + behaviour that previously lived
+// as closures inside MarkdownEditorProvider.resolveCustomTextEditor (SRP step 1:
+// god-method -> class). For now the state stays local to start(); later steps
+// promote it to fields and split the closures into methods. The HTML builder is
+// injected so this class needn't reach back into the provider's private members.
+export class EditorSession {
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    private readonly document: vscode.TextDocument,
+    private readonly webviewPanel: vscode.WebviewPanel,
+    private readonly htmlForWebview: (
+      webview: vscode.Webview,
+      uri: vscode.Uri,
+      content?: string,
+      theme?: 'dark' | 'light',
+    ) => string,
+  ) {}
+
+  // Per-panel state (was closure-local in resolveCustomTextEditor). The `!` fields
+  // are assigned at the top of start(); activeUri/activeFsPath are reassigned on
+  // rename and read lazily elsewhere, so they must stay fields (not snapshots).
+  private disposables!: vscode.Disposable[]
+  private activeUri!: vscode.Uri
+  private activeFsPath!: string
+  private suppressCloseDispose = false
+  private textEditTimer: NodeJS.Timeout | undefined
+  private applyingWebviewEdit = false
+  private pendingWebviewContent: string | undefined
+  private lastSyncedContent = ''
+  private currentWatcher: vscode.Disposable | undefined
+  private externalCssWatcher: vscode.Disposable | undefined
+  private wiki!: ReturnType<typeof getWikiDocumentContext>
+  private workspaceFolder: vscode.WorkspaceFolder | undefined
+  private vditorBaseUri!: string
+  private panelEntry!: ActivePanelEntry
+
+  private documentRange(document: vscode.TextDocument) {
+    const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0))
+    return new vscode.Range(
+      0,
+      0,
+      lastLine.range.end.line,
+      lastLine.range.end.character,
+    )
+  }
+
+  start() {
+    const document = this.document
+    const webviewPanel = this.webviewPanel
+
+    this.disposables = []
+    // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
+    // watcher, edits and asset paths follow a renamed file. (Wiki context below
+    // stays init-frozen — cross-folder wiki rename is a known Phase-1 limit.)
+    this.activeUri = document.uri
+    this.activeFsPath = document.uri.fsPath
+    this.suppressCloseDispose = false
+    this.wiki = getWikiDocumentContext(document.uri)
+    this.workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)
+    this.vditorBaseUri = webviewPanel.webview
+      .asWebviewUri(
+        vscode.Uri.joinPath(this.context.extensionUri, 'media', 'vditor'),
+      )
+      .toString()
+    this.applyingWebviewEdit = false
+    this.lastSyncedContent = document.getText()
+
+    webviewPanel.title = NodePath.basename(this.activeFsPath)
+    webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
+    // Track this panel so commands (e.g. revealInSource, task 16) can find the
+    // focused editor + its document. `uri` is updated on rename below and the
+    // entry is removed on dispose.
+    this.panelEntry = { panel: webviewPanel, uri: this.activeUri }
+    MarkdownEditorProvider.activePanels.add(this.panelEntry)
+    // Augment, don't replace: keep VS Code's default custom-editor webview options
+    // and only override the ones we control (task 27).
+    webviewPanel.webview.options = {
+      ...webviewPanel.webview.options,
+      ...MarkdownEditorProvider.getWebviewOptions(
+        this.context.extensionUri,
+        document.uri,
+      ),
+    }
+    webviewPanel.webview.html = this.htmlForWebview(
+      webviewPanel.webview,
+      document.uri,
+      document.getText(),
+      currentThemeKind(),
+    )
+
+    const syncToEditor = async (content: string) => {
+      if (normalizeContent(content) === normalizeContent(document.getText())) {
+        this.lastSyncedContent = document.getText()
+        return
+      }
+      this.applyingWebviewEdit = true
+      this.pendingWebviewContent = content
+      try {
+        const edit = new vscode.WorkspaceEdit()
+        edit.replace(this.activeUri, this.documentRange(document), content)
+        await vscode.workspace.applyEdit(edit)
+        this.lastSyncedContent = document.getText()
+      } finally {
+        this.applyingWebviewEdit = false
+      }
+    }
+
+    const postUpdate = async (
+      props: {
+        type?: 'init' | 'update'
+        cdn?: string
+        options?: any
+        theme?: 'dark' | 'light'
+        wiki?: any
+      } = { options: void 0 },
+    ) => {
+      const content = document.getText()
+      const force = props.type === 'init'
+      if (
+        !force &&
+        normalizeContent(content) === normalizeContent(this.lastSyncedContent)
+      ) {
+        return
+      }
+      this.lastSyncedContent = content
+      webviewPanel.webview.postMessage({
+        command: 'update',
+        content,
+        ...props,
+      })
+    }
+
+    const schedulePostUpdate = () => {
+      if (this.textEditTimer) {
+        clearTimeout(this.textEditTimer)
+      }
+      this.textEditTimer = setTimeout(() => {
+        postUpdate()
+      }, 75)
+    }
+
+    // Git gutters (task 17): debounced HEAD↔current diff pushed to the webview.
+    // The computer reads `this.activeFsPath` lazily so it follows a rename. Self-
+    // disables (posts []) when there's no git / the file is untracked.
+    const scheduleDiffInfo = createDiffScheduler(
+      (msg) => webviewPanel.webview.postMessage(msg),
+      (content) =>
+        makeDiffComputer(this.activeFsPath, vscode.extensions)(content),
+    )
+
+    // Extracted so it can be disposed + recreated when the file is renamed.
+    const setupFileWatcher = (
+      uri: vscode.Uri,
+    ): vscode.Disposable | undefined => {
+      if (!this.workspaceFolder) {
+        return undefined
+      }
+      const relativePath = NodePath.relative(
+        this.workspaceFolder.uri.fsPath,
+        uri.fsPath,
+      ).replace(/\\/g, '/')
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(this.workspaceFolder, relativePath),
+      )
+      return vscode.Disposable.from(
+        watcher,
+        watcher.onDidChange(() => schedulePostUpdate()),
+        watcher.onDidCreate(() => schedulePostUpdate()),
+      )
+    }
+    this.currentWatcher = setupFileWatcher(this.activeUri)
+    if (this.currentWatcher) {
+      this.disposables.push(this.currentWatcher)
+    }
+
+    // Live config reload (tasks 12/26): on settings change push the config-driven
+    // body options + CSS to the open editor, and watch external CSS files so
+    // edits apply without reopening. No Vditor re-init (cursor/scroll preserved).
+    const postExternalCss = () => {
+      webviewPanel.webview.postMessage({
+        command: 'reload-css',
+        id: 'external-css',
+        css: MarkdownEditorProvider.readExternalCss(),
+      })
+    }
+    const postLiveConfig = () => {
+      webviewPanel.webview.postMessage({
+        command: 'config-changed',
+        // Same settings as the init payload; the webview decides which are live vs
+        // constructor-only (see INIT_ONLY_OPTIONS in live-config.ts).
+        options: MarkdownEditorProvider.collectConfigOptions(),
+      })
+      webviewPanel.webview.postMessage({
+        command: 'reload-css',
+        id: 'custom-css',
+        css: MarkdownEditorProvider.config.get<string>('customCss') || '',
+      })
+      postExternalCss()
+    }
+    const refreshExternalCssWatchers = () => {
+      this.externalCssWatcher?.dispose()
+      const paths = MarkdownEditorProvider.resolveExternalCssPaths()
+      if (paths.length === 0) {
+        this.externalCssWatcher = undefined
+        return
+      }
+      this.externalCssWatcher = vscode.Disposable.from(
+        ...paths.map((p) => {
+          const w = vscode.workspace.createFileSystemWatcher(p)
+          return vscode.Disposable.from(
+            w,
+            w.onDidChange(postExternalCss),
+            w.onDidCreate(postExternalCss),
+            w.onDidDelete(postExternalCss),
+          )
+        }),
+      )
+      this.disposables.push(this.externalCssWatcher)
+    }
+    refreshExternalCssWatchers()
+
+    // Webview→host message handlers, one per command (replaces a 15-case switch).
+    // Defined once here so each arrow closes over this panel's state (document,
+    // this.activeUri, postUpdate, syncToEditor, … — the `let` ones read by reference, so
+    // they see renames) exactly as the switch cases did. Adding a command means
+    // adding an entry, not editing a central switch (Open/Closed).
+    const messageHandlers: Record<string, (message: any) => unknown> = {
+      ready: async () => {
+        let wikiInit: any = this.wiki
+        if (this.wiki.enabled) {
+          const root = getWikiRoot(document.uri)
+          if (root) {
+            const pageKeys = await getWikiPageKeys(root)
+            wikiInit = { ...this.wiki, pageKeys }
+          }
+        }
+        await postUpdate({
+          type: 'init',
+          cdn: this.vditorBaseUri,
+          options: {
+            ...MarkdownEditorProvider.collectConfigOptions(),
+            ...MarkdownEditorProvider.sanitizeVditorOptions(
+              this.context.globalState.get(KeyVditorOptions),
+            ),
+          },
+          theme: currentThemeKind(),
+          wiki: wikiInit,
+        })
+      },
+      'save-options': async (message) => {
+        await this.context.globalState.update(
+          KeyVditorOptions,
+          MarkdownEditorProvider.sanitizeVditorOptions(message.options),
+        )
+      },
+      info: (message) => {
+        vscode.window.showInformationMessage(message.content)
+      },
+      error: (message) => {
+        showError(message.content)
+      },
+      edit: async (message) => {
+        await syncToEditor(message.content)
+      },
+      'reset-config': async () => {
+        await this.context.globalState.update(KeyVditorOptions, {})
+      },
+      save: async (message) => {
+        await syncToEditor(message.content)
+        await document.save()
+      },
+      'edit-in-vscode': async () => {
+        // Open the source AND jump to the caret's line (task 16). Same column as
+        // the visual editor, matching the previous open-in-place behavior.
+        await revealCaretInSource(
+          webviewPanel,
+          this.activeUri,
+          vscode.ViewColumn.Active,
+        )
+      },
+      'navigate-back': async () => {
+        await vscode.commands.executeCommand('workbench.action.navigateBack')
+      },
+      'open-settings': async () => {
+        await vscode.commands.executeCommand('markdown-editor.openSettings')
+      },
+      'list-wiki-pages': async () => {
+        const wikiRoot = getWikiRoot(document.uri)
+        if (!wikiRoot) {
+          return
+        }
+        const allPages = await collectWikiMarkdownFiles(wikiRoot)
+        allPages.sort((a, b) =>
+          NodePath.basename(a.fsPath).localeCompare(
+            NodePath.basename(b.fsPath),
+          ),
+        )
+        const picked = await vscode.window.showQuickPick(
+          allPages.map((page) => ({
+            label: NodePath.basename(
+              page.fsPath,
+              NodePath.extname(page.fsPath),
+            ),
+            description: vscode.workspace.asRelativePath(page, false),
+            uri: page,
+          })),
+          {
+            title: 'Wiki Pages',
+            placeHolder: 'Select a wiki page to open',
+          },
+        )
+        if (picked?.uri) {
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            picked.uri,
+            MarkdownEditorViewType,
+          )
+        }
+      },
+      upload: async (message) => {
+        if (!ensureCanWriteFiles(this.activeUri)) {
+          return
+        }
+        const assetsFolder = MarkdownEditorProvider.getAssetsFolder(
+          this.activeUri,
+        )
+        try {
+          await vscode.workspace.fs.createDirectory(
+            vscode.Uri.file(assetsFolder),
+          )
+        } catch (error) {
+          debug('upload: createDirectory failed', error)
+          showError(`Invalid image folder: ${assetsFolder}`)
+          return // can't write into a folder we failed to create
+        }
+        await Promise.all(
+          message.files.map(async (file: any) => {
+            const content = Buffer.from(file.base64, 'base64')
+            return vscode.workspace.fs.writeFile(
+              vscode.Uri.file(NodePath.join(assetsFolder, file.name)),
+              content,
+            )
+          }),
+        )
+        webviewPanel.webview.postMessage({
+          command: 'uploaded',
+          files: message.files.map((file: any) =>
+            NodePath.relative(
+              NodePath.dirname(this.activeFsPath),
+              NodePath.join(assetsFolder, file.name),
+            ).replace(/\\/g, '/'),
+          ),
+        })
+      },
+      'open-link': async (message) => {
+        let url = message.href
+        if (!/^https?:/i.test(url)) {
+          url = NodePath.resolve(NodePath.dirname(this.activeFsPath), url)
+        }
+        await vscode.commands.executeCommand(
+          'vscode.open',
+          vscode.Uri.parse(url),
+        )
+      },
+      'open-wikilink': async (message) => {
+        const resolution = await resolveWikiLink(
+          document.uri,
+          String(message.target),
+        )
+
+        switch (resolution.kind) {
+          case 'disabled':
+            showError(
+              `Wiki links are only enabled for Markdown files inside a wiki folder.`,
+            )
+            break
+          case 'invalid':
+            showError(`Invalid wiki link target.`)
+            break
+          case 'missing': {
+            const createChoice = await vscode.window.showWarningMessage(
+              `Wiki page "${message.target}" was not found under "${vscode.workspace.asRelativePath(
+                resolution.root,
+                false,
+              )}".`,
+              'Create Page',
+            )
+            if (createChoice === 'Create Page') {
+              if (!ensureCanWriteFiles(document.uri)) {
+                break
+              }
+              const newFileName = `${resolution.key.replace(/\//g, '-')}.md`
+              const newFileUri = vscode.Uri.joinPath(
+                resolution.root,
+                newFileName,
+              )
+              const heading = resolution.key
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, (c) => c.toUpperCase())
+              await vscode.workspace.fs.writeFile(
+                newFileUri,
+                Buffer.from(`# ${heading}\n`),
+              )
+              await vscode.commands.executeCommand(
+                'vscode.openWith',
+                newFileUri,
+                MarkdownEditorViewType,
+              )
+            }
+            break
+          }
+          case 'ambiguous': {
+            const picked = await vscode.window.showQuickPick(
+              resolution.candidates.map((candidate) => ({
+                label: NodePath.basename(candidate.fsPath),
+                description: vscode.workspace.asRelativePath(candidate, false),
+                uri: candidate,
+              })),
+              {
+                title: `Select wiki page for "${message.target}"`,
+                placeHolder: 'Multiple wiki pages match this link.',
+              },
+            )
+
+            if (picked?.uri) {
+              await vscode.commands.executeCommand(
+                'vscode.openWith',
+                picked.uri,
+                MarkdownEditorViewType,
+              )
+            }
+            break
+          }
+          case 'resolved':
+            await vscode.commands.executeCommand(
+              'vscode.openWith',
+              resolution.target,
+              MarkdownEditorViewType,
+            )
+            break
+        }
+      },
+    }
+
+    this.disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (!e.affectsConfiguration('markdown-editor')) {
+          return
+        }
+        postLiveConfig()
+        refreshExternalCssWatchers()
+      }),
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        if (event.document.uri.toString() !== this.activeUri.toString()) {
+          return
+        }
+        const currentContent = event.document.getText()
+        // Any content change (webview edit, external edit, typing) shifts the git
+        // diff — refresh the gutters even for echoed/own edits.
+        scheduleDiffInfo(currentContent)
+        if (
+          this.pendingWebviewContent !== undefined &&
+          normalizeContent(currentContent) ===
+            normalizeContent(this.pendingWebviewContent)
+        ) {
+          this.pendingWebviewContent = undefined
+          this.lastSyncedContent = currentContent
+          return
+        }
+        if (this.applyingWebviewEdit) {
+          return
+        }
+        schedulePostUpdate()
+      }),
+      vscode.workspace.onDidSaveTextDocument((savedDocument) => {
+        if (savedDocument.uri.toString() !== this.activeUri.toString()) {
+          return
+        }
+        scheduleDiffInfo(savedDocument.getText())
+        schedulePostUpdate()
+      }),
+      vscode.workspace.onDidRenameFiles((e) => {
+        // Phase 1: direct file rename only. Re-point identity, tab, watcher and
+        // suppress the old-uri close that would otherwise dispose the panel.
+        const hit = e.files.find(
+          (f) => f.oldUri.toString() === this.activeUri.toString(),
+        )
+        if (!hit) {
+          return
+        }
+        this.suppressCloseDispose = true
+        this.activeUri = hit.newUri
+        this.activeFsPath = hit.newUri.fsPath
+        this.panelEntry.uri = hit.newUri // keep the active-panel registry in sync
+        webviewPanel.title = NodePath.basename(this.activeFsPath)
+        this.currentWatcher?.dispose()
+        this.currentWatcher = setupFileWatcher(this.activeUri)
+        if (this.currentWatcher) {
+          this.disposables.push(this.currentWatcher)
+        }
+        setTimeout(() => {
+          this.suppressCloseDispose = false
+        }, 0)
+      }),
+      vscode.window.onDidChangeActiveColorTheme(() => {
+        // Live re-theme this editor when the VS Code theme changes (task 25).
+        webviewPanel.webview.postMessage({
+          command: 'set-theme',
+          theme: currentThemeKind(),
+        })
+      }),
+      vscode.workspace.onDidCloseTextDocument((closedDocument) => {
+        if (this.suppressCloseDispose) {
+          return
+        }
+        if (closedDocument.uri.toString() !== this.activeUri.toString()) {
+          return
+        }
+        webviewPanel.dispose()
+      }),
+      vscode.workspace.onDidChangeTextDocument((event) => {
+        if (event.document.uri.toString() !== this.activeUri.toString()) {
+          return
+        }
+        webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(this.activeFsPath)}`
+      }),
+      webviewPanel.webview.onDidReceiveMessage(async (message) => {
+        debug('msg from webview review', message, webviewPanel.active)
+
+        await messageHandlers[message.command]?.(message)
+      }),
+      webviewPanel.onDidDispose(() => {
+        this.pendingWebviewContent = undefined
+        MarkdownEditorProvider.activePanels.delete(this.panelEntry)
+        if (this.textEditTimer) {
+          clearTimeout(this.textEditTimer)
+        }
+        while (this.disposables.length) {
+          this.disposables.pop()?.dispose()
+        }
+      }),
+    )
+  }
+}
+
 export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // Live registry of open vMarkd panels (task 16). Commands like revealInSource
   // need the focused panel + its document; CustomTextEditorProvider gives us no
@@ -680,498 +1225,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel,
   ) {
-    const disposables: vscode.Disposable[] = []
-    // Mutable file identity — updated by onDidRenameFiles (task 14) so the tab,
-    // watcher, edits and asset paths follow a renamed file. (Wiki context below
-    // stays init-frozen — cross-folder wiki rename is a known Phase-1 limit.)
-    let activeUri = document.uri
-    let activeFsPath = document.uri.fsPath
-    let suppressCloseDispose = false
-    const wiki = getWikiDocumentContext(document.uri)
-    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri)
-    const vditorBaseUri = webviewPanel.webview
-      .asWebviewUri(
-        vscode.Uri.joinPath(this._context.extensionUri, 'media', 'vditor'),
-      )
-      .toString()
-    let textEditTimer: NodeJS.Timeout | undefined
-    let applyingWebviewEdit = false
-    let pendingWebviewContent: string | undefined
-    let lastSyncedContent = document.getText()
-
-    webviewPanel.title = NodePath.basename(activeFsPath)
-    webviewPanel.iconPath = new vscode.ThemeIcon('markdown')
-    // Track this panel so commands (e.g. revealInSource, task 16) can find the
-    // focused editor + its document. `uri` is updated on rename below and the
-    // entry is removed on dispose.
-    const panelEntry: ActivePanelEntry = { panel: webviewPanel, uri: activeUri }
-    MarkdownEditorProvider.activePanels.add(panelEntry)
-    // Augment, don't replace: keep VS Code's default custom-editor webview options
-    // and only override the ones we control (task 27).
-    webviewPanel.webview.options = {
-      ...webviewPanel.webview.options,
-      ...MarkdownEditorProvider.getWebviewOptions(
-        this._context.extensionUri,
-        document.uri,
-      ),
-    }
-    webviewPanel.webview.html = this._getHtmlForWebview(
-      webviewPanel.webview,
-      document.uri,
-      document.getText(),
-      currentThemeKind(),
-    )
-
-    const syncToEditor = async (content: string) => {
-      if (normalizeContent(content) === normalizeContent(document.getText())) {
-        lastSyncedContent = document.getText()
-        return
-      }
-      applyingWebviewEdit = true
-      pendingWebviewContent = content
-      try {
-        const edit = new vscode.WorkspaceEdit()
-        edit.replace(activeUri, this._documentRange(document), content)
-        await vscode.workspace.applyEdit(edit)
-        lastSyncedContent = document.getText()
-      } finally {
-        applyingWebviewEdit = false
-      }
-    }
-
-    const postUpdate = async (
-      props: {
-        type?: 'init' | 'update'
-        cdn?: string
-        options?: any
-        theme?: 'dark' | 'light'
-        wiki?: any
-      } = { options: void 0 },
-    ) => {
-      const content = document.getText()
-      const force = props.type === 'init'
-      if (
-        !force &&
-        normalizeContent(content) === normalizeContent(lastSyncedContent)
-      ) {
-        return
-      }
-      lastSyncedContent = content
-      webviewPanel.webview.postMessage({
-        command: 'update',
-        content,
-        ...props,
-      })
-    }
-
-    const schedulePostUpdate = () => {
-      if (textEditTimer) {
-        clearTimeout(textEditTimer)
-      }
-      textEditTimer = setTimeout(() => {
-        postUpdate()
-      }, 75)
-    }
-
-    // Git gutters (task 17): debounced HEAD↔current diff pushed to the webview.
-    // The computer reads `activeFsPath` lazily so it follows a rename. Self-
-    // disables (posts []) when there's no git / the file is untracked.
-    const scheduleDiffInfo = createDiffScheduler(
-      (msg) => webviewPanel.webview.postMessage(msg),
-      (content) => makeDiffComputer(activeFsPath, vscode.extensions)(content),
-    )
-
-    // Extracted so it can be disposed + recreated when the file is renamed.
-    const setupFileWatcher = (
-      uri: vscode.Uri,
-    ): vscode.Disposable | undefined => {
-      if (!workspaceFolder) {
-        return undefined
-      }
-      const relativePath = NodePath.relative(
-        workspaceFolder.uri.fsPath,
-        uri.fsPath,
-      ).replace(/\\/g, '/')
-      const watcher = vscode.workspace.createFileSystemWatcher(
-        new vscode.RelativePattern(workspaceFolder, relativePath),
-      )
-      return vscode.Disposable.from(
-        watcher,
-        watcher.onDidChange(() => schedulePostUpdate()),
-        watcher.onDidCreate(() => schedulePostUpdate()),
-      )
-    }
-    let currentWatcher = setupFileWatcher(activeUri)
-    if (currentWatcher) {
-      disposables.push(currentWatcher)
-    }
-
-    // Live config reload (tasks 12/26): on settings change push the config-driven
-    // body options + CSS to the open editor, and watch external CSS files so
-    // edits apply without reopening. No Vditor re-init (cursor/scroll preserved).
-    const postExternalCss = () => {
-      webviewPanel.webview.postMessage({
-        command: 'reload-css',
-        id: 'external-css',
-        css: MarkdownEditorProvider.readExternalCss(),
-      })
-    }
-    const postLiveConfig = () => {
-      webviewPanel.webview.postMessage({
-        command: 'config-changed',
-        // Same settings as the init payload; the webview decides which are live vs
-        // constructor-only (see INIT_ONLY_OPTIONS in live-config.ts).
-        options: MarkdownEditorProvider.collectConfigOptions(),
-      })
-      webviewPanel.webview.postMessage({
-        command: 'reload-css',
-        id: 'custom-css',
-        css: MarkdownEditorProvider.config.get<string>('customCss') || '',
-      })
-      postExternalCss()
-    }
-    let externalCssWatcher: vscode.Disposable | undefined
-    const refreshExternalCssWatchers = () => {
-      externalCssWatcher?.dispose()
-      const paths = MarkdownEditorProvider.resolveExternalCssPaths()
-      if (paths.length === 0) {
-        externalCssWatcher = undefined
-        return
-      }
-      externalCssWatcher = vscode.Disposable.from(
-        ...paths.map((p) => {
-          const w = vscode.workspace.createFileSystemWatcher(p)
-          return vscode.Disposable.from(
-            w,
-            w.onDidChange(postExternalCss),
-            w.onDidCreate(postExternalCss),
-            w.onDidDelete(postExternalCss),
-          )
-        }),
-      )
-      disposables.push(externalCssWatcher)
-    }
-    refreshExternalCssWatchers()
-
-    // Webview→host message handlers, one per command (replaces a 15-case switch).
-    // Defined once here so each arrow closes over this panel's state (document,
-    // activeUri, postUpdate, syncToEditor, … — the `let` ones read by reference, so
-    // they see renames) exactly as the switch cases did. Adding a command means
-    // adding an entry, not editing a central switch (Open/Closed).
-    const messageHandlers: Record<string, (message: any) => unknown> = {
-      ready: async () => {
-        let wikiInit: any = wiki
-        if (wiki.enabled) {
-          const root = getWikiRoot(document.uri)
-          if (root) {
-            const pageKeys = await getWikiPageKeys(root)
-            wikiInit = { ...wiki, pageKeys }
-          }
-        }
-        await postUpdate({
-          type: 'init',
-          cdn: vditorBaseUri,
-          options: {
-            ...MarkdownEditorProvider.collectConfigOptions(),
-            ...MarkdownEditorProvider.sanitizeVditorOptions(
-              this._context.globalState.get(KeyVditorOptions),
-            ),
-          },
-          theme: currentThemeKind(),
-          wiki: wikiInit,
-        })
-      },
-      'save-options': async (message) => {
-        await this._context.globalState.update(
-          KeyVditorOptions,
-          MarkdownEditorProvider.sanitizeVditorOptions(message.options),
-        )
-      },
-      info: (message) => {
-        vscode.window.showInformationMessage(message.content)
-      },
-      error: (message) => {
-        showError(message.content)
-      },
-      edit: async (message) => {
-        await syncToEditor(message.content)
-      },
-      'reset-config': async () => {
-        await this._context.globalState.update(KeyVditorOptions, {})
-      },
-      save: async (message) => {
-        await syncToEditor(message.content)
-        await document.save()
-      },
-      'edit-in-vscode': async () => {
-        // Open the source AND jump to the caret's line (task 16). Same column as
-        // the visual editor, matching the previous open-in-place behavior.
-        await revealCaretInSource(
-          webviewPanel,
-          activeUri,
-          vscode.ViewColumn.Active,
-        )
-      },
-      'navigate-back': async () => {
-        await vscode.commands.executeCommand('workbench.action.navigateBack')
-      },
-      'open-settings': async () => {
-        await vscode.commands.executeCommand('markdown-editor.openSettings')
-      },
-      'list-wiki-pages': async () => {
-        const wikiRoot = getWikiRoot(document.uri)
-        if (!wikiRoot) {
-          return
-        }
-        const allPages = await collectWikiMarkdownFiles(wikiRoot)
-        allPages.sort((a, b) =>
-          NodePath.basename(a.fsPath).localeCompare(
-            NodePath.basename(b.fsPath),
-          ),
-        )
-        const picked = await vscode.window.showQuickPick(
-          allPages.map((page) => ({
-            label: NodePath.basename(
-              page.fsPath,
-              NodePath.extname(page.fsPath),
-            ),
-            description: vscode.workspace.asRelativePath(page, false),
-            uri: page,
-          })),
-          {
-            title: 'Wiki Pages',
-            placeHolder: 'Select a wiki page to open',
-          },
-        )
-        if (picked?.uri) {
-          await vscode.commands.executeCommand(
-            'vscode.openWith',
-            picked.uri,
-            MarkdownEditorViewType,
-          )
-        }
-      },
-      upload: async (message) => {
-        if (!ensureCanWriteFiles(activeUri)) {
-          return
-        }
-        const assetsFolder = MarkdownEditorProvider.getAssetsFolder(activeUri)
-        try {
-          await vscode.workspace.fs.createDirectory(
-            vscode.Uri.file(assetsFolder),
-          )
-        } catch (error) {
-          debug('upload: createDirectory failed', error)
-          showError(`Invalid image folder: ${assetsFolder}`)
-          return // can't write into a folder we failed to create
-        }
-        await Promise.all(
-          message.files.map(async (file: any) => {
-            const content = Buffer.from(file.base64, 'base64')
-            return vscode.workspace.fs.writeFile(
-              vscode.Uri.file(NodePath.join(assetsFolder, file.name)),
-              content,
-            )
-          }),
-        )
-        webviewPanel.webview.postMessage({
-          command: 'uploaded',
-          files: message.files.map((file: any) =>
-            NodePath.relative(
-              NodePath.dirname(activeFsPath),
-              NodePath.join(assetsFolder, file.name),
-            ).replace(/\\/g, '/'),
-          ),
-        })
-      },
-      'open-link': async (message) => {
-        let url = message.href
-        if (!/^https?:/i.test(url)) {
-          url = NodePath.resolve(NodePath.dirname(activeFsPath), url)
-        }
-        await vscode.commands.executeCommand(
-          'vscode.open',
-          vscode.Uri.parse(url),
-        )
-      },
-      'open-wikilink': async (message) => {
-        const resolution = await resolveWikiLink(
-          document.uri,
-          String(message.target),
-        )
-
-        switch (resolution.kind) {
-          case 'disabled':
-            showError(
-              `Wiki links are only enabled for Markdown files inside a wiki folder.`,
-            )
-            break
-          case 'invalid':
-            showError(`Invalid wiki link target.`)
-            break
-          case 'missing': {
-            const createChoice = await vscode.window.showWarningMessage(
-              `Wiki page "${message.target}" was not found under "${vscode.workspace.asRelativePath(
-                resolution.root,
-                false,
-              )}".`,
-              'Create Page',
-            )
-            if (createChoice === 'Create Page') {
-              if (!ensureCanWriteFiles(document.uri)) {
-                break
-              }
-              const newFileName = `${resolution.key.replace(/\//g, '-')}.md`
-              const newFileUri = vscode.Uri.joinPath(
-                resolution.root,
-                newFileName,
-              )
-              const heading = resolution.key
-                .replace(/-/g, ' ')
-                .replace(/\b\w/g, (c) => c.toUpperCase())
-              await vscode.workspace.fs.writeFile(
-                newFileUri,
-                Buffer.from(`# ${heading}\n`),
-              )
-              await vscode.commands.executeCommand(
-                'vscode.openWith',
-                newFileUri,
-                MarkdownEditorViewType,
-              )
-            }
-            break
-          }
-          case 'ambiguous': {
-            const picked = await vscode.window.showQuickPick(
-              resolution.candidates.map((candidate) => ({
-                label: NodePath.basename(candidate.fsPath),
-                description: vscode.workspace.asRelativePath(candidate, false),
-                uri: candidate,
-              })),
-              {
-                title: `Select wiki page for "${message.target}"`,
-                placeHolder: 'Multiple wiki pages match this link.',
-              },
-            )
-
-            if (picked?.uri) {
-              await vscode.commands.executeCommand(
-                'vscode.openWith',
-                picked.uri,
-                MarkdownEditorViewType,
-              )
-            }
-            break
-          }
-          case 'resolved':
-            await vscode.commands.executeCommand(
-              'vscode.openWith',
-              resolution.target,
-              MarkdownEditorViewType,
-            )
-            break
-        }
-      },
-    }
-
-    disposables.push(
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        if (!e.affectsConfiguration('markdown-editor')) {
-          return
-        }
-        postLiveConfig()
-        refreshExternalCssWatchers()
-      }),
-      vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.uri.toString() !== activeUri.toString()) {
-          return
-        }
-        const currentContent = event.document.getText()
-        // Any content change (webview edit, external edit, typing) shifts the git
-        // diff — refresh the gutters even for echoed/own edits.
-        scheduleDiffInfo(currentContent)
-        if (
-          pendingWebviewContent !== undefined &&
-          normalizeContent(currentContent) ===
-            normalizeContent(pendingWebviewContent)
-        ) {
-          pendingWebviewContent = undefined
-          lastSyncedContent = currentContent
-          return
-        }
-        if (applyingWebviewEdit) {
-          return
-        }
-        schedulePostUpdate()
-      }),
-      vscode.workspace.onDidSaveTextDocument((savedDocument) => {
-        if (savedDocument.uri.toString() !== activeUri.toString()) {
-          return
-        }
-        scheduleDiffInfo(savedDocument.getText())
-        schedulePostUpdate()
-      }),
-      vscode.workspace.onDidRenameFiles((e) => {
-        // Phase 1: direct file rename only. Re-point identity, tab, watcher and
-        // suppress the old-uri close that would otherwise dispose the panel.
-        const hit = e.files.find(
-          (f) => f.oldUri.toString() === activeUri.toString(),
-        )
-        if (!hit) {
-          return
-        }
-        suppressCloseDispose = true
-        activeUri = hit.newUri
-        activeFsPath = hit.newUri.fsPath
-        panelEntry.uri = hit.newUri // keep the active-panel registry in sync
-        webviewPanel.title = NodePath.basename(activeFsPath)
-        currentWatcher?.dispose()
-        currentWatcher = setupFileWatcher(activeUri)
-        if (currentWatcher) {
-          disposables.push(currentWatcher)
-        }
-        setTimeout(() => {
-          suppressCloseDispose = false
-        }, 0)
-      }),
-      vscode.window.onDidChangeActiveColorTheme(() => {
-        // Live re-theme this editor when the VS Code theme changes (task 25).
-        webviewPanel.webview.postMessage({
-          command: 'set-theme',
-          theme: currentThemeKind(),
-        })
-      }),
-      vscode.workspace.onDidCloseTextDocument((closedDocument) => {
-        if (suppressCloseDispose) {
-          return
-        }
-        if (closedDocument.uri.toString() !== activeUri.toString()) {
-          return
-        }
-        webviewPanel.dispose()
-      }),
-      vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.document.uri.toString() !== activeUri.toString()) {
-          return
-        }
-        webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(activeFsPath)}`
-      }),
-      webviewPanel.webview.onDidReceiveMessage(async (message) => {
-        debug('msg from webview review', message, webviewPanel.active)
-
-        await messageHandlers[message.command]?.(message)
-      }),
-      webviewPanel.onDidDispose(() => {
-        pendingWebviewContent = undefined
-        MarkdownEditorProvider.activePanels.delete(panelEntry)
-        if (textEditTimer) {
-          clearTimeout(textEditTimer)
-        }
-        while (disposables.length) {
-          disposables.pop()?.dispose()
-        }
-      }),
-    )
+    new EditorSession(
+      this._context,
+      document,
+      webviewPanel,
+      (webview, uri, content, theme) =>
+        this._getHtmlForWebview(webview, uri, content, theme),
+    ).start()
   }
 
   static getAssetsFolder(uri: vscode.Uri) {
@@ -1193,16 +1253,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       imageSaveFolder,
     )
     return assetsFolder
-  }
-
-  private _documentRange(document: vscode.TextDocument) {
-    const lastLine = document.lineAt(Math.max(document.lineCount - 1, 0))
-    return new vscode.Range(
-      0,
-      0,
-      lastLine.range.end.line,
-      lastLine.range.end.character,
-    )
   }
 
   private _getHtmlForWebview(
