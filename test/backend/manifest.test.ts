@@ -157,15 +157,11 @@ describe('package.json manifest', () => {
     expect(props['vmarkd.image.saveFolder'].scope).toBe('resource')
   })
 
-  it('declares the Vditor-option toggles (wordCount, codeBlockLineNumbers, showToolbar)', () => {
+  it('declares the Vditor-option toggles (codeBlockLineNumbers, showToolbar)', () => {
     const props = Object.assign(
       {},
       ...pkg.contributes.configuration.map((c: any) => c.properties),
     )
-    expect(props['vmarkd.editor.wordCount']).toMatchObject({
-      type: 'boolean',
-      default: false,
-    })
     expect(props['vmarkd.editor.codeLineNumbers']).toMatchObject({
       type: 'boolean',
       default: false,
@@ -174,7 +170,7 @@ describe('package.json manifest', () => {
       type: 'boolean',
       default: true,
     })
-    expect(props['vmarkd.editor.retainHidden']).toMatchObject({
+    expect(props['vmarkd.advanced.retainHidden']).toMatchObject({
       type: 'boolean',
       default: true,
     })
@@ -276,7 +272,7 @@ describe('package.json manifest', () => {
     expect(Array.isArray(pkg.contributes.configuration)).toBe(true)
     const titles = pkg.contributes.configuration.map((c: any) => c.title)
     expect(titles).toEqual(
-      expect.arrayContaining(['General', 'Appearance', 'Outline']),
+      expect.arrayContaining(['Appearance', 'Outline', 'Advanced']),
     )
     const appearance = pkg.contributes.configuration.find(
       (c: any) => c.title === 'Appearance',

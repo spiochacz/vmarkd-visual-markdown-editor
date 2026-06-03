@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as NodePath from 'node:path'
 import * as fs from 'node:fs'
-import { readingTime } from './reading-time'
+import { readingTime, wordCount } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
 import { type EditorMode, prewarmLute, renderForMode } from './lute-host'
@@ -237,7 +237,9 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
   return () => {
     const input = getActiveTabInput()
     const showFor = (uri: vscode.Uri) => {
-      reading.text = `$(book) ${readingTime(textForUri(uri))}`
+      const text = textForUri(uri)
+      reading.text = `$(book) ${readingTime(text)} · $(pencil) ${wordCount(text)} words`
+      reading.tooltip = 'Estimated reading time · word count'
       reading.show()
     }
     if (
@@ -473,8 +475,9 @@ export function activate(context: vscode.ExtensionContext) {
           // default. Memory-conscious users with many tabs can disable it.
           // The bounded retain-cache (keep N) is tasks/41.
           retainContextWhenHidden:
-            MarkdownEditorProvider.config.get<boolean>('editor.retainHidden') ??
-            true,
+            MarkdownEditorProvider.config.get<boolean>(
+              'advanced.retainHidden',
+            ) ?? true,
           enableFindWidget: true,
         },
       },
@@ -1241,7 +1244,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     return {
       useVscodeThemeColor: c.get<boolean>('theme.useVscodeColors'),
       enableFullWidth: c.get<boolean>('editor.fullWidth'),
-      wordCount: c.get<boolean>('editor.wordCount'),
       codeBlockLineNumbers: c.get<boolean>('editor.codeLineNumbers'),
       mermaidTheme: c.get<string>('theme.mermaid'),
       showToolbar: c.get<boolean>('editor.toolbar'),
@@ -1393,10 +1395,17 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // a BFC), which both gives a single scrollbar AND stops the first heading's
     // margin-top from collapsing through and pushing content down 24px. Measured
     // (Playwright): content lands at the same offset as the live editor → no jump.
+    // A faint spinner in the toolbar's top-right corner marks the instant-paint
+    // overlay as live. Because it's a child of #vmarkd-prerender, it's removed with
+    // the overlay at the swap — so it's a quiet "still loading the live editor"
+    // signal: present while the host pre-render is showing, gone the moment the
+    // full live render takes over. Styling/keyframes live in prerenderStyle below.
+    const prerenderDot =
+      '<span id="vmarkd-prerender-spinner" title="vMarkd: rendering…" aria-hidden="true"></span>'
     const prerenderOverlay = preIR
       ? `<div id="vmarkd-prerender" class="vditor${
           theme === 'dark' ? ' vditor--dark' : ''
-        }" style="height:100%" aria-hidden="true">${prerenderToolbar}<div class="vditor-content"><div class="${innerClass}"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
+        }" style="height:100%" aria-hidden="true">${prerenderToolbar}${prerenderDot}<div class="vditor-content"><div class="${innerClass}"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
       : ''
     // The base content text colour comes from Vditor's content-theme CSS, which
     // the live editor loads at runtime via setTheme. Link the SAME file here so
@@ -1414,11 +1423,21 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // The overlay just positions the mirrored editor over #app and clips
     // (overflow:hidden) — the inner .vditor-reset scrolls natively via Vditor's
     // own CSS, exactly like the live editor (single scrollbar, correct margins).
+    const nonce = getNonce()
     const prerenderStyle = preIR
-      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}</style>`
+      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
+      : ''
+    // Prepaint scroll capture (task 49). The overlay paints during HTML parse, but
+    // main.js (the big bundle, after the i18n/icon scripts) executes a moment later —
+    // so a wheel/key scroll done THE INSTANT the teaser appears would be lost before
+    // main.ts could attach a listener. This tiny inline script runs first (right after
+    // the overlay), so it captures that earliest intent into window.__vmarkdScroll;
+    // main.ts applies it to the live editor at swap-in and calls .stop(). Mirrored in
+    // media-src/e2e/prerender.html so the e2e exercises this exact capture path.
+    const prerenderScroll = preIR
+      ? `<script nonce="${nonce}">(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+(e.deltaY||0));}function k(e){if(!s.active)return;var vh=window.innerHeight||800,d=0;switch(e.key){case 'PageDown':case ' ':d=vh*0.9;break;case 'PageUp':d=-vh*0.9;break;case 'ArrowDown':d=48;break;case 'ArrowUp':d=-48;break;case 'End':d=1e7;break;case 'Home':s.intent=0;return;default:return;}s.intent=Math.max(0,s.intent+d);}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>`
       : ''
 
-    const nonce = getNonce()
     const csp = webview.cspSource
     const cspMeta =
       `<meta http-equiv="Content-Security-Policy" content="` +
@@ -1444,7 +1463,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 
 				${CssFiles.map((f) => `<link href="${f}" rel="stylesheet">`).join('\n')}
 
-				<title>markdown editor</title>
+				<title>vMarkd</title>
         ` +
       prerenderThemeLink +
       MarkdownEditorProvider._cssStyleTags(uri) +
@@ -1454,6 +1473,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
 			<body ${bodyAttrs} style="--me-font-size:${fontSizeCss}">
 				<div id="app"></div>
 				${prerenderOverlay}
+				${prerenderScroll}
 
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>

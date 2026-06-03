@@ -97,6 +97,23 @@ export function handleToolbarClick() {
       }
     })
   })
+  // The edit-mode dropdown (wysiwyg/ir/sv) is special: Vditor's own button
+  // handlers call event.stopPropagation(), so a mode switch never reaches the
+  // bubble-phase toolbar listener above — and the chosen mode was never persisted
+  // (the editor kept reopening in whatever mode happened to get saved by some
+  // OTHER panel click). Catch the mode button in the CAPTURE phase instead, which
+  // runs before Vditor's stopPropagation, then save once setEditMode has applied.
+  document.addEventListener(
+    'click',
+    (e) => {
+      if ((e.target as HTMLElement).closest('.vditor-toolbar [data-mode]')) {
+        setTimeout(() => {
+          saveVditorOptions()
+        }, 500)
+      }
+    },
+    true,
+  )
 }
 
 function normalizeResponsiveTables(root: ParentNode = document) {

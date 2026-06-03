@@ -436,7 +436,6 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
       fontSize: '15',
     })
     expect(configChanged?.options).toHaveProperty('showToolbar')
-    expect(configChanged?.options).toHaveProperty('wordCount')
     expect(configChanged?.options).toHaveProperty('mermaidTheme')
 
     const cssMsgs = posted.filter((m) => m.command === 'reload-css')

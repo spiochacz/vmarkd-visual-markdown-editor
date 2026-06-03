@@ -34,6 +34,7 @@ checked here **only when the task is fully complete**.
 - [x] [15 — Shared DOM→source mapping](15-shared-dom-source-mapping.md) — exact Lute-caret offset (prose too); prerequisite for 16 & 17
 - [x] [16 — Reveal-in-Source](16-reveal-in-source.md) — jump to the caret's line in the text editor
 - [x] [17 — Git gutters](17-git-gutters.md) — added/modified bars vs git HEAD
+- [ ] [49 — Streaming / incremental render for large docs](49-streaming-incremental-render.md) — chunked webview render (approach B) + referenced-only ref injection; kills the multi-second freeze on big files. Benchmarks done, design locked.
 - [ ] [46 — Side-by-side rendered diff view](46-rendered-diff-view.md) — two-pane rendered original-vs-modified comparison (inspired by phfsantos fork); not scheduled yet
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
 - [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)

@@ -79,21 +79,6 @@ interface ToolbarOptions {
 
 export function createToolbar(options: ToolbarOptions = {}) {
   const toolbarItems = [
-    {
-      hotkey: '⌘s',
-      name: 'save',
-      tipPosition: 's',
-      tip: t('save'),
-      className: 'save',
-      icon: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" width="32" height="32"><path fill="currentColor" d="M14.414 3.207L12.793 1.586C12.421 1.213 11.905 1 11.379 1H3C1.897 1 1 1.897 1 3V13C1 14.103 1.897 15 3 15H13C14.103 15 15 14.103 15 13V4.621C15 4.095 14.787 3.579 14.414 3.207ZM9 2V3.5C9 3.776 8.776 4 8.5 4H6.5C6.224 4 6 3.776 6 3.5V2H9ZM5 14V9.5C5 9.224 5.224 9 5.5 9H10.5C10.776 9 11 9.224 11 9.5V14H5ZM14 13C14 13.551 13.551 14 13 14H12V9.5C12 8.673 11.327 8 10.5 8H5.5C4.673 8 4 8.673 4 9.5V14H3C2.449 14 2 13.551 2 13V3C2 2.449 2.449 2 3 2H5V3.5C5 4.327 5.673 5 6.5 5H8.5C9.327 5 10 4.327 10 3.5V2H11.379C11.642 2 11.9 2.107 12.086 2.293L13.707 3.914C13.893 4.1 14 4.358 14 4.621V13Z"/></svg>',
-      click() {
-        vscode.postMessage({
-          command: 'save',
-          content: vditor.getValue(),
-        })
-      },
-    },
-
     'emoji',
     'headings',
     'bold',
@@ -157,18 +142,6 @@ export function createToolbar(options: ToolbarOptions = {}) {
         ]
       : []),
     {
-      name: 'settings',
-      tipPosition: 's',
-      tip: 'Settings',
-      className: 'right',
-      icon: settingsIcon,
-      click() {
-        vscode.postMessage({
-          command: 'open-settings',
-        })
-      },
-    },
-    {
       name: 'edit-in-vscode',
       tipPosition: 's',
       tip: t('editInVsCode'),
@@ -212,6 +185,19 @@ export function createToolbar(options: ToolbarOptions = {}) {
             vscode.postMessage({
               command: 'copy-html',
               content: vditor.getHTML(),
+            })
+          },
+        },
+        {
+          name: 'settings',
+          tip: 'Settings',
+          // In the "…" more dropdown the button's content is the `icon` field, so
+          // pair the gear with a text label (the sibling copy/reset rows are text).
+          // CSS (vscode-chrome.css [data-type="settings"]) shrinks the gear + aligns.
+          icon: `${settingsIcon}<span>Settings</span>`,
+          click() {
+            vscode.postMessage({
+              command: 'open-settings',
             })
           },
         },

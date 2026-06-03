@@ -22,6 +22,7 @@ import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
+import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { setupHistoryKeybind } from './undo-keybind'
@@ -40,6 +41,11 @@ import './main.css'
 import './vscode-chrome.css'
 
 let applyingExtensionUpdate = false
+// True while a large document is being streamed into the IR editor chunk-by-chunk
+// (task 49). Like applyingExtensionUpdate, it suppresses the edit→host sync — a
+// partial getValue() mid-stream would otherwise save a TRUNCATED file. The editor is
+// also held read-only for the duration; both are released in streamRenderIR.onDone.
+let streaming = false
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
@@ -175,6 +181,82 @@ function removePrerenderOverlay() {
   } catch {}
 }
 
+// Streaming spinner (task 49): keeps the top-right "loading" ring spinning after the
+// prepaint overlay is swapped out, until a large file finishes streaming in. Styled in
+// vscode-chrome.css (#vmarkd-stream-spinner) — subtly distinct from the prepaint
+// spinner so the phase change is visible but quiet. Idempotent.
+function showStreamSpinner() {
+  if (document.getElementById('vmarkd-stream-spinner')) return
+  const dot = document.createElement('span')
+  dot.id = 'vmarkd-stream-spinner'
+  dot.setAttribute('aria-hidden', 'true')
+  dot.title = 'vMarkd: loading large file… (read-only)'
+  document.body.appendChild(dot)
+}
+function removeStreamSpinner() {
+  try {
+    document.getElementById('vmarkd-stream-spinner')?.remove()
+  } catch {}
+}
+
+// Bridge the prepaint scroll into the live editor (task 49). The inline script the
+// host injects before main.js (window.__vmarkdScroll) accumulates the user's wheel/key
+// scroll from the instant the teaser paints — main.js (the big bundle) executes a beat
+// later, so capturing must start earlier than this code runs. Once the editor exists
+// we drive its REAL scroll container (findScroller — in the VS Code webview that's
+// `pre.vditor-reset`, which has a bounded height and scrolls; in other layouts it's
+// the document) to that accumulated offset for a short window. This bridges the swap-in
+// gap, INCLUDING the brief moment a freshly-mounted editor isn't yet responding to
+// native wheel, and honours a scroll the user began on the teaser. After the window we
+// stop accumulating and hand fully back to native scrolling.
+function bridgePrepaintScroll(): void {
+  const cap = (window as any).__vmarkdScroll as
+    | { intent: number; active: boolean; stop?: () => void }
+    | undefined
+  if (!cap) return
+  let frames = 0
+  const tick = () => {
+    const editorEl = (window.vditor as any)?.vditor?.ir?.element as
+      | HTMLElement
+      | undefined
+    if (editorEl) {
+      const scroller = findScroller(editorEl)
+      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+      const target = Math.min(cap.intent, max)
+      // Only ever pull the view DOWN toward the intended offset — never reduce
+      // scrollTop. `cap.intent` is the cumulative wheel/key delta (it tracks up-scroll
+      // too), so this honours the teaser scroll, covers the dead window right after
+      // swap-in, AND corrects a spurious jump-to-top (Vditor scrolling the caret into
+      // view when the editor becomes editable at end-of-stream / on reflow) — without
+      // ever yanking the user upward or fighting further native scrolling.
+      if (scroller.scrollTop < target) scroller.scrollTop = target
+    }
+    // ~3 s window so it spans a streaming load (the jump-to-top happens at end-of-
+    // stream); then stop capturing and hand fully back to native scrolling.
+    if (frames++ < 180) requestAnimationFrame(tick)
+    else cap.stop?.()
+  }
+  tick()
+}
+
+// Nearest scrollable ancestor of `start` (overflow auto/scroll/overlay AND actually
+// overflowing); falls back to the document scroller (window). Lets the prepaint
+// scroll handoff target whatever element really scrolls in the current layout.
+function findScroller(start: HTMLElement): HTMLElement {
+  let el: HTMLElement | null = start
+  while (el && el !== document.body) {
+    const oy = getComputedStyle(el).overflowY
+    if (
+      (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+      el.scrollHeight > el.clientHeight + 1
+    ) {
+      return el
+    }
+    el = el.parentElement
+  }
+  return (document.scrollingElement as HTMLElement) || document.documentElement
+}
+
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
@@ -240,6 +322,11 @@ function initVditor(msg) {
     vditor.destroy()
     window.vditor = null
   }
+  // Large documents are streamed in chunk-by-chunk (task 49) instead of handed to
+  // Vditor whole — one monolithic Md2VditorIRDOM(fullDoc) blocks the editor for
+  // seconds. When streaming, construct empty and fill in after() via streamRenderIR.
+  const willStream =
+    typeof msg.content === 'string' && msg.content.length > STREAM_MIN_CHARS
   window.vditor = new Vditor('app', {
     width: '100%',
     height: '100%',
@@ -251,11 +338,13 @@ function initVditor(msg) {
     // waiting on its own async i18n fetch — so the toolbar is available for the
     // overlay clone immediately. Falls back to Vditor's async load if it's absent.
     i18n: (window as any).VditorI18n,
-    value: msg.content,
+    value: willStream ? '' : msg.content,
     mode: 'ir',
     cache: { enable: false },
     // Opt-in: the counter recomputes on every keystroke (perf cost on large docs).
-    counter: { enable: msg.options?.wordCount === true },
+    // Word count lives in the VS Code status bar (next to reading time), not in
+    // the editor — Vditor's own counter is off.
+    counter: { enable: false },
     toolbar:
       msg.options?.showToolbar === false
         ? []
@@ -267,36 +356,10 @@ function initVditor(msg) {
     // finishes (window.vditor stays undefined, table panel never mounts).
     customWysiwygToolbar: () => {},
     after() {
-      try {
-        // Force the theme through setTheme at init (constructor options don't
-        // reliably apply content/code theme — see applyVditorTheme).
-        applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
-        // The live editor is now built AND themed — swap it in for the host-side
-        // instant-paint overlay here, BEFORE the remaining (non-visual) helpers,
-        // so a throw in any of them can't leave the overlay stuck on top.
-        removePrerenderOverlay()
-        const wikiEnabled = Boolean(msg.wiki?.enabled)
-        setupCustomRenderer(window.vditor, {
-          enabled: wikiEnabled,
-          knownPages:
-            wikiEnabled && msg.wiki.pageKeys
-              ? new Set(msg.wiki.pageKeys as string[])
-              : undefined,
-        })
-        if (
-          wikiEnabled &&
-          typeof msg.content === 'string' &&
-          msg.content.includes('[[')
-        ) {
-          applyingExtensionUpdate = true
-          try {
-            vditor.setValue(msg.content)
-          } finally {
-            setTimeout(() => {
-              applyingExtensionUpdate = false
-            }, 0)
-          }
-        }
+      const wikiEnabled = Boolean(msg.wiki?.enabled)
+      // Non-visual helpers that need the full editor DOM. Factored out so the
+      // streaming path can run them once the whole document is streamed in.
+      const finishInit = () => {
         handleToolbarClick()
         fixTableIr()
         fixResponsiveTables()
@@ -306,14 +369,95 @@ function initVditor(msg) {
         }
         // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
         setupSplitScrollSync()
-      } finally {
-        // Belt-and-suspenders: guarantee the overlay is gone even if a helper
-        // (or applyVditorTheme) above threw. Idempotent.
+      }
+      try {
+        // Force the theme through setTheme at init (constructor options don't
+        // reliably apply content/code theme — see applyVditorTheme).
+        applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+        // Register wiki renderers on the lute instance BEFORE any content render, so
+        // both the monolithic path and the streamed chunks (same lute) emit chips.
+        setupCustomRenderer(window.vditor, {
+          enabled: wikiEnabled,
+          knownPages:
+            wikiEnabled && msg.wiki.pageKeys
+              ? new Set(msg.wiki.pageKeys as string[])
+              : undefined,
+        })
+
+        if (willStream) {
+          // Large doc (task 49): stream it in chunk-by-chunk. Keep the instant-paint
+          // overlay until the first chunk paints; hold the editor read-only and
+          // suspend the edit→host sync (a partial getValue() would save a truncated
+          // file) until the full document is in.
+          streaming = true
+          const irEl = (window.vditor as any)?.vditor?.ir?.element as
+            | HTMLElement
+            | undefined
+          // Read-only during the stream (avoids edit↔append races), but tag it so
+          // our CSS cancels Vditor's [contenteditable=false] { opacity:.3 } fade —
+          // the doc should look normal while it fills in, not greyed-out/disabled.
+          irEl?.setAttribute('contenteditable', 'false')
+          irEl?.classList.add('vmarkd-streaming')
+          const endStream = () => {
+            streaming = false
+            irEl?.setAttribute('contenteditable', 'true')
+            irEl?.classList.remove('vmarkd-streaming')
+          }
+          streamRenderIR(window.vditor, msg.content, {
+            onFirstChunk: () => {
+              // First chunk painted: drop the overlay, keep a (subtly different)
+              // spinner going while the rest streams in, and bridge the prepaint
+              // scroll into the (now mounting) editor — see bridgePrepaintScroll.
+              removePrerenderOverlay()
+              showStreamSpinner()
+              bridgePrepaintScroll()
+            },
+            onDone: () => {
+              removeStreamSpinner()
+              endStream()
+              finishInit()
+            },
+          }).catch(() => {
+            // Never leave the editor stuck read-only / under the overlay.
+            removeStreamSpinner()
+            endStream()
+            removePrerenderOverlay()
+            finishInit()
+          })
+          return
+        }
+
+        // Small doc: Vditor already rendered msg.content from the constructor. Swap
+        // out the host overlay now, BEFORE the helpers, so a throw can't leave it up.
         removePrerenderOverlay()
+        if (
+          wikiEnabled &&
+          typeof msg.content === 'string' &&
+          msg.content.includes('[[')
+        ) {
+          // Re-render so wiki chips apply (constructor ran before setupCustomRenderer).
+          applyingExtensionUpdate = true
+          try {
+            vditor.setValue(msg.content)
+          } finally {
+            setTimeout(() => {
+              applyingExtensionUpdate = false
+            }, 0)
+          }
+        }
+        finishInit()
+        // Bridge any prepaint scroll into the (fully rendered) editor.
+        bridgePrepaintScroll()
+      } finally {
+        // Belt-and-suspenders for the non-streaming path: guarantee the overlay is
+        // gone even if a helper threw. The streaming path manages it via hooks.
+        if (!willStream) removePrerenderOverlay()
       }
     },
     input() {
-      if (applyingExtensionUpdate) {
+      // Suppress while applying an extension update OR while streaming a large doc
+      // in — a partial getValue() would post (and save) a truncated document.
+      if (applyingExtensionUpdate || streaming) {
         return
       }
       inputTimer && clearTimeout(inputTimer)
@@ -376,6 +520,11 @@ function handleUpdate(msg: any) {
       saveVditorOptions()
     }
     console.log('initVditor')
+  } else if (streaming) {
+    // A large doc is still streaming in; getValue() is partial. Don't diff/setValue
+    // against it (would clobber the stream with a monolithic re-render). The content
+    // being streamed is already this init's content; external changes re-fire later.
+    return
   } else if (vditor.getValue() !== msg.content) {
     applyingExtensionUpdate = true
     try {

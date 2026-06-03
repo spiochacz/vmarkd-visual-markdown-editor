@@ -224,7 +224,7 @@ const DEFAULT_CONFIG: Record<string, any> = {
   'theme.useVscodeColors': true,
   'css.custom': '',
   'editor.fullWidth': true,
-  'editor.retainHidden': true,
+  'advanced.retainHidden': true,
 }
 
 function freshState() {

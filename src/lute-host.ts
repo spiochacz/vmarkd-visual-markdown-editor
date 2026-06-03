@@ -24,14 +24,32 @@ import * as vm from 'node:vm'
 const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 
 // Hard cap on how much markdown we pre-render. renderIR runs SYNCHRONOUSLY on the
-// extension-host thread, and Lute's render time grows super-linearly: ~150 ms at
-// 12 KB but seconds for large docs (a 189 KB table-heavy file measured ~26 s),
+// extension-host thread, and Lute's render time grows super-linearly: fast at a
+// few KB but seconds for large docs (a 189 KB table-heavy file measured ~26 s),
 // which would freeze the whole host and stall the webview open. So we never feed
 // Lute more than this many chars: a small doc renders whole; a LONG doc renders
 // only a clean prefix (~the first viewport, see prerenderPrefix) for the overlay,
 // while the live editor loads the FULL document underneath and swaps in. Either
 // way the host render is bounded to the same small, safe budget.
-const MAX_PRERENDER_CHARS = 12_000
+//
+// Why 4 KB specifically — measured cost of the blocking Md2VditorIRDOM(prefix)
+// (warm JIT, median of 5, on a 195 KB doc), since that block is what delays the
+// first paint:
+//
+//      cap     prose render   table render   overlay HTML
+//      2 KB         9 ms           8 ms        15–25 KB
+//      4 KB        17 ms          11 ms        33–35 KB   ← chosen
+//     12 KB        62 ms          41 ms       101–139 KB
+//     24 KB       140 ms          96 ms       202–278 KB
+//   uncapped   ~1200 ms        ~1100 ms      (whole 195 KB — what the cap avoids)
+//
+// 4 KB is the sweet spot: the host render is already cheap (~11–17 ms, vs 40–62 ms
+// at 12 KB) AND it ships ~1/3 the overlay bytes to inline+parse, while ~3 KB of
+// source still fills a full first screen (~80 cols × ~40 rows). Dropping to 2 KB
+// saves only ~8 ms but leaves the prefix at half a viewport — an under-filled
+// overlay before the live editor swaps in. The one-time Lute $init (~150–250 ms)
+// is paid once per session regardless of this cap.
+const MAX_PRERENDER_CHARS = 4_000
 
 export type EditorMode = 'ir' | 'wysiwyg' | 'sv'
 

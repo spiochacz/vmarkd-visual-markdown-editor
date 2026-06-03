@@ -103,6 +103,19 @@ body[data-use-vscode-theme-color="1"]
   width: 100% !important;
   text-align: left !important;
 }
+/* The Settings row pairs a gear icon with a text label — lay it out as a flex row
+   and shrink the (32px) gear to match the 12px menu text. Scoped to the button so
+   the icon-only built-in rows in the same menu are untouched. */
+.vditor-hint button[data-type="settings"] {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+}
+.vditor-hint button[data-type="settings"] svg {
+  width: 14px !important;
+  height: 14px !important;
+  flex: 0 0 auto;
+}
 /* tooltips → VS Code hover widget (body + the little arrow Vditor tints via `color`) */
 body[data-use-vscode-theme-color="1"] .vditor-tooltipped::after {
   background: var(--vscode-editorHoverWidget-background, #3b3e43) !important;
@@ -210,4 +223,47 @@ body[data-use-vscode-theme-color="1"]
   /* base rule sets opacity:0.86 on the expanded panel (Vditor "unobtrusive"), which
      makes the whole menu translucent so content shows through — keep it solid. */
   opacity: 1 !important;
+}
+
+/* Streaming a large doc (task 49) holds the IR editor contenteditable=false so the
+   user can't edit a half-loaded document. Vditor styles that state with
+   `opacity: .3` (its "disabled" look), which made the text fade while it filled in.
+   Our `vmarkd-streaming` class (added for the stream, removed on completion) cancels
+   the fade so the document looks normal as it progressively renders. */
+.vditor-ir pre.vditor-reset.vmarkd-streaming[contenteditable='false'],
+.vditor-wysiwyg pre.vditor-reset.vmarkd-streaming[contenteditable='false'] {
+  opacity: 1;
+  /* Vditor also sets `cursor: not-allowed` on the read-only editor (the harsh 🚫).
+     While streaming a large file the lock is brief, so show the gentler "working"
+     cursor (arrow + spinner) instead. */
+  cursor: progress !important;
+}
+
+/* Streaming spinner (task 49): a top-right ring that keeps spinning while a large
+   file streams in — i.e. AFTER the prepaint overlay (and its spinner) has been
+   swapped out — until the whole document is loaded. Same place/size as the prepaint
+   spinner for continuity, but subtly distinct: it uses the VS Code accent/progress
+   colour and is a touch more present (opacity .55 vs the prepaint's muted .3), so the
+   handoff from "first paint" to "loading the rest" is visible but quiet. main.ts adds
+   it on first chunk and removes it when streaming completes. */
+#vmarkd-stream-spinner {
+  position: fixed;
+  top: 9px;
+  right: 12px;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 2px solid
+    var(--vscode-progressBar-background, var(--vscode-focusBorder, #888));
+  border-top-color: transparent;
+  border-radius: 50%;
+  opacity: 0.55;
+  z-index: 6;
+  pointer-events: none;
+  animation: vmarkd-stream-spin 0.8s linear infinite;
+}
+@keyframes vmarkd-stream-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

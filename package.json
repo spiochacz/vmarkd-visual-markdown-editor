@@ -15,7 +15,7 @@
   "capabilities": {
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "vMark renders and edits markdown, but defers writing images and creating wiki pages until the workspace is trusted."
+      "description": "vMarkd renders and edits markdown, but defers writing images and creating wiki pages until the workspace is trusted."
     },
     "virtualWorkspaces": {
       "supported": "limited",
@@ -53,7 +53,7 @@
     "commands": [
       {
         "command": "vmarkd.openEditor",
-        "title": "Open with markdown editor",
+        "title": "Open with vMarkd",
         "category": "vMarkd",
         "icon": "$(markdown)"
       },
@@ -71,7 +71,7 @@
       },
       {
         "command": "vmarkd.openInSplit",
-        "title": "Open with markdown editor to the side",
+        "title": "Open with vMarkd to the side",
         "category": "vMarkd",
         "icon": "$(split-horizontal)"
       },
@@ -85,7 +85,7 @@
     "customEditors": [
       {
         "viewType": "vmarkd.editor",
-        "displayName": "Visual Markdown Editor",
+        "displayName": "vMarkd",
         "selector": [
           {
             "filenamePattern": "*.md",
@@ -152,30 +152,13 @@
     },
     "configuration": [
       {
-        "title": "General",
-        "order": 1,
-        "properties": {
-          "vmarkd.image.saveFolder": {
-            "type": "string",
-            "default": "assets",
-            "scope": "resource",
-            "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
-          },
-          "vmarkd.editor.retainHidden": {
-            "type": "boolean",
-            "default": true,
-            "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
-          }
-        }
-      },
-      {
         "title": "Appearance",
         "order": 2,
         "properties": {
           "vmarkd.theme.useVscodeColors": {
             "type": "boolean",
             "default": true,
-            "description": "Use vscode theme's background color as the markdown editor's background color."
+            "description": "Use vscode theme's background color as vMarkd's background color."
           },
           "vmarkd.editor.fullWidth": {
             "type": "boolean",
@@ -234,11 +217,6 @@
             "type": "boolean",
             "default": true,
             "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
-          },
-          "vmarkd.editor.wordCount": {
-            "type": "boolean",
-            "default": false,
-            "description": "Show a live word/character count. Off by default — the count recomputes on every keystroke, which can be costly in large documents."
           }
         }
       },
@@ -304,6 +282,17 @@
             "type": "boolean",
             "default": true,
             "description": "Instant preview: before the live editor finishes loading, paint a fast read-only preview of the document and a placeholder toolbar so the file appears immediately, then swap to the live editor seamlessly. Turn off to open straight into the live editor with no pre-render."
+          },
+          "vmarkd.advanced.retainHidden": {
+            "type": "boolean",
+            "default": true,
+            "description": "Keep hidden editor tabs alive for instant switching. Turn off to free memory when many tabs are open (each hidden editor is fully retained), at the cost of a reload when you switch back. Changing this requires reloading the window."
+          },
+          "vmarkd.image.saveFolder": {
+            "type": "string",
+            "default": "assets",
+            "scope": "resource",
+            "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
           }
         }
       }

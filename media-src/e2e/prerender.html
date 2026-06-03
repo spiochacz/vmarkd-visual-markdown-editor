@@ -28,6 +28,9 @@
         </div>
       </div>
     </div>
+    <!-- Mirrors extension.ts prerenderScroll: prepaint scroll capture, BEFORE the
+         main bundle, so the e2e exercises the real early-capture path (task 49). -->
+    <script>(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+e.deltaY);}function k(e){if(!s.active)return;var vh=window.innerHeight||800;switch(e.key){case 'PageDown':case ' ':s.intent+=vh*0.9;break;case 'PageUp':s.intent-=vh*0.9;break;case 'ArrowDown':s.intent+=48;break;case 'ArrowUp':s.intent-=48;break;case 'End':s.intent+=1e7;break;case 'Home':s.intent=0;break;default:return;}if(s.intent<0)s.intent=0;}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>
     <script id="vditorIconScript" src="/vditor/dist/js/icons/ant.js"></script>
     <script src="/prerender.js"></script>
   </body>

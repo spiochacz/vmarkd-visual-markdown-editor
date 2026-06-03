@@ -204,19 +204,6 @@ test.describe('toolbar config save (saveVditorOptions / handleToolbarClick)', ()
 })
 
 test.describe('createToolbar()', () => {
-  test('save button posts save with the current editor value', async ({
-    page,
-  }) => {
-    await gotoBehaviors(page)
-    const sent = await page.evaluate(() => {
-      ;(window as any).vditor = { getValue: () => '# title\n' }
-      const items = (window as any).__createToolbar()
-      items.find((i: any) => i.name === 'save').click()
-      return (window as any).__posted
-    })
-    expect(sent).toContainEqual({ command: 'save', content: '# title\n' })
-  })
-
   test('edit-in-vscode button posts edit-in-vscode', async ({ page }) => {
     await gotoBehaviors(page)
     const sent = await page.evaluate(() => {
@@ -393,7 +380,6 @@ test.describe('createToolbar (task 44/wiki) — custom item click handlers', () 
       expect.arrayContaining(['navigate-back', 'wiki-pages']),
     )
     for (const n of [
-      'save',
       'settings',
       'edit-in-vscode',
       'navigate-back',
@@ -404,15 +390,12 @@ test.describe('createToolbar (task 44/wiki) — custom item click handlers', () 
     const commands = msgs.map((m: any) => m.command)
     expect(commands).toEqual(
       expect.arrayContaining([
-        'save',
         'open-settings',
         'edit-in-vscode',
         'navigate-back',
         'list-wiki-pages',
       ]),
     )
-    // save carries the current value
-    expect(msgs.find((m: any) => m.command === 'save').content).toBe('MD')
   })
 
   test('omits the wiki items when wiki is disabled', async ({ page }) => {
