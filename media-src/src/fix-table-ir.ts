@@ -20,6 +20,22 @@ function formatHotkeyTip(hotkey: string) {
     .replace(/\+/g, '+')
 }
 
+// Move the alignment `--current` highlight onto the left/center/right button that
+// matches `align` (the cell's column alignment, stored by Vditor as the `align`
+// attribute — absent/"left" = default). The HTML template hard-codes left as
+// current; without this the highlight never tracks the actual cell.
+function markAlignCurrent(root: HTMLElement, align: string | null) {
+  const want = align === 'center' || align === 'right' ? align : 'left'
+  for (const btn of root.querySelectorAll<HTMLElement>(
+    '[data-type="left"],[data-type="center"],[data-type="right"]',
+  )) {
+    btn.classList.toggle(
+      'vditor-icon--current',
+      btn.getAttribute('data-type') === want,
+    )
+  }
+}
+
 export function fixTableIr() {
   const eventRoot = vditor.vditor.ir.element
 
@@ -135,6 +151,10 @@ export function fixTableIr() {
         } finally {
           disableVscodeHotkeys = false
         }
+        // reflect a left/center/right click on the highlight immediately
+        if (type === 'left' || type === 'center' || type === 'right') {
+          markAlignCurrent(tablePanel, type)
+        }
         e.stopPropagation()
       })
     }
@@ -171,6 +191,9 @@ export function fixTableIr() {
         eventRoot.getBoundingClientRect().left +
         eventRoot.scrollLeft +
         'px'
+      // highlight the alignment button that matches THIS cell's column alignment
+      const td = anchorEl?.closest<HTMLElement>('td, th')
+      markAlignCurrent(tablePanel, td?.getAttribute('align') ?? null)
     } else {
       if (tablePanel.style.display !== 'none') {
         tablePanel.style.display = 'none'
