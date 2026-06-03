@@ -787,11 +787,16 @@ export class EditorSession {
   }
 
   private async onOpenLink(message: any) {
-    let url = message.href
-    if (!/^https?:/i.test(url)) {
-      url = NodePath.resolve(NodePath.dirname(this.activeFsPath), url)
+    const href = String(message.href)
+    if (/^https?:/i.test(href)) {
+      // External URL → the OS default browser. env.openExternal is the canonical
+      // API for this; vscode.open routes http inconsistently (Simple Browser).
+      await vscode.env.openExternal(vscode.Uri.parse(href))
+      return
     }
-    await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(url))
+    // Relative/local target → open the file in the editor (unchanged behaviour).
+    const local = NodePath.resolve(NodePath.dirname(this.activeFsPath), href)
+    await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(local))
   }
 
   private async onOpenWikilink(message: any) {

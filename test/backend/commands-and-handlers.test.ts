@@ -268,17 +268,19 @@ describe('message handler: open-settings', () => {
 describe('message handler: open-link', () => {
   beforeEach(() => mock.reset())
 
-  it('opens an http(s) link as-is', async () => {
+  it('opens an http(s) link in the external browser (env.openExternal)', async () => {
     const { panel } = resolveProvider()
     await panel._receiveMessage({
       command: 'open-link',
       href: 'https://example.com/page',
     })
-    const call = mock.calls.executeCommand.find(
-      (c) => c.command === 'vscode.open',
+    // external URLs go to the system browser, NOT vscode.open
+    expect(mock.calls.openExternal.map((u) => u.toString())).toContain(
+      'https://example.com/page',
     )
-    expect(call).toBeDefined()
-    expect(call!.args[0].toString()).toContain('example.com')
+    expect(
+      mock.calls.executeCommand.find((c) => c.command === 'vscode.open'),
+    ).toBeUndefined()
   })
 
   it('resolves a relative link against the document directory', async () => {

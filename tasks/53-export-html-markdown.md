@@ -62,3 +62,15 @@ concrete, commonly-wanted feature.
   (assert via the vscode-mock `openTextDocument`/`showTextDocument` calls — add to
   the mock if missing).
 - `tsc` + `biome` + full vitest + Playwright e2e green.
+
+## Related — already shipped (trace)
+
+From the same "export / clipboard / links" idea list, one item was done separately:
+
+- **External links → `env.openExternal`** (#5): `onOpenLink` now routes `http(s)`
+  to the OS browser via `vscode.env.openExternal` (local/relative still
+  `vscode.open`). Shipped in **PR #40** (`fix/open-external-links`). Not part of
+  this task — recorded here only so the idea-list item has a trail.
+
+Other items from that list: `withProgress` (#3) — skipped (renders are instant);
+host-side clipboard for Copy (#1) — captured above as optional within this task.
