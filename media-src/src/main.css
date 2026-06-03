@@ -56,14 +56,15 @@ body[data-use-vscode-theme-color="1"] .vditor-hint {
     --vscode-menu-foreground,
     var(--vscode-editor-foreground)
   ) !important;
-  /* VS Code menu rows are 13px; --vscode-font-size can be larger than that here,
-     so pin it rather than inherit the workbench size. */
-  font-size: 13px !important;
-  border: 1px solid
+  /* Pin the row size below VS Code's workbench font (--vscode-font-size can be
+     larger here) so the menu reads compact. */
+  font-size: 12px !important;
+  border: 2px solid
     var(
       --vscode-menu-border,
-      var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.35)))
+      var(--vscode-editorWidget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.45)))
     ) !important;
+  border-radius: 6px !important;
   box-shadow: 0 4px 12px 2px
     var(--vscode-widget-shadow, rgba(0, 0, 0, 0.5)) !important;
   /* tuck the dropdown flush under its trigger — Vditor leaves a gap for the
@@ -107,7 +108,7 @@ body[data-use-vscode-theme-color="1"] .vditor-hint button,
 body[data-use-vscode-theme-color="1"]
   .vditor-panel:not(:has(.vditor-emojis))
   button {
-  font-size: 13px !important;
+  font-size: 12px !important;
   line-height: 18px !important;
   padding: 3px 14px !important;
   display: block !important;
@@ -161,7 +162,7 @@ body[data-use-vscode-theme-color="1"]
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
   /* radius is measured on the (transparent) border box; the visible fill is the
      padding-box inside a 6px border, so its corner radius = 10 − 6 = 4px. */
-  border-radius: 3px / 9px !important;
+  border-radius: 5px / 11px !important;
 }
 /* While a dropdown is OPEN, keep its trigger highlighted (VS Code shows the active
    toolbar button highlighted). Vditor leaves a tooltipped trigger (e.g. the "…"
@@ -175,7 +176,7 @@ body[data-use-vscode-theme-color="1"]
   .vditor-toolbar__item:has(> .vditor-panel[style*="block"])
   > .vditor-tooltipped {
   background-color: var(--vscode-toolbar-hoverBackground, transparent) !important;
-  border-radius: 3px / 9px !important;
+  border-radius: 5px / 11px !important;
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
 }
 /* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
