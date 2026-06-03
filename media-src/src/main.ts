@@ -20,6 +20,7 @@ import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
+import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
@@ -35,6 +36,8 @@ import {
   type DiffChange,
 } from './diff-markers'
 import './main.css'
+// loaded after main.css so the VS Code-native chrome rules win on the cascade
+import './vscode-chrome.css'
 
 let applyingExtensionUpdate = false
 // The last message Vditor was initialised from — used to re-init when a
@@ -64,28 +67,9 @@ function trackEditorCaret() {
 }
 document.addEventListener('selectionchange', trackEditorCaret)
 
-// Close open toolbar dropdowns (the "…" more menu, headings, emoji, theme pickers)
-// when the user clicks outside them. Vditor only closes toolbar submenus on editor
-// focus or when another trigger is clicked — there's no click-outside handler — so
-// a click on empty space / the toolbar leaves the menu open. Registered once; it
-// reads the DOM live, so it keeps working across Vditor re-inits. Scoped to the
-// toolbar so it never touches the IR table panel or the autocomplete hint (those
-// live in the editor content and manage their own visibility).
-document.addEventListener('mousedown', (event) => {
-  const target = event.target as Node | null
-  const openPanels = document.querySelectorAll<HTMLElement>(
-    '.vditor-toolbar .vditor-hint[style*="block"], .vditor-toolbar .vditor-panel[style*="block"]',
-  )
-  for (const panel of openPanels) {
-    // a click on the trigger button or inside the menu is Vditor's to handle
-    const owner = panel.closest('.vditor-toolbar__item')
-    if (owner && target && owner.contains(target)) continue
-    panel.style.display = 'none'
-    for (const current of panel.querySelectorAll('.vditor-hint--current')) {
-      current.classList.remove('vditor-hint--current')
-    }
-  }
-})
+// Close toolbar dropdowns when clicking outside them (VS Code-native menu
+// behaviour; see toolbar-dismiss.ts).
+setupToolbarDismiss()
 
 // Restore the remembered caret when the live selection is missing or collapsed
 // to the editor start (focus left the iframe). Returns true if a restore ran.
