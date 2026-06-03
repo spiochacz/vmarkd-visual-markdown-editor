@@ -191,9 +191,12 @@ body[data-use-vscode-theme-color="1"]
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  /* MUST be opaque — --vscode-toolbar-hoverBackground is a translucent overlay in
+     most themes, so the table cell content behind bled through. editorWidget /
+     editor background are solid. */
   background-color: var(
-    --vscode-toolbar-hoverBackground,
-    var(--vscode-editorWidget-background, var(--vscode-editor-background))
+    --vscode-editorWidget-background,
+    var(--vscode-editor-background, #1e1e1e)
   ) !important;
   color: var(--vscode-foreground, var(--vscode-editor-foreground)) !important;
 }
