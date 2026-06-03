@@ -88,8 +88,8 @@ async function removeMacMetadata(dirPath) {
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
-// Generate the codicon icon-override sprite (media/vditor-icons-codicon.js) that
-// restyles the Vditor toolbar. See media-src/build-icon-sprite.mjs + task 44.
+// Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
+// toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')
 
 if (watch) {
