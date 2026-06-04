@@ -30,13 +30,19 @@ const MEDIAN_RUNS = 5
 function loadLute() {
   const src = fs.readFileSync(path.join(process.cwd(), LUTE_REL), 'utf8')
   const sandbox = {
-    TextEncoder, TextDecoder, setTimeout, clearTimeout,
-    setInterval, clearInterval, console,
+    TextEncoder,
+    TextDecoder,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
+    console,
   }
   vm.createContext(sandbox)
   vm.runInContext(src, sandbox, { filename: 'lute.min.js' })
   const Lute = sandbox.Lute
-  if (!Lute || typeof Lute.New !== 'function') throw new Error('Lute load failed')
+  if (!Lute || typeof Lute.New !== 'function')
+    throw new Error('Lute load failed')
   return Lute.New()
 }
 
@@ -69,28 +75,37 @@ function chunkize(markdown) {
 }
 
 // ---- synthetic documents (mirrors media-src/e2e/bench-harness.ts makeDoc) ----
-function repeat(s, n) { let o = ''; for (let i = 0; i < n; i++) o += s; return o }
+function repeat(s, n) {
+  let o = ''
+  for (let i = 0; i < n; i++) o += s
+  return o
+}
 
 function prose(targetKB) {
-  const para = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua\n\n'
+  const para =
+    'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua\n\n'
   return repeat(para, Math.ceil((targetKB * 1024) / para.length))
 }
 function tables(targetKB) {
-  const t = '| col a | col b | col c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n| 7 | 8 | 9 |\n\n'
+  const t =
+    '| col a | col b | col c |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n| 7 | 8 | 9 |\n\n'
   return repeat(t, Math.ceil((targetKB * 1024) / t.length))
 }
 function mixed(targetKB) {
   let block = ''
-  block += '## Section heading with some words\n\nParagraph of prose text that goes on for a little while to fill space and exercise inline parsing.\n\n'
+  block +=
+    '## Section heading with some words\n\nParagraph of prose text that goes on for a little while to fill space and exercise inline parsing.\n\n'
   block += '```js\nfunction f(x) { return x * 2 }\nconst y = f(21)\n```\n\n'
-  block += '| a | b |\n| - | - |\n| 1 | 2 |\n\n- bullet one\n- bullet two\n- bullet three\n\n'
+  block +=
+    '| a | b |\n| - | - |\n| 1 | 2 |\n\n- bullet one\n- bullet two\n- bullet three\n\n'
   return repeat(block, Math.ceil((targetKB * 1024) / block.length))
 }
 // Document with link-reference definitions used across far-apart blocks — the
 // cross-block-context correctness hazard for chunked rendering.
 function refsDoc(targetKB) {
   let head = ''
-  for (let i = 0; i < 200; i++) head += `Paragraph ${i} references [link ${i}][ref${i}] inline.\n\n`
+  for (let i = 0; i < 200; i++)
+    head += `Paragraph ${i} references [link ${i}][ref${i}] inline.\n\n`
   let defs = ''
   for (let i = 0; i < 200; i++) defs += `[ref${i}]: https://example.com/${i}\n`
   let body = head + '\n' + defs + '\n'
@@ -116,7 +131,9 @@ for (let i = 0; i < 3; i++) lute.Md2VditorIRDOM('# warm\n\ntext\n\nmore')
 
 console.log('')
 console.log(`cold first Md2VditorIRDOM (50KB prose): ${coldMs.toFixed(1)} ms`)
-console.log(`(warm runs below; median of ${MEDIAN_RUNS}, chunk cap ${MAX_PRERENDER_CHARS} chars)`)
+console.log(
+  `(warm runs below; median of ${MEDIAN_RUNS}, chunk cap ${MAX_PRERENDER_CHARS} chars)`,
+)
 console.log('')
 
 const docs = [
@@ -132,8 +149,20 @@ const docs = [
   ['refs 100KB', refsDoc(100)],
 ]
 
-const hdr = ['document', 'size', 'mono(ms)', 'chunked Σ(ms)', 'speedup', 'worst chunk(ms)', '#chunks', 'mono HTML', 'chunk HTML Σ']
-console.log(hdr.map((h, i) => h.padEnd([14, 7, 9, 13, 8, 15, 8, 10, 12][i])).join(''))
+const hdr = [
+  'document',
+  'size',
+  'mono(ms)',
+  'chunked Σ(ms)',
+  'speedup',
+  'worst chunk(ms)',
+  '#chunks',
+  'mono HTML',
+  'chunk HTML Σ',
+]
+console.log(
+  hdr.map((h, i) => h.padEnd([14, 7, 9, 13, 8, 15, 8, 10, 12][i])).join(''),
+)
 console.log('-'.repeat(110))
 
 for (const [name, md] of docs) {
@@ -185,6 +214,12 @@ for (const [name, md] of docs) {
   console.log(row.join(''))
 }
 console.log('')
-console.log('Legend: mono = current single Md2VditorIRDOM(fullDoc). chunked Σ = total CPU summed')
-console.log('over all chunks. worst chunk = the biggest single-chunk render (the worst frame the')
-console.log('webview would block for). mono HTML / chunk HTML Σ = bytes (A streams chunk HTML over IPC).')
+console.log(
+  'Legend: mono = current single Md2VditorIRDOM(fullDoc). chunked Σ = total CPU summed',
+)
+console.log(
+  'over all chunks. worst chunk = the biggest single-chunk render (the worst frame the',
+)
+console.log(
+  'webview would block for). mono HTML / chunk HTML Σ = bytes (A streams chunk HTML over IPC).',
+)
