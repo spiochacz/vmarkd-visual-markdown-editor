@@ -41,8 +41,8 @@ The fork bug-hunt surfaced several editing-logic bugs in files that still exist 
 > - **#110** → 🟢 **not reproduced**: WYSIWYG blockquote Enter continues the quote.
 > - **#905** → 🟢 **not reproduced**: pasting a table region creates a proper separate table, not all-in-one-cell.
 > - **#939** → 🟢 **basic case OK**: Enter makes a sibling at the correct indent (the deep soft-wrap case not pursued).
-> - **#645** → 🟡 **works-as-GFM**: Enter in a cell yields `<br />` (correct GFM); IR shows the literal marker. Low priority.
-> - **#851** → 🟡 **partial**: no line numbers in IR code blocks (missing *feature*, not a bug); scroll-loss overlaps task 71.
+> - **#645** → 🟢 **by-design (not a bug)**: Enter in a cell yields `<br />` (correct GFM); IR renders it as a visible `html-inline` marker — IR's convention of showing all markers (WYSIWYG renders the break). No data loss. Polish-only.
+> - **#851** → 🟢 **caret/scroll-loss NOT reproduced** (user-confirmed absent in the real editor 2026-06-04; the synthetic-Range repro was a test artifact — edit content always lands correctly). The only real gap is **no line numbers in the editable view**, which is a *feature* → task 73, not a bug.
 
 ### Originally reported on upstream Vditor (now verified above)
 - **#1925** (2026-06-03) — list + `>` blockquote: pressing Enter after the quote creates a new list item instead of a newline inside the quote. https://github.com/Vanessa219/vditor/issues/1925
