@@ -13,12 +13,19 @@ export interface OpenLinkMessage {
   href: string
 }
 
-// Open the URL carried by an IR link marker via the host. The marker element's
-// textContent is the URL. Returns whether it posted (false for an empty href).
+// Open the URL carried by an IR link marker via the host. The IR marker is a
+// <span> whose textContent is the URL. Real <a href> elements (WYSIWYG/SV) are
+// intentionally skipped here — they are handled uniformly by the document-level
+// `fixLinkClick`, so opening them here too would double-post. Returns whether it
+// posted (false for a real anchor or an empty href).
 export function openLinkFromMarker(
-  markerEl: { textContent: string | null } | null,
+  markerEl: {
+    textContent: string | null
+    getAttribute?: (name: string) => string | null
+  } | null,
   post: (msg: OpenLinkMessage) => void,
 ): boolean {
+  if (markerEl?.getAttribute?.('href') != null) return false
   const href = (markerEl?.textContent ?? '').trim()
   if (!href) return false
   post({ command: 'open-link', href })

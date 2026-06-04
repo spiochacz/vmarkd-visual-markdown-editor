@@ -1,4 +1,5 @@
 import { debounce } from './debounce'
+import { shouldOpenLink } from './link-open-policy'
 import type Vditor from 'vditor'
 window.vscode = (window as any).acquireVsCodeApi?.()
 ;(window as any).global = window
@@ -207,11 +208,16 @@ export function fixLinkClick() {
       return
     }
 
+    // Real <a href> (WYSIWYG/SV/preview). Always cancel the browser's own
+    // navigation (a webview anchor must never navigate the panel), then follow the
+    // link only when the link-open policy says so (task 62): in the default
+    // 'modifier' mode a plain click is left for editing and only Ctrl/Cmd+click
+    // opens; in 'click' mode any click opens. Wiki links above are unaffected.
     const linkElement = target?.closest<HTMLAnchorElement>('a[href]')
     if (linkElement?.href) {
       e.preventDefault()
       e.stopPropagation()
-      openLink(linkElement.href)
+      if (shouldOpenLink(e)) openLink(linkElement.href)
     }
   })
   document.addEventListener('keydown', (e) => {

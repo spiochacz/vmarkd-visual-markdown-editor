@@ -217,6 +217,11 @@
             "type": "boolean",
             "default": true,
             "description": "Show the editor toolbar. When off, the editor opens without a toolbar."
+          },
+          "vmarkd.editor.linkOpenWithModifier": {
+            "type": "boolean",
+            "default": true,
+            "description": "Follow links with Ctrl+click (Cmd+click on macOS); a plain click places the caret in the link for editing. Turn off to open links on a plain click instead."
           }
         }
       },

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import {
   patchIrLinkClick,
+  patchWysiwygLinkClick,
   patchListToggle,
   patchMathRender,
 } from '../../media-src/esbuild-shared.mjs'
@@ -16,6 +17,9 @@ const fixBrowserSource = read(
 )
 const mathSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mathRender.ts',
+)
+const wysiwygSource = read(
+  '../../media-src/node_modules/vditor/src/ts/wysiwyg/index.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -32,12 +36,10 @@ describe('patchIrLinkClick (task 62)', () => {
     )
   })
 
-  it('gates the open branch behind the platform modifier (Cmd on mac, else Ctrl)', () => {
+  it('gates the open branch behind the runtime link-open policy', () => {
     const patched = patchIrLinkClick(irSource)
     expect(patched).not.toContain(UNGATED)
-    expect(patched).toContain(
-      'navigator.platform.toLowerCase().includes("mac") ? event.metaKey : event.ctrlKey',
-    )
+    expect(patched).toContain('window.__vmarkdShouldOpenLink(event)')
     // The marker still feeds link.click/window.open inside the now-gated block.
     expect(patched).toContain(
       'window.open(aElement.querySelector(":scope > .vditor-ir__marker--link").textContent);',
@@ -55,6 +57,29 @@ describe('patchIrLinkClick (task 62)', () => {
     // The original anchor is gone after patching, so a second run must throw
     // rather than silently patch again.
     expect(() => patchIrLinkClick(once)).toThrow(/fixIrLinkClick/)
+  })
+})
+
+describe('patchWysiwygLinkClick (task 62)', () => {
+  const WYSIWYG_UNGATED =
+    'const a = hasClosestByMatchTag(event.target, "A");\n            if (a) {'
+
+  it('the shipped Vditor WYSIWYG source opens links on a plain click (pre-patch)', () => {
+    expect(wysiwygSource).toContain(WYSIWYG_UNGATED)
+  })
+
+  it('gates the WYSIWYG open branch behind the runtime link-open policy', () => {
+    const patched = patchWysiwygLinkClick(wysiwygSource)
+    expect(patched).not.toContain(WYSIWYG_UNGATED)
+    expect(patched).toContain(
+      'if (a && (window.__vmarkdShouldOpenLink ? window.__vmarkdShouldOpenLink(event) : true)) {',
+    )
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchWysiwygLinkClick('// unrelated source')).toThrow(
+      /fixWysiwygLinkClick/,
+    )
   })
 })
 

@@ -32,4 +32,14 @@ describe('openLinkFromMarker', () => {
     expect(openLinkFromMarker(null, post)).toBe(false)
     expect(post).not.toHaveBeenCalled()
   })
+
+  it('skips real <a href> elements (WYSIWYG/SV) — fixLinkClick handles those', () => {
+    const post = vi.fn()
+    const anchor = {
+      textContent: 'Example', // link text, NOT the URL — must not be posted
+      getAttribute: (n: string) => (n === 'href' ? 'https://example.com' : null),
+    }
+    expect(openLinkFromMarker(anchor, post)).toBe(false)
+    expect(post).not.toHaveBeenCalled()
+  })
 })

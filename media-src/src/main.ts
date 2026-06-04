@@ -29,6 +29,7 @@ import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
+import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
 import {
   getCursorSourceOffset,
   activeModeElement,
@@ -271,6 +272,9 @@ function initVditor(msg) {
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
   // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
   applyMermaidTheme(window, msg.options?.mermaidTheme)
+  // Link-open policy (task 62): Ctrl/Cmd+click vs plain-click follow. Applied live
+  // here (and on config-changed) so the IR/WYSIWYG patches + fixLinkClick agree.
+  applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
   // Debounced edit→host sync. Owned by a controller so Ctrl/Cmd+S can flush it
   // synchronously before VS Code saves (task 58). Wired to the global keybind via
   // flushPendingEdit below; guarded against firing while applying an extension
@@ -579,6 +583,8 @@ function handleConfigChanged(msg: any) {
   // touching Vditor. Constructor-only options (toolbar, word count, …) can't
   // — re-init Vditor with the merged options, preserving the current content.
   applyBodyOptions(msg.options)
+  // Link-open policy is a plain runtime flag — apply it live (no re-init needed).
+  applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
   const codeThemeChanged =
     lastInitMsg && lastInitMsg.options?.codeTheme !== msg.options?.codeTheme
   if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
@@ -681,6 +687,10 @@ window.addEventListener('keydown', (event) => {
     vscode.postMessage({ command: 'edit-in-vscode' })
   }
 })
+
+// Install the link-open gate the IR/WYSIWYG Vditor patches call (task 62). The
+// mode is set per-init from the config setting; this just exposes the global.
+installLinkOpenGate(window)
 
 // Route Ctrl/Cmd+Z·Y to Vditor's own undo engine instead of the browser/VS Code
 // document undo — see undo-keybind.ts for the full rationale.

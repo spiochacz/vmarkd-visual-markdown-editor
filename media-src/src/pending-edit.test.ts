@@ -53,11 +53,16 @@ describe('createPendingEdit', () => {
     expect(post).toHaveBeenCalledTimes(1)
   })
 
-  it('flush() is a no-op when nothing is pending', () => {
+  // Critical: a save can land BEFORE schedule() ever runs — Vditor only calls its
+  // input hook after its own ~800ms throttle, so nothing is "pending" yet, but the
+  // editor's live value is already current and must be saved. flush() must post it.
+  it('flush() posts the live value even when nothing is pending', () => {
     const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'x', post })
+    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
+    expect(pe.pending).toBe(false)
     pe.flush()
-    expect(post).not.toHaveBeenCalled()
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(post).toHaveBeenCalledWith('live')
   })
 
   it('reports pending state across schedule/flush', () => {

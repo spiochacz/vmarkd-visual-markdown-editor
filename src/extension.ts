@@ -1262,6 +1262,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       outlineHighlight: c.get<boolean>('outline.highlight'),
       codeTheme: c.get<string>('theme.code'),
       streamLargeFiles: c.get<boolean>('advanced.streamLargeFiles'),
+      linkOpenWithModifier: c.get<boolean>('editor.linkOpenWithModifier'),
     }
   }
 

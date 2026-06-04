@@ -67,12 +67,18 @@ const fixDmpInterop = {
   },
 }
 
-// Task 62 — IR link click UX. Vditor's IR click handler opens a link on ANY click
-// (`if (aElement && !expand) { …open…; return; }`), which our window.open override
-// routes to the host. We gate that open branch behind the platform modifier so a
-// plain click instead falls through to normal IR handling (caret in the link →
-// edit), and only Ctrl/Cmd+click follows the link. Anchored single-line rewrite of
-// the outer condition; throws if the anchor drifts on a Vditor bump.
+// Task 62 — link-click UX, gated on our runtime policy. Vditor's IR and WYSIWYG
+// click handlers open a link on ANY click (`if (linkEl) { …open…; return; }`),
+// which our window.open override / fixLinkClick route to the host. We gate that
+// open branch on `window.__vmarkdShouldOpenLink(event)` (installed from
+// link-open-policy.ts) so behaviour follows the `linkOpenWithModifier` setting:
+// in the default 'modifier' mode a plain click falls through to editing and only
+// Ctrl/Cmd+click follows the link; in 'click' mode it opens on any click. Falls
+// back to true (legacy open) if the gate isn't installed. Anchored single-line
+// rewrites of each outer condition; throw if the anchor drifts on a Vditor bump.
+const LINK_GATE =
+  '(window.__vmarkdShouldOpenLink ? window.__vmarkdShouldOpenLink(event) : true)'
+
 const IR_LINK_ANCHOR =
   'if (aElement && (!aElement.classList.contains("vditor-ir__node--expand"))) {'
 export function patchIrLinkClick(code) {
@@ -84,9 +90,25 @@ export function patchIrLinkClick(code) {
   return code.replace(
     IR_LINK_ANCHOR,
     'if (aElement && (!aElement.classList.contains("vditor-ir__node--expand")) && ' +
-      '(navigator.platform.toLowerCase().includes("mac") ? event.metaKey : event.ctrlKey)) {',
+      `${LINK_GATE}) {`,
   )
 }
+
+const WYSIWYG_LINK_ANCHOR =
+  'const a = hasClosestByMatchTag(event.target, "A");\n            if (a) {'
+export function patchWysiwygLinkClick(code) {
+  if (!code.includes(WYSIWYG_LINK_ANCHOR)) {
+    throw new Error(
+      'fixWysiwygLinkClick: anchor not found in vditor wysiwyg/index.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    WYSIWYG_LINK_ANCHOR,
+    'const a = hasClosestByMatchTag(event.target, "A");\n' +
+      `            if (a && ${LINK_GATE}) {`,
+  )
+}
+
 const fixIrLinkClick = {
   name: 'fix-ir-link-click',
   setup(build) {
@@ -95,6 +117,18 @@ const fixIrLinkClick = {
       async (args) => {
         const code = await readFile(args.path, 'utf8')
         return { loader: 'ts', contents: patchIrLinkClick(code) }
+      },
+    )
+  },
+}
+const fixWysiwygLinkClick = {
+  name: 'fix-wysiwyg-link-click',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]wysiwyg[/\\]index\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchWysiwygLinkClick(code) }
       },
     )
   },
@@ -168,6 +202,7 @@ export const vditorSourceConfig = {
     stubUnusedVditorButtons,
     fixDmpInterop,
     fixIrLinkClick,
+    fixWysiwygLinkClick,
     fixListToggle,
     fixMathRender,
   ],

@@ -16,8 +16,12 @@ export interface PendingEditOptions {
 export interface PendingEdit {
   // Arm (or re-arm) the debounce. Coalesces rapid calls into one post.
   schedule(): void
-  // Post the current value immediately if (and only if) an edit is pending,
-  // cancelling the armed timer so the edit is never posted twice.
+  // Post the CURRENT value now and cancel any armed timer (so it's not posted
+  // twice). Always posts — even when nothing is "pending": the editor's live
+  // value (getValue) is always current, but the upstream `schedule()` may not
+  // have run yet (Vditor only calls its input hook after its own ~800ms throttle),
+  // so on Ctrl/Cmd+S we must persist the live value unconditionally, not rely on a
+  // pending debounce. The host dedupes a no-op write, so a redundant post is safe.
   flush(): void
   // Whether a debounced edit is currently waiting to fire.
   readonly pending: boolean
@@ -26,20 +30,18 @@ export interface PendingEdit {
 export function createPendingEdit(opts: PendingEditOptions): PendingEdit {
   let timer: ReturnType<typeof setTimeout> | undefined
 
-  const fire = () => {
-    timer = undefined
-    opts.post(opts.getValue())
-  }
-
   return {
     schedule() {
       if (timer) clearTimeout(timer)
-      timer = setTimeout(fire, opts.wait)
+      timer = setTimeout(() => {
+        timer = undefined
+        opts.post(opts.getValue())
+      }, opts.wait)
     },
     flush() {
-      if (timer === undefined) return
-      clearTimeout(timer)
-      fire()
+      if (timer) clearTimeout(timer)
+      timer = undefined
+      opts.post(opts.getValue())
     },
     get pending() {
       return timer !== undefined
