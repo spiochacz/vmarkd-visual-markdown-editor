@@ -86,3 +86,26 @@ for (const mode of ['ir', 'wysiwyg'] as const) {
     })
   })
 }
+
+// A link OUTSIDE the editor content (the About/Info dialog / a `.vditor-tip`) must
+// NOT be gated by the modifier policy — a plain click opens it, even in the default
+// 'modifier' mode where an editor link would stay for editing.
+test.describe('chrome links (dialogs/tips) ignore the modifier policy', () => {
+  test('a plain click on a dialog link opens it in modifier mode', async ({
+    page,
+  }) => {
+    await gotoLink(page, 'ir', 'modifier')
+    const hrefs = await page.evaluate(() => {
+      ;(window as any).__posted = []
+      document
+        .querySelector<HTMLAnchorElement>('#dialog-link')
+        ?.dispatchEvent(
+          new MouseEvent('click', { bubbles: true, cancelable: true }),
+        )
+      return (window as any).__posted
+        .filter((m: any) => m.command === 'open-link')
+        .map((m: any) => m.href)
+    })
+    expect(hrefs).toEqual(['https://dialog.example/info'])
+  })
+})

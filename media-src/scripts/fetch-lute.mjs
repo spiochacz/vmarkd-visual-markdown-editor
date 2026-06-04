@@ -77,6 +77,21 @@ async function vendor(sha) {
   }
   const goVersion = (js.match(/\$goVersion\s*=\s*"([^"]+)"/) || [])[1] || 'unknown'
 
+  // The pinned commit's date — surfaced in the editor's About/Info dialog so the
+  // shown Lute build links to the exact commit + date (Lute.Version reports a stale
+  // tag on master). Best-effort: a network/rate-limit failure must not break vendoring.
+  let committedAt = ''
+  try {
+    const meta = await fetch(`https://api.github.com/repos/${REPO}/commits/${sha}`, {
+      headers: { 'User-Agent': 'vmarkd-fetch-lute' },
+    })
+    if (meta.ok) {
+      committedAt = ((await meta.json())?.commit?.committer?.date || '').slice(0, 10)
+    }
+  } catch {
+    /* offline / rate-limited — leave committedAt empty */
+  }
+
   await fs.mkdir(VENDOR_DIR, { recursive: true })
   await fs.writeFile(path.join(VENDOR_DIR, 'lute.min.js'), js)
   await fs.writeFile(path.join(VENDOR_DIR, 'lute.min.js.map'), map)
@@ -92,6 +107,7 @@ async function vendor(sha) {
   const source = {
     repo: REPO,
     commit: sha,
+    committedAt,
     fetchedFrom: raw(LUTE_PATH),
     goVersion,
     sha256: sha256(Buffer.from(js)),
@@ -106,6 +122,7 @@ async function vendor(sha) {
 
   console.log(`Vendored to ${path.relative(process.cwd(), VENDOR_DIR)}/`)
   console.log(`  commit:    ${sha}`)
+  console.log(`  committed: ${committedAt || '(unknown)'}`)
   console.log(`  goVersion: ${goVersion}`)
   console.log(`  sha256:    ${source.sha256}`)
   console.log(`  files:     lute.min.js (${(js.length / 1e6).toFixed(2)} MB), .map, LICENSE, NOTICE, source.json`)

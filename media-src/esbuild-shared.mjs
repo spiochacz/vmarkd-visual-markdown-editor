@@ -19,6 +19,18 @@ const vditorVersion = JSON.parse(
   ),
 ).version
 
+// The vendored Lute pin (commit + date), surfaced in the About dialogs. Read once
+// here so both the fixInfoDialog patch and the build-time `define` (used by the
+// vMarkd About dialog in toolbar.ts) share one source of truth. null if unpinned.
+let lutePin = null
+try {
+  lutePin = JSON.parse(
+    readFileSync(new URL('./vendor/lute/source.json', import.meta.url), 'utf8'),
+  )
+} catch {
+  lutePin = null
+}
+
 const stubPath = fileURLToPath(
   new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url),
 )
@@ -27,7 +39,7 @@ export const stubUnusedVditorButtons = {
   name: 'stub-vditor-buttons',
   setup(build) {
     build.onResolve(
-      { filter: /^\.\/(Br|Fullscreen|Record|Export)$/ },
+      { filter: /^\.\/(Br|Fullscreen|Record|Export|Help)$/ },
       (args) => {
         if (
           args.importer.replace(/\\/g, '/').includes('vditor/src/ts/toolbar')
@@ -309,8 +321,108 @@ const fixIrInputSerialize = {
   },
 }
 
+// About Vditor dialog. Vditor hard-codes it in Chinese (toolbar/Info.ts) — NOT an
+// i18n string, so English is only possible by rewriting the tip.show() HTML at build
+// time. The TOP half is Vditor's ORIGINAL About content, translated verbatim (tagline,
+// description, project/license/version/sponsor). Below a divider we add the (separate,
+// also-Chinese) Help dialog's links as their own section, so one window carries both
+// (the `help` toolbar item is dropped + stubbed). Every upstream link is kept (incl.
+// the ld246 community links), plus two fixes:
+//   - logo: Vditor loads it from unpkg (remote https:), now blocked by our hardened
+//     img-src CSP (task 67) → repointed to the locally-served copy.
+//   - version: Vditor interpolates `Lute.Version`, a stale tag (v1.7.6) on our master
+//     pin (task 66) → a GitHub commit link (short sha) + date from source.json.
+// `${VDITOR_VERSION}` and `${vditor.options.cdn}` are left literal (single-quoted) so
+// they interpolate at runtime inside Vditor's tip.show template literal.
+function infoDialogHtml(pin) {
+  const luteCell =
+    pin && pin.commit
+      ? `Lute <a href="https://github.com/88250/lute/commit/${pin.commit}" target="_blank">${pin.commit.slice(0, 7)}</a>${pin.committedAt ? ` (${pin.committedAt})` : ''}`
+      : // no vendored pin → keep Vditor's runtime version interpolation
+        'Lute v${Lute.Version}'
+  return (
+    '<div style="max-width: 520px;font-size: 14px;line-height: 22px;margin-bottom: 14px;">' +
+    // — Original Vditor About (translated) —
+    '<p style="text-align: center;margin: 14px 0"><em>The next-generation Markdown editor, built for the future</em></p>' +
+    '<div style="display: flex;margin-bottom: 14px;flex-wrap: wrap;align-items: center">' +
+    '<img src="${vditor.options.cdn}/dist/images/logo.png" style="margin: 0 auto;height: 68px"/>' +
+    '<div>&nbsp;&nbsp;</div>' +
+    '<div style="flex: 1;min-width: 250px">Vditor is a browser-based Markdown editor supporting WYSIWYG, instant rendering (Typora-like) and split-preview modes. It is written in TypeScript and works with vanilla JavaScript as well as Vue, React, Angular and Svelte.</div>' +
+    '</div>' +
+    '<div style="display: flex;flex-wrap: wrap;">' +
+    '<ul style="list-style: none;flex: 1;min-width: 148px">' +
+    '<li>Project: <a href="https://b3log.org/vditor" target="_blank">b3log.org/vditor</a></li>' +
+    '<li>License: MIT</li>' +
+    '</ul>' +
+    '<ul style="list-style: none;margin-right: 18px">' +
+    '<li>Version: Vditor v${VDITOR_VERSION} / ' +
+    luteCell +
+    '</li>' +
+    '<li>Sponsor: <a href="https://ld246.com/sponsor" target="_blank">ld246.com/sponsor</a></li>' +
+    '</ul>' +
+    '</div>' +
+    // — Help section (folded in from the dropped Help dialog) —
+    '<hr style="border: none;border-top: 1px solid var(--vscode-widget-border, rgba(128,128,128,.35));margin: 4px 0 12px"/>' +
+    '<div style="display: flex;flex-wrap: wrap;">' +
+    '<ul style="list-style: none;flex: 1;min-width: 148px;margin-right: 18px">' +
+    '<li><strong>Markdown guide</strong></li>' +
+    '<li><a href="https://ld246.com/article/1583308420519" target="_blank">Syntax cheatsheet</a></li>' +
+    '<li><a href="https://ld246.com/article/1583129520165" target="_blank">Basic syntax</a></li>' +
+    '<li><a href="https://ld246.com/article/1583305480675" target="_blank">Extended syntax</a></li>' +
+    '<li><a href="https://ld246.com/article/1582778815353" target="_blank">Keyboard shortcuts</a></li>' +
+    '</ul>' +
+    '<ul style="list-style: none;flex: 1;min-width: 148px">' +
+    '<li><strong>Vditor support</strong></li>' +
+    '<li><a href="https://github.com/Vanessa219/vditor/issues" target="_blank">Issues</a></li>' +
+    '<li><a href="https://ld246.com/tag/vditor" target="_blank">Community forum</a></li>' +
+    '<li><a href="https://ld246.com/article/1549638745630" target="_blank">Developer guide</a></li>' +
+    '<li><a href="https://ld246.com/guide/markdown" target="_blank">Demo</a></li>' +
+    '</ul>' +
+    '</div>' +
+    '</div>'
+  )
+}
+
+const INFO_TIP_OPEN = 'vditor.tip.show(`'
+const INFO_TIP_CLOSE = '`, 0);'
+export function patchInfoDialog(code, pin) {
+  const s = code.indexOf(INFO_TIP_OPEN)
+  const e =
+    s === -1 ? -1 : code.indexOf(INFO_TIP_CLOSE, s + INFO_TIP_OPEN.length)
+  // Guard on the tip.show anchor AND a known Chinese marker so the build fails loudly
+  // if Vditor's Info dialog drifts on a version bump.
+  if (s === -1 || e === -1 || !code.includes('组件版本')) {
+    throw new Error(
+      'fixInfoDialog: Info.ts tip.show anchor not found (version drift?)',
+    )
+  }
+  return (
+    code.slice(0, s + INFO_TIP_OPEN.length) +
+    infoDialogHtml(pin) +
+    code.slice(e)
+  )
+}
+const fixInfoDialog = {
+  name: 'fix-info-dialog',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Info\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchInfoDialog(code, lutePin) }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
-  define: { VDITOR_VERSION: JSON.stringify(vditorVersion) },
+  define: {
+    VDITOR_VERSION: JSON.stringify(vditorVersion),
+    // Surfaced in the vMarkd About dialog (toolbar.ts). Empty strings if unpinned.
+    __VMARKD_VDITOR_VERSION__: JSON.stringify(vditorVersion),
+    __VMARKD_LUTE_COMMIT__: JSON.stringify(lutePin?.commit || ''),
+    __VMARKD_LUTE_COMMITTED_AT__: JSON.stringify(lutePin?.committedAt || ''),
+  },
   tsconfigRaw: { compilerOptions: { useDefineForClassFields: false } },
   loader: { '.less': 'empty' },
   plugins: [
@@ -322,5 +434,6 @@ export const vditorSourceConfig = {
     fixMathRender,
     fixProcessCode,
     fixIrInputSerialize,
+    fixInfoDialog,
   ],
 }
