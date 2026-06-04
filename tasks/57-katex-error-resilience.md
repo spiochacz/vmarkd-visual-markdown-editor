@@ -1,6 +1,12 @@
 # Task: KaTeX error resilience (`throwOnError: false`, `strict: false`)
 
-> **Status:** ⬜ Not started.
+> **Status:** ✅ Done. `strict:false, throwOnError:false` injected into the single
+> `katex.renderToString` call via esbuild `onLoad` (`media-src/esbuild-shared.mjs`
+> `patchMathRender`/`fixMathRender`, anchored + version-bump guard); the MathJax
+> `tex.macros` branch is left untouched. Transform unit-tested
+> (`test/backend/vditor-source-patches.test.ts`); confirmed in the minified bundle
+> (`strict:!1,throwOnError:!1`). Note: upstream #1915 is a Lute nil-pointer, NOT a
+> KaTeX throw — out of scope here (may be covered by the Lute bump, task 66).
 > **Source:** `GongXunSS/vditor` (`feat-vscode`) — "Allow errors in katex" (added `strict:false, throwOnError:false` to `katex.renderToString` in `src/ts/markdown/mathRender.ts`).
 > **Value / Risk:** 🟢 a malformed formula shows a red inline error instead of breaking render / very low (≈1 line of config)
 

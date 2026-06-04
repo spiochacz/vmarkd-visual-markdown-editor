@@ -1,6 +1,10 @@
 # Task: Flush the debounced edit on Ctrl/Cmd+S (avoid saving stale content)
 
-> **Status:** ⬜ Not started.
+> **Status:** ✅ Done. Debounced edit factored into `media-src/src/pending-edit.ts`
+> (`createPendingEdit` — schedule/flush); a capture-phase, non-suppressing Ctrl/Cmd+S
+> keybind (`media-src/src/save-flush.ts`, wired at `main.ts` bottom) flushes it before
+> VS Code saves. Unit-tested (pending-edit + save-flush specs). ^x/^v staleness not
+> pursued (cut already handled by `fixCut`; verify if it ever surfaces).
 > **Source:** `GongXunSS/vditor` (`feat-vscode`) — `handlerHistoryEvent` force-flush on ^s/^x/^v.
 > **Value / Risk:** 🟢 fixes a real save-correctness bug / low (reuses the existing capture-phase keybind pattern)
 
