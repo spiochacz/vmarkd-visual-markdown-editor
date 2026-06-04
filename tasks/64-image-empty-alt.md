@@ -1,6 +1,10 @@
 # Task: Image with empty alt — protective rewrite missing (possible vanish)
 
-> **Status:** ⬜ Not started (reproduce first).
+> **Status:** 🟢 Not reproducible — CLOSED (2026-06-04). Verified via the IR round-trip
+> (`test/backend/vditor-fidelity-bugs.test.ts`): `![](img.png)`, `![](my image.png)`,
+> `![alt](img.png)` all round-trip byte-identical on our Lute — the "vanish" concern
+> does not reproduce on 3.11.2 (the fork's base was older). Kept as a regression guard.
+> (The WYSIWYG-popover insert path is separate but not the reported failure.)
 > **Source:** `GongXunSS/vditor` (`feat-vscode`) — `alt=""`→`alt="img"` rewrite ("Fix cannot create img"). Verified the rewrite is absent in our `vditor@3.11.2` (evidence in Problem below).
 > **Value / Risk:** 🟡 image may disappear after insertion / low-medium (confirm the vanish before patching)
 

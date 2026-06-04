@@ -1,6 +1,16 @@
 # Task: Repro batch — unverified editing bugs from fork bug-hunt
 
-> **Status:** ⬜ Not started (investigation/repro task; spawns fixes if confirmed).
+> **Status:** 🔵 Repro in progress (2026-06-04). Verdicts so far (tests:
+> `test/backend/vditor-fidelity-bugs.test.ts` for serialize bugs,
+> `media-src/e2e/keybugs.spec.ts` for keydown bugs):
+>   - #1 Backspace over a cross-soft-break selection → **🟢 not reproduced** (deletes
+>     cleanly, content valid). Guarded.
+>   - #5 Enter at start of a heading → **🟢 not reproduced** (heading intact). Guarded.
+>   - #1476 reference-link round-trip → **🟢 not reproduced** (likely fixed by the Lute
+>     upgrade, task 66). Guarded.
+>   - #1904 `|` in inline math in a table cell → **🔴 reproduced** (data loss; see task 60).
+> Remaining candidates (#2 code-newline cursor jump, #3 select-all, #4 marker collapse,
+> #6 front-matter backspace, #7 inline-code data-marker) still need e2e repros.
 > **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — bugs NOT yet confirmed against our `vditor@3.11.2` (candidates listed below with fork commit + engine file).
 > **Value / Risk:** 🟡 each is a plausible editing-correctness bug in core handlers / low to investigate, value depends on repro
 
