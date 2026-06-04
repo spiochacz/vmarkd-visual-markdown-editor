@@ -385,6 +385,11 @@ function initVditor(msg) {
     undoDelay: undoDelayForContentLength(
       typeof msg.content === 'string' ? msg.content.length : 0,
     ),
+    // Capture Tab so it indents/inserts instead of falling through to the browser
+    // (which moves focus to the next tabbable element / the host iframe and scrolls
+    // the view away). Vditor only handles Tab when `options.tab` is set; it was
+    // unset, so Tab escaped focus. A literal tab keeps round-trips clean.
+    tab: '\t',
     // IR link UX (task 62): Ctrl/Cmd+click follows the link (the modifier gate is
     // in the patched IR source — fixIrLinkClick), plain click edits. The patched
     // handler only reaches link.click on a modifier click, so this just opens.
