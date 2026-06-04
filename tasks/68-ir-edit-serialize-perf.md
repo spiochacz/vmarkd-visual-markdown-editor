@@ -22,11 +22,18 @@ behaviour. SV mode's `getMarkdown` is just `textContent` (no Lute) → cheap →
 hatch for huge files.
 
 ## Done
-- **A — no double serialize.** Vditor already serialises once and passes the markdown
-  to `options.input(text)` (`getValue()` == `getMarkdown` — verified). Our debounced
-  host-sync (`pending-edit.ts`) now reuses that `text` (`main.ts` `input(value)` →
-  `schedule(value)`) instead of calling `getValue()` again → removes one full serialise
-  per edit. e2e asserts the debounce posts with **0** extra `getValue()` calls.
+- **A → superseded by the takeover (below).** First A reused the `text` Vditor passed
+  to `options.input` to avoid a second serialise. We then went further: the
+  `fixIrInputSerialize` esbuild patch makes Vditor's per-input `options.input` a cheap
+  **signal** (no `getMarkdown`; verified safe — counter/cache off, undo diffs
+  innerHTML), so the **webview owns the single serialise** (`pending-edit.ts` onIdle →
+  `getValue()`), not Vditor. One serialise per edit, on our timer.
+- **Cursor-wait on large docs.** The serialise is synchronous (blocks ~5s). The onIdle
+  path sets a busy cursor (`body.vmarkd-busy`, `busy-cursor.ts`) and yields one paint
+  before it, clearing after, so large-doc edits show the OS busy cursor instead of a
+  silent freeze. (No spinner animation is possible on a blocked main thread — would
+  need a Web Worker, see task 69 neighbours.) Small docs skip it (no flash). Ctrl/Cmd+S
+  stays synchronous (task 58 — edit before save), so no cursor there.
 - **C2 — defer the serialize off the active-typing path.** The serialize fires on a
   debounce keyed off `undoDelay` (default 800 ms). For large docs we widen it
   (`edit-sync-tuning.ts` `undoDelayForContentLength`: ≥20k chars → 2000 ms), set as the

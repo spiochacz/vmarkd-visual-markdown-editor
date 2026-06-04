@@ -41,12 +41,7 @@ test('Ctrl+S right after typing posts the live content (even before any debounce
   expect(edits[edits.length - 1].content).toContain('ZZZ58')
 })
 
-// IR-edit perf: the debounced (non-save) edit must post the markdown Vditor
-// already serialised (passed to options.input → schedule), WITHOUT our debounce
-// re-serialising via getValue() a second time.
-test('the debounced edit posts the typed content without a second getValue() serialise', async ({
-  page,
-}) => {
+async function gotoFlush(page: any, query = '') {
   await page.addInitScript(() => {
     ;(window as any).__posted = []
     ;(window as any).acquireVsCodeApi = () => ({
@@ -55,38 +50,50 @@ test('the debounced edit posts the typed content without a second getValue() ser
       setState: () => {},
     })
   })
-  await page.goto('/save-flush.html')
+  await page.goto(`/save-flush.html${query}`)
   await page.waitForFunction(() => (window as any).__ready === true)
-
-  // Count getValue() calls so we can prove the debounce path doesn't re-serialise.
-  await page.evaluate(() => {
-    const v = (window as any).vditor
-    ;(window as any).__getValueCalls = 0
-    const orig = v.getValue.bind(v)
-    v.getValue = () => {
-      ;(window as any).__getValueCalls++
-      return orig()
-    }
-  })
-
   const box = await page.evaluate(() => {
     const el = (window as any).vditor.vditor.ir.element as HTMLElement
     const r = el.getBoundingClientRect()
     return { x: r.x + 8, y: r.y + 8 }
   })
   await page.mouse.click(box.x, box.y)
-  await page.keyboard.type('DEB42')
-  // Wait out Vditor's input throttle (~800ms) + our debounce (250ms).
-  await page.waitForTimeout(1400)
+}
 
+// The debounced (non-save) edit serialises + posts in onIdle. On a small doc no
+// busy cursor is shown (it would flash); the edit just lands.
+test('the debounced edit posts the typed content (small doc → no busy cursor)', async ({
+  page,
+}) => {
+  await gotoFlush(page)
+  await page.keyboard.type('DEB42')
+  await page.waitForTimeout(1400) // Vditor input signal (~800ms) + debounce (250ms)
   const state = await page.evaluate(() => ({
     edits: (window as any).__posted.filter((m: any) => m.command === 'edit'),
-    getValueCalls: (window as any).__getValueCalls,
+    busyLog: (window as any).__busyLog,
   }))
   expect(state.edits.length).toBeGreaterThan(0)
   expect(state.edits[state.edits.length - 1].content).toContain('DEB42')
-  // The debounce reused Vditor's serialised text — no extra getValue() serialise.
-  expect(state.getValueCalls).toBe(0)
+  expect(state.busyLog).toEqual([]) // small doc: no busy cursor
+})
+
+// On a large doc the slow serialize is wrapped: the busy cursor is set, a paint is
+// yielded, then it's cleared — and the edit still lands (task 68 cursor-wait).
+test('the debounced edit wraps the serialize in a busy cursor on a large doc', async ({
+  page,
+}) => {
+  await gotoFlush(page, '?large=1')
+  await page.keyboard.type('BIG7')
+  await page.waitForTimeout(1400)
+  const state = await page.evaluate(() => ({
+    edits: (window as any).__posted.filter((m: any) => m.command === 'edit'),
+    busyLog: (window as any).__busyLog,
+    busyNow: document.body.classList.contains('vmarkd-busy'),
+  }))
+  expect(state.edits.length).toBeGreaterThan(0)
+  expect(state.edits[state.edits.length - 1].content).toContain('BIG7')
+  expect(state.busyLog).toEqual([true, false]) // set then cleared around serialize
+  expect(state.busyNow).toBe(false) // cleared afterwards
 })
 
 // Perf C2: on large docs we widen Vditor's reserialise/undo idle window

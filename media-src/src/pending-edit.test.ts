@@ -5,74 +5,56 @@ describe('createPendingEdit', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('schedule(content) debounces and posts that exact content', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
-    pe.schedule('a')
-    expect(post).not.toHaveBeenCalled()
+  it('schedule() debounces onIdle by the configured wait', () => {
+    const onIdle = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush: vi.fn() })
+    pe.schedule()
+    expect(onIdle).not.toHaveBeenCalled()
     vi.advanceTimersByTime(249)
-    expect(post).not.toHaveBeenCalled()
+    expect(onIdle).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('a')
+    expect(onIdle).toHaveBeenCalledTimes(1)
   })
 
-  // The perf win: the debounced post reuses the markdown Vditor already serialised
-  // (passed to schedule) and must NOT call getValue() — a second full serialise of
-  // a large document is multi-second.
-  it('schedule() does NOT re-serialise via getValue()', () => {
-    const getValue = vi.fn(() => 'LIVE')
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue, post })
-    pe.schedule('SERIALIZED')
+  it('coalesces rapid schedule() calls into one onIdle', () => {
+    const onIdle = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush: vi.fn() })
+    pe.schedule()
+    pe.schedule()
+    pe.schedule()
     vi.advanceTimersByTime(250)
-    expect(post).toHaveBeenCalledWith('SERIALIZED')
-    expect(getValue).not.toHaveBeenCalled()
+    expect(onIdle).toHaveBeenCalledTimes(1)
   })
 
-  it('coalesces rapid calls into one post of the latest content', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
-    pe.schedule('a')
-    pe.schedule('ab')
-    pe.schedule('abc')
+  // Ctrl/Cmd+S (task 58): flush runs onFlush immediately and cancels the pending
+  // idle, so the timer can't also fire and the save persists current content.
+  it('flush() runs onFlush immediately and cancels the pending onIdle', () => {
+    const onIdle = vi.fn()
+    const onFlush = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush })
+    pe.schedule()
+    pe.flush()
+    expect(onFlush).toHaveBeenCalledTimes(1)
     vi.advanceTimersByTime(250)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('abc')
+    expect(onIdle).not.toHaveBeenCalled()
   })
 
-  // Ctrl/Cmd+S: persist the LIVE value even when nothing is pending — Vditor only
-  // calls its input hook after its ~800ms throttle, so a save right after typing
-  // has no pending edit yet, but the live value is current and must be saved.
-  it('flush() posts the live getValue() even when nothing is pending', () => {
-    const getValue = vi.fn(() => 'live')
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue, post })
+  it('flush() runs onFlush even when nothing is pending', () => {
+    const onFlush = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle: vi.fn(), onFlush })
     expect(pe.pending).toBe(false)
     pe.flush()
-    expect(getValue).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('live')
-  })
-
-  it('flush() posts the live value, not a stale pending content, and cancels the timer', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'LIVE', post })
-    pe.schedule('OLD') // a debounced edit is pending
-    pe.flush()
-    expect(post).toHaveBeenLastCalledWith('LIVE')
-    vi.advanceTimersByTime(250) // the original timer must not also fire
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(onFlush).toHaveBeenCalledTimes(1)
   })
 
   it('reports pending state across schedule/flush', () => {
     const pe = createPendingEdit({
       wait: 250,
-      getValue: () => 'x',
-      post: vi.fn(),
+      onIdle: vi.fn(),
+      onFlush: vi.fn(),
     })
     expect(pe.pending).toBe(false)
-    pe.schedule('x')
+    pe.schedule()
     expect(pe.pending).toBe(true)
     pe.flush()
     expect(pe.pending).toBe(false)

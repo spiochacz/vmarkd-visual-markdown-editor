@@ -30,7 +30,8 @@ import { createPendingEdit } from './pending-edit'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
 import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
-import { undoDelayForContentLength } from './edit-sync-tuning'
+import { undoDelayForContentLength, LARGE_DOC_CHARS } from './edit-sync-tuning'
+import { setBusyCursor, nextPaint } from './busy-cursor'
 import {
   getCursorSourceOffset,
   activeModeElement,
@@ -276,19 +277,40 @@ function initVditor(msg) {
   // Link-open policy (task 62): Ctrl/Cmd+click vs plain-click follow. Applied live
   // here (and on config-changed) so the IR/WYSIWYG patches + fixLinkClick agree.
   applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
-  // Debounced edit→host sync. Owned by a controller so Ctrl/Cmd+S can flush it
-  // synchronously before VS Code saves (task 58). Wired to the global keybind via
-  // flushPendingEdit below; guarded against firing while applying an extension
-  // update or streaming (a partial getValue() would post a truncated document).
+  // Debounced edit→host sync. The webview owns the (single) markdown serialize —
+  // Vditor no longer serializes per input (fixIrInputSerialize patch). On a large
+  // doc the serialize is multi-second and blocks the thread, so the idle path shows
+  // a busy cursor and yields a paint before it (task 68). Ctrl/Cmd+S flushes
+  // SYNCHRONOUSLY (no yield) so the edit is posted before VS Code saves (task 58).
+  // Both guard against firing mid extension-update / streaming (a partial getValue()
+  // would post a truncated document).
+  const postEdit = () =>
+    vscode.postMessage({ command: 'edit', content: vditor.getValue() })
+  const isLargeDoc = () =>
+    (activeModeElement(window.vditor)?.textContent?.length ?? 0) >=
+    LARGE_DOC_CHARS
   const pendingEdit = createPendingEdit({
     wait: 250,
-    getValue: () => vditor.getValue(),
-    post: (content) => vscode.postMessage({ command: 'edit', content }),
+    onIdle: async () => {
+      if (applyingExtensionUpdate || streaming) return
+      if (isLargeDoc()) {
+        setBusyCursor(true)
+        await nextPaint() // let the busy cursor paint before the long serialize
+        try {
+          postEdit()
+        } finally {
+          setBusyCursor(false)
+        }
+      } else {
+        postEdit()
+      }
+    },
+    onFlush: () => {
+      if (applyingExtensionUpdate || streaming) return
+      postEdit()
+    },
   })
-  flushPendingEdit = () => {
-    if (applyingExtensionUpdate || streaming) return
-    pendingEdit.flush()
-  }
+  flushPendingEdit = () => pendingEdit.flush()
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   const codeStyle = codeHljsStyle(
     msg.theme === 'dark' ? 'dark' : 'light',
@@ -500,18 +522,14 @@ function initVditor(msg) {
         if (!willStream) removePrerenderOverlay()
       }
     },
-    input(value?: string) {
-      // Suppress while applying an extension update OR while streaming a large doc
-      // in — a partial getValue() would post (and save) a truncated document.
+    input() {
+      // Cheap signal (Vditor no longer serialises here — fixIrInputSerialize). The
+      // serialize+post happens in the debounced onIdle. Suppressed while applying an
+      // extension update / streaming (a partial doc would be posted).
       if (applyingExtensionUpdate || streaming) {
         return
       }
-      // Vditor hands us the markdown it just serialised — reuse it instead of
-      // re-serialising in the debounce (a second full serialise is multi-second on
-      // large docs). Fall back to getValue() if a caller ever omits it.
-      pendingEdit.schedule(
-        typeof value === 'string' ? value : vditor.getValue(),
-      )
+      pendingEdit.schedule()
     },
     upload: {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409

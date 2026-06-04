@@ -444,3 +444,11 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
 .me-diff-marker--removed {
   background: var(--vscode-editorGutter-deletedBackground, #94151b);
 }
+
+/* Busy cursor during the large-document markdown serialize (task 68). The
+   serialize blocks the thread, so this is the OS busy cursor shown before/around
+   the freeze (no spinner animation is possible on a blocked main thread). */
+body.vmarkd-busy,
+body.vmarkd-busy * {
+  cursor: progress !important;
+}
