@@ -4,11 +4,15 @@
 // Vditor renders each diagram to an <svg> once (marked `data-processed="true"`) and never
 // re-runs it, so flipping dark↔light leaves diagrams in the stale theme until reopen.
 //
-// The editable source survives in a sibling `<code class="language-mermaid">` (the preview
-// pane's `.language-mermaid` had its text replaced by the SVG). So to re-theme we: restore
-// each preview's source text, clear `data-processed`, and re-run Vditor's `mermaidRender`
-// SCOPED TO THE PREVIEW PANES — never the whole editor, or the editable source `<code>`
-// would itself be turned into an SVG. Async + best-effort; a doc with no diagrams no-ops.
+// We re-render OFFSCREEN and swap the SVG in atomically: rendering in place would mean
+// setting the preview's textContent back to the (short) source for mermaid to read, which
+// momentarily collapses the diagram's height — and if the diagram sits above the viewport
+// that shrinks the document and scrolls the view toward the top (the user-reported jump,
+// mermaid-only). Instead we build a hidden sandbox holding the source, run Vditor's
+// `mermaidRender` there, then copy each finished SVG back into its live preview node — the
+// live DOM never collapses, so there's no scroll jump and no flash. The editable source is
+// read from the sibling `<code class="language-mermaid">`. Async + best-effort; no diagrams
+// → no-op.
 import { mermaidRender } from 'vditor/src/ts/markdown/mermaidRender'
 
 export function reRenderMermaid(
@@ -22,10 +26,10 @@ export function reRenderMermaid(
       '.vditor-ir__preview, .vditor-wysiwyg__preview',
     ),
   )
-  let any = false
+  const jobs: { live: HTMLElement; source: string }[] = []
   for (const pane of panes) {
-    const rendered = pane.querySelector<HTMLElement>('.language-mermaid')
-    if (!rendered) continue
+    const live = pane.querySelector<HTMLElement>('.language-mermaid')
+    if (!live) continue
     // The source is the other `.language-mermaid` in the same block — the editable
     // `<code>` that lives outside this preview pane.
     const block =
@@ -38,18 +42,42 @@ export function reRenderMermaid(
         ).find((m) => !pane.contains(m))?.textContent
       : undefined
     if (source == null) continue
-    rendered.removeAttribute('data-processed')
-    rendered.textContent = source
-    any = true
+    jobs.push({ live, source })
   }
-  if (!any) return
-  // Re-run render per preview pane (mermaidRender reads textContent as the diagram source
-  // and writes back the new-theme SVG). Theme: 'dark' → mermaid dark; anything else →
-  // mermaid default. An explicit `mermaidTheme` setting still wins via the
-  // mermaid.initialize wrapper in applyMermaidTheme.
-  for (const pane of panes) {
-    if (pane.querySelector('.language-mermaid')) {
-      mermaidRender(pane, cdn, theme)
+  if (jobs.length === 0) return
+
+  // Hidden sandbox, off-flow so it can't affect layout/scroll while rendering.
+  const sandbox = document.createElement('div')
+  sandbox.setAttribute('aria-hidden', 'true')
+  sandbox.style.cssText =
+    'position:absolute;left:-99999px;top:0;width:800px;visibility:hidden;pointer-events:none'
+  const temps = jobs.map((j) => {
+    const t = document.createElement('div')
+    t.className = 'language-mermaid'
+    t.textContent = j.source
+    sandbox.appendChild(t)
+    return t
+  })
+  document.body.appendChild(sandbox)
+  // Theme: 'dark' → mermaid dark; anything else → mermaid default. An explicit
+  // `mermaidTheme` setting still wins via the mermaid.initialize wrapper in
+  // applyMermaidTheme.
+  mermaidRender(sandbox, cdn, theme)
+
+  // mermaidRender is fire-and-forget async; poll until every temp finished, then swap each
+  // finished SVG into its live node and drop the sandbox. Bounded so a stuck render can't
+  // leak the sandbox.
+  let tries = 0
+  const swap = () => {
+    const done = temps.every((t) => t.getAttribute('data-processed') === 'true')
+    if (done || tries++ > 180) {
+      jobs.forEach((j, i) => {
+        if (temps[i].querySelector('svg')) j.live.innerHTML = temps[i].innerHTML
+      })
+      sandbox.remove()
+      return
     }
+    requestAnimationFrame(swap)
   }
+  requestAnimationFrame(swap)
 }
