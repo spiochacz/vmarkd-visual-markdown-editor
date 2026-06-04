@@ -8,7 +8,8 @@
 >   - #5 Enter at start of a heading → **🟢 not reproduced** (heading intact). Guarded.
 >   - #1476 reference-link round-trip → **🟢 not reproduced** (likely fixed by the Lute
 >     upgrade, task 66). Guarded.
->   - #1904 `|` in inline math in a table cell → **🔴 reproduced** (data loss; see task 60).
+>   - #1904 `|` in inline math/code in a table cell → **✅ fixed** (data loss; was
+>     reproduced, now normalized on input via `src/table-pipe-escape.ts` — see task 60).
 > Remaining candidates (#2 code-newline cursor jump, #3 select-all, #4 marker collapse,
 > #6 front-matter backspace, #7 inline-code data-marker) still need e2e repros.
 > **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — bugs NOT yet confirmed against our `vditor@3.11.2` (candidates listed below with fork commit + engine file).

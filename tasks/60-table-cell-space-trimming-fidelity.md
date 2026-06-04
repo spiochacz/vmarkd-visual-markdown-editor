@@ -1,15 +1,46 @@
 # Task: Fidelity — space trimmed before inline markers in table cells
 
-> **Status:** 🔴 Reproduced (2026-06-04) — confirmed against our Lute via the IR
-> round-trip (`test/backend/vditor-fidelity-bugs.test.ts`): `| x **y** | z |` → `| x**y** | z |`
-> (space before the bold marker trimmed). ⚠️ It happens in **Lute itself** (`VditorIRDOM2Md`,
-> the Go/WASM binary), NOT in the patchable TS `fixBrowserBehavior.ts` — so the esbuild
-> patch route may not fix it; options are a newer Lute re-pin or a serialize-path
-> workaround. Also reproduced **#1904** (`| $|x|$ | b |` → mangled, data loss). Note:
-> task 61 (minimal-diff write-back, shipped) already CONTAINS the blast radius for
-> *untouched* tables. Fix not yet written.
-> **Source:** `tuanpmt/vditor` — commits "Fix space trimmed before bold text in table cells" + "… before inline markers in table cells (all modes)".
-> **Value / Risk:** 🟡 markdown fidelity (core project concern) / medium — confirm the repro before patching
+> **Status:** ✅ Fixed at the write-back layer (2026-06-04). Root cause localized by
+> direct Lute probing: the space is destroyed at **PARSE/SPIN** (`Md2VditorIRDOM` /
+> `SpinVditorIRDOM`, the Go/WASM binary) — NOT at serialize. `VditorIRDOM2Md` on a DOM
+> that *contains* the space emits it correctly; our `vditor@3.11.2` TS has no offending
+> trim in the cell-content path, so the cited tuanpmt-fork TS fix doesn't apply to us
+> (different base; our loss is upstream in Lute). Trigger is narrow: the trailing space
+> of a cell's *leading* text run when immediately followed by an inline marker
+> (`**`,`*`,`` ` ``,`[`,`~~`).
+>
+> A serialize/TS patch CANNOT recover the space (parse already dropped it on load), and
+> re-pinning is a dead end (current pin = latest 88250/lute master still trims; the fix
+> never reached upstream). Rebuilding Lute from patched Go was rejected (would abandon
+> the vendored prebuilt + sha-verify reproducibility). **Chosen fix (user-approved):**
+> extend the minimal-diff write-back (task 61) to **cell level** — `mergeTableBlock` in
+> `src/minimal-diff-writeback.ts`. Editing one cell no longer reflows the spacing of
+> rows/cells the user never touched: their ORIGINAL bytes are kept; only genuinely
+> changed cells take the editor form. A cell is "unchanged" iff it reserializes (in a
+> 1-col table) to the same thing as the editor's cell — a semantic no-op, always safe.
+>
+> The 🔴 pure-Lute round-trip tripwires (`test/backend/vditor-fidelity-bugs.test.ts`)
+> are KEPT (Lute still trims — that's by design, we fixed the write-back not Lute) and
+> a 🟢 FIX test proves the space survives a one-cell edit end-to-end with real Lute.
+> Residual gap (accepted): a space in the *very cell you are typing in* is still lost —
+> but it was never displayed (parse drops it on load), so it isn't a regression.
+>
+> **#1904 (`|` inside inline math/code in a table cell) — also FIXED** (2026-06-04, same
+> session). Root cause: Lute (like GitHub/cmark-gfm) splits cells on the raw `|` before
+> inline parsing, so a `|` in `$…$`/`` `…` `` is read as a column separator → row mangled,
+> data lost, *and the broken table shows on open* (worse than the space-trim: it's a
+> display+edit bug, not just a save bug). Fix = `src/table-pipe-escape.ts`
+> (`escapeTableSpanPipes`): normalize the markdown on the way IN — escape the in-span `|`
+> to the GFM-correct `\|` — applied at every host→webview content boundary (`postUpdate`,
+> the `renderForMode` overlay) and inside `reserializeMarkdown` (minimal-diff stays
+> consistent: untouched math-tables keep their original bytes; edited ones normalize to
+> valid GFM). SAFE: only over-split rows are candidates and the escape is applied only
+> when it restores the exact expected column count, so correctly-celled tables (incl.
+> `| $5 | $6 |` price tables) are never touched. Residual: typing a *brand-new* `$|x|$`
+> live in a cell still splits (the spin re-parses raw text) — lesser edge, escape it as
+> on GitHub.
+> **Source:** `tuanpmt/vditor` — commits "Fix space trimmed before bold text in table cells" + "… before inline markers in table cells (all modes)" (does NOT apply to our base; see above).
+> **Value / Risk:** 🟡 markdown fidelity (core project concern) / low — fix is pure host-side TS, falls back to editor output when uncertain
 
 ## Problem
 A leading space before a bold/inline marker inside a table cell (e.g. `| a **b** |` round-tripping, or `text **bold**` where the space before `**` matters) can be **trimmed** by Vditor's table reverse-render, altering the source on edit. The bug lives in Vditor's table DOM→markdown path (`fixBrowserBehavior.ts` `.trimLeft()` usages + the IR/WYSIWYG table serializer), which we ship from source.
@@ -37,4 +68,13 @@ Editing a table cell preserves intentional spacing before inline markers — no 
 - _Distinct table bugs from the space-trim focus — verify alongside while you're in the table serialize/render path; split into their own tasks if they need separate fixes._
 
 ## Verify
-Round-trip test passes; manual edit of an adjacent cell does not alter the spacing of the target cell in the saved file. Patch-guard throws on a Vditor version mismatch.
+✅ Done. `test/backend/minimal-diff-writeback.test.ts` covers `mergeTableBlock`
+(row-verbatim preservation, sibling-cell preservation, genuinely-changed cells take the
+editor form, shape-mismatch fallback, and the `minimalDiffWriteback` wiring).
+`test/backend/vditor-fidelity-bugs.test.ts` proves with **real Lute** that editing one
+cell keeps `x **y**` intact in untouched cells while the edit (`P`) is preserved. The
+🔴 pure-Lute tripwires remain (Lute still trims by design). #1904 fix is covered by
+`test/backend/table-pipe-escape.test.ts` (11 cases incl. price-table safety, fenced-code
+skip, idempotency) + a real-Lute proof in `vditor-fidelity-bugs.test.ts` that the save
+path preserves `$|x|$` and `` `a|b` `` with their neighbour cells. Full gate: 381 unit,
+90 e2e, biome ci clean.

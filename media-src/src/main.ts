@@ -22,6 +22,7 @@ import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
+import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
@@ -250,24 +251,6 @@ function bridgePrepaintScroll(): void {
   tick()
 }
 
-// Nearest scrollable ancestor of `start` (overflow auto/scroll/overlay AND actually
-// overflowing); falls back to the document scroller (window). Lets the prepaint
-// scroll handoff target whatever element really scrolls in the current layout.
-function findScroller(start: HTMLElement): HTMLElement {
-  let el: HTMLElement | null = start
-  while (el && el !== document.body) {
-    const oy = getComputedStyle(el).overflowY
-    if (
-      (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
-      el.scrollHeight > el.clientHeight + 1
-    ) {
-      return el
-    }
-    el = el.parentElement
-  }
-  return (document.scrollingElement as HTMLElement) || document.documentElement
-}
-
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
@@ -429,6 +412,7 @@ function initVditor(msg) {
       // streaming path can run them once the whole document is streamed in.
       const finishInit = () => {
         handleToolbarClick()
+        guardToolbarScroll(window.vditor)
         fixTableIr()
         fixResponsiveTables()
         fixPanelHover()

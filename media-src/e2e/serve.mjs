@@ -27,6 +27,7 @@ const built = await esbuild.build({
     tab: path.join(__dirname, 'tab-harness.ts'),
     stream: path.join(__dirname, 'stream-harness.ts'),
     keybugs: path.join(__dirname, 'keybugs-harness.ts'),
+    scrolljump: path.join(__dirname, 'scrolljump-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -55,6 +56,7 @@ const wysiwygInputHtml = fs.readFileSync(
 const tabHtml = fs.readFileSync(path.join(__dirname, 'tab.html'))
 const streamHtml = fs.readFileSync(path.join(__dirname, 'stream.html'))
 const keybugsHtml = fs.readFileSync(path.join(__dirname, 'keybugs.html'))
+const scrolljumpHtml = fs.readFileSync(path.join(__dirname, 'scrolljump.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -123,6 +125,10 @@ const server = http.createServer((req, res) => {
   if (url === '/keybugs.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(keybugsHtml)
+  }
+  if (url === '/scrolljump.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(scrolljumpHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

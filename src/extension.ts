@@ -11,6 +11,7 @@ import {
   reserializeMarkdown,
 } from './lute-host'
 import { minimalDiffWriteback } from './minimal-diff-writeback'
+import { escapeTableSpanPipes } from './table-pipe-escape'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -617,7 +618,9 @@ export class EditorSession {
     this.lastSyncedContent = content
     this.webviewPanel.webview.postMessage({
       command: 'update',
-      content,
+      // Normalize table-cell math/code pipes (#1904) before Vditor parses it. Identity
+      // for content without the bug; dedup above still tracks the raw text.
+      content: escapeTableSpanPipes(content),
       ...props,
     })
   }

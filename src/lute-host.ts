@@ -20,6 +20,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vm from 'node:vm'
+import { escapeTableSpanPipes } from './table-pipe-escape'
 
 const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 
@@ -154,7 +155,10 @@ export function reserializeMarkdown(
     return undefined
   }
   try {
-    return lute.VditorIRDOM2Md(lute.Md2VditorIRDOM(md))
+    // Normalize table-cell math/code pipes (#1904) first so this models exactly what
+    // the editor (fed the same normalized input) serializes back — keeps the
+    // minimal-diff equivalence honest.
+    return lute.VditorIRDOM2Md(lute.Md2VditorIRDOM(escapeTableSpanPipes(md)))
   } catch {
     return undefined
   }
@@ -182,7 +186,9 @@ export function renderForMode(
   }
   // Long docs render only a clean prefix (bounded host cost); the live editor
   // renders the full document and swaps in. Small docs pass through whole.
-  const md = prerenderPrefix(markdown)
+  // Normalize table-cell math/code pipes (#1904) so the instant-paint overlay matches
+  // the live editor (which is fed the same normalized markdown).
+  const md = escapeTableSpanPipes(prerenderPrefix(markdown))
   try {
     return mode === 'wysiwyg' ? lute.Md2VditorDOM(md) : lute.Md2VditorIRDOM(md)
   } catch {
