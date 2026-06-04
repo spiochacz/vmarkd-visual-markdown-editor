@@ -26,6 +26,9 @@ import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { setupHistoryKeybind } from './undo-keybind'
+import { createPendingEdit } from './pending-edit'
+import { setupSaveFlushKeybind } from './save-flush'
+import { openLinkFromMarker } from './link-click'
 import {
   getCursorSourceOffset,
   activeModeElement,
@@ -46,6 +49,11 @@ let applyingExtensionUpdate = false
 // partial getValue() mid-stream would otherwise save a TRUNCATED file. The editor is
 // also held read-only for the duration; both are released in streamRenderIR.onDone.
 let streaming = false
+// Flush of the current editor's debounced edit (task 58). Set per-init to the
+// active Vditor's pending-edit controller; the global Ctrl/Cmd+S keybind calls it
+// so a save inside the debounce window persists the latest content, not a stale
+// snapshot. No-op before the first init.
+let flushPendingEdit: () => void = () => {}
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
@@ -263,7 +271,19 @@ function initVditor(msg) {
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
   // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
   applyMermaidTheme(window, msg.options?.mermaidTheme)
-  let inputTimer: ReturnType<typeof setTimeout> | undefined
+  // Debounced edit→host sync. Owned by a controller so Ctrl/Cmd+S can flush it
+  // synchronously before VS Code saves (task 58). Wired to the global keybind via
+  // flushPendingEdit below; guarded against firing while applying an extension
+  // update or streaming (a partial getValue() would post a truncated document).
+  const pendingEdit = createPendingEdit({
+    wait: 250,
+    getValue: () => vditor.getValue(),
+    post: (content) => vscode.postMessage({ command: 'edit', content }),
+  })
+  flushPendingEdit = () => {
+    if (applyingExtensionUpdate || streaming) return
+    pendingEdit.flush()
+  }
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   const codeStyle = codeHljsStyle(
     msg.theme === 'dark' ? 'dark' : 'light',
@@ -353,6 +373,13 @@ function initVditor(msg) {
         : createToolbar({ wikiEnabled: Boolean(msg.wiki?.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
+    // IR link UX (task 62): Ctrl/Cmd+click follows the link (the modifier gate is
+    // in the patched IR source — fixIrLinkClick), plain click edits. The patched
+    // handler only reaches link.click on a modifier click, so this just opens.
+    link: {
+      click: (markerEl: Element) =>
+        openLinkFromMarker(markerEl, (m) => vscode.postMessage(m)),
+    },
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
     // the wysiwyg toolbar; without it the editor throws on init and never
     // finishes (window.vditor stays undefined, table panel never mounts).
@@ -462,10 +489,7 @@ function initVditor(msg) {
       if (applyingExtensionUpdate || streaming) {
         return
       }
-      inputTimer && clearTimeout(inputTimer)
-      inputTimer = setTimeout(() => {
-        vscode.postMessage({ command: 'edit', content: vditor.getValue() })
-      }, 250)
+      pendingEdit.schedule()
     },
     upload: {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409
@@ -661,5 +685,9 @@ window.addEventListener('keydown', (event) => {
 // Route Ctrl/Cmd+Z·Y to Vditor's own undo engine instead of the browser/VS Code
 // document undo — see undo-keybind.ts for the full rationale.
 setupHistoryKeybind(window)
+
+// Flush the debounced edit before VS Code saves, so Ctrl/Cmd+S never persists a
+// stale snapshot (task 58). Capture phase + non-suppressing — see save-flush.ts.
+setupSaveFlushKeybind(window, () => flushPendingEdit())
 
 vscode.postMessage({ command: 'ready' })

@@ -1,6 +1,17 @@
 # Task: IR link click is dead in the webview (window.open sandboxed)
 
-> **Status:** ⬜ Not started.
+> **Status:** 🟡 Done as a UX change (IR only). ⚠️ **Premise correction:** the click was
+> NOT dead — `fixLinkClick` (`utils.ts:229`) overrides `window.open`, so IR's
+> `window.open(markerText)` already routed to the host (OS browser). So this is a
+> deliberate UX change, not a dead-click fix. **Shipped:** Typora-style split — plain
+> click edits, **Ctrl/Cmd+click follows the link**. Implemented as an esbuild source
+> patch (`patchIrLinkClick`/`fixIrLinkClick`) gating IR's open branch on the platform
+> modifier (config alone can't do it — Vditor's `return` after the link block is
+> unconditional, and `link.click` isn't handed the event). `link.click` posts
+> `open-link` (`media-src/src/link-click.ts`, unit-tested; patch transform-tested +
+> guarded; gate confirmed in bundle). **Follow-up:** WYSIWYG/SV use a different code
+> path (`wysiwyg/index.ts:441`, real `<a href>`) and are NOT yet aligned — modes are
+> inconsistent until that's done. Runtime UX needs manual verification (no webview harness).
 > **Source:** `tuanpmt/vditor` `d9ba522` "fix(ir): click on link opens edit mode instead of opening URL". Verified still present in our `vditor@3.11.2` (evidence in Problem below).
 > **Value / Risk:** 🟢🟢 fixes a dead interaction in our exact environment / low (config-level, no source patch)
 
