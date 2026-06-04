@@ -2,18 +2,45 @@ import '../src/preload'
 import Vditor from 'vditor/src/index'
 import { createPendingEdit } from '../src/pending-edit'
 import { setupSaveFlushKeybind } from '../src/save-flush'
+import { setBusyCursor, nextPaint } from '../src/busy-cursor'
 import '../src/utils' // sets window.vscode from the spec's acquireVsCodeApi stub
 
-// Real Vditor (IR) wired exactly as main.ts for the Ctrl/Cmd+S flush (task 58):
-// edits are debounced via createPendingEdit; a capture-phase save keybind flushes
-// the pending edit so a save inside the debounce window posts current content.
+// Real Vditor (IR) wired exactly as main.ts for the edit-sync (tasks 58 + 68):
+// the webview owns the markdown serialize (Vditor's per-input serialize is patched
+// out). onIdle (debounced) serialises + posts, wrapping the slow serialize in a
+// busy cursor on large docs; onFlush (Ctrl/Cmd+S) posts synchronously before save.
+// `?large=1` forces the large-doc path so the busy-cursor behaviour is testable.
+const forceLarge = new URLSearchParams(location.search).get('large') === '1'
 let editor: Vditor
+
+// Record busy toggles so the spec can assert the serialize was wrapped.
+;(window as any).__busyLog = []
+const setBusy = (on: boolean) => {
+  ;(window as any).__busyLog.push(on)
+  setBusyCursor(on)
+}
+const postEdit = () =>
+  (window as any).vscode.postMessage({
+    command: 'edit',
+    content: editor.getValue(),
+  })
 
 const pendingEdit = createPendingEdit({
   wait: 250,
-  getValue: () => editor.getValue(),
-  post: (content) =>
-    (window as any).vscode.postMessage({ command: 'edit', content }),
+  onIdle: async () => {
+    if (forceLarge) {
+      setBusy(true)
+      await nextPaint()
+      try {
+        postEdit()
+      } finally {
+        setBusy(false)
+      }
+    } else {
+      postEdit()
+    }
+  },
+  onFlush: () => postEdit(),
 })
 
 editor = new Vditor('app', {

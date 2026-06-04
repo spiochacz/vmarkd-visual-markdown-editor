@@ -6,6 +6,7 @@ import {
   patchWysiwygLinkClick,
   patchListToggle,
   patchMathRender,
+  patchIrInputSerialize,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -20,6 +21,9 @@ const mathSource = read(
 )
 const wysiwygSource = read(
   '../../media-src/node_modules/vditor/src/ts/wysiwyg/index.ts',
+)
+const irProcessSource = read(
+  '../../media-src/node_modules/vditor/src/ts/ir/process.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -136,6 +140,29 @@ describe('patchMathRender (task 57 — KaTeX error resilience)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchMathRender('// unrelated source')).toThrow(
       /fixMathRender/,
+    )
+  })
+})
+
+describe('patchIrInputSerialize (task 68 — webview owns the serialize)', () => {
+  it('the shipped IR process serialises on every input (pre-patch)', () => {
+    expect(irProcessSource).toContain('const text = getMarkdown(vditor);')
+    expect(irProcessSource).toContain('vditor.options.input(text);')
+  })
+
+  it('turns options.input into a cheap signal; serialises only for counter/cache', () => {
+    const patched = patchIrInputSerialize(irProcessSource)
+    expect(patched).toContain('vditor.options.input();') // signal, no markdown
+    expect(patched).not.toContain('vditor.options.input(text);')
+    // getMarkdown is now gated behind counter/cache (both off → no serialize).
+    expect(patched).toContain(
+      '(vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : ""',
+    )
+  })
+
+  it('throws (fails the build loudly) if the anchors are gone — version-bump guard', () => {
+    expect(() => patchIrInputSerialize('// unrelated source')).toThrow(
+      /fixIrInputSerialize/,
     )
   })
 })

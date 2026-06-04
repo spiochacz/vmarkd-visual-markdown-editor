@@ -194,6 +194,44 @@ const fixMathRender = {
   },
 }
 
+// Perf (task 68 C2-takeover): IR reserializes the whole document to markdown on
+// every input — `ir/process.ts` computes `getMarkdown(vditor)` (super-linear Lute)
+// and hands it to `options.input(text)`. That's the only consumer on the hot path
+// (counter/cache are off, undo diffs innerHTML not markdown). Stop Vditor serializing
+// per input: call `options.input()` as a cheap *signal*, and the webview owns the
+// (single, debounced, busy-cursor-wrapped) serialize itself. `text` is still declared
+// for the gated counter/cache blocks (no serialize when both are off).
+const IR_INPUT_START = 'const text = getMarkdown(vditor);'
+const IR_INPUT_END = 'vditor.options.input(text);\n        }'
+export function patchIrInputSerialize(code) {
+  const start = code.indexOf(IR_INPUT_START)
+  const endTok = code.indexOf(IR_INPUT_END)
+  if (start === -1 || endTok === -1) {
+    throw new Error(
+      'fixIrInputSerialize: anchors not found in vditor ir/process.ts (version drift?)',
+    )
+  }
+  const end = endTok + IR_INPUT_END.length
+  const replacement =
+    'if (typeof vditor.options.input === "function" && options.enableInput) {\n' +
+    '            vditor.options.input();\n' +
+    '        }\n' +
+    '        const text = (vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : "";'
+  return code.slice(0, start) + replacement + code.slice(end)
+}
+const fixIrInputSerialize = {
+  name: 'fix-ir-input-serialize',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]process\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchIrInputSerialize(code) }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
   define: { VDITOR_VERSION: JSON.stringify(vditorVersion) },
   tsconfigRaw: { compilerOptions: { useDefineForClassFields: false } },
@@ -205,5 +243,6 @@ export const vditorSourceConfig = {
     fixWysiwygLinkClick,
     fixListToggle,
     fixMathRender,
+    fixIrInputSerialize,
   ],
 }

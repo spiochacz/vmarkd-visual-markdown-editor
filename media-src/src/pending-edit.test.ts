@@ -5,71 +5,53 @@ describe('createPendingEdit', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('schedule() debounces the post by the configured wait', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'a', post })
+  it('schedule() debounces onIdle by the configured wait', () => {
+    const onIdle = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush: vi.fn() })
     pe.schedule()
-    expect(post).not.toHaveBeenCalled()
+    expect(onIdle).not.toHaveBeenCalled()
     vi.advanceTimersByTime(249)
-    expect(post).not.toHaveBeenCalled()
+    expect(onIdle).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('a')
+    expect(onIdle).toHaveBeenCalledTimes(1)
   })
 
-  it('schedule() coalesces rapid calls into one post of the latest value', () => {
-    const post = vi.fn()
-    let value = 'a'
-    const pe = createPendingEdit({ wait: 250, getValue: () => value, post })
+  it('coalesces rapid schedule() calls into one onIdle', () => {
+    const onIdle = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush: vi.fn() })
     pe.schedule()
-    value = 'ab'
     pe.schedule()
-    value = 'abc'
     pe.schedule()
     vi.advanceTimersByTime(250)
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('abc')
+    expect(onIdle).toHaveBeenCalledTimes(1)
   })
 
-  // THE BUG (task 58): a Ctrl/Cmd+S issued inside the 250ms debounce window must
-  // persist the CURRENT editor content, not wait for (or miss) the pending timer.
-  // Before the flush() path existed, the save raced the debounce → stale save.
-  it('flush() posts the current value immediately while an edit is pending', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'typed', post })
-    pe.schedule() // user typed; debounce armed but not yet fired
-    expect(post).not.toHaveBeenCalled()
-    pe.flush() // Ctrl+S within the window
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('typed')
-  })
-
-  it('flush() cancels the armed timer so the edit is not posted twice', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'x', post })
+  // Ctrl/Cmd+S (task 58): flush runs onFlush immediately and cancels the pending
+  // idle, so the timer can't also fire and the save persists current content.
+  it('flush() runs onFlush immediately and cancels the pending onIdle', () => {
+    const onIdle = vi.fn()
+    const onFlush = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle, onFlush })
     pe.schedule()
     pe.flush()
-    vi.advanceTimersByTime(250) // the original timer must not also fire
-    expect(post).toHaveBeenCalledTimes(1)
+    expect(onFlush).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(250)
+    expect(onIdle).not.toHaveBeenCalled()
   })
 
-  // Critical: a save can land BEFORE schedule() ever runs — Vditor only calls its
-  // input hook after its own ~800ms throttle, so nothing is "pending" yet, but the
-  // editor's live value is already current and must be saved. flush() must post it.
-  it('flush() posts the live value even when nothing is pending', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
+  it('flush() runs onFlush even when nothing is pending', () => {
+    const onFlush = vi.fn()
+    const pe = createPendingEdit({ wait: 250, onIdle: vi.fn(), onFlush })
     expect(pe.pending).toBe(false)
     pe.flush()
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('live')
+    expect(onFlush).toHaveBeenCalledTimes(1)
   })
 
   it('reports pending state across schedule/flush', () => {
     const pe = createPendingEdit({
       wait: 250,
-      getValue: () => 'x',
-      post: vi.fn(),
+      onIdle: vi.fn(),
+      onFlush: vi.fn(),
     })
     expect(pe.pending).toBe(false)
     pe.schedule()

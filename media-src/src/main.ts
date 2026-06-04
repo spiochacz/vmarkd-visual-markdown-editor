@@ -30,6 +30,8 @@ import { createPendingEdit } from './pending-edit'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
 import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
+import { undoDelayForContentLength, LARGE_DOC_CHARS } from './edit-sync-tuning'
+import { setBusyCursor, nextPaint } from './busy-cursor'
 import {
   getCursorSourceOffset,
   activeModeElement,
@@ -275,19 +277,40 @@ function initVditor(msg) {
   // Link-open policy (task 62): Ctrl/Cmd+click vs plain-click follow. Applied live
   // here (and on config-changed) so the IR/WYSIWYG patches + fixLinkClick agree.
   applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
-  // Debounced edit→host sync. Owned by a controller so Ctrl/Cmd+S can flush it
-  // synchronously before VS Code saves (task 58). Wired to the global keybind via
-  // flushPendingEdit below; guarded against firing while applying an extension
-  // update or streaming (a partial getValue() would post a truncated document).
+  // Debounced edit→host sync. The webview owns the (single) markdown serialize —
+  // Vditor no longer serializes per input (fixIrInputSerialize patch). On a large
+  // doc the serialize is multi-second and blocks the thread, so the idle path shows
+  // a busy cursor and yields a paint before it (task 68). Ctrl/Cmd+S flushes
+  // SYNCHRONOUSLY (no yield) so the edit is posted before VS Code saves (task 58).
+  // Both guard against firing mid extension-update / streaming (a partial getValue()
+  // would post a truncated document).
+  const postEdit = () =>
+    vscode.postMessage({ command: 'edit', content: vditor.getValue() })
+  const isLargeDoc = () =>
+    (activeModeElement(window.vditor)?.textContent?.length ?? 0) >=
+    LARGE_DOC_CHARS
   const pendingEdit = createPendingEdit({
     wait: 250,
-    getValue: () => vditor.getValue(),
-    post: (content) => vscode.postMessage({ command: 'edit', content }),
+    onIdle: async () => {
+      if (applyingExtensionUpdate || streaming) return
+      if (isLargeDoc()) {
+        setBusyCursor(true)
+        await nextPaint() // let the busy cursor paint before the long serialize
+        try {
+          postEdit()
+        } finally {
+          setBusyCursor(false)
+        }
+      } else {
+        postEdit()
+      }
+    },
+    onFlush: () => {
+      if (applyingExtensionUpdate || streaming) return
+      postEdit()
+    },
   })
-  flushPendingEdit = () => {
-    if (applyingExtensionUpdate || streaming) return
-    pendingEdit.flush()
-  }
+  flushPendingEdit = () => pendingEdit.flush()
   let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
   const codeStyle = codeHljsStyle(
     msg.theme === 'dark' ? 'dark' : 'light',
@@ -377,6 +400,18 @@ function initVditor(msg) {
         : createToolbar({ wikiEnabled: Boolean(msg.wiki?.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
+    // Large-doc responsiveness (perf C2): widen Vditor's reserialise/undo idle
+    // window for big files so the multi-second full-document markdown serialise
+    // (Lute, super-linear) fires only after a real idle instead of mid-edit. Set
+    // from the initial content size; small docs keep the snappy default.
+    undoDelay: undoDelayForContentLength(
+      typeof msg.content === 'string' ? msg.content.length : 0,
+    ),
+    // Capture Tab so it indents/inserts instead of falling through to the browser
+    // (which moves focus to the next tabbable element / the host iframe and scrolls
+    // the view away). Vditor only handles Tab when `options.tab` is set; it was
+    // unset, so Tab escaped focus. A literal tab keeps round-trips clean.
+    tab: '\t',
     // IR link UX (task 62): Ctrl/Cmd+click follows the link (the modifier gate is
     // in the patched IR source — fixIrLinkClick), plain click edits. The patched
     // handler only reaches link.click on a modifier click, so this just opens.
@@ -488,8 +523,9 @@ function initVditor(msg) {
       }
     },
     input() {
-      // Suppress while applying an extension update OR while streaming a large doc
-      // in — a partial getValue() would post (and save) a truncated document.
+      // Cheap signal (Vditor no longer serialises here — fixIrInputSerialize). The
+      // serialize+post happens in the debounced onIdle. Suppressed while applying an
+      // extension update / streaming (a partial doc would be posted).
       if (applyingExtensionUpdate || streaming) {
         return
       }
