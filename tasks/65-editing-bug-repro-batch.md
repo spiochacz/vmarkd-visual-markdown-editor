@@ -1,18 +1,23 @@
 # Task: Repro batch — unverified editing bugs from fork bug-hunt
 
-> **Status:** 🔵 Repro in progress (2026-06-04). Verdicts so far (tests:
-> `test/backend/vditor-fidelity-bugs.test.ts` for serialize bugs,
-> `media-src/e2e/keybugs.spec.ts` for keydown bugs):
->   - #1 Backspace over a cross-soft-break selection → **🟢 not reproduced** (deletes
->     cleanly, content valid). Guarded.
+> **Status:** ✅ Done (2026-06-04). All candidates verified against our build
+> (vditor@3.11.2 + pinned Lute). **None of the keydown/click candidates reproduce** — they
+> were fixed upstream / targeted an older fork base — so each is kept as a 🟢 GUARD
+> (`media-src/e2e/keybugs.spec.ts`, 7 tests) so a future Vditor/Lute bump can't silently
+> regress them. The one real bug found, **#1904**, was fixed separately (input
+> normalization, `src/table-pipe-escape.ts`; see task 60).
+> Verdicts (tests: `keybugs.spec.ts` for keydown/click, `test/backend/vditor-fidelity-bugs.test.ts` for serialize):
+>   - #1 Backspace over a cross-soft-break selection → **🟢 not reproduced** (deletes cleanly). Guarded.
+>   - #2 Enter inside a code block → **🟢 not reproduced** (text stays in the block, cursor doesn't jump out). Guarded.
+>   - #3 Select-all then deselect → **🟢 not reproduced** (ArrowRight collapses; our key layer only binds undo/redo, no Ctrl+A trap). Guarded.
+>   - #4 Click-elsewhere collapses an expanded inline marker → **🟢 not reproduced** (collapses). Guarded.
 >   - #5 Enter at start of a heading → **🟢 not reproduced** (heading intact). Guarded.
->   - #1476 reference-link round-trip → **🟢 not reproduced** (likely fixed by the Lute
->     upgrade, task 66). Guarded.
->   - #1904 `|` in inline math/code in a table cell → **✅ fixed** (data loss; was
->     reproduced, now normalized on input via `src/table-pipe-escape.ts` — see task 60).
-> Remaining candidates (#2 code-newline cursor jump, #3 select-all, #4 marker collapse,
-> #6 front-matter backspace, #7 inline-code data-marker) still need e2e repros.
-> **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — bugs NOT yet confirmed against our `vditor@3.11.2` (candidates listed below with fork commit + engine file).
+>   - #6 Backspace after a front-matter block → **🟢 not reproduced** (front-matter is `yaml-front-matter`, outside the code/math-block backspace branch; the unguarded querySelector is unreachable). Guarded.
+>   - #7 Toolbar inline-code missing data-marker → **🟢 not reproduced** (getValue round-trips with backticks; the marker self-heals on the next spin). Guarded.
+>   - #1476 reference-link round-trip → **🟢 not reproduced** (likely fixed by the Lute upgrade, task 66). Guarded.
+>   - #1904 `|` in inline math/code in a table cell → **✅ fixed** (was reproduced; normalized on input — see task 60).
+>   - #8 (math-autocomplete + Enter) → **deferred** (we have no math autocomplete). #9 (ordered-list renumber) → Lute-side, low priority, not pursued.
+> **Source:** Vditor fork bug-hunt (WizTeam, Ficus) — candidates below with fork commit + engine file.
 > **Value / Risk:** 🟡 each is a plausible editing-correctness bug in core handlers / low to investigate, value depends on repro
 
 ## Problem
@@ -29,7 +34,17 @@ The fork bug-hunt surfaced several editing-logic bugs in files that still exist 
 8. **Completion mid-formula + Enter jumps the cursor past the formula** — Ficus `d3fa812`; `wysiwyg/input.ts` (only relevant if/when we add math autocomplete — likely defer).
 9. **Ordered-list renumbering** off — likely Lute-side; `fixBrowserBehavior.ts:273-277` looked correct. Low priority.
 
-### Also reported on upstream Vditor (verify on 3.11.2)
+### Also reported on upstream Vditor — VERDICTS (verified 2026-06-04 on 3.11.2)
+> - **#1912** → 🔴 **fixed**: external `setValue` reset the caret; `caret-preserve.ts` re-derives it (guarded 🟢 in keybugs.spec.ts).
+> - **#1925** → 🔴 **reproduced, parked** (task 72): Enter in a list+blockquote escapes to a new list item. High-risk core fix, rare, no data loss. 🔴 tripwire kept.
+> - **#1922** → 🟢 **not-a-bug**: `title\n\ncontent` is correct (Enter = new paragraph); cosmetic paste inconsistency only, no data loss.
+> - **#110** → 🟢 **not reproduced**: WYSIWYG blockquote Enter continues the quote.
+> - **#905** → 🟢 **not reproduced**: pasting a table region creates a proper separate table, not all-in-one-cell.
+> - **#939** → 🟢 **basic case OK**: Enter makes a sibling at the correct indent (the deep soft-wrap case not pursued).
+> - **#645** → 🟢 **by-design (not a bug)**: Enter in a cell yields `<br />` (correct GFM); IR renders it as a visible `html-inline` marker — IR's convention of showing all markers (WYSIWYG renders the break). No data loss. Polish-only.
+> - **#851** → 🟢 **caret/scroll-loss NOT reproduced** (user-confirmed absent in the real editor 2026-06-04; the synthetic-Range repro was a test artifact — edit content always lands correctly). The only real gap is **no line numbers in the editable view**, which is a *feature* → task 73, not a bug.
+
+### Originally reported on upstream Vditor (now verified above)
 - **#1925** (2026-06-03) — list + `>` blockquote: pressing Enter after the quote creates a new list item instead of a newline inside the quote. https://github.com/Vanessa219/vditor/issues/1925
 - **#1922** — Enter produces two `\n` in `getValue()`. **Manifests:** typing `title`+Enter+`content` serializes as `title\n\ncontent`, but pasting the same template yields a single `\n` — same visible text, different output. https://github.com/Vanessa219/vditor/issues/1922
 - **#1912** — `setValue` jumps the cursor to position 0. **We call `setValue` on host update/streaming** (`media-src/src/main.ts:443,533`) — confirm the caret/scroll isn't reset on an external update (we have an `applyingExtensionUpdate` guard). https://github.com/Vanessa219/vditor/issues/1912
