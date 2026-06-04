@@ -80,7 +80,7 @@ checked here **only when the task is fully complete**.
 
 ## Vditor-fork-derived (2026-06-03 fork analysis)
 Cross-referenced from a Vditor fork survey against our code. Each task is self-contained (source fork/commit, `file:line` evidence, steps, repro/verify). Listed roughly cheap→large so the decision set is in one place.
-- [ ] [56 — Vditor `listToggle` bugfixes](56-vditor-listtoggle-bugfixes.md) — 🟡 **partial**: null-deref crash fixed (`?.remove()` esbuild patch, unit+e2e tested+guarded); sibling-scope rewrite still open (`test.fixme` repro in place).
+- [x] [56 — Vditor `listToggle` bugfixes](56-vditor-listtoggle-bugfixes.md) — null-deref crash fixed (`?.remove()` esbuild patch, unit+e2e+guarded). Sibling-scope **parked by decision**: accept Vditor's whole-list toggle as-is (no per-item split rewrite).
 - [x] [57 — KaTeX error resilience](57-katex-error-resilience.md) — `strict:false`/`throwOnError:false` injected via esbuild patch (unit+e2e, in bundle). #1915 is a Lute issue, out of scope.
 - [x] [58 — Flush pending edit on Ctrl/Cmd+S](58-flush-pending-edit-on-save.md) — flush posts the live `getValue()` on Ctrl/Cmd+S (e2e caught that Vditor's ~800ms input throttle made "flush-if-pending" still save stale). Unit+e2e.
 - [ ] [59 — Live re-theme Mermaid](59-mermaid-live-retheme.md) — 🟡 code follows theme live, mermaid doesn't; completes task 25 (tuanpmt). Medium.
