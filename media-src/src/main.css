@@ -452,3 +452,13 @@ body.vmarkd-busy,
 body.vmarkd-busy * {
   cursor: progress !important;
 }
+
+/* About dialog close "X". Vditor positions it 15px OUTSIDE the top-right corner
+   (top:-7px; right:-15px in index.css), which reads as detached/floating on our
+   larger About dialog. Pull it inside the corner. Only the persistent tip
+   (vditor.tip.show(…, 0) — our About dialog) renders this button, so this is
+   scoped to it in practice. */
+.vditor-tip__close {
+  top: 4px;
+  right: 8px;
+}

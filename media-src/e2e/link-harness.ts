@@ -37,6 +37,14 @@ const editor = new Vditor('app', {
     // Mirror main.ts: the global link handler for real <a href> + window.open
     // override. This is what makes WYSIWYG/SV link clicks reach the host.
     fixLinkClick()
+    // A link OUTSIDE the editor content, mimicking the About/Info dialog (Vditor
+    // renders it in a `.vditor-tip`). The modifier policy must NOT gate it — a plain
+    // click should open it. Lets the spec assert chrome links open on a plain click.
+    const tip = document.createElement('div')
+    tip.className = 'vditor-tip'
+    tip.innerHTML =
+      '<a id="dialog-link" href="https://dialog.example/info">info</a>'
+    document.body.appendChild(tip)
     ;(window as any).__ready = true
   },
 })

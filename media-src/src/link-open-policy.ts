@@ -28,6 +28,16 @@ export function applyLinkOpenSetting(
   mode = openWithModifier === false ? 'click' : 'modifier'
 }
 
+// The modifier policy applies ONLY to links in the editor's document content
+// (where a plain click means "place the caret to edit"). Links in chrome — the
+// About/Info dialog and other tips, the toolbar, panels, popovers — are not
+// editable text, so they open on a plain click regardless of the policy.
+const EDITOR_CONTENT_SELECTOR =
+  '.vditor-ir, .vditor-wysiwyg, .vditor-sv, .vditor-preview'
+export function isEditorContentLink(el: Element | null): boolean {
+  return !!el?.closest(EDITOR_CONTENT_SELECTOR)
+}
+
 // Should this pointer event follow the link? In 'click' mode always; in 'modifier'
 // mode only when the platform modifier is held.
 export function shouldOpenLink(

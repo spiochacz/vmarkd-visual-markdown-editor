@@ -8,6 +8,7 @@ import {
   patchMathRender,
   patchProcessCode,
   patchIrInputSerialize,
+  patchInfoDialog,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -28,6 +29,9 @@ const processCodeSource = read(
 )
 const irProcessSource = read(
   '../../media-src/node_modules/vditor/src/ts/ir/process.ts',
+)
+const infoSource = read(
+  '../../media-src/node_modules/vditor/src/ts/toolbar/Info.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -193,6 +197,68 @@ describe('patchIrInputSerialize (task 68 — webview owns the serialize)', () =>
   it('throws (fails the build loudly) if the anchors are gone — version-bump guard', () => {
     expect(() => patchIrInputSerialize('// unrelated source')).toThrow(
       /fixIrInputSerialize/,
+    )
+  })
+})
+
+describe('patchInfoDialog (original Vditor About, English, + Help section)', () => {
+  const pin = {
+    commit: '36ea9e0966025d7f4f343cdf9a611109bfb29ef6',
+    committedAt: '2026-06-03',
+  }
+
+  // The shipped Info dialog is Chinese, loads a remote unpkg logo, and interpolates
+  // a stale Lute.Version. The Help dialog (its links folded in here) is also Chinese.
+  it('the shipped Info.ts is Chinese with a remote unpkg logo (pre-patch)', () => {
+    expect(infoSource).toContain('组件版本：')
+    expect(infoSource).toContain('unpkg.com')
+  })
+
+  it('keeps Vditor’s original About (translated) and appends a Help section', () => {
+    const patched = patchInfoDialog(infoSource, pin)
+    // top half = Vditor's original About content, in English (no vMarkd branding)
+    expect(patched).toContain(
+      'The next-generation Markdown editor, built for the future',
+    )
+    expect(patched).toContain('Project: ')
+    expect(patched).toContain('License: MIT')
+    expect(patched).not.toContain('vMarkd —') // not rebranded
+    // Help folded in as its own section below
+    expect(patched).toContain('<strong>Markdown guide</strong>')
+    expect(patched).toContain('<strong>Vditor support</strong>')
+    expect(patched).toContain('Syntax cheatsheet')
+    expect(patched).toContain('Keyboard shortcuts')
+    // no Chinese left (Info or the folded-in Help)
+    expect(patched).not.toContain('组件版本')
+    expect(patched).not.toContain('Markdown 使用指南')
+    // Lute commit link (short sha) + date; Vditor version still interpolated
+    expect(patched).toContain(
+      `https://github.com/88250/lute/commit/${pin.commit}`,
+    )
+    expect(patched).toContain('>36ea9e0<')
+    expect(patched).toContain('2026-06-03')
+    // eslint-disable-next-line no-template-curly-in-string
+    expect(patched).toContain('Vditor v${VDITOR_VERSION}')
+    // logo repointed off unpkg to the locally-served asset (CSP task 67)
+    expect(patched).not.toContain('unpkg.com')
+    // eslint-disable-next-line no-template-curly-in-string
+    expect(patched).toContain('${vditor.options.cdn}/dist/images/logo.png')
+    // upstream links kept (Vditor project + ld246 help/community + sponsor)
+    expect(patched).toContain('https://b3log.org/vditor')
+    expect(patched).toContain('https://ld246.com/article/1583308420519')
+    expect(patched).toContain('https://github.com/Vanessa219/vditor/issues')
+    expect(patched).toContain('https://ld246.com/sponsor')
+  })
+
+  it('without a vendored pin, keeps Vditor’s runtime version interpolation', () => {
+    const patched = patchInfoDialog(infoSource, null)
+    // eslint-disable-next-line no-template-curly-in-string
+    expect(patched).toContain('Lute v${Lute.Version}')
+  })
+
+  it('throws (fails the build loudly) if the dialog anchor is gone — version-bump guard', () => {
+    expect(() => patchInfoDialog('// unrelated source', pin)).toThrow(
+      /fixInfoDialog/,
     )
   })
 })

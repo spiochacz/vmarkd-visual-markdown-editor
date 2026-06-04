@@ -87,16 +87,17 @@ test.describe('confirm() dialog', () => {
 })
 
 test.describe('fixLinkClick()', () => {
-  // Default 'modifier' policy (task 62): a plain click is left for editing; only
-  // Ctrl/Cmd+click follows the link.
-  test('modifier policy: Ctrl+click posts open-link, plain click does not', async ({
+  // Default 'modifier' policy (task 62): for a link in the EDITOR CONTENT a plain
+  // click is left for editing; only Ctrl/Cmd+click follows it. The `.vditor-ir`
+  // wrapper is what scopes the policy (task: chrome links ignore it — see below).
+  test('modifier policy: editor link — Ctrl+click opens, plain click does not', async ({
     page,
   }) => {
     await gotoBehaviors(page)
     await page.evaluate(() => {
       ;(window as any).__linkPolicy.applyLinkOpenSetting(true) // modifier mode
       document.body.innerHTML =
-        '<a id="lnk" href="https://example.com/docs/page">link</a>'
+        '<div class="vditor-ir"><a id="lnk" href="https://example.com/docs/page">link</a></div>'
       ;(window as any).__utils.fixLinkClick()
     })
     await page.locator('#lnk').click() // plain — must NOT open
@@ -105,6 +106,25 @@ test.describe('fixLinkClick()', () => {
     expect(await posted(page)).toContainEqual({
       command: 'open-link',
       href: 'https://example.com/docs/page',
+    })
+  })
+
+  // A link OUTSIDE the editor content (About/Info dialog, tips, toolbar) is not
+  // editable text, so the modifier policy must NOT gate it — a plain click opens.
+  test('modifier policy: chrome link (dialog) opens on a plain click', async ({
+    page,
+  }) => {
+    await gotoBehaviors(page)
+    await page.evaluate(() => {
+      ;(window as any).__linkPolicy.applyLinkOpenSetting(true) // modifier mode
+      document.body.innerHTML =
+        '<div class="vditor-tip"><a id="lnk" href="https://dialog.example/info">info</a></div>'
+      ;(window as any).__utils.fixLinkClick()
+    })
+    await page.locator('#lnk').click() // plain — must open (chrome, not editor)
+    expect(await posted(page)).toContainEqual({
+      command: 'open-link',
+      href: 'https://dialog.example/info',
     })
   })
 
