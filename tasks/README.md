@@ -90,7 +90,7 @@ Cross-referenced from a Vditor fork survey against our code. Each task is self-c
 ### Bug-hunt (2026-06-03) — confirmed against our `vditor@3.11.2`
 Bugs verified to still exist in the Vditor source we ship (`media-src/node_modules/vditor/src/ts/...`), found in fork fix-commits. Each task carries its own `file:line` evidence and repro steps.
 - [x] [62 — IR link click is dead in the webview](62-ir-link-click-webview.md) — UX change, now **configurable + aligned** (`vmarkd.editor.linkOpenWithModifier`, default Ctrl/Cmd+click opens, plain click edits) across IR/WYSIWYG/SV via a runtime policy read by the IR+WYSIWYG patches and `fixLinkClick`. ⚠️ Premise was off — not a dead click. Unit+e2e (both modes × both policies).
-- [ ] [63 — WYSIWYG tab+text → code block](63-wysiwyg-tab-text-codeblock.md) — 🟡 missing `isUnexceptCodeBlock` guard at `wysiwyg/input.ts:148` (GongXunSS). Source patch.
+- [ ] [63 — WYSIWYG tab+text → code block](63-wysiwyg-tab-text-codeblock.md) — 🟡 **paste done** (PR #1921 content-based detection, esbuild patch + e2e — fixes #1917/#1914). Tab-indent case **parked** (CommonMark-correct indented-code; suppressing it is a risky heuristic).
 - [ ] [64 — Image empty-alt protective rewrite missing](64-image-empty-alt.md) — 🟡 no `alt=""`→`alt="img"` (GongXunSS); vanish is runtime-dependent — reproduce first.
 - [ ] [65 — Repro batch: unverified editing bugs](65-editing-bug-repro-batch.md) — 🟡 WizTeam/Ficus core-handler bugs (backspace-soft-linebreak corruption, code-newline cursor jump, heading-Enter, select-all deselect, …) needing runtime repro → split off fixes.
 - _Already fixed upstream (no task):_ code copy-button expanding a collapsed block — `codeRender.ts:48` already has `stopPropagation`.
