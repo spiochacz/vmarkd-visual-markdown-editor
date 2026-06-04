@@ -12,7 +12,9 @@ describe('link-open-policy', () => {
 
   describe("'modifier' mode (default — plain click edits, Ctrl/Cmd opens)", () => {
     it('non-mac: opens only when Ctrl is held', () => {
-      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, false)).toBe(true)
+      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, false)).toBe(
+        true,
+      )
       expect(shouldOpenLink({ ctrlKey: false, metaKey: false }, false)).toBe(
         false,
       )
@@ -22,7 +24,9 @@ describe('link-open-policy', () => {
     })
     it('mac: opens only when Cmd/meta is held', () => {
       expect(shouldOpenLink({ ctrlKey: false, metaKey: true }, true)).toBe(true)
-      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, true)).toBe(false)
+      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, true)).toBe(
+        false,
+      )
     })
   })
 
@@ -32,7 +36,9 @@ describe('link-open-policy', () => {
       expect(shouldOpenLink({ ctrlKey: false, metaKey: false }, false)).toBe(
         true,
       )
-      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, false)).toBe(true)
+      expect(shouldOpenLink({ ctrlKey: true, metaKey: false }, false)).toBe(
+        true,
+      )
     })
   })
 
