@@ -194,6 +194,83 @@ const fixMathRender = {
   },
 }
 
+// Task 63 (paste) — content-based code-block detection on paste. Vditor's
+// `processPasteCode` (util/processCode.ts) forced pasted content into a code block
+// from IDE-source MARKERS (VS Code monospace font, any single <pre>, Xcode `p1`,
+// web-source table), so pasting markdown-with-HTML (#1917) or math (#1914) became a
+// code block. Port upstream PR #1921: drop the marker heuristics and decide from
+// the CONTENT — a <pre> is code only if it has a <code> child or the text looks
+// like code (multi-line + ≥2 of: braces/semicolons, code keywords, html tags,
+// indentation). The titular tab-indent case is separate (CommonMark indented-code
+// in Lute's SpinVditorDOM) and intentionally not changed here.
+const looksLikeCodeContentSrc = `const looksLikeCodeContent = (content: string) => {
+    const text = content.trim();
+    if (!text) {
+        return false;
+    }
+    const lines = text.split("\\n");
+    if (lines.length < 2) {
+        return false;
+    }
+    let score = 0;
+    if (/[{};]/.test(text)) {
+        score++;
+    }
+    if (/\\b(const|let|var|function|class|interface|if|else|for|while|return)\\b/.test(text)) {
+        score++;
+    }
+    if (/<\\/?[a-z][^>]*>/.test(text)) {
+        score++;
+    }
+    if (/^\\s{2,}|\\t/m.test(text)) {
+        score++;
+    }
+    return score >= 2;
+};
+`
+const PC_DETECT_START = 'let isCode = false;'
+const PC_DETECT_END = '\n    if (isCode) {'
+const PC_FN_ANCHOR =
+  'export const processPasteCode = (html: string, text: string, type = "sv") => {'
+const PC_NEW_DETECT = `let isCode = false;
+    const pres = tempElement.querySelectorAll("pre");
+    if (tempElement.childElementCount === 1 && pres.length === 1
+        && pres[0].className !== "vditor-wysiwyg"
+        && pres[0].className !== "vditor-sv") {
+        const preElement = pres[0] as HTMLElement;
+        const hasCodeChild = !!preElement.querySelector("code");
+        const preText = text || preElement.textContent || "";
+        isCode = hasCodeChild || looksLikeCodeContent(preText);
+    }`
+export function patchProcessCode(code) {
+  const start = code.indexOf(PC_DETECT_START)
+  const end = code.indexOf(PC_DETECT_END)
+  if (start === -1 || end === -1 || !code.includes(PC_FN_ANCHOR)) {
+    throw new Error(
+      'fixProcessCode: anchors not found in vditor processCode.ts (version drift?)',
+    )
+  }
+  // Replace the marker-based detection block with the content-based one…
+  const withDetect = code.slice(0, start) + PC_NEW_DETECT + code.slice(end)
+  // …and prepend the looksLikeCodeContent helper before the function.
+  return withDetect.replace(
+    PC_FN_ANCHOR,
+    `${looksLikeCodeContentSrc}\n${PC_FN_ANCHOR}`,
+  )
+}
+const fixProcessCode = {
+  name: 'fix-process-code',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]processCode\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchProcessCode(code) }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
   define: { VDITOR_VERSION: JSON.stringify(vditorVersion) },
   tsconfigRaw: { compilerOptions: { useDefineForClassFields: false } },
@@ -205,5 +282,6 @@ export const vditorSourceConfig = {
     fixWysiwygLinkClick,
     fixListToggle,
     fixMathRender,
+    fixProcessCode,
   ],
 }

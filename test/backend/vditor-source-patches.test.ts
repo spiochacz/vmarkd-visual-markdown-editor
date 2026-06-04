@@ -6,6 +6,7 @@ import {
   patchWysiwygLinkClick,
   patchListToggle,
   patchMathRender,
+  patchProcessCode,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -20,6 +21,9 @@ const mathSource = read(
 )
 const wysiwygSource = read(
   '../../media-src/node_modules/vditor/src/ts/wysiwyg/index.ts',
+)
+const processCodeSource = read(
+  '../../media-src/node_modules/vditor/src/ts/util/processCode.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -136,6 +140,32 @@ describe('patchMathRender (task 57 — KaTeX error resilience)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchMathRender('// unrelated source')).toThrow(
       /fixMathRender/,
+    )
+  })
+})
+
+describe('patchProcessCode (task 63 — content-based paste code detection, PR #1921)', () => {
+  // Confirms the marker-based heuristics ship today (they cause #1917/#1914).
+  it('the shipped source detects code by IDE markers (pre-patch)', () => {
+    expect(processCodeSource).toContain('monospace') // VS Code marker
+    expect(processCodeSource).toContain('\\n<p class="p1">') // Xcode marker
+  })
+
+  it('replaces marker heuristics with content-based detection', () => {
+    const patched = patchProcessCode(processCodeSource)
+    expect(patched).toContain('const looksLikeCodeContent =')
+    expect(patched).toContain('isCode = hasCodeChild || looksLikeCodeContent(')
+    // The brittle IDE/Xcode markers are gone.
+    expect(patched).not.toContain('monospace')
+    expect(patched).not.toContain('\\n<p class="p1">')
+    // The output half (isCode → code block) is preserved.
+    expect(patched).toContain('data-type="code-block"')
+    expect(patched).toContain('export const processPasteCode =')
+  })
+
+  it('throws (fails the build loudly) if the anchors are gone — version-bump guard', () => {
+    expect(() => patchProcessCode('// unrelated source')).toThrow(
+      /fixProcessCode/,
     )
   })
 })
