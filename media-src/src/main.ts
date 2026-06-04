@@ -23,6 +23,7 @@ import { setupOutlineFlash } from './outline'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
 import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
+import { preserveCaretAndScroll } from './caret-preserve'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
@@ -578,7 +579,9 @@ function handleUpdate(msg: any) {
   } else if (vditor.getValue() !== msg.content) {
     applyingExtensionUpdate = true
     try {
-      vditor.setValue(msg.content)
+      // setValue rebuilds the DOM and would drop the caret/scroll to the top (#1912).
+      // For an external update landing while the user edits, keep them put.
+      preserveCaretAndScroll(window.vditor, () => vditor.setValue(msg.content))
     } finally {
       setTimeout(() => {
         applyingExtensionUpdate = false
