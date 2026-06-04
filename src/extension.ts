@@ -4,7 +4,13 @@ import * as fs from 'node:fs'
 import { readingTime, wordCount } from './reading-time'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
-import { type EditorMode, prewarmLute, renderForMode } from './lute-host'
+import {
+  type EditorMode,
+  prewarmLute,
+  renderForMode,
+  reserializeMarkdown,
+} from './lute-host'
+import { minimalDiffWriteback } from './minimal-diff-writeback'
 import {
   collectWikiMarkdownFiles,
   getWikiDocumentContext,
@@ -544,17 +550,46 @@ export class EditorSession {
     )
   }
 
+  // Task 61 — minimal-diff write-back. Keep the ORIGINAL source bytes for every block
+  // the user didn't actually change; only changed blocks take Vditor's reserialized
+  // form. Best-effort + gated by size (large docs reflow negligibly — see task 49/61
+  // benches — and aren't worth the per-block reserialize cost) and falls back to the
+  // editor's full output on any issue. `reserializeMarkdown` is memoized per source
+  // block (block bytes are stable across edits), so only the first edit pays the cost.
+  private static MINDIFF_CAP = 100_000
+  private reserializeCache = new Map<string, string>()
+  private minimizeWriteback(original: string, next: string): string {
+    if (original.length > EditorSession.MINDIFF_CAP) return next
+    try {
+      return minimalDiffWriteback(original, next, (block) => {
+        const hit = this.reserializeCache.get(block)
+        if (hit !== undefined) return hit
+        const r = reserializeMarkdown(this.context.extensionPath, block)
+        if (r !== undefined) this.reserializeCache.set(block, r) // don't cache cold-Lute misses
+        return r
+      })
+    } catch {
+      return next
+    }
+  }
+
   private async syncToEditor(content: string) {
     const document = this.document
     if (normalizeContent(content) === normalizeContent(document.getText())) {
       this.lastSyncedContent = document.getText()
       return
     }
+    const toWrite = this.minimizeWriteback(document.getText(), content)
+    // Minimization may reduce the edit to a no-op vs disk (pure reflow the user undid).
+    if (normalizeContent(toWrite) === normalizeContent(document.getText())) {
+      this.lastSyncedContent = document.getText()
+      return
+    }
     this.applyingWebviewEdit = true
-    this.pendingWebviewContent = content
+    this.pendingWebviewContent = toWrite
     try {
       const edit = new vscode.WorkspaceEdit()
-      edit.replace(this.activeUri, this.documentRange(document), content)
+      edit.replace(this.activeUri, this.documentRange(document), toWrite)
       await vscode.workspace.applyEdit(edit)
       this.lastSyncedContent = document.getText()
     } finally {

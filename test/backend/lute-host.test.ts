@@ -4,6 +4,7 @@ import {
   prerenderPrefix,
   prewarmLute,
   renderForMode,
+  reserializeMarkdown,
 } from '../../src/lute-host'
 
 // The real extension root — lute-host reads media/vditor/dist/js/lute/lute.min.js
@@ -96,6 +97,20 @@ describe('lute-host renderForMode', () => {
 
     it('does not leak Lute into the shared host global', () => {
       expect((globalThis as { Lute?: unknown }).Lute).toBeUndefined()
+    })
+
+    // The equivalence signal the minimal-diff write-back (task 61) relies on:
+    // reserializeMarkdown(block) === editor block ⇒ block unchanged ⇒ keep original.
+    it('reserializeMarkdown round-trips prose and reflows an unpadded table (task 61)', () => {
+      // prose is a fixed point (no reflow) — round-trips byte-for-byte
+      expect(reserializeMarkdown(ROOT, 'Just a paragraph.\n')?.trim()).toBe(
+        'Just a paragraph.',
+      )
+      // a hand-written unpadded table reflows to Lute's padded canonical form —
+      // so original unpadded bytes != reserialized, which is how an *untouched*
+      // table is matched (reserialize(original) === editor's padded output).
+      const padded = reserializeMarkdown(ROOT, '|a|b|\n|-|-|\n|1|2|\n')
+      expect(padded).toContain('| a | b |')
     })
   })
 })

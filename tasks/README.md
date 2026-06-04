@@ -88,7 +88,7 @@ Cross-referenced from a Vditor fork survey against our code. Each task is self-c
 - [x] [58 — Flush pending edit on Ctrl/Cmd+S](58-flush-pending-edit-on-save.md) — flush posts the live `getValue()` on Ctrl/Cmd+S (e2e caught that Vditor's ~800ms input throttle made "flush-if-pending" still save stale). Unit+e2e.
 - [ ] [59 — Live re-theme Mermaid](59-mermaid-live-retheme.md) — 🟡 code follows theme live, mermaid doesn't; completes task 25 (tuanpmt). Medium.
 - [ ] [60 — Table-cell space-trimming fidelity](60-table-cell-space-trimming-fidelity.md) — 🟡 leading space before inline markers trimmed in our vendored Vditor (tuanpmt); reproduce first.
-- [ ] [61 — Minimal-diff write-back](61-minimal-diff-writeback.md) — 🟢🟢 any edit reserializes the whole doc → noisy git diff; write only changed ranges (tuanpmt). Largest, highest value.
+- [x] [61 — Minimal-diff write-back](61-minimal-diff-writeback.md) — 🟢🟢 block-level minimal-diff in `syncToEditor`: keep original bytes for blocks that reserialize unchanged, only changed blocks take Vditor's output. Real-Lute: 10-table doc, 1-para edit +40/−31 → +1/−1. Unit-tested + host Lute round-trip. v2: Lute-aware block boundaries + ranged WorkspaceEdit + cache prewarm.
 
 ### Bug-hunt (2026-06-03) — confirmed against our `vditor@3.11.2`
 Bugs verified to still exist in the Vditor source we ship (`media-src/node_modules/vditor/src/ts/...`), found in fork fix-commits. Each task carries its own `file:line` evidence and repro steps.

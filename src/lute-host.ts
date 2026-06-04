@@ -54,7 +54,11 @@ const MAX_PRERENDER_CHARS = 4_000
 export type EditorMode = 'ir' | 'wysiwyg' | 'sv'
 
 let lute:
-  | { Md2VditorIRDOM(md: string): string; Md2VditorDOM(md: string): string }
+  | {
+      Md2VditorIRDOM(md: string): string
+      Md2VditorDOM(md: string): string
+      VditorIRDOM2Md(html: string): string
+    }
   | undefined
 let loadFailed = false
 
@@ -133,6 +137,27 @@ export function prerenderPrefix(markdown: string): string {
     slice = slice.slice(0, fences[fences.length - 1].index)
   }
   return slice
+}
+
+// Reserialize markdown the way the webview's getValue() does for IR mode:
+// VditorIRDOM2Md(Md2VditorIRDOM(md)). Used by the minimal-diff write-back (task 61)
+// to decide whether a source block is semantically unchanged (its reserialization
+// equals the editor's output) so its ORIGINAL bytes can be preserved. Returns
+// undefined when Lute isn't warm (caller falls back to a plain full write — no
+// regression). Best-effort; never throws.
+export function reserializeMarkdown(
+  extensionFsPath: string,
+  md: string,
+): string | undefined {
+  if (!lute) {
+    prewarmLute(extensionFsPath)
+    return undefined
+  }
+  try {
+    return lute.VditorIRDOM2Md(lute.Md2VditorIRDOM(md))
+  } catch {
+    return undefined
+  }
 }
 
 // Render markdown → IR DOM for the instant paint. Returns undefined (caller
