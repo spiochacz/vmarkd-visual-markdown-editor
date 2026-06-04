@@ -1,6 +1,13 @@
 # Task: Fidelity — space trimmed before inline markers in table cells
 
-> **Status:** ⬜ Not started (reproduce first).
+> **Status:** 🔴 Reproduced (2026-06-04) — confirmed against our Lute via the IR
+> round-trip (`test/backend/vditor-fidelity-bugs.test.ts`): `| x **y** | z |` → `| x**y** | z |`
+> (space before the bold marker trimmed). ⚠️ It happens in **Lute itself** (`VditorIRDOM2Md`,
+> the Go/WASM binary), NOT in the patchable TS `fixBrowserBehavior.ts` — so the esbuild
+> patch route may not fix it; options are a newer Lute re-pin or a serialize-path
+> workaround. Also reproduced **#1904** (`| $|x|$ | b |` → mangled, data loss). Note:
+> task 61 (minimal-diff write-back, shipped) already CONTAINS the blast radius for
+> *untouched* tables. Fix not yet written.
 > **Source:** `tuanpmt/vditor` — commits "Fix space trimmed before bold text in table cells" + "… before inline markers in table cells (all modes)".
 > **Value / Risk:** 🟡 markdown fidelity (core project concern) / medium — confirm the repro before patching
 
