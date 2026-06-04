@@ -28,6 +28,7 @@ const built = await esbuild.build({
     stream: path.join(__dirname, 'stream-harness.ts'),
     keybugs: path.join(__dirname, 'keybugs-harness.ts'),
     scrolljump: path.join(__dirname, 'scrolljump-harness.ts'),
+    mermaid: path.join(__dirname, 'mermaid-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -57,6 +58,7 @@ const tabHtml = fs.readFileSync(path.join(__dirname, 'tab.html'))
 const streamHtml = fs.readFileSync(path.join(__dirname, 'stream.html'))
 const keybugsHtml = fs.readFileSync(path.join(__dirname, 'keybugs.html'))
 const scrolljumpHtml = fs.readFileSync(path.join(__dirname, 'scrolljump.html'))
+const mermaidHarnessHtml = fs.readFileSync(path.join(__dirname, 'mermaid.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -129,6 +131,10 @@ const server = http.createServer((req, res) => {
   if (url === '/scrolljump.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(scrolljumpHtml)
+  }
+  if (url === '/mermaid.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(mermaidHarnessHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

@@ -27,6 +27,7 @@ import { preserveCaretAndScroll } from './caret-preserve'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
+import { reRenderMermaid } from './mermaid-retheme'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
 import { setupSaveFlushKeybind } from './save-flush'
@@ -598,7 +599,17 @@ function handleUpdate(msg: any) {
 function handleSetTheme(msg: any) {
   // Live re-theme without re-initialising (keeps cursor/scroll). Chrome colors
   // already follow via --vscode-* CSS vars.
-  applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
+  const theme = msg.theme === 'dark' ? 'dark' : 'light'
+  applyVditorTheme(theme)
+  // Mermaid doesn't re-theme on setTheme — re-render existing diagrams (task 59).
+  applyMermaidTheme(window, lastInitMsg?.options?.mermaidTheme)
+  const el = (window.vditor as any)?.vditor?.[window.vditor.getCurrentMode()]
+    ?.element as HTMLElement | undefined
+  reRenderMermaid(
+    el,
+    lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
+    theme,
+  )
 }
 
 function handleConfigChanged(msg: any) {
