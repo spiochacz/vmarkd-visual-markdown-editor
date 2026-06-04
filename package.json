@@ -305,6 +305,18 @@
             "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
           }
         }
+      },
+      {
+        "title": "Security",
+        "order": 6,
+        "properties": {
+          "vmarkd.security.allowRemoteImages": {
+            "type": "boolean",
+            "default": false,
+            "scope": "resource",
+            "markdownDescription": "Allow images from remote `https:` URLs (e.g. `![](https://…)`) to load in the editor. **Off by default**: a remote image — or an inline `style=\"background:url(https://…)\"` — is a tracking/exfiltration channel (the request leaks that you opened the file, plus your IP). Local images (`asWebviewUri`), `data:` and `blob:` always work. Turn on only for trusted documents. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`. Takes effect when the editor is reopened (the security policy is fixed at load)."
+          }
+        }
       }
     ],
     "configurationDefaults": {

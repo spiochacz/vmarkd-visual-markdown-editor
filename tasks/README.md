@@ -47,7 +47,7 @@ checked here **only when the task is fully complete**.
 - [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
 - [x] [27 — Scope webview privileges (enableCommandUris + stop overwriting options)](27-scope-webview-privileges.md) — augments options; command URIs off (audited postMessage-only)
 - [ ] [47 — Render inline-HTML / data-URI images](47-render-inline-html-data-uri-images.md) — Vditor sanitizer strips `<img data:…>` (CSP already allows it); investigate or document as limitation
-- [ ] [67 — Webview CSP + Lute Sanitize hardening](67-webview-csp-sanitize-hardening.md) — 🟡 remote script-exec already blocked; close the CSS/image exfil channel (`img-src https:` + inline `style`) + add `frame-src/object-src/base-uri 'none'`; optional esbuild patch adding iframe/embed/base to Sanitize skip-list.
+- [x] [67 — Webview CSP + Lute Sanitize hardening](67-webview-csp-sanitize-hardening.md) — 🟡 done: remote images off by default (`vmarkd.security.allowRemoteImages`) closes the `<img https>`/inline-`style url()` exfil channel; added `frame-src/object-src/base-uri 'none'`. Verified the Lute master upgrade does NOT fix the Sanitize surface (iframe/embed/base/style still pass) — CSP is the boundary; Sanitize source-patch infeasible (compiled blob). Unit-tested.
 
 ## Marketplace / publication
 - [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)

@@ -1346,7 +1346,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     //     the §2b/§2c injection protection is preserved.
     //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
     //     we inject <style> for custom/external CSS).
-    //   - images: same-origin + data:/blob: + https: (remote images in markdown).
+    //   - images: same-origin + data:/blob:; remote https: only when
+    //     vmarkd.security.allowRemoteImages is on (task 67 — exfil channel).
     // Instant paint (perf): render the document to Vditor IR DOM host-side and
     // inline it as a static, read-only overlay. It shows during HTML parse —
     // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
@@ -1447,16 +1448,32 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       : ''
 
     const csp = webview.cspSource
+    // Remote images are off by default (task 67). A remote `<img src=https://…>`
+    // OR an inline `style="background:url(https://…)"` both pass Lute's Sanitize
+    // (verified against the vendored engine), so without this they beacon out —
+    // a privacy/exfil channel, not code-exec. CSS url() fetches are governed by
+    // img-src too, so dropping bare `https:` here closes BOTH vectors at once.
+    // Opt back in per-document via vmarkd.security.allowRemoteImages.
+    const allowRemoteImages =
+      MarkdownEditorProvider.cfgFor(uri).get<boolean>(
+        'security.allowRemoteImages',
+      ) === true
+    const imgSrc = `${csp} data: blob:${allowRemoteImages ? ' https:' : ''}`
     const cspMeta =
       `<meta http-equiv="Content-Security-Policy" content="` +
       `default-src 'none'; ` +
-      `img-src ${csp} data: blob: https:; ` +
+      `img-src ${imgSrc}; ` +
       `media-src ${csp} data: blob:; ` +
       `font-src ${csp} data:; ` +
       `style-src ${csp} 'unsafe-inline'; ` +
       `script-src 'nonce-${nonce}' ${csp} 'unsafe-eval'; ` +
       `connect-src ${csp} data:; ` +
-      `worker-src ${csp} blob:;">`
+      `worker-src ${csp} blob:; ` +
+      // Defense-in-depth: today these fall back to default-src 'none', EXCEPT
+      // base-uri (no fallback → was effectively unset). Lute's Sanitize lets
+      // <iframe>/<embed>/<object>/<base> through, so pin them explicitly — the
+      // posture must not hinge on a single default-src line.
+      `frame-src 'none'; object-src 'none'; base-uri 'none';">`
 
     return (
       `<!DOCTYPE html>

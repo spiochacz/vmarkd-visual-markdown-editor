@@ -1,8 +1,32 @@
 # Task: Webview CSP + Lute Sanitize hardening (defense-in-depth)
 
-> **Status:** ⬜ Not started.
+> **Status:** ✅ Done (2026-06-04) — CSP hardened in `src/extension.ts`; remote
+> images behind `vmarkd.security.allowRemoteImages` (default off); unit-tested
+> (`webview-html.test.ts`, 337 green); built + installed.
 > **Source:** Lute master security review (2026-06-03).
 > **Value / Risk:** 🟡 security hardening / low — narrows an exfiltration channel + adds defense-in-depth; no functional change expected (verify image rendering).
+
+## Decision & outcome (2026-06-04)
+- **Verified the engine first** (per user): ran the vendored Lute master `36ea9e0`
+  (the task 66 upgrade) AND the original vditor 2023 build through `Lute.Sanitize`
+  in Node. **Identical** — the GHSA fix did NOT touch this surface. `<script>`/`on*`/
+  `javascript:`/`<object>` are stripped (code-exec blocked, as the task said), but
+  `<iframe>`/`<embed>`/`<base>`/`<link>`, inline `style="…url(https)"` and remote
+  `<img src=https>` all **pass through**. So the task was fully still warranted; the
+  CSP must be the boundary (and Sanitize, a compiled GopherJS blob, is NOT esbuild-
+  patchable — step 2 of the original plan is infeasible, so the CSP carries it).
+- **img-src policy (user choice):** remote `https:` images **off by default**, behind
+  `vmarkd.security.allowRemoteImages` (resource-scoped, default false). Closes BOTH
+  the `<img src=https>` and the `style=…url(https)` exfil vectors at once — CSS
+  `url()` fetches are governed by `img-src`. Opt back in per trusted document/workspace.
+- **Defense-in-depth:** added `frame-src 'none'; object-src 'none'; base-uri 'none';`
+  explicitly. `base-uri` had no `default-src` fallback (was effectively unset), so this
+  is a real fix, not only belt-and-suspenders.
+- **Takes effect on editor reopen** — the CSP meta is fixed at HTML construction;
+  `onDidChangeConfiguration` posts live config but doesn't regenerate the CSP.
+- **Not done:** step 2 (Sanitize source patch) — infeasible (compiled blob); CSP makes
+  it moot. `'unsafe-eval'`/`'unsafe-inline'`(style) kept — required by GopherJS Lute +
+  Vditor inline styles; the tightened `img-src` neutralises the CSS-`url()` exfil anyway.
 
 ## Problem
 The Lute security review found that **remote script execution is already blocked** (Lute emits no `<script>`/remote URLs; `Sanitize` strips `<script>`/`on*`/`javascript:`; CSP `script-src 'nonce-…' cspSource 'unsafe-eval'` + `default-src 'none'` blocks foreign/inline scripts, frames, objects). But two non-code-exec gaps remain:

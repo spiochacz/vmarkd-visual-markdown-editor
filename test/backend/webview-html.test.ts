@@ -239,4 +239,38 @@ describe('security: Content-Security-Policy + nonce (task 18 §2c)', () => {
       expect(tag).toContain(`nonce="${nonce}"`)
     }
   })
+
+  // Task 67: defense-in-depth. iframe/embed/object/base pass Lute's Sanitize
+  // (verified against the vendored engine), so the CSP must be the boundary —
+  // and not depend on `default-src 'none'` alone (base-uri has no default
+  // fallback, so it was effectively unset = any base allowed).
+  it('hardens frame-src/object-src/base-uri to none (defense-in-depth)', () => {
+    const { html } = resolveAndGetHtml()
+    const csp = /content="([^"]*default-src[^"]*)"/.exec(html)?.[1] ?? ''
+    expect(csp).toContain("frame-src 'none'")
+    expect(csp).toContain("object-src 'none'")
+    expect(csp).toContain("base-uri 'none'")
+  })
+
+  const imgSrc = (html: string) =>
+    /img-src ([^;]*);/.exec(/content="([^"]*)"/.exec(html)?.[1] ?? '')?.[1] ??
+    ''
+
+  // Task 67: a remote `<img src=https://…>` AND inline `style=background:url(https://…)`
+  // (both pass Sanitize) beacon out via img-src. Default must NOT allow bare https:.
+  it('omits remote https: from img-src by default (closes the exfil channel)', () => {
+    const { html } = resolveAndGetHtml()
+    const directive = imgSrc(html)
+    expect(directive).not.toContain('https:')
+    // local + embedded images still render
+    expect(directive).toContain('data:')
+    expect(directive).toContain('blob:')
+    expect(directive).toContain('vscode-resource:')
+  })
+
+  it('allows remote https: images only when security.allowRemoteImages is on', () => {
+    mock.setConfig({ 'security.allowRemoteImages': true })
+    const { html } = resolveAndGetHtml()
+    expect(imgSrc(html)).toContain('https:')
+  })
 })
