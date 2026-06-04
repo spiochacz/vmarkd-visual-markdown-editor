@@ -1,6 +1,17 @@
 # Task: WYSIWYG — tab+text wrongly turns into a code block
 
-> **Status:** ⬜ Not started.
+> **Status:** 🟡 Paste case done; tab-indent case parked. **Paste (#1917/#1914):**
+> ported PR #1921 — `processPasteCode` (`util/processCode.ts`) now decides code-block
+> from **content** (`looksLikeCodeContent`: multi-line + ≥2 of braces/semicolons,
+> code keywords, html tags, indentation; or a real `<pre><code>`) instead of IDE
+> markers (VS Code monospace / single `<pre>` / Xcode `p1` / web-source table). Applied
+> via esbuild `onLoad` (`patchProcessCode`/`fixProcessCode`, anchored slice + version
+> guard); transform unit-tested + **e2e** (`media-src/e2e/wysiwyg-input.spec.ts`, the 4
+> PR-#1921 cases). **Tab-indent case PARKED:** verified deterministically that a leading
+> `\t`/4-spaces spins a paragraph into a code block inside Lute's `SpinVditorDOM` —
+> i.e. **CommonMark-correct indented-code**. Suppressing it (the GongXunSS
+> `isUnexceptCodeBlock` guard) is a heuristic with over-suppression risk and is hard to
+> verify (Tab-key + input timing), so it's not pursued. Reopen if the tab UX is wanted.
 > **Source (preferred):** upstream **PR #1921** (`Vanessa219/vditor`, open, unmerged) — "auto code-block detection: switch from IDE-source heuristic to actual-content heuristic", touches `src/ts/util/processCode.ts` **with a test** (`__test__/util/processCode.test.ts`). Fixes reported issues #1917 (paste HTML → forced code block) and #1914 (paste math → forced ```` ``` ````); also relates to #1924 (tab indent). Fallback source: `GongXunSS/vditor` `isUnexceptCodeBlock` guard in `wysiwyg/input.ts`.
 > **Value / Risk:** 🟡 fixes a surprising content-corruption (paste/tab → forced code block) / medium (source patch). Verified still present in our `vditor@3.11.2` (evidence in Problem below).
 

@@ -23,6 +23,7 @@ const built = await esbuild.build({
     list: path.join(__dirname, 'list-harness.ts'),
     math: path.join(__dirname, 'math-harness.ts'),
     'save-flush': path.join(__dirname, 'save-flush-harness.ts'),
+    'wysiwyg-input': path.join(__dirname, 'wysiwyg-input-harness.ts'),
     tab: path.join(__dirname, 'tab-harness.ts'),
   },
   bundle: true,
@@ -46,6 +47,9 @@ const linkHtml = fs.readFileSync(path.join(__dirname, 'link.html'))
 const listHtml = fs.readFileSync(path.join(__dirname, 'list.html'))
 const mathHtml = fs.readFileSync(path.join(__dirname, 'math.html'))
 const saveFlushHtml = fs.readFileSync(path.join(__dirname, 'save-flush.html'))
+const wysiwygInputHtml = fs.readFileSync(
+  path.join(__dirname, 'wysiwyg-input.html'),
+)
 const tabHtml = fs.readFileSync(path.join(__dirname, 'tab.html'))
 
 const types = {
@@ -99,6 +103,10 @@ const server = http.createServer((req, res) => {
   if (url === '/save-flush.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(saveFlushHtml)
+  }
+  if (url === '/wysiwyg-input.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(wysiwygInputHtml)
   }
   if (url === '/tab.html') {
     res.setHeader('content-type', 'text/html')
