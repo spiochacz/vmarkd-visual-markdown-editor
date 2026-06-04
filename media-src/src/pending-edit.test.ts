@@ -5,10 +5,10 @@ describe('createPendingEdit', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('schedule() debounces the post by the configured wait', () => {
+  it('schedule(content) debounces and posts that exact content', () => {
     const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'a', post })
-    pe.schedule()
+    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
+    pe.schedule('a')
     expect(post).not.toHaveBeenCalled()
     vi.advanceTimersByTime(249)
     expect(post).not.toHaveBeenCalled()
@@ -17,52 +17,52 @@ describe('createPendingEdit', () => {
     expect(post).toHaveBeenCalledWith('a')
   })
 
-  it('schedule() coalesces rapid calls into one post of the latest value', () => {
+  // The perf win: the debounced post reuses the markdown Vditor already serialised
+  // (passed to schedule) and must NOT call getValue() — a second full serialise of
+  // a large document is multi-second.
+  it('schedule() does NOT re-serialise via getValue()', () => {
+    const getValue = vi.fn(() => 'LIVE')
     const post = vi.fn()
-    let value = 'a'
-    const pe = createPendingEdit({ wait: 250, getValue: () => value, post })
-    pe.schedule()
-    value = 'ab'
-    pe.schedule()
-    value = 'abc'
-    pe.schedule()
+    const pe = createPendingEdit({ wait: 250, getValue, post })
+    pe.schedule('SERIALIZED')
+    vi.advanceTimersByTime(250)
+    expect(post).toHaveBeenCalledWith('SERIALIZED')
+    expect(getValue).not.toHaveBeenCalled()
+  })
+
+  it('coalesces rapid calls into one post of the latest content', () => {
+    const post = vi.fn()
+    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
+    pe.schedule('a')
+    pe.schedule('ab')
+    pe.schedule('abc')
     vi.advanceTimersByTime(250)
     expect(post).toHaveBeenCalledTimes(1)
     expect(post).toHaveBeenCalledWith('abc')
   })
 
-  // THE BUG (task 58): a Ctrl/Cmd+S issued inside the 250ms debounce window must
-  // persist the CURRENT editor content, not wait for (or miss) the pending timer.
-  // Before the flush() path existed, the save raced the debounce → stale save.
-  it('flush() posts the current value immediately while an edit is pending', () => {
+  // Ctrl/Cmd+S: persist the LIVE value even when nothing is pending — Vditor only
+  // calls its input hook after its ~800ms throttle, so a save right after typing
+  // has no pending edit yet, but the live value is current and must be saved.
+  it('flush() posts the live getValue() even when nothing is pending', () => {
+    const getValue = vi.fn(() => 'live')
     const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'typed', post })
-    pe.schedule() // user typed; debounce armed but not yet fired
-    expect(post).not.toHaveBeenCalled()
-    pe.flush() // Ctrl+S within the window
-    expect(post).toHaveBeenCalledTimes(1)
-    expect(post).toHaveBeenCalledWith('typed')
-  })
-
-  it('flush() cancels the armed timer so the edit is not posted twice', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'x', post })
-    pe.schedule()
-    pe.flush()
-    vi.advanceTimersByTime(250) // the original timer must not also fire
-    expect(post).toHaveBeenCalledTimes(1)
-  })
-
-  // Critical: a save can land BEFORE schedule() ever runs — Vditor only calls its
-  // input hook after its own ~800ms throttle, so nothing is "pending" yet, but the
-  // editor's live value is already current and must be saved. flush() must post it.
-  it('flush() posts the live value even when nothing is pending', () => {
-    const post = vi.fn()
-    const pe = createPendingEdit({ wait: 250, getValue: () => 'live', post })
+    const pe = createPendingEdit({ wait: 250, getValue, post })
     expect(pe.pending).toBe(false)
     pe.flush()
+    expect(getValue).toHaveBeenCalledTimes(1)
     expect(post).toHaveBeenCalledTimes(1)
     expect(post).toHaveBeenCalledWith('live')
+  })
+
+  it('flush() posts the live value, not a stale pending content, and cancels the timer', () => {
+    const post = vi.fn()
+    const pe = createPendingEdit({ wait: 250, getValue: () => 'LIVE', post })
+    pe.schedule('OLD') // a debounced edit is pending
+    pe.flush()
+    expect(post).toHaveBeenLastCalledWith('LIVE')
+    vi.advanceTimersByTime(250) // the original timer must not also fire
+    expect(post).toHaveBeenCalledTimes(1)
   })
 
   it('reports pending state across schedule/flush', () => {
@@ -72,7 +72,7 @@ describe('createPendingEdit', () => {
       post: vi.fn(),
     })
     expect(pe.pending).toBe(false)
-    pe.schedule()
+    pe.schedule('x')
     expect(pe.pending).toBe(true)
     pe.flush()
     expect(pe.pending).toBe(false)

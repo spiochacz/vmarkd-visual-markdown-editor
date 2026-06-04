@@ -22,8 +22,8 @@ editor = new Vditor('app', {
   cdn: `${location.origin}/vditor`,
   value: 'start\n',
   customWysiwygToolbar: () => {},
-  input() {
-    pendingEdit.schedule()
+  input(text?: string) {
+    pendingEdit.schedule(typeof text === 'string' ? text : editor.getValue())
   },
   after() {
     ;(window as any).vditor = editor

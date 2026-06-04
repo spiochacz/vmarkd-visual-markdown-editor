@@ -30,6 +30,7 @@ import { createPendingEdit } from './pending-edit'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
 import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
+import { undoDelayForContentLength } from './edit-sync-tuning'
 import {
   getCursorSourceOffset,
   activeModeElement,
@@ -377,6 +378,13 @@ function initVditor(msg) {
         : createToolbar({ wikiEnabled: Boolean(msg.wiki?.enabled) }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
+    // Large-doc responsiveness (perf C2): widen Vditor's reserialise/undo idle
+    // window for big files so the multi-second full-document markdown serialise
+    // (Lute, super-linear) fires only after a real idle instead of mid-edit. Set
+    // from the initial content size; small docs keep the snappy default.
+    undoDelay: undoDelayForContentLength(
+      typeof msg.content === 'string' ? msg.content.length : 0,
+    ),
     // IR link UX (task 62): Ctrl/Cmd+click follows the link (the modifier gate is
     // in the patched IR source — fixIrLinkClick), plain click edits. The patched
     // handler only reaches link.click on a modifier click, so this just opens.
@@ -487,13 +495,18 @@ function initVditor(msg) {
         if (!willStream) removePrerenderOverlay()
       }
     },
-    input() {
+    input(value?: string) {
       // Suppress while applying an extension update OR while streaming a large doc
       // in — a partial getValue() would post (and save) a truncated document.
       if (applyingExtensionUpdate || streaming) {
         return
       }
-      pendingEdit.schedule()
+      // Vditor hands us the markdown it just serialised — reuse it instead of
+      // re-serialising in the debounce (a second full serialise is multi-second on
+      // large docs). Fall back to getValue() if a caller ever omits it.
+      pendingEdit.schedule(
+        typeof value === 'string' ? value : vditor.getValue(),
+      )
     },
     upload: {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409

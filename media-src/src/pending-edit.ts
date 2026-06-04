@@ -1,27 +1,30 @@
-// The webview debounces edits 250ms before posting them to the host (so we don't
-// flood VS Code with an `edit` per keystroke). That debounce opens a correctness
-// gap: a Ctrl/Cmd+S issued inside the window saves the host's *previous* content
-// because the latest `edit` hasn't fired yet (task 58). This controller owns the
-// debounce timer and exposes `flush()` so the save keybind can post the current
-// value synchronously before VS Code's save runs.
+// The webview debounces edits before posting them to the host. Two correctness +
+// performance points (tasks 58 + IR-edit perf):
 //
-// Kept free of any Vditor/VS Code reference (values come via `getValue`, delivery
-// via `post`) so it can be unit-tested directly.
+//  - Vditor already serialises the document to markdown on every input and hands it
+//    to `options.input(text)`. We pass that SAME `text` into `schedule(content)` so
+//    the debounced post reuses it instead of calling `getValue()` again — on a large
+//    document each serialise is multi-second, so avoiding the second one roughly
+//    halves the per-edit cost.
+//  - On Ctrl/Cmd+S we must persist the CURRENT content even if no input is pending
+//    (Vditor only fires its input hook after its own ~800ms throttle), so `flush()`
+//    serialises the live value via `getValue()` unconditionally.
+//
+// Kept free of any Vditor/VS Code reference (content comes in, delivery via `post`,
+// the live value via `getValue`) so it can be unit-tested directly.
 export interface PendingEditOptions {
   wait: number
+  // Live serialise, used only by flush() (Ctrl/Cmd+S).
   getValue: () => string
   post: (content: string) => void
 }
 
 export interface PendingEdit {
-  // Arm (or re-arm) the debounce. Coalesces rapid calls into one post.
-  schedule(): void
-  // Post the CURRENT value now and cancel any armed timer (so it's not posted
-  // twice). Always posts — even when nothing is "pending": the editor's live
-  // value (getValue) is always current, but the upstream `schedule()` may not
-  // have run yet (Vditor only calls its input hook after its own ~800ms throttle),
-  // so on Ctrl/Cmd+S we must persist the live value unconditionally, not rely on a
-  // pending debounce. The host dedupes a no-op write, so a redundant post is safe.
+  // Arm (or re-arm) the debounce to post `content` (already-serialised markdown
+  // from Vditor's input hook). Coalesces rapid calls — the latest content wins.
+  schedule(content: string): void
+  // Post the live value now and cancel any armed timer (so it's not posted twice).
+  // Always posts — even when nothing is pending (see note above).
   flush(): void
   // Whether a debounced edit is currently waiting to fire.
   readonly pending: boolean
@@ -29,18 +32,23 @@ export interface PendingEdit {
 
 export function createPendingEdit(opts: PendingEditOptions): PendingEdit {
   let timer: ReturnType<typeof setTimeout> | undefined
+  let latest: string | undefined
 
   return {
-    schedule() {
+    schedule(content) {
+      latest = content
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = undefined
-        opts.post(opts.getValue())
+        const content = latest as string
+        latest = undefined
+        opts.post(content)
       }, opts.wait)
     },
     flush() {
       if (timer) clearTimeout(timer)
       timer = undefined
+      latest = undefined
       opts.post(opts.getValue())
     },
     get pending() {
