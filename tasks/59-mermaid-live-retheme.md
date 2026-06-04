@@ -1,6 +1,15 @@
 # Task: Live re-theme Mermaid diagrams on VS Code color-theme change
 
-> **Status:** ⬜ Not started.
+> **Status:** ✅ Done (2026-06-04). `media-src/src/mermaid-retheme.ts` (`reRenderMermaid`)
+> wired into `handleSetTheme` (`main.ts`): on a live color-theme change it restores each
+> rendered diagram's source from the sibling editable `<code>`, clears `data-processed`, and
+> re-runs Vditor's `mermaidRender` **scoped to the preview panes** (so the editable source
+> isn't itself rendered) with the new theme. `applyMermaidTheme` is re-applied first so an
+> explicit `mermaidTheme` setting still wins over the dark/light auto choice. Cursor/scroll
+> untouched (only the non-editable preview SVG changes). e2e: `media-src/e2e/mermaid.spec.ts`
+> asserts the embedded theme CSS changes (ids stripped) and the source survives. No need to
+> touch `INIT_ONLY_OPTIONS` — explicit setting changes still re-init; this handles the live
+> color-theme flip. 381 unit · 101 e2e · biome ci clean · build OK.
 > **Source:** `tuanpmt/vditor` — "auto dark/light mode switching for mermaid". Completes the mermaid half of task 25.
 > **Value / Risk:** 🟡 closes a visible gap in live theming / medium (needs diagram re-render, not just config)
 
