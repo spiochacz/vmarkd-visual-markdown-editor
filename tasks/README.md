@@ -77,6 +77,7 @@ checked here **only when the task is fully complete**.
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md)
 - [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — init-latency investigation; finding in task file
 - [ ] [68 — IR edit/paste latency on large docs](68-ir-edit-serialize-perf.md) — 🟢 A (no double serialize) + C2 (widen `undoDelay` for large docs so the super-linear full-doc reserialize fires off the active-typing path) done, unit+e2e. C1 (auto-SV for huge) / C3 (incremental serialize) open.
+- [ ] [70 — Off-main-thread serialize (Web Worker)](70-worker-serialize.md) — 🟢🟢 run Lute `VditorIRDOM2Md` in a Worker → no freeze + animated spinner; spike first (does lute.min.js run in a Worker?).
 - [ ] [69 — Incremental IR serialization (C3)](69-incremental-ir-serialize.md) — 🟢🟢/⚠️ re-serialize only the edited block (O(block) not O(doc)) → removes the large-doc edit freeze entirely; high risk (context-sensitive serialization + block remap). Build as fast-path + full-serialize fallback + drift self-heal. Spike first; composes with 61.
 - See also: **20** (bundle is 94 % Vditor), **24 §5/§5b** (VSIX trim + Vditor asset-sync hazard), **11** (activation), **18 §2a** (streaming + keep media root)
 
