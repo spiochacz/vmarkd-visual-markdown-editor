@@ -1,28 +1,32 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { activate } from '../../src/extension'
+import { activate, docLargeMode } from '../../src/extension'
 import { mock, Uri, TabInputCustom, TabInputText } from './vscode-mock'
 
 const VIEW_TYPE = 'vmarkd.editor'
 
-// statusBarItems are created in order: [reading (prio 100), mode (prio 99)]
+// statusBarItems are created in order: [reading, mode, docSize]. docSize (task 69) is
+// Right-aligned at prio 101 so it renders to the LEFT of the reading-time/word counter.
 function bar() {
-  const [reading, modeItem] = mock.calls.statusBarItems
-  return { reading, modeItem }
+  const [reading, modeItem, docSize] = mock.calls.statusBarItems
+  return { reading, modeItem, docSize }
 }
 
-describe('status bar — reading time + mode (task 35)', () => {
-  beforeEach(() => mock.reset())
+describe('status bar — reading time + mode (task 35) + doc-size marker (task 69)', () => {
+  beforeEach(() => {
+    mock.reset()
+    docLargeMode.clear()
+  })
 
-  it('creates two items and registers them for disposal', () => {
+  it('creates three items and registers them for disposal', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    expect(mock.calls.statusBarItems).toHaveLength(2)
+    expect(mock.calls.statusBarItems).toHaveLength(3)
     mock.calls.statusBarItems.forEach((i) => {
       expect(context.subscriptions).toContain(i)
     })
   })
 
-  it('shows reading time + WYSIWYG for an active custom-editor markdown tab', () => {
+  it('shows reading time + WYSIWYG, and hides the large-doc marker for a normal doc', () => {
     const text = Array(250).fill('word').join(' ') // ceil(250/200) = 2 min
     mock.createTextDocument('/workspace/note.md', text)
     mock.setActiveTab(
@@ -30,32 +34,53 @@ describe('status bar — reading time + mode (task 35)', () => {
     )
     activate(mock.createExtensionContext() as any)
 
-    const { reading, modeItem } = bar()
+    const { reading, modeItem, docSize } = bar()
     expect(reading.visible).toBe(true)
     expect(reading.text).toContain('~2 min read')
     expect(modeItem.visible).toBe(true)
     expect(modeItem.text).toContain('WYSIWYG')
     expect(modeItem.command).toBe('vmarkd.openTextEditor') // click → source
+    // No large-doc report → the marker stays hidden (it only appears for large docs).
+    expect(docSize.visible).toBe(false)
   })
 
-  it('shows Source + open-editor toggle when the file is in the text editor', () => {
+  it('shows the "Large md" marker when the webview has reported the large regime', () => {
+    mock.createTextDocument('/workspace/big.md', 'word word word')
+    docLargeMode.set(Uri.file('/workspace/big.md').toString(), {
+      large: true,
+      blocks: 1234,
+    })
+    mock.setActiveTab(
+      new TabInputCustom(Uri.file('/workspace/big.md'), VIEW_TYPE),
+    )
+    activate(mock.createExtensionContext() as any)
+
+    const { docSize } = bar()
+    expect(docSize.visible).toBe(true)
+    expect(docSize.text).toContain('Large md')
+    expect(docSize.tooltip).toContain('1234')
+  })
+
+  it('shows Source + open-editor toggle, and hides the doc-size marker, in the text editor', () => {
     mock.createTextDocument('/workspace/note.md', 'one two three')
     mock.setActiveTab(new TabInputText(Uri.file('/workspace/note.md')))
     activate(mock.createExtensionContext() as any)
 
-    const { reading, modeItem } = bar()
+    const { reading, modeItem, docSize } = bar()
     expect(reading.visible).toBe(true)
     expect(reading.text).toContain('~1 min read')
     expect(modeItem.text).toContain('Source')
     expect(modeItem.command).toBe('vmarkd.openEditor') // click → visual
+    expect(docSize.visible).toBe(false) // no webview in source view → marker hidden
   })
 
-  it('hides both items on a non-markdown tab', () => {
+  it('hides all items on a non-markdown tab', () => {
     mock.setActiveTab(new TabInputText(Uri.file('/workspace/notes.txt')))
     activate(mock.createExtensionContext() as any)
-    const { reading, modeItem } = bar()
+    const { reading, modeItem, docSize } = bar()
     expect(reading.visible).toBe(false)
     expect(modeItem.visible).toBe(false)
+    expect(docSize.visible).toBe(false)
   })
 
   it('updates live when the active tab changes', () => {

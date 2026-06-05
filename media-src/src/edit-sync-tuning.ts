@@ -19,7 +19,34 @@ export const LARGE_DOC_CHARS = 20_000
 export const DEFAULT_UNDO_DELAY = 800
 export const LARGE_DOC_UNDO_DELAY = 2_000
 
-// Pick the serialise/undo idle window (ms) for a document of the given length.
-export function undoDelayForContentLength(length: number): number {
+// Gate for the incremental IR serializer (task 69). The full `VditorIRDOM2Md` cost is
+// driven by the number of top-level BLOCKS, not bytes — measured: at a fixed ~40k-char
+// size the cost swings 8.9ms→67ms (7.5×) purely with block count, while at a fixed block
+// count it barely moves with content length. So we gate on block count, not chars.
+// At ~700 blocks the full serialize crosses one frame (~16ms) and climbs super-linearly
+// past it; below that getValue() is already instant, so the incremental diff machinery
+// (and its tiny drift risk) isn't worth it. `ir.element.children.length` reads this in O(1)
+// and is correct for code blocks / lists / tables (each is one block = one serialize unit).
+export const INCREMENTAL_MIN_BLOCKS = 700
+
+// The task-69 gate: use the incremental IR serializer only in IR mode AND once the
+// document has enough top-level blocks for the full serialize to be slow. Pure for tests.
+export function useIncrementalSerialize(
+  mode: string | undefined,
+  blockCount: number,
+): boolean {
+  return mode === 'ir' && blockCount >= INCREMENTAL_MIN_BLOCKS
+}
+
+// Pick the serialise/undo idle window (ms) for a document, by length AND edit mode.
+// task 69: IR now serialises incrementally (fast) and SV serialisation is trivial
+// (`sv.element.textContent`) — neither needs the widened window any more, so they keep
+// the snappy default (finer undo + lower host-sync latency). Only WYSIWYG still runs a
+// full super-linear `VditorDOM2Md`, so it alone widens on large documents.
+export function undoDelayForContentLength(
+  length: number,
+  mode?: string,
+): number {
+  if (mode !== 'wysiwyg') return DEFAULT_UNDO_DELAY
   return length >= LARGE_DOC_CHARS ? LARGE_DOC_UNDO_DELAY : DEFAULT_UNDO_DELAY
 }

@@ -30,10 +30,15 @@ import { applyMermaidTheme } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
+import { createIncrementalMd } from './incremental-md'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
 import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
-import { undoDelayForContentLength, LARGE_DOC_CHARS } from './edit-sync-tuning'
+import {
+  undoDelayForContentLength,
+  LARGE_DOC_CHARS,
+  useIncrementalSerialize,
+} from './edit-sync-tuning'
 import { setBusyCursor, nextPaint } from './busy-cursor'
 import {
   getCursorSourceOffset,
@@ -60,6 +65,12 @@ let streaming = false
 // so a save inside the debounce window persists the latest content, not a stale
 // snapshot. No-op before the first init.
 let flushPendingEdit: () => void = () => {}
+// Drops the IR incremental-serialize cache (task 69) when the DOM is rebuilt wholesale
+// outside the edit path (external setValue / streaming). Set in initVditor.
+let invalidateIncrementalIr: () => void = () => {}
+// Reports the large/normal document mode (task 69 block-count gate) to the host so it
+// can show a status-bar marker. Posts only on change. Set in initVditor.
+let reportDocMode: () => void = () => {}
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
@@ -269,16 +280,88 @@ function initVditor(msg) {
   // SYNCHRONOUSLY (no yield) so the edit is posted before VS Code saves (task 58).
   // Both guard against firing mid extension-update / streaming (a partial getValue()
   // would post a truncated document).
-  const postEdit = () =>
-    vscode.postMessage({ command: 'edit', content: vditor.getValue() })
+  // Incremental IR serialization (task 69). The full `vditor.getValue()` reserializes
+  // the whole document (Lute, super-linear) on every idle — seconds on a large doc.
+  // For IR we instead diff the top-level blocks and re-serialize only what changed,
+  // keeping a cached full markdown. Proven byte-identical to getValue() (task-69 spike).
+  const incrementalIr = createIncrementalMd((html: string) =>
+    (window.vditor as any).vditor.lute.VditorIRDOM2Md(html),
+  )
+  const irElement = (): HTMLElement | undefined =>
+    (window.vditor as any)?.vditor?.ir?.element
+  const irTopBlocks = (el: HTMLElement): string[] =>
+    Array.from(el.children, (c) => (c as HTMLElement).outerHTML)
+  // Cache is IR-only; re-entering IR (after a mode switch) rebaselines.
+  let lastSerializeMode: string | null = null
   const isLargeDoc = () =>
     (activeModeElement(window.vditor)?.textContent?.length ?? 0) >=
     LARGE_DOC_CHARS
+  // The incremental serializer pays off only with enough top-level blocks — block COUNT
+  // (not byte size) drives the super-linear full-serialize cost (task-69 analysis). Returns
+  // the IR element when incremental should be used, else undefined (→ plain getValue()).
+  // `children.length` is O(1) and correct for code/lists/tables (each is one block).
+  const irIncrementalElement = (): HTMLElement | undefined => {
+    const el = irElement()
+    return el &&
+      useIncrementalSerialize(
+        window.vditor.getCurrentMode?.(),
+        el.children.length,
+      )
+      ? el
+      : undefined
+  }
+  const serializeForHost = (): string => {
+    const el = irIncrementalElement()
+    if (el) {
+      if (lastSerializeMode !== 'ir-incremental') incrementalIr.invalidate()
+      lastSerializeMode = 'ir-incremental'
+      return incrementalIr.update(irTopBlocks(el))
+    }
+    lastSerializeMode = window.vditor.getCurrentMode?.() ?? null
+    return vditor.getValue()
+  }
+  // Drop cached IR state when the DOM is rebuilt wholesale outside the edit path
+  // (external setValue / streaming) so the next serialize rebaselines cleanly.
+  invalidateIncrementalIr = () => incrementalIr.invalidate()
+
+  // Tell the host whether this doc is in the large/incremental regime (≥ block gate),
+  // for the status-bar marker. Posts only when it flips, so it's cheap to call often.
+  let lastReportedLarge: boolean | null = null
+  reportDocMode = () => {
+    const large = irIncrementalElement() !== undefined
+    const blocks = irElement()?.children.length ?? 0
+    if (large === lastReportedLarge) return
+    lastReportedLarge = large
+    vscode.postMessage({ command: 'docMode', large, blocks })
+  }
+
+  // Keep Vditor's idle window mode-aware (Vditor reads options.undoDelay live). IR/SV
+  // stay snappy (task 69: IR is incremental, SV serialize is trivial); only WYSIWYG, whose
+  // full VditorDOM2Md is still super-linear, widens on large docs. Re-evaluated per edit so
+  // a mode switch takes effect on the next edit's scheduling.
+  const syncUndoDelay = () => {
+    const inner = (window.vditor as any)?.vditor
+    if (!inner?.options) return
+    const mode = window.vditor.getCurrentMode?.()
+    const len =
+      mode === 'wysiwyg'
+        ? (activeModeElement(window.vditor)?.textContent?.length ?? 0)
+        : 0
+    inner.options.undoDelay = undoDelayForContentLength(len, mode)
+  }
+
+  const postEdit = () => {
+    vscode.postMessage({ command: 'edit', content: serializeForHost() })
+    reportDocMode()
+    syncUndoDelay()
+  }
   const pendingEdit = createPendingEdit({
     wait: 250,
     onIdle: async () => {
       if (applyingExtensionUpdate || streaming) return
-      if (isLargeDoc()) {
+      // IR is now incremental → fast even on large docs (no busy cursor). WYSIWYG/SV
+      // still do a full getValue(); keep the busy-cursor + paint for that slow path.
+      if (window.vditor.getCurrentMode?.() !== 'ir' && isLargeDoc()) {
         setBusyCursor(true)
         await nextPaint() // let the busy cursor paint before the long serialize
         try {
@@ -292,7 +375,24 @@ function initVditor(msg) {
     },
     onFlush: () => {
       if (applyingExtensionUpdate || streaming) return
-      postEdit()
+      // Save is authoritative (task 58): on a large IR doc bring the incremental cache
+      // current (cheap), then audit it against a full getValue() — drift = a fast-path bug,
+      // log + resync so a bad incremental result can never corrupt a saved file. Small docs
+      // (below the block-count gate) serialize directly.
+      const incrEl = irIncrementalElement()
+      if (incrEl) {
+        const incremental = incrementalIr.update(irTopBlocks(incrEl))
+        const authoritative = vditor.getValue()
+        if (incremental !== authoritative) {
+          console.warn(
+            '[task69] incremental IR markdown drifted from full serialize on save; using authoritative + resyncing',
+          )
+          incrementalIr.invalidate()
+        }
+        vscode.postMessage({ command: 'edit', content: authoritative })
+      } else {
+        vscode.postMessage({ command: 'edit', content: vditor.getValue() })
+      }
     },
   })
   flushPendingEdit = () => pendingEdit.flush()
@@ -389,8 +489,11 @@ function initVditor(msg) {
     // window for big files so the multi-second full-document markdown serialise
     // (Lute, super-linear) fires only after a real idle instead of mid-edit. Set
     // from the initial content size; small docs keep the snappy default.
+    // Constructed in IR (incremental serialize → snappy default). Kept mode-aware at
+    // runtime by syncUndoDelay: only WYSIWYG widens on large docs (still a full serialize).
     undoDelay: undoDelayForContentLength(
       typeof msg.content === 'string' ? msg.content.length : 0,
+      'ir',
     ),
     // Capture Tab so it indents/inserts instead of falling through to the browser
     // (which moves focus to the next tabbable element / the host iframe and scrolls
@@ -423,6 +526,8 @@ function initVditor(msg) {
         }
         // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
         setupSplitScrollSync()
+        // Report the initial large/normal doc mode for the status-bar marker (task 69).
+        reportDocMode()
       }
       try {
         // Force the theme through setTheme at init (constructor options don't
@@ -456,6 +561,8 @@ function initVditor(msg) {
             streaming = false
             irEl?.setAttribute('contenteditable', 'true')
             irEl?.classList.remove('vmarkd-streaming')
+            // The streamed DOM is a wholesale build → drop the IR cache (task 69).
+            invalidateIncrementalIr()
           }
           streamRenderIR(window.vditor, msg.content, {
             onFirstChunk: () => {
@@ -583,6 +690,9 @@ function handleUpdate(msg: any) {
       // setValue rebuilds the DOM and would drop the caret/scroll to the top (#1912).
       // For an external update landing while the user edits, keep them put.
       preserveCaretAndScroll(window.vditor, () => vditor.setValue(msg.content))
+      // The DOM was rebuilt wholesale → drop the IR cache (task 69) + refresh the marker.
+      invalidateIncrementalIr()
+      reportDocMode()
     } finally {
       setTimeout(() => {
         applyingExtensionUpdate = false

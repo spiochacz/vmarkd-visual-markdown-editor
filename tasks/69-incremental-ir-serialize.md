@@ -1,6 +1,11 @@
 # Task: Incremental IR serialization (C3) — re-serialize only the edited block
 
-> **Status:** 🟡 Spike DONE (2026-06-05) → **GO**. Ready to implement (see "Spike results" below).
+> **Status:** ✅ IMPLEMENTED (2026-06-05). `media-src/src/incremental-md.ts` (pure engine:
+> content-diff + range-splice + window-reserialize), wired into `main.ts` `postEdit` (IR uses
+> the incremental serialize; flush stays authoritative `getValue()` + drift self-heal; cache
+> invalidated on setValue/streaming/mode-switch). Tests: 19 unit (incl. 3000-edit fuzz) +
+> 2 e2e (real Vditor/Lute, byte-identical to `getValue()` across typing/split/merge). Full
+> gate green: build, lint, 400 unit, 103 e2e. Spike findings below.
 > **Source:** Follow-up to [68 — IR edit/paste latency](68-ir-edit-serialize-perf.md)
 > (option C3). Tasks 68 (A + C2) reduced *how often* / *how many times* the full
 > serialize runs; C3 attacks the *cost* itself.

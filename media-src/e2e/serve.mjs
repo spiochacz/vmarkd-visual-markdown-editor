@@ -23,6 +23,7 @@ const built = await esbuild.build({
     list: path.join(__dirname, 'list-harness.ts'),
     math: path.join(__dirname, 'math-harness.ts'),
     'save-flush': path.join(__dirname, 'save-flush-harness.ts'),
+    'incremental-md': path.join(__dirname, 'incremental-md-harness.ts'),
     'wysiwyg-input': path.join(__dirname, 'wysiwyg-input-harness.ts'),
     tab: path.join(__dirname, 'tab-harness.ts'),
     stream: path.join(__dirname, 'stream-harness.ts'),
@@ -51,6 +52,9 @@ const linkHtml = fs.readFileSync(path.join(__dirname, 'link.html'))
 const listHtml = fs.readFileSync(path.join(__dirname, 'list.html'))
 const mathHtml = fs.readFileSync(path.join(__dirname, 'math.html'))
 const saveFlushHtml = fs.readFileSync(path.join(__dirname, 'save-flush.html'))
+const incrementalMdHtml = fs.readFileSync(
+  path.join(__dirname, 'incremental-md.html'),
+)
 const wysiwygInputHtml = fs.readFileSync(
   path.join(__dirname, 'wysiwyg-input.html'),
 )
@@ -111,6 +115,10 @@ const server = http.createServer((req, res) => {
   if (url === '/save-flush.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(saveFlushHtml)
+  }
+  if (url === '/incremental-md.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(incrementalMdHtml)
   }
   if (url === '/wysiwyg-input.html') {
     res.setHeader('content-type', 'text/html')
