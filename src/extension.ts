@@ -276,7 +276,7 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       // mode). Only meaningful in the visual editor, which owns the incremental serializer.
       const ds = docLargeMode.get(input.uri.toString())
       if (ds?.large) {
-        docSize.text = '$(zap) Large doc'
+        docSize.text = '$(zap) Large md'
         docSize.tooltip = `Large document — ${ds.blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
         docSize.show()
       } else {
