@@ -29,6 +29,15 @@ export const LARGE_DOC_UNDO_DELAY = 2_000
 // and is correct for code blocks / lists / tables (each is one block = one serialize unit).
 export const INCREMENTAL_MIN_BLOCKS = 700
 
+// The task-69 gate: use the incremental IR serializer only in IR mode AND once the
+// document has enough top-level blocks for the full serialize to be slow. Pure for tests.
+export function useIncrementalSerialize(
+  mode: string | undefined,
+  blockCount: number,
+): boolean {
+  return mode === 'ir' && blockCount >= INCREMENTAL_MIN_BLOCKS
+}
+
 // Pick the serialise/undo idle window (ms) for a document of the given length.
 export function undoDelayForContentLength(length: number): number {
   return length >= LARGE_DOC_CHARS ? LARGE_DOC_UNDO_DELAY : DEFAULT_UNDO_DELAY

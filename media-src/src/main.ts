@@ -37,7 +37,7 @@ import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
 import {
   undoDelayForContentLength,
   LARGE_DOC_CHARS,
-  INCREMENTAL_MIN_BLOCKS,
+  useIncrementalSerialize,
 } from './edit-sync-tuning'
 import { setBusyCursor, nextPaint } from './busy-cursor'
 import {
@@ -301,9 +301,14 @@ function initVditor(msg) {
   // the IR element when incremental should be used, else undefined (→ plain getValue()).
   // `children.length` is O(1) and correct for code/lists/tables (each is one block).
   const irIncrementalElement = (): HTMLElement | undefined => {
-    if (window.vditor.getCurrentMode?.() !== 'ir') return undefined
     const el = irElement()
-    return el && el.children.length >= INCREMENTAL_MIN_BLOCKS ? el : undefined
+    return el &&
+      useIncrementalSerialize(
+        window.vditor.getCurrentMode?.(),
+        el.children.length,
+      )
+      ? el
+      : undefined
   }
   const serializeForHost = (): string => {
     const el = irIncrementalElement()

@@ -7,7 +7,7 @@ import { expect, test } from './coverage-fixture'
  * is byte-identical to the authoritative full `editor.getValue()` (VditorIRDOM2Md).
  */
 
-async function gotoHarness(page: any) {
+async function gotoHarness(page: any, query = '') {
   await page.addInitScript(() => {
     ;(window as any).acquireVsCodeApi = () => ({
       postMessage: () => {},
@@ -15,7 +15,7 @@ async function gotoHarness(page: any) {
       setState: () => {},
     })
   })
-  await page.goto('/incremental-md.html')
+  await page.goto(`/incremental-md.html${query}`)
   await page.waitForFunction(() => (window as any).__ready === true)
 }
 
@@ -80,6 +80,33 @@ test('incremental markdown stays byte-identical to getValue across real edits', 
   for (const _ of 'temp line') await page.keyboard.press('Backspace')
   await page.keyboard.press('Backspace') // merge into the previous block
   await expectConsistent(page)
+})
+
+test('the gate keeps a NORMAL doc on the full-serialize path', async ({
+  page,
+}) => {
+  await gotoHarness(page) // small doc (well under the block gate)
+  const r = await page.evaluate(() => (window as any).__serializeForHost())
+  expect(r.usedIncremental).toBe(false)
+  expect(r.equal).toBe(true) // full getValue() — trivially consistent
+})
+
+test('the gate routes a LARGE doc through incremental, byte-identical to getValue', async ({
+  page,
+}) => {
+  await gotoHarness(page, '?large=1') // ≥700 blocks → over the gate
+  let r = await page.evaluate(() => (window as any).__serializeForHost())
+  expect(r.usedIncremental).toBe(true)
+  expect(r.equal).toBe(true)
+  // and it stays byte-identical to the authoritative serialize after a real edit
+  await clickInEditor(page, 'Paragraph number 0')
+  await page.keyboard.type(' EDITED')
+  r = await page.evaluate(() => (window as any).__serializeForHost())
+  expect(r.usedIncremental).toBe(true)
+  expect(
+    r.md,
+    `incremental != full on a large doc\n--- md ---\n${r.md.slice(0, 300)}\n--- full ---\n${r.full.slice(0, 300)}`,
+  ).toBe(r.full)
 })
 
 test('rebaselines correctly after the cache is invalidated', async ({

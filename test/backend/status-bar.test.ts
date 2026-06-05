@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { activate } from '../../src/extension'
+import { activate, docLargeMode } from '../../src/extension'
 import { mock, Uri, TabInputCustom, TabInputText } from './vscode-mock'
 
 const VIEW_TYPE = 'vmarkd.editor'
@@ -12,7 +12,10 @@ function bar() {
 }
 
 describe('status bar — reading time + mode (task 35) + doc-size marker (task 69)', () => {
-  beforeEach(() => mock.reset())
+  beforeEach(() => {
+    mock.reset()
+    docLargeMode.clear()
+  })
 
   it('creates three items and registers them for disposal', () => {
     const context = mock.createExtensionContext()
@@ -39,6 +42,23 @@ describe('status bar — reading time + mode (task 35) + doc-size marker (task 6
     expect(modeItem.command).toBe('vmarkd.openTextEditor') // click → source
     // No large-doc report → the marker stays hidden (it only appears for large docs).
     expect(docSize.visible).toBe(false)
+  })
+
+  it('shows the "Large md" marker when the webview has reported the large regime', () => {
+    mock.createTextDocument('/workspace/big.md', 'word word word')
+    docLargeMode.set(Uri.file('/workspace/big.md').toString(), {
+      large: true,
+      blocks: 1234,
+    })
+    mock.setActiveTab(
+      new TabInputCustom(Uri.file('/workspace/big.md'), VIEW_TYPE),
+    )
+    activate(mock.createExtensionContext() as any)
+
+    const { docSize } = bar()
+    expect(docSize.visible).toBe(true)
+    expect(docSize.text).toContain('Large md')
+    expect(docSize.tooltip).toContain('1234')
   })
 
   it('shows Source + open-editor toggle, and hides the doc-size marker, in the text editor', () => {

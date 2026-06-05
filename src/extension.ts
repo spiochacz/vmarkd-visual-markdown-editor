@@ -222,7 +222,10 @@ async function updateEditorContexts() {
 // task 69: per-document large/normal regime (block-count gate), reported by the webview
 // and shown as a small status-bar marker. Keyed by uri.toString(). `refreshStatusBarMarker`
 // is the status-bar updater, wired in activate() so the webview report can refresh it.
-const docLargeMode = new Map<string, { large: boolean; blocks: number }>()
+export const docLargeMode = new Map<
+  string,
+  { large: boolean; blocks: number }
+>()
 let refreshStatusBarMarker: () => void = () => {}
 
 // Native status-bar items (task 35): estimated reading time + an editor-mode
