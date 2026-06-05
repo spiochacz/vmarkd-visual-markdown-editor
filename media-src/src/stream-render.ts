@@ -52,7 +52,7 @@ export { STREAM_CHUNK_CHARS, chunkize } from './stream-chunk'
 // problem). So chunking is net-negative until docs are genuinely huge. Threshold
 // raised from 100 KB accordingly. (Streaming's O(n²) reflow remains an open perf
 // issue — see task 49.)
-export const STREAM_MIN_CHARS = 800_000
+export const STREAM_MIN_CHARS = 700_000
 
 // Remove the def blocks we injected (by label), leaving the chunk's own in-place
 // defs untouched — DOM surgery, so no regex on nested footnote markup.

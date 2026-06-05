@@ -124,6 +124,15 @@ body[data-use-vscode-theme-color="1"]
 .vditor-ir pre.vditor-reset {
   position: relative;
 }
+/* Big-doc render/repaint cost (VS Code 1.123 = Chromium 148 froze the whole
+   window when a large retained webview became visible on tab switch). Let the
+   browser skip layout/paint of off-screen IR blocks so showing/repainting the
+   editor is O(viewport), not O(whole 4000-block doc). contain-intrinsic-size
+   keeps the scrollbar stable for not-yet-rendered blocks. */
+.vditor-ir > pre.vditor-reset > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
+}
 /* Collapse-to-"..." applies ONLY to the IR table panel (it sits near the cursor
    and should be unobtrusive). Scoped to #fix-table-ir-wrapper so it does NOT
    touch the toolbar dropdown panels (emoji, "more", code/content theme), which
