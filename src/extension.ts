@@ -1345,6 +1345,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       codeTheme: c.get<string>('theme.code'),
       streamLargeFiles: c.get<boolean>('advanced.streamLargeFiles'),
       linkOpenWithModifier: c.get<boolean>('editor.linkOpenWithModifier'),
+      // Image upload conversion (task 74) — read by the webview's upload handler.
+      imageFormat: c.get<string>('image.format'),
+      imageQuality: c.get<number>('image.quality'),
+      imageMaxWidth: c.get<number>('image.maxWidth'),
     }
   }
 

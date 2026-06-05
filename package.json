@@ -378,6 +378,32 @@
             "default": "assets",
             "scope": "resource",
             "description": "Save images to which folder when upload in markdown, default relative to the markdown file, you can set to project root via `${projectRoot}/assets`. Resource-scoped — a workspace/folder can override it in `.vscode/settings.json`."
+          },
+          "vmarkd.image.format": {
+            "type": "string",
+            "enum": ["original", "webp"],
+            "enumDescriptions": [
+              "Keep uploaded/pasted images in their original format and bytes.",
+              "Convert raster uploads to WebP (smaller files). SVG and animated GIF are always kept as-is."
+            ],
+            "default": "webp",
+            "scope": "resource",
+            "description": "Format for uploaded/pasted images. `webp` re-encodes rasters (PNG/JPEG/…) to WebP in the editor before saving — smaller files, link is rewritten to the `.webp` name. SVG (vector) and GIF (animation) are never converted. Falls back to the original bytes if encoding fails."
+          },
+          "vmarkd.image.quality": {
+            "type": "number",
+            "default": 80,
+            "minimum": 1,
+            "maximum": 100,
+            "scope": "resource",
+            "markdownDescription": "WebP quality (1–100) when `#vmarkd.image.format#` is `webp`. Higher is larger and sharper; 80 is a good size/quality balance. Ignored for `original`."
+          },
+          "vmarkd.image.maxWidth": {
+            "type": "number",
+            "default": 0,
+            "minimum": 0,
+            "scope": "resource",
+            "markdownDescription": "Downscale uploaded/pasted images wider than this many pixels (aspect ratio preserved; never upscaled). `0` disables scaling. Applies to both `webp` and `original` (re-encoded when scaled). Set e.g. `1600` to cap large screenshots."
           }
         }
       },
@@ -433,10 +459,6 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@jsquash/avif": "^2.1.1",
-    "@jsquash/jpeg": "^1.6.0",
-    "@jsquash/png": "^3.1.1",
-    "@jsquash/webp": "^1.5.0",
     "@types/node": "^22",
     "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.8",

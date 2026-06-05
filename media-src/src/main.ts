@@ -13,6 +13,7 @@ import {
 import { deepMerge } from './deep-merge'
 import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
+import { convertForUpload } from './image-convert'
 import 'vditor/dist/index.css'
 import { lang } from './lang'
 import { createToolbar } from './toolbar'
@@ -632,12 +633,20 @@ function initVditor(msg) {
     upload: {
       url: '/fuzzy', // 没有 url 参数粘贴图片无法上传 see: https://github.com/Vanessa219/vditor/blob/d7628a0a7cfe5d28b055469bf06fb0ba5cfaa1b2/src/ts/util/fixBrowserBehavior.ts#L1409
       async handler(files) {
-        // console.log('files', files)
+        // Convert/scale per the vmarkd.image.* settings (task 74): original or
+        // WebP, optional max-width downscale. Conversion runs here on a canvas;
+        // convertForUpload falls back to the original bytes on any failure.
+        const opts = lastInitMsg?.options ?? {}
         const fileInfos = await Promise.all(
           files.map(async (f) => {
+            const { blob, name } = await convertForUpload(f, {
+              format: opts.imageFormat,
+              quality: opts.imageQuality,
+              maxWidth: opts.imageMaxWidth,
+            })
             return {
-              base64: await fileToBase64(f),
-              name: `${formatTimestamp(new Date())}_${f.name}`.replace(
+              base64: await fileToBase64(blob),
+              name: `${formatTimestamp(new Date())}_${name}`.replace(
                 /[^\w-_.]+/,
                 '_',
               ),

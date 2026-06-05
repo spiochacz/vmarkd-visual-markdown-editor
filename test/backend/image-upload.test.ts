@@ -118,6 +118,18 @@ describe('image upload (onUpload)', () => {
     )
   })
 
+  it('round-trips a converted .webp name verbatim (task 74 contract)', async () => {
+    // The webview converts to WebP and sends the .webp name; the host is
+    // format-agnostic — it writes that name and echoes it back for the link.
+    const { panel } = resolveProvider('/workspace/note.md')
+    await panel._receiveMessage({
+      command: 'upload',
+      files: [{ name: 'shot.webp', base64: b64('WEBP') }],
+    })
+    expect(writtenPaths().at(-1)).toBe('/workspace/assets/shot.webp')
+    expect(uploadedReplies().at(-1)?.files).toEqual(['assets/shot.webp'])
+  })
+
   it('reports an error and writes nothing when the assets folder cannot be created', async () => {
     const { panel } = resolveProvider('/workspace/note.md')
     vi.mocked(workspace.fs.createDirectory).mockRejectedValueOnce(
