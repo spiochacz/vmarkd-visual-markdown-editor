@@ -21,6 +21,7 @@ import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
 import { setupOutlineFlash } from './outline'
+import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
 import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
@@ -529,6 +530,17 @@ function initVditor(msg) {
         fixPanelHover()
         if (msg.options?.outlineHighlight !== false) {
           setupOutlineFlash(window.vditor)
+        }
+        {
+          const oel: HTMLElement | undefined = (window.vditor as any)?.vditor
+            ?.outline?.element
+          if (oel) {
+            const pos =
+              msg.options?.outlinePosition === 'left' ? 'left' : 'right'
+            setupOutlineResize(oel, pos, (w) =>
+              vscode.postMessage({ command: 'save-outline-width', width: w }),
+            )
+          }
         }
         // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
         setupSplitScrollSync()

@@ -40,7 +40,9 @@ describe('activate()', () => {
   it('marks the vmarkd.options key for settings sync', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    expect(mock.calls.setKeysForSync).toContainEqual(['vmarkd.options'])
+    expect(mock.calls.setKeysForSync).toContainEqual(
+      expect.arrayContaining(['vmarkd.options', 'vmarkd.outlineWidth']),
+    )
   })
 
   it('creates a levelled log channel and registers it for disposal (task 18 §2d)', () => {

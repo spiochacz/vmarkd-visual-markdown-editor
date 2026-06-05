@@ -22,6 +22,7 @@ import {
 } from './wiki'
 
 const KeyVditorOptions = 'vmarkd.options'
+const KeyOutlineWidth = 'vmarkd.outlineWidth'
 const MarkdownEditorViewType = 'vmarkd.editor'
 const WikiFileContextKey = 'vmarkd.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])
@@ -527,7 +528,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument(debouncedStatusBar),
   )
 
-  context.globalState.setKeysForSync([KeyVditorOptions])
+  context.globalState.setKeysForSync([KeyVditorOptions, KeyOutlineWidth])
   refreshContexts()
 }
 
@@ -748,6 +749,13 @@ export class EditorSession {
         ...MarkdownEditorProvider.sanitizeVditorOptions(
           this.context.globalState.get(KeyVditorOptions),
         ),
+        // Drag-resized outline width overrides the setting default.
+        ...(this.context.globalState.get<number>(KeyOutlineWidth)
+          ? {
+              outlineWidth:
+                this.context.globalState.get<number>(KeyOutlineWidth),
+            }
+          : {}),
       },
       theme: currentThemeKind(),
       wiki: wikiInit,
@@ -1050,6 +1058,8 @@ export class EditorSession {
       'navigate-back': () => this.onNavigateBack(),
       'open-settings': () => this.onOpenSettings(),
       'list-wiki-pages': () => this.onListWikiPages(),
+      'save-outline-width': (message) =>
+        this.context.globalState.update(KeyOutlineWidth, message.width),
       upload: (message) => this.onUpload(message),
       'open-link': (message) => this.onOpenLink(message),
       'open-wikilink': (message) => this.onOpenWikilink(message),

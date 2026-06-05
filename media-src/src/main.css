@@ -350,6 +350,36 @@ body[data-highlight-headings="1"] .vditor-reset h6 {
    width) still wins. */
 .vditor-outline {
   width: var(--me-outline-width, 200px);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Drag-resize handle on the inner edge of the outline panel. */
+.outline-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+.outline-resize-handle[data-side="left"] { left: 0; }
+.outline-resize-handle[data-side="right"] { right: 0; }
+.outline-resize-handle:hover,
+body.outline-resizing .outline-resize-handle {
+  background: var(--vscode-sash-hoverBorder, rgba(0, 122, 204, 0.6));
+}
+body.outline-resizing {
+  cursor: col-resize !important;
+  user-select: none;
+}
+body.outline-resizing .vditor-reset,
+body.outline-resizing .vditor-ir,
+body.outline-resizing .vditor-wysiwyg,
+body.outline-resizing .vditor-sv {
+  pointer-events: none;
 }
 
 /* Outline navigation flash (task 13): brief highlight on the clicked heading. */
