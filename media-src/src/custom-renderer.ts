@@ -55,7 +55,8 @@ export function setupCustomRenderer(
       // "unknown ext renderer func" and aborts editor init.
       HTML2Md: { renderInlineHTML },
     },
-  })
+    // our renderText/renderInlineHTML use `any` nodes; cast over Lute's ILuteRenderCallback.
+  } as any)
 }
 
 // Render a Lute text token to HTML: turn [[wiki]] / [[wiki|label]] spans into

@@ -65,6 +65,9 @@ let streaming = false
 // so a save inside the debounce window persists the latest content, not a stale
 // snapshot. No-op before the first init.
 let flushPendingEdit: () => void = () => {}
+// Git-gutter diff markers for the current document (tasks 15/16). Was previously an
+// undeclared implicit global — declare it properly at module scope.
+let lastDiffChanges: DiffChange[] = []
 // Drops the IR incremental-serialize cache (task 69) when the DOM is rebuilt wholesale
 // outside the edit path (external setValue / streaming). Set in initVditor.
 let invalidateIncrementalIr: () => void = () => {}
@@ -461,7 +464,9 @@ function initVditor(msg) {
     msg.options?.streamLargeFiles !== false &&
     typeof msg.content === 'string' &&
     msg.content.length > STREAM_MIN_CHARS
-  window.vditor = new Vditor('app', {
+  // Constructed from `vditor/src` (we bundle from source); the global is typed from the
+  // published `vditor` (dist) types — cast across the two identities at the assignment.
+  ;(window as any).vditor = new Vditor('app', {
     width: '100%',
     height: '100%',
     minHeight: '100%',
