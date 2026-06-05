@@ -34,7 +34,11 @@ import { createIncrementalMd } from './incremental-md'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
 import { installLinkOpenGate, applyLinkOpenSetting } from './link-open-policy'
-import { undoDelayForContentLength, LARGE_DOC_CHARS } from './edit-sync-tuning'
+import {
+  undoDelayForContentLength,
+  LARGE_DOC_CHARS,
+  INCREMENTAL_MIN_BLOCKS,
+} from './edit-sync-tuning'
 import { setBusyCursor, nextPaint } from './busy-cursor'
 import {
   getCursorSourceOffset,
@@ -280,30 +284,32 @@ function initVditor(msg) {
   const incrementalIr = createIncrementalMd((html: string) =>
     (window.vditor as any).vditor.lute.VditorIRDOM2Md(html),
   )
-  const irTopBlocks = (): string[] => {
-    const el = (window.vditor as any)?.vditor?.ir?.element as
-      | HTMLElement
-      | undefined
-    return el
-      ? Array.from(el.children, (c) => (c as HTMLElement).outerHTML)
-      : []
-  }
+  const irElement = (): HTMLElement | undefined =>
+    (window.vditor as any)?.vditor?.ir?.element
+  const irTopBlocks = (el: HTMLElement): string[] =>
+    Array.from(el.children, (c) => (c as HTMLElement).outerHTML)
   // Cache is IR-only; re-entering IR (after a mode switch) rebaselines.
   let lastSerializeMode: string | null = null
   const isLargeDoc = () =>
     (activeModeElement(window.vditor)?.textContent?.length ?? 0) >=
     LARGE_DOC_CHARS
+  // The incremental serializer pays off only with enough top-level blocks — block COUNT
+  // (not byte size) drives the super-linear full-serialize cost (task-69 analysis). Returns
+  // the IR element when incremental should be used, else undefined (→ plain getValue()).
+  // `children.length` is O(1) and correct for code/lists/tables (each is one block).
+  const irIncrementalElement = (): HTMLElement | undefined => {
+    if (window.vditor.getCurrentMode?.() !== 'ir') return undefined
+    const el = irElement()
+    return el && el.children.length >= INCREMENTAL_MIN_BLOCKS ? el : undefined
+  }
   const serializeForHost = (): string => {
-    const mode = window.vditor.getCurrentMode?.()
-    // Incremental serialize only pays off on a large doc (≥ LARGE_DOC_CHARS, ~500 lines):
-    // there the full getValue() is super-linear and freezes. Below that it's already
-    // instant, so skip the diff machinery (and its tiny drift risk) and serialize directly.
-    if (mode === 'ir' && isLargeDoc()) {
+    const el = irIncrementalElement()
+    if (el) {
       if (lastSerializeMode !== 'ir-incremental') incrementalIr.invalidate()
       lastSerializeMode = 'ir-incremental'
-      return incrementalIr.update(irTopBlocks())
+      return incrementalIr.update(irTopBlocks(el))
     }
-    lastSerializeMode = mode ?? null
+    lastSerializeMode = window.vditor.getCurrentMode?.() ?? null
     return vditor.getValue()
   }
   // Drop cached IR state when the DOM is rebuilt wholesale outside the edit path
@@ -332,11 +338,13 @@ function initVditor(msg) {
     },
     onFlush: () => {
       if (applyingExtensionUpdate || streaming) return
-      // Save is authoritative (task 58): bring the incremental cache current (cheap),
-      // then audit it against a full getValue() — drift = a fast-path bug, log + resync
-      // so a bad incremental result can never corrupt a saved file (task-69 self-heal).
-      if (window.vditor.getCurrentMode?.() === 'ir') {
-        const incremental = incrementalIr.update(irTopBlocks())
+      // Save is authoritative (task 58): on a large IR doc bring the incremental cache
+      // current (cheap), then audit it against a full getValue() — drift = a fast-path bug,
+      // log + resync so a bad incremental result can never corrupt a saved file. Small docs
+      // (below the block-count gate) serialize directly.
+      const incrEl = irIncrementalElement()
+      if (incrEl) {
+        const incremental = incrementalIr.update(irTopBlocks(incrEl))
         const authoritative = vditor.getValue()
         if (incremental !== authoritative) {
           console.warn(
