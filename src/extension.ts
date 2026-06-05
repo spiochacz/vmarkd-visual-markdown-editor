@@ -1045,6 +1045,7 @@ export class EditorSession {
       edit: (message) => this.onEdit(message),
       save: (message) => this.onSave(message),
       docMode: (message) => this.onDocMode(message),
+      log: (message) => logger?.appendLine(String(message?.text ?? '')),
       'edit-in-vscode': () => this.onEditInVscode(),
       'navigate-back': () => this.onNavigateBack(),
       'open-settings': () => this.onOpenSettings(),

@@ -738,6 +738,9 @@ function handleConfigChanged(msg: any) {
   applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
   const codeThemeChanged =
     lastInitMsg && lastInitMsg.options?.codeTheme !== msg.options?.codeTheme
+  const mermaidThemeChanged =
+    lastInitMsg &&
+    lastInitMsg.options?.mermaidTheme !== msg.options?.mermaidTheme
   if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
     const content =
       window.vditor && !applyingExtensionUpdate
@@ -748,11 +751,25 @@ function handleConfigChanged(msg: any) {
       content,
       options: { ...lastInitMsg.options, ...msg.options },
     })
-  } else if (codeThemeChanged && window.vditor) {
-    // Code-block theme isn't a constructor-only option — apply it live via
-    // setTheme (swaps the hljs stylesheet) without re-init, keeping cursor.
-    lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
+    return
+  }
+  if (!lastInitMsg || !window.vditor) return
+  lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
+  // Code-block theme isn't a constructor-only option — apply it live via setTheme
+  // (swaps the hljs stylesheet) without re-init, keeping cursor.
+  if (codeThemeChanged) {
     applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
+  }
+  // Mermaid theme: apply LIVE via the task-59 offscreen re-render (used to re-init, which
+  // scrolled big docs to the top — the reported bug). applyMermaidTheme updates the
+  // mermaid.initialize wrapper; reRenderMermaid swaps each diagram's SVG in place.
+  if (mermaidThemeChanged) {
+    applyMermaidTheme(window, msg.options?.mermaidTheme)
+    reRenderMermaid(
+      activeModeElement(window.vditor) ?? undefined,
+      lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
+      lastInitMsg.theme === 'dark' ? 'dark' : 'light',
+    )
   }
 }
 
