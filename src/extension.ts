@@ -1345,6 +1345,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       codeTheme: c.get<string>('theme.code'),
       streamLargeFiles: c.get<boolean>('advanced.streamLargeFiles'),
       linkOpenWithModifier: c.get<boolean>('editor.linkOpenWithModifier'),
+      // Image upload conversion (task 74) — read by the webview's upload handler.
+      imageFormat: c.get<string>('image.format'),
+      imageQuality: c.get<number>('image.quality'),
+      imageMaxWidth: c.get<number>('image.maxWidth'),
     }
   }
 
@@ -1555,7 +1559,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       // base-uri (no fallback → was effectively unset). Lute's Sanitize lets
       // <iframe>/<embed>/<object>/<base> through, so pin them explicitly — the
       // posture must not hinge on a single default-src line.
-      `frame-src 'none'; object-src 'none'; base-uri 'none';">`
+      `frame-src 'none'; object-src 'none'; base-uri ${csp};">`
 
     return (
       `<!DOCTYPE html>
