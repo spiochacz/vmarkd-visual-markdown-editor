@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import * as NodePath from 'node:path'
 import * as fs from 'node:fs'
 import { readingTime, wordCount } from './reading-time'
+import { MarkdownOutlineProvider, HeadingItem } from './outline-tree'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
 import {
@@ -228,6 +229,10 @@ export const docLargeMode = new Map<
   { large: boolean; blocks: number }
 >()
 let refreshStatusBarMarker: () => void = () => {}
+// Wired in activate(); called from a panel's onDidChangeViewState so the
+// Markdown Outline tree (task 78) follows the active vMarkd editor — custom
+// editors don't fire onDidChangeActiveTextEditor.
+let refreshOutline: () => void = () => {}
 
 // Native status-bar items (task 35): estimated reading time + an editor-mode
 // indicator (WYSIWYG vs Source) + a large/normal document marker (task 69), shown
@@ -372,9 +377,38 @@ export function activate(context: vscode.ExtensionContext) {
   const updateStatusBar = setupStatusBar(context)
   // Let a webview's large/normal-mode report (task 69) refresh the status-bar marker.
   refreshStatusBarMarker = updateStatusBar
+
+  // Markdown Outline tree (task 78): a sidebar TreeView, because VS Code's
+  // built-in Outline does not query DocumentSymbolProvider while a custom editor
+  // is active (microsoft/vscode#97095). Tracks the active vMarkd/text markdown
+  // document and lets a click scroll the webview to that heading.
+  const outlineProvider = new MarkdownOutlineProvider()
+  const updateOutline = () => {
+    const target = getCommandTarget()
+    const doc =
+      target && isSupportedMarkdownUri(target)
+        ? vscode.workspace.textDocuments.find(
+            (d) => d.uri.toString() === target.toString(),
+          )
+        : undefined
+    outlineProvider.refresh(doc)
+    void vscode.commands.executeCommand(
+      'setContext',
+      'vmarkd.hasOutline',
+      !!doc,
+    )
+  }
+  let outlineTimer: NodeJS.Timeout | undefined
+  const debouncedOutline = () => {
+    if (outlineTimer) clearTimeout(outlineTimer)
+    outlineTimer = setTimeout(updateOutline, 300)
+  }
+
+  refreshOutline = updateOutline
   const refreshContexts = () => {
     void updateEditorContexts()
     updateStatusBar()
+    updateOutline()
   }
   // Live reading-time on edits, debounced so it doesn't recompute per keystroke.
   let statusBarTimer: NodeJS.Timeout | undefined
@@ -526,6 +560,34 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidOpenTextDocument(refreshContexts),
     vscode.workspace.onDidCloseTextDocument(refreshContexts),
     vscode.workspace.onDidChangeTextDocument(debouncedStatusBar),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() === outlineProvider.uri?.toString())
+        debouncedOutline()
+    }),
+    vscode.window.registerTreeDataProvider('vmarkd.outline', outlineProvider),
+    vscode.commands.registerCommand(
+      'vmarkd.outlineReveal',
+      (item: HeadingItem) => {
+        const panel = MarkdownEditorProvider.findPanelForUri(item.documentUri)
+        if (panel) {
+          panel.panel.webview.postMessage({
+            command: 'scroll-to-heading',
+            index: item.index,
+          })
+          panel.panel.reveal?.(undefined, false)
+        } else {
+          // No open vMarkd webview — fall back to revealing the source line.
+          void vscode.window.showTextDocument(item.documentUri).then((ed) => {
+            const pos = new vscode.Position(item.line, 0)
+            ed.selection = new vscode.Selection(pos, pos)
+            ed.revealRange(
+              new vscode.Range(pos, pos),
+              vscode.TextEditorRevealType.AtTop,
+            )
+          })
+        }
+      },
+    ),
   )
 
   context.globalState.setKeysForSync([KeyVditorOptions, KeyOutlineWidth])
@@ -1152,6 +1214,11 @@ export class EditorSession {
         }
         webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(this.activeFsPath)}`
       }),
+      webviewPanel.onDidChangeViewState(() => {
+        // Custom editors don't fire onDidChangeActiveTextEditor, so refresh the
+        // Markdown Outline tree (task 78) when this panel becomes active/inactive.
+        refreshOutline()
+      }),
       webviewPanel.webview.onDidReceiveMessage(async (message) => {
         debug('msg from webview review', message, webviewPanel.active)
 
@@ -1180,6 +1247,10 @@ export class EditorSession {
       document.getText(),
       currentThemeKind(),
     )
+
+    // Populate the Markdown Outline tree for this freshly-opened editor (task 78);
+    // onDidChangeViewState may not fire on the initial open.
+    refreshOutline()
   }
 }
 

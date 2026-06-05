@@ -1,61 +1,56 @@
-# Task: VS Code native Outline view (DocumentSymbolProvider)
+# Task: Markdown Outline tree view
 
-> **Status:** ⬜ Not started.
-> **Value / Risk:** 🟢 high UX win (native Outline + Breadcrumbs + Go to Symbol) / low–medium.
+> **Status:** ✅ DONE (2026-06-05). Implemented as a **sidebar TreeView**, NOT a
+> `DocumentSymbolProvider` — see "Why not native" below.
+> **Value / Risk:** 🟢 sidebar outline + click-to-scroll for vMarkd editors / low.
 
 ## Why
-VS Code's built-in **Outline** view (sidebar panel), **Breadcrumbs** bar, and
-**Go to Symbol** (Ctrl+Shift+O) all rely on a `DocumentSymbolProvider`. The
-built-in Markdown extension provides one, but when the user opens a `.md` file
-in vMarkd (custom editor), that provider doesn't fire — the Outline pane is
-empty, Breadcrumbs show nothing, and Ctrl+Shift+O is dead.
+VS Code's built-in **Outline** view relies on a `DocumentSymbolProvider`. When a
+`.md` file is open in vMarkd (a custom editor), the built-in Outline is empty
+("cannot provide outline information") — there's no document-structure nav.
 
-Registering our own `DocumentSymbolProvider` for markdown files gives vMarkd
-users the same navigation they'd get in the text editor — plus it works
-alongside the in-webview Vditor outline (task 07/08), not instead of it.
+## Why NOT native (DocumentSymbolProvider)
+Verified: **VS Code does not query `DocumentSymbolProvider` while a custom editor
+is active** (microsoft/vscode#97095, closed as out-of-scope). Registering one has
+no effect for our editor — Outline / Breadcrumbs / Go-to-Symbol stay empty. A
+proposed `CustomEditorOutlineProvider` API (PR #304909) is open but unmerged. The
+only reliable path today is a self-managed `TreeView`.
 
-## Approach
-Register a `vscode.languages.registerDocumentSymbolProvider` for
-`{ language: 'markdown' }` that parses headings from the document text and
-returns a nested `DocumentSymbol[]` tree (kind `SymbolKind.String` or
-`SymbolKind.Key` — the Markdown convention).
+## Implementation
+- `src/outline-tree.ts`:
+  - `parseHeadings(document)` — ATX headings, **skips fenced code blocks** (``` / ~~~)
+    so a `# comment` inside a fence isn't a false heading. Each heading carries a
+    0-based `index` = its ordinal, which lines up with the Nth rendered `<h1-6>` in
+    the webview.
+  - `MarkdownOutlineProvider implements TreeDataProvider<HeadingItem>` — builds a
+    nested tree (deeper headings nest under shallower). Each `HeadingItem` carries
+    the `vmarkd.outlineReveal` command.
+- `package.json`: contributes a `vmarkd.outline` view in the **Explorer** container,
+  gated on a `vmarkd.hasOutline` context key (set true when the active doc is markdown).
+- `src/extension.ts`:
+  - `updateOutline()` resolves the active markdown doc (via `getCommandTarget()` +
+    `workspace.textDocuments`) and refreshes the provider + context key.
+  - Wired into `refreshContexts`, a debounced `onDidChangeTextDocument`, and — crucially
+    — each panel's `onDidChangeViewState` (custom editors DON'T fire
+    `onDidChangeActiveTextEditor`, so this is the reliable active-editor signal) plus a
+    one-shot refresh at the end of `resolveCustomTextEditor`.
+  - `vmarkd.outlineReveal` command → posts `{command:'scroll-to-heading', index}` to the
+    matching panel; falls back to revealing the source line if no webview is open.
+- `media-src/src/main.ts`: `scroll-to-heading` handler scrolls the Nth heading into
+  view + flashes it (reuses task-13 `FLASH_CLASS`).
 
-### Parsing
-ATX headings (`# … ######`) → depth 1–6. Each heading's range spans from the
-heading line to the line before the next heading at the same or shallower depth
-(or EOF). This gives proper nesting in the Outline tree.
+## Known limitations
+- **Can't sit above the built-in Outline** in the Explorer — VS Code has no view-order
+  API; contributed views always append after built-ins (#91947). The user can drag it
+  above once (persisted). Decided to keep it in Explorer.
+- Index alignment assumes the webview renders exactly the parsed headings — fenced-code
+  skipping keeps this true for normal docs. Setext headings (`===`/`---`) not parsed.
 
-Reuse the same document text the host already has (`document.getText()`). No
-Lute needed — ATX heading regex is trivial and the built-in MD extension uses
-the same approach.
-
-### Sync with webview
-On heading click in the native Outline → VS Code fires
-`vscode.window.onDidChangeTextEditorSelection` → we can post a
-`scroll-to-heading` message to the webview (reuse the task-13 flash +
-scroll machinery). This gives bidirectional navigation: native Outline →
-webview, and in-webview outline → source (task 16).
-
-## Steps
-1. `src/markdown-symbols.ts`: implement `DocumentSymbolProvider` with ATX
-   heading parsing → nested `DocumentSymbol[]`.
-2. Register in `activate()` with `languages.registerDocumentSymbolProvider(
-   { language: 'markdown' }, provider)`.
-3. Verify: Outline view, Breadcrumbs, Ctrl+Shift+O all populate.
-4. Optional: on symbol-click in Outline while vMarkd is active, scroll the
-   webview to the heading (post `scroll-to-heading` + flash).
-5. Tests: unit for the parser (flat/nested headings, setext, edge cases).
-
-## Gotchas
-- The built-in Markdown extension already provides symbols for text editors.
-  Our provider complements it for the custom editor case (both can coexist;
-  VS Code merges/deduplicates by range).
-- Setext headings (`===`/`---` underlines) — support is nice-to-have but
-  ATX covers 99% of real usage.
-- Large documents: the parser is O(lines), trivially fast. No debounce needed
-  (VS Code calls the provider on demand, not on every keystroke).
+## Tests
+- `test/backend/outline-tree.test.ts` — parser (fences, levels, indices, closing `#`)
+  + tree nesting + provider uri/clear + reveal command wiring. 8 unit tests.
 
 ## See also
-- Task 07/08/13 — in-webview Vditor outline (complementary, not replaced).
-- Task 34 — secondary-sidebar TOC (overlaps; this is the lighter, native approach).
-- Task 16 — reveal-in-source (reusable scroll-to-heading machinery).
+- Task 07/08/13 — in-webview Vditor outline (complementary).
+- Task 75 — outline drag-resize (the in-webview panel).
+- Task 16 — reveal-in-source (the fallback path).

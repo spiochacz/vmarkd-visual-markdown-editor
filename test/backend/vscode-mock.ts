@@ -100,6 +100,46 @@ export class Selection extends Range {
   }
 }
 
+export enum SymbolKind {
+  File = 0,
+  Module = 1,
+  Namespace = 2,
+  Package = 3,
+  Class = 4,
+  Method = 5,
+  Property = 6,
+  Field = 7,
+  Constructor = 8,
+  Enum = 9,
+  Interface = 10,
+  Function = 11,
+  Variable = 12,
+  Constant = 13,
+  String = 14,
+  Number = 15,
+  Boolean = 16,
+  Array = 17,
+  Object = 18,
+  Key = 19,
+  Null = 20,
+  EnumMember = 21,
+  Struct = 22,
+  Event = 23,
+  Operator = 24,
+  TypeParameter = 25,
+}
+
+export class DocumentSymbol {
+  children: DocumentSymbol[] = []
+  constructor(
+    public name: string,
+    public detail: string,
+    public kind: SymbolKind,
+    public range: Range,
+    public selectionRange: Range,
+  ) {}
+}
+
 export class WorkspaceEdit {
   public readonly replacements: { uri: Uri; range: Range; content: string }[] =
     []
@@ -161,6 +201,25 @@ export class ThemeIcon {
     public readonly id: string,
     public readonly color?: unknown,
   ) {}
+}
+
+export enum TreeItemCollapsibleState {
+  None = 0,
+  Collapsed = 1,
+  Expanded = 2,
+}
+
+export class TreeItem {
+  label?: string
+  collapsibleState?: TreeItemCollapsibleState
+  command?: unknown
+  iconPath?: unknown
+  tooltip?: string
+  description?: string
+  constructor(label: string, collapsibleState?: TreeItemCollapsibleState) {
+    this.label = label
+    this.collapsibleState = collapsibleState
+  }
 }
 
 export class TabInputText {
@@ -315,6 +374,9 @@ interface MockWatcher {
 // ---------------------------------------------------------------------------
 
 export const window = {
+  registerTreeDataProvider: vi.fn(
+    (_id: string, _provider: unknown) => new Disposable(),
+  ),
   get activeTextEditor() {
     return state.activeTextEditor
   },
@@ -508,6 +570,12 @@ export const env = {
   },
 }
 
+export const languages = {
+  registerDocumentSymbolProvider: vi.fn(
+    (_selector: unknown, _provider: unknown) => new Disposable(),
+  ),
+}
+
 export const commands = {
   registerCommand: vi.fn(
     (command: string, handler: (...args: any[]) => any) => {
@@ -543,8 +611,8 @@ function createTextDocument(fsPath: string, text = ''): MockTextDocument {
     },
     lineAt(line: number) {
       const lines = current.split('\n')
-      const value = lines[line] ?? ''
-      return { range: new Range(line, 0, line, value.length) }
+      const text = lines[line] ?? ''
+      return { text, range: new Range(line, 0, line, text.length) }
     },
     get isDirty() {
       return current !== saved

@@ -44,7 +44,7 @@ checked here **only when the task is fully complete**.
 - [x] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — reading time + WYSIWYG/Source indicator
 - [x] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — dedup vMarkd tabs + open-source-to-side with reuse
 - [x] [48 — Line-anchored split-view scroll sync](48-split-view-line-scroll-sync.md) — heading-anchored centre sync in `sv` mode (replaces Vditor's proportional drift)
-- [ ] [78 — VS Code native Outline view](78-vscode-native-outline.md) — register a `DocumentSymbolProvider` for markdown → native Outline, Breadcrumbs, Go to Symbol (Ctrl+Shift+O) work with vMarkd. Complements the in-webview outline (07/08), doesn't replace it.
+- [x] [78 — Markdown Outline tree view](78-vscode-native-outline.md) — ✅ sidebar TreeView (Explorer) with click-to-scroll. NOT a `DocumentSymbolProvider` (VS Code doesn't query it for custom editors — #97095). Parser skips code fences; click posts `scroll-to-heading` to the webview.
 - [ ] [73 — Editor line-number gutter (IR/WYSIWYG)](73-editor-line-number-gutter.md) — 🟡 whole-document line numbers in a left gutter while editing (NOT code-block/preview = task 03). Hard: markdown isn't line-based; recommended approach = source-line gutter reusing the DOM↔source map (15/16/52). Medium-high risk (alignment + re-render perf).
 
 ## Security

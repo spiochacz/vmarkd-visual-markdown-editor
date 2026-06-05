@@ -107,6 +107,15 @@
         "priority": "option"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "vmarkd.outline",
+          "name": "Markdown Outline",
+          "when": "vmarkd.hasOutline"
+        }
+      ]
+    },
     "menus": {
       "explorer/context": [
         {

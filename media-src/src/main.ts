@@ -20,7 +20,7 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
-import { setupOutlineFlash } from './outline'
+import { setupOutlineFlash, FLASH_CLASS } from './outline'
 import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
@@ -840,6 +840,20 @@ function handleUploaded(msg: any) {
   })
 }
 
+// Scroll the webview to the Nth heading (the native-outline tree click, task 78).
+// Headings render in document order across IR/WYSIWYG/SV, so the source-parsed
+// ordinal lines up with the Nth <h1-6> in the active editor element.
+function handleScrollToHeading(msg: any) {
+  const el = activeModeElement(window.vditor)
+  if (!el) return
+  const headings = el.querySelectorAll('h1, h2, h3, h4, h5, h6')
+  const target = headings[msg.index] as HTMLElement | undefined
+  if (!target) return
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  target.classList.add(FLASH_CLASS)
+  setTimeout(() => target.classList.remove(FLASH_CLASS), 1400)
+}
+
 const messageHandlers: Record<string, (msg: any) => void> = {
   update: handleUpdate,
   'set-theme': handleSetTheme,
@@ -848,6 +862,7 @@ const messageHandlers: Record<string, (msg: any) => void> = {
   'get-cursor-offset': handleGetCursorOffset,
   'diff-info': handleDiffInfo,
   uploaded: handleUploaded,
+  'scroll-to-heading': handleScrollToHeading,
 }
 
 window.addEventListener('message', (e) => {
