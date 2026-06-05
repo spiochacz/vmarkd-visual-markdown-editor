@@ -16,15 +16,15 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 
 ### Added
 - Search in the editor: `Ctrl/Cmd+F` wired to the webview find.
-- Word count (opt-in `markdown-editor.wordCount`) — live word/character count.
 - Outline panel: navigation with click-to-flash, configurable width and side
-  (`outlinePosition`), open-by-default, and a heading-level markers toggle.
+  (`vmarkd.outline.position`), open-by-default, and a heading-level markers toggle.
 - Reveal-in-source: "Open source to the side" and the toolbar "open in vs code"
   button jump to the caret's line in the text editor (exact Lute-caret mapping).
 - Git gutters: added/modified change bars vs git HEAD in the visual editor.
-- Status bar: reading-time estimate + a WYSIWYG/Source mode indicator.
+- Status bar: estimated reading time, live word count, and a WYSIWYG/Source mode
+  indicator.
 - Open the visual editor to the side (`Open with markdown editor to the side`).
-- External CSS files with live reload; `customCss` is injected last so it wins.
+- External CSS files with live reload; `vmarkd.css.custom` is injected last so it wins.
 - Live theme switching (follows the VS Code colour theme) and live config reload
   (settings apply without reopening the editor).
 - Rename tracking — the editor follows files renamed/moved in the workspace.
@@ -35,7 +35,7 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
   numbers, Mermaid theme, toolbar visibility, and a font size that follows VS
   Code's editor size by default.
 - Code-block line numbers (opt-in) and a dark-theme code-block style.
-- `codeTheme` setting — pick the code-block syntax-highlight theme (73
+- `vmarkd.theme.code` setting — pick the code-block syntax-highlight theme (73
   highlight.js styles) from VS Code settings; `auto` follows the light/dark theme.
   Applies live. Replaces the toolbar's code-theme picker.
 - ThemeIcon on the editor tab; declared workspace-trust / virtual-workspace
@@ -43,14 +43,21 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - True opt-in default editor for Markdown files (custom editor registered as
   `option`, not forced default).
 - Playwright e2e harness covering the 9 table-editing hotkeys (`media-src/e2e/`).
+- Configurable link-open behaviour (`vmarkd.editor.linkOpenWithModifier`): by
+  default Ctrl/Cmd+click opens the link and a plain click edits it, consistently
+  across IR / WYSIWYG / Split modes.
+- About dialogs (English) for vMarkd and the bundled Vditor, surfacing the pinned
+  Lute engine version.
+- Status-bar marker for large documents ("Large md"), shown to the left of the
+  word counter only when the incremental large-doc edit path is active.
 
 ### Changed
 - Hide Vditor's preview action bar (`preview.actions: []`) — drops the
   Desktop/Tablet/Mobile device-width switch and the China-specific "copy for
   WeChat 公众号 / Zhihu" buttons, irrelevant in a VS Code markdown editor.
-- Drop the content-theme picker from the toolbar's "more" menu — VS Code manages
-  the theme (content follows the editor colours). The code-block syntax-highlight
-  theme picker (`code-theme`) stays.
+- Drop both theme pickers from the toolbar's "more" menu: the content-theme picker
+  (VS Code manages the theme — content follows the editor colours) and the code-block
+  syntax-highlight picker (now the `vmarkd.theme.code` setting instead).
 - Unified icons on VS Code codicons: title-bar buttons use `$(markdown)` /
   `$(go-to-file)`; the in-webview Vditor toolbar is restyled to codicons via a
   generated override (24 codicons + 6 codicon-style customs for glyphs codicons
@@ -64,10 +71,13 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Build toolchain: drop `foy` + `ts-node`; the build is now `node build.mjs`
   (plain Node ESM) with npm as the package manager. (Bun was trialled and reverted
   to keep tooling minimal.)
-- Dev dependencies: TypeScript → 4.9.5, `@types/node` → 22 (matches the VS Code
+- Dev dependencies: TypeScript → 5.9, `@types/node` → 22 (matches the VS Code
   host's Node 22), vitest + coverage → 4.1.8. Declared `engines.node >=22` + `.nvmrc`.
 - Vditor 3.11 integration brought fully working (the dependency is on 3.11.2).
 - Minimum VS Code raised to ^1.110.
+- Upgrade the Lute markdown engine: vendor and pin a prebuilt `lute.min.js` at an
+  explicit commit (ahead of the version Vditor ships), built via `build.mjs`.
+- Tab inside a code block now indents instead of escaping editor focus.
 
 ### Fixed
 - Source Control diffs open the built-in **text diff** again instead of the visual
@@ -80,6 +90,23 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
   unsupported Lute reverse renderers and correct lute access.
 - Position the table panel at the clicked cell instead of pinned far-left.
 - Skip the wiki custom renderer for non-wiki files.
+- Changing the Mermaid theme (`vmarkd.theme.mermaid`) re-themes diagrams live
+  instead of re-initialising the editor — no more scroll-to-top jump on large docs.
+- Toolbar clicks no longer jump a long document to the top when there is no caret
+  (the focus/re-render previously reset the scroll position).
+- The caret and scroll position are preserved across an external document update
+  (an edit to the underlying file mid-session no longer resets the caret to the top).
+- Minimal-diff write-back: blocks that reserialize unchanged keep their original
+  bytes, so editing one block can't reflow whitespace in untouched blocks.
+- Table fidelity: a `|` inside inline math/code no longer mangles the row, and
+  editing one cell no longer reflows the spacing of untouched cells.
+- Flush-on-save posts the live editor value on Ctrl/Cmd+S (Vditor's input throttle
+  could otherwise save a stale version).
+- Pasting code-like text into WYSIWYG detects a code block from its content
+  instead of editor-specific clipboard markers.
+- KaTeX renders resiliently (`strict:false` / `throwOnError:false`) instead of
+  throwing on a single malformed formula.
+- Fix a null-dereference crash in Vditor's list-toggle.
 
 ### Security
 - Bump `esbuild` 0.21 → 0.28 — clears the dev-server advisory
@@ -89,16 +116,25 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Hardening: scoped filesystem roots, sanitized custom CSS, CSP + nonce on the
   webview, and levelled logging.
 - Scope webview privileges (command URIs off; postMessage-only, audited).
+- Remote images are off by default (`vmarkd.security.allowRemoteImages`), closing
+  the `<img https>` / inline `style url()` exfiltration channel; CSP further
+  hardened with `frame-src` / `object-src` / `base-uri 'none'`.
 
 ### Performance
-- `retainContextWhenHidden` memory dial (`retainHiddenEditors`).
+- `retainContextWhenHidden` memory dial (`vmarkd.advanced.retainHidden`).
 - Drop unused MathJax (~6.5 MB) from the shipped Vditor assets (KaTeX is used).
 - Debounce activation; drop the broad `onLanguage` activation event.
+- Large-document IR editing no longer freezes: the webview owns the markdown
+  serialize, and edits to large docs reserialize only the changed block
+  (incremental, O(block) instead of O(whole doc)) with a full-serialize fallback
+  and drift self-heal. A busy cursor covers the rare full reserialize.
 
 ### Removed
 - Runtime dependencies: jQuery, jquery-confirm, lodash, date-fns,
   `@testing-library/user-event`, `@testing-library/dom`, `@babel/runtime-corejs3`.
 - Build tooling: `foy`, `ts-node` (and a brief Bun trial).
+- Dead dependencies: `sharp` (never wired up) and the unused `media-src`
+  TypeScript dev-dependency.
 
 ### Documentation / packaging
 - Fork ecosystem analysis turned into an actionable `tasks/` backlog
