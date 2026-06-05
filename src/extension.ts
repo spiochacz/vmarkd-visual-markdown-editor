@@ -219,10 +219,16 @@ async function updateEditorContexts() {
   )
 }
 
+// task 69: per-document large/normal regime (block-count gate), reported by the webview
+// and shown as a small status-bar marker. Keyed by uri.toString(). `refreshStatusBarMarker`
+// is the status-bar updater, wired in activate() so the webview report can refresh it.
+const docLargeMode = new Map<string, { large: boolean; blocks: number }>()
+let refreshStatusBarMarker: () => void = () => {}
+
 // Native status-bar items (task 35): estimated reading time + an editor-mode
-// indicator (WYSIWYG vs Source), shown only while a markdown doc is the active
-// tab. Returns an `update` fn the caller wires to the same active-tab / document
-// listeners that drive updateEditorContexts.
+// indicator (WYSIWYG vs Source) + a large/normal document marker (task 69), shown
+// only while a markdown doc is the active tab. Returns an `update` fn the caller wires
+// to the same active-tab / document listeners that drive updateEditorContexts.
 function setupStatusBar(context: vscode.ExtensionContext): () => void {
   const reading = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
@@ -234,7 +240,13 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
     99,
   )
   mode.name = 'vMarkd Editor Mode'
-  context.subscriptions.push(reading, mode)
+  // task 69: large vs normal document marker (incremental serialization regime).
+  const docSize = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    98,
+  )
+  docSize.name = 'vMarkd Document Size'
+  context.subscriptions.push(reading, mode, docSize)
 
   const textForUri = (uri: vscode.Uri): string =>
     vscode.workspace.textDocuments
@@ -258,6 +270,18 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       mode.tooltip = 'Markdown: visual editor — click to edit as source'
       mode.command = 'vmarkd.openTextEditor'
       mode.show()
+      // Large/normal marker (task 69) — only meaningful in the visual editor (it owns
+      // the incremental serializer). Reflects the webview-reported block-count regime.
+      const ds = docLargeMode.get(input.uri.toString())
+      const blocks = ds?.blocks ?? 0
+      if (ds?.large) {
+        docSize.text = '$(zap) Large'
+        docSize.tooltip = `Large document — ${blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
+      } else {
+        docSize.text = '$(list-flat) Normal'
+        docSize.tooltip = `Normal document${blocks ? ` — ${blocks} top-level blocks` : ''}: full serialization on edit`
+      }
+      docSize.show()
     } else if (
       input instanceof vscode.TabInputText &&
       isSupportedMarkdownUri(input.uri)
@@ -267,9 +291,11 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       mode.tooltip = 'Markdown: source view — click to open the visual editor'
       mode.command = 'vmarkd.openEditor'
       mode.show()
+      docSize.hide() // no webview in source view → the marker doesn't apply
     } else {
       reading.hide()
       mode.hide()
+      docSize.hide()
     }
   }
 }
@@ -340,6 +366,8 @@ export function activate(context: vscode.ExtensionContext) {
   prewarmLute(context.extensionPath)
 
   const updateStatusBar = setupStatusBar(context)
+  // Let a webview's large/normal-mode report (task 69) refresh the status-bar marker.
+  refreshStatusBarMarker = updateStatusBar
   const refreshContexts = () => {
     void updateEditorContexts()
     updateStatusBar()
@@ -754,6 +782,16 @@ export class EditorSession {
     await this.syncToEditor(message.content)
   }
 
+  // task 69: the webview reports whether this doc is in the large/incremental regime
+  // (≥ block-count gate). Store it per-uri and refresh the status-bar marker.
+  private onDocMode(message: any) {
+    docLargeMode.set(this.activeUri.toString(), {
+      large: Boolean(message.large),
+      blocks: Number(message.blocks) || 0,
+    })
+    refreshStatusBarMarker()
+  }
+
   private async onSave(message: any) {
     await this.syncToEditor(message.content)
     await this.document.save()
@@ -1003,6 +1041,7 @@ export class EditorSession {
       error: (message) => this.onError(message),
       edit: (message) => this.onEdit(message),
       save: (message) => this.onSave(message),
+      docMode: (message) => this.onDocMode(message),
       'edit-in-vscode': () => this.onEditInVscode(),
       'navigate-back': () => this.onNavigateBack(),
       'open-settings': () => this.onOpenSettings(),
@@ -1106,6 +1145,7 @@ export class EditorSession {
       }),
       webviewPanel.onDidDispose(() => {
         this.pendingWebviewContent = undefined
+        docLargeMode.delete(this.activeUri.toString())
         MarkdownEditorProvider.activePanels.delete(this.panelEntry)
         if (this.textEditTimer) {
           clearTimeout(this.textEditTimer)

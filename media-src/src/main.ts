@@ -68,6 +68,9 @@ let flushPendingEdit: () => void = () => {}
 // Drops the IR incremental-serialize cache (task 69) when the DOM is rebuilt wholesale
 // outside the edit path (external setValue / streaming). Set in initVditor.
 let invalidateIncrementalIr: () => void = () => {}
+// Reports the large/normal document mode (task 69 block-count gate) to the host so it
+// can show a status-bar marker. Posts only on change. Set in initVditor.
+let reportDocMode: () => void = () => {}
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
@@ -316,8 +319,21 @@ function initVditor(msg) {
   // (external setValue / streaming) so the next serialize rebaselines cleanly.
   invalidateIncrementalIr = () => incrementalIr.invalidate()
 
-  const postEdit = () =>
+  // Tell the host whether this doc is in the large/incremental regime (≥ block gate),
+  // for the status-bar marker. Posts only when it flips, so it's cheap to call often.
+  let lastReportedLarge: boolean | null = null
+  reportDocMode = () => {
+    const large = irIncrementalElement() !== undefined
+    const blocks = irElement()?.children.length ?? 0
+    if (large === lastReportedLarge) return
+    lastReportedLarge = large
+    vscode.postMessage({ command: 'docMode', large, blocks })
+  }
+
+  const postEdit = () => {
     vscode.postMessage({ command: 'edit', content: serializeForHost() })
+    reportDocMode()
+  }
   const pendingEdit = createPendingEdit({
     wait: 250,
     onIdle: async () => {
@@ -486,6 +502,8 @@ function initVditor(msg) {
         }
         // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
         setupSplitScrollSync()
+        // Report the initial large/normal doc mode for the status-bar marker (task 69).
+        reportDocMode()
       }
       try {
         // Force the theme through setTheme at init (constructor options don't
@@ -648,8 +666,9 @@ function handleUpdate(msg: any) {
       // setValue rebuilds the DOM and would drop the caret/scroll to the top (#1912).
       // For an external update landing while the user edits, keep them put.
       preserveCaretAndScroll(window.vditor, () => vditor.setValue(msg.content))
-      // The DOM was rebuilt wholesale → drop the IR cache (task 69).
+      // The DOM was rebuilt wholesale → drop the IR cache (task 69) + refresh the marker.
       invalidateIncrementalIr()
+      reportDocMode()
     } finally {
       setTimeout(() => {
         applyingExtensionUpdate = false
