@@ -1,6 +1,6 @@
 # Task: Incremental IR serialization (C3) — re-serialize only the edited block
 
-> **Status:** ✅ IMPLEMENTED (2026-06-05). `media-src/src/incremental-md.ts` (pure engine:
+> **Status:** ✅ DONE — merged to main (PR #69, 2026-06-05). `media-src/src/incremental-md.ts` (pure engine:
 > content-diff + range-splice + window-reserialize), wired into `main.ts` `postEdit` (IR uses
 > the incremental serialize; flush stays authoritative `getValue()` + drift self-heal; cache
 > invalidated on setValue/streaming/mode-switch). Tests: 19 unit (incl. 3000-edit fuzz) +

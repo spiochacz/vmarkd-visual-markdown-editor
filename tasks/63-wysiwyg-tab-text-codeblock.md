@@ -1,6 +1,8 @@
 # Task: WYSIWYG — tab+text wrongly turns into a code block
 
-> **Status:** 🟡 Paste case done; tab-indent case parked. **Paste (#1917/#1914):**
+> **Status:** 🅿️ PARKED (2026-06-05). Paste case done; remaining tab-indent case parked by
+> decision (CommonMark-correct indented-code; suppressing it is a risky heuristic with little upside).
+> **Paste (#1917/#1914):**
 > ported PR #1921 — `processPasteCode` (`util/processCode.ts`) now decides code-block
 > from **content** (`looksLikeCodeContent`: multi-line + ≥2 of braces/semicolons,
 > code keywords, html tags, indentation; or a real `<pre><code>`) instead of IDE

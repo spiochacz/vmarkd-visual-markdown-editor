@@ -1,6 +1,9 @@
 # Task: Off-main-thread markdown serialize (Web Worker)
 
-> **Status:** ⬜ Not started (spike first). **Source:** follow-up to
+> **Status:** 🅿️ PARKED (2026-06-05). [Task 69 — incremental serialize](69-incremental-ir-serialize.md)
+> (merged, PR #69) already removed the large-doc edit freeze (O(block) instead of O(doc)),
+> so the Worker win is no longer needed. Revisit only if the very largest docs still stutter
+> after incremental serialize. **Source:** follow-up to
 > [68 — IR edit latency](68-ir-edit-serialize-perf.md) / [69 — incremental serialize](69-incremental-ir-serialize.md).
 > **Value / Risk:** 🟢🟢 the only approach that makes large-doc editing both
 > *responsive AND visibly working* (animated spinner) / medium-high (worker plumbing;

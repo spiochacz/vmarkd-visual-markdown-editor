@@ -1,9 +1,11 @@
 # Task: IR edit/paste latency on large documents (reserialize cost)
 
-> **Status:** 🟢 A + C2 done; C1/C3 open (options). **Source:** investigation triggered
-> by reported IR edit/paste lag on large files.
-> **Value / Risk:** 🟡 makes active editing responsive on large docs / low (A + C2
-> are in our code + a config lever; no core Vditor render-path patch).
+> **Status:** ✅ DONE. A + C2 shipped, **and C3 (incremental serialize) landed as
+> [task 69](69-incremental-ir-serialize.md), merged (PR #69)** — the large-doc edit freeze
+> is gone. C1 (auto-SV for huge docs) deliberately not pursued: incremental serialize made
+> it unnecessary. **Source:** investigation triggered by reported IR edit/paste lag on large files.
+> **Value / Risk:** 🟡 makes active editing responsive on large docs / low (in our code +
+> a config lever; no core Vditor render-path patch).
 
 ## Problem
 Vditor IR reserialises the **whole document** to markdown on every (debounced) edit:
