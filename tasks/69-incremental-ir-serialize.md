@@ -1,14 +1,22 @@
 # Task: Incremental IR serialization (C3) — re-serialize only the edited block
 
-> **Status:** ⬜ Not started (large — design + spike first).
+> **Status:** 🟡 Spike DONE (2026-06-05) → **GO**. Ready to implement (see "Spike results" below).
 > **Source:** Follow-up to [68 — IR edit/paste latency](68-ir-edit-serialize-perf.md)
 > (option C3). Tasks 68 (A + C2) reduced *how often* / *how many times* the full
 > serialize runs; C3 attacks the *cost* itself.
 > **Value / Risk:** 🟢🟢 the only approach that removes the large-doc edit freeze
-> entirely (O(block) per edit instead of O(document)) / **high** — markdown
-> serialization is context-sensitive, and the block↔source map must survive
-> structural edits. Must be built as a *fast-path with a full-serialize fallback*
+> entirely (O(block) per edit instead of O(document)) / **medium** (was high — the
+> 2026-06-05 spike proved per-block serialize has **no content-level drift**; range-splice
+> reproduces the full serialize byte-for-byte). Remaining risk = the block↔range map
+> surviving structural edits. Still built as *incremental with a full-serialize fallback*
 > so worst-case correctness equals today's behaviour.
+>
+> **Prefer this over [70 — Worker serialize](70-worker-serialize.md) as the first win.**
+> A boundary-cost PoC (2026-06-05, see task 70) showed the Worker/WASM data boundary is
+> cheap (µs-range per keystroke) — but a Worker turns Lute's *synchronous* serialize into
+> an *asynchronous* one, forcing systemic caret/selection reconciliation against stale
+> input. C3 cuts the cost **synchronously**, with no async-reconciliation problem and no
+> Worker/WASM plumbing. Use task 70 only if C3 alone isn't enough on the very largest docs.
 
 ## Background — why this is needed
 IR reserializes the **whole document** to markdown on every (debounced) edit:
@@ -40,7 +48,103 @@ Vditor's own input handler (`ir/input.ts`) already works on a single `blockEleme
 (it does `blockElement.outerHTML = SpinVditorDOM(blockHTML)` for the edited block),
 so the "which block changed" signal is available at that layer.
 
+## Spike results (go/no-go) — ✅ DONE 2026-06-05 — **GO**
+Measured directly: **Lute runs in plain Node** (shim `window`/`self` → `globalThis`, then
+`require('media-src/vendor/lute/lute.min.js')`; `Lute.New()` + `SetVditorIR(true)`), so the
+fidelity question was answered without the e2e harness. `jsdom` split the IR DOM (from
+`Md2VditorIRDOM(md)`) into top-level blocks; battery = paragraph, ATX headings, thematic break,
+fenced code, tight/loose/ordered/nested lists, blockquote, blockquote+list, table, ref-link defs,
+footnotes, and a mixed real-world doc (14 cases).
+
+**Finding 1 — fidelity: no structural drift, anywhere.** The ONLY difference between per-block
+serialize and the full serialize is the **inter-block separator** (`\n` vs blank line `\n\n`).
+Every block's *content* serializes **byte-identical** in isolation. The hard-parts fears below did
+**not** manifest: lists/blockquotes/tables are each a *single* top-level block (serialized as a unit,
+byte-identical even naively); ref/footnote definition blocks serialize **in place**, byte-identical.
+Naive concatenation drifts only on whitespace (7/14 cases); lists+tables match even naively (7/14).
+
+**Finding 2 — the design that works: range-splice (better than naive join).** Don't reconstruct the
+full string by joining raw per-block outputs (that forces reverse-engineering Lute's separator rules —
+which have quirks, e.g. a fenced code block emits `\n\n\n` before a following table). Instead:
+the cache is built **once** from an authoritative full `VditorIRDOM2Md` (correct separators baked in);
+the per-block map records each block's **content** `[start,end)` range; on edit, re-serialize only the
+changed block and **splice its content into its range — separators are inherited untouched**.
+Verified: range-splice (simulate re-serialize+splice of *every* block) **reproduces the authoritative
+full serialize byte-for-byte for ALL 14 cases**, including ref-defs, footnotes, and the mixed doc.
+→ This removes hard-part #3 (no need to reproduce Lute's join rules) and neutralizes #1.
+
+**Finding 3 — the perf win is real and large.** Full `VditorIRDOM2Md` is O(n²); single-block is flat:
+
+| paras | full serialize | 1-block serialize | speedup |
+|---|---|---|---|
+| 200 | 107 ms | 0.76 ms | 141× |
+| 1000 | 625 ms | 0.35 ms | 1 792× |
+| 2000 | 3 802 ms | 0.37 ms | 10 369× |
+| 4000 | 16 633 ms | 0.33 ms | 50 751× |
+
+**Finding 3b — atomic-block caveat (tables & large code blocks).** A table is a *single* top-level IR
+block, so editing any cell re-serializes the **whole table**; same for a large fenced code block. Table
+fidelity is perfect (alignment, inline fmt, escaped `\|`, empty cells, ragged widths, multi-table all
+reconstruct byte-for-byte), but the per-edit *cost* scales with the block's size — it is **not** the flat
+~0.3 ms of a paragraph:
+
+| table rows | table-block serialize |
+|---|---|
+| 10 | 2.4 ms |
+| 200 | 8.6 ms |
+| 1000 | 50 ms |
+| 4000 | 218 ms |
+
+Still **linear** (not O(n²)) and ~76× cheaper than full-doc serialize at 4000 rows — so a huge win, but for
+pathologically large single blocks (thousands of table rows / code lines) an in-block edit costs tens-to-low-
+hundreds of ms. Acceptable (debounced, far better than today); the escape hatch for that rare case is task 70
+(move that one heavy block-serialize off the main thread). Sub-block granularity (per-row) is **not** worth it.
+
+**Finding 4 — the hook (`ir/input.ts`): clean for the typing path, but not sufficient alone.**
+`input()` already computes the dirty `blockElement` (`hasClosestBlock`) and pre-resolves context
+(climbs to top-list/blockquote/footnote, merges adjacent lists, appends all def/footnote blocks) —
+but (a) it calls `SpinVditorIRDOM` (DOM→DOM), **not** the markdown serialize; the serialize is the
+debounced `getMarkdown` → `VditorIRDOM2Md(whole)` in `ir/process.ts` `processAfterRender`
+(`setTimeout(undoDelay)`); and (b) `input()` is only **one** of several DOM-mutating paths
+(keydown Enter/Backspace/Tab, paste, toolbar). Hooking `input()` alone would let the cache go stale.
+→ **Recommended (refined): content-diff, NOT MutationObserver+WeakMap.** Vditor does
+`blockElement.outerHTML = …` after Spin, which *replaces* the node — so element identity (WeakMap) and
+childList-mutation identity don't survive even a plain text edit. Instead, at the single serialize choke
+point (`getMarkdown`, intercepted via an esbuild `onLoad` patch — project precedent), compare the array of
+top-level-block **`outerHTML` strings** (previous vs current): same length → indices whose `outerHTML`
+changed are dirty (range-splice each); different length → structural (window-reserialize, see Finding 5).
+Reading all blocks' `outerHTML` is O(n) (~2 ms, the cheap innerHTML read) vs the O(n²) serialize — robust to
+node replacement, no identity tracking. NOTE: task-69 serialization does **not** need input()'s
+list-merge/def-append gymnastics — those are Spin/DOM concerns; each top-level block serializes correctly alone.
+
+**Finding 5 — broad verification: structural edits are incremental too (no full-serialize fallback needed).**
+Prototyped the full engine (content-diff dirty detection + range-splice for in-block + **window-reserialize**
+for structural) and stress-tested it — **37/37 checks pass, byte-exact**:
+- **Window-reserialize lemma:** `VditorIRDOM2Md(htmlA+htmlB)` reproduces the corresponding region of the full
+  serialize (9 adjacent block-type pairs incl. code+table, para+list, para+footnote). So a structural edit
+  re-serializes a **narrow contiguous window of blocks expanded by one neighbour each side** in ONE Lute call;
+  Lute emits the authoritative inter-block separators — **no separator synthesis, no fragility**. Split, merge,
+  insert, delete, paste-N all handled uniformly this way (18 targeted cases ✅).
+- **Multi-block dirty** (same count, non-adjacent) ✅. **Config permutations** (autoSpace / fixTypo / listStyle /
+  paraSpace, 30 cases) ✅.
+- **FUZZ: 4000 random edits** (in-block / split / merge / insert / delete) on a large mixed doc, asserting
+  `cache === full VditorIRDOM2Md` after **every** edit → **0 mismatches**. Path mix: inblock 2658, window 1342,
+  **full-fallback 0**. The expand-by-one window keeps even structural edits incremental → **the feared
+  "Enter/Backspace forces a full O(n²) serialize → freeze on big docs" does NOT happen.**
+
+**Remaining risk is NOT fidelity and NOT the algorithm — it's webview integration only:** the post-edit DOM in
+the spike came from `Md2VditorIRDOM` (canonical); real Vditor produces it via `SpinVditorIRDOM` on the edited
+`contenteditable` (same `VditorIRDOM2Md` serialize, so the algorithm holds, but verify in-webview). Plus the
+live content-diff timing, IME (`composingLock`), undo/redo, caret (#1912), save timing, `source-map` offsets
+(reveal-in-source / git gutters), streaming, and mode switches — all e2e/manual, not unit-testable in Node.
+
 ## The hard parts (read before estimating)
+> ⚠️ The 2026-06-05 spike (Findings above) **disproved #1, #2 and #3** for the IR top-level-block granularity:
+> #1/#3 — no content-level context-sensitivity (only inter-block separators, inherited via range-splice);
+> #2 — structural remap is handled byte-exact by window-reserialize (4000-edit fuzz, 0 mismatches, 0 fallbacks),
+> so no full-serialize fallback is even needed for split/merge/insert/delete. No per-block-type allowlist needed.
+> **The remaining work is webview integration (Finding 5 last paragraph), not the serialization algorithm.**
+
 1. **Per-block serialize is context-sensitive.** `VditorIRDOM2Md(oneBlockHTML)` in
    isolation can differ from the same block inside the whole document:
    - **List tightness** (loose vs tight) depends on blank lines between sibling items.

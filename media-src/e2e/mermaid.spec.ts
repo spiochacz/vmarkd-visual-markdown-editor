@@ -40,6 +40,19 @@ test('mermaid re-renders with new theme colors on theme change (task 59)', async
   const light = await themeStyle(page)
   expect(light.length).toBeGreaterThan(0)
 
+  // Watch the LIVE diagram throughout the re-theme: it must never lose its <svg>
+  // (offscreen render swaps atomically — an in-place re-render would collapse it to
+  // source text, shrinking the doc and scrolling the view to the top — the user bug).
+  await page.evaluate(() => {
+    ;(window as any).__everEmpty = false
+    ;(window as any).__watch = setInterval(() => {
+      const live = (window as any)
+        .__el()
+        .querySelector('.vditor-ir__preview .language-mermaid')
+      if (live && !live.querySelector('svg')) (window as any).__everEmpty = true
+    }, 1)
+  })
+
   // flip to dark
   await page.evaluate(() => (window as any).__reTheme('dark'))
   await page.waitForFunction(
@@ -71,6 +84,12 @@ test('mermaid re-renders with new theme colors on theme change (task 59)', async
   )
   const dark = await themeStyle(page)
   expect(dark).not.toBe(light) // theme colors changed → diagram re-themed
+
+  const everEmpty = await page.evaluate(() => {
+    clearInterval((window as any).__watch)
+    return (window as any).__everEmpty
+  })
+  expect(everEmpty).toBe(false) // live diagram never collapsed → no scroll-to-top
 
   // the source is intact (re-render didn't clobber the editable code)
   const source = await page.evaluate(

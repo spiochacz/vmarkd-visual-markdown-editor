@@ -602,6 +602,8 @@ function handleSetTheme(msg: any) {
   const theme = msg.theme === 'dark' ? 'dark' : 'light'
   applyVditorTheme(theme)
   // Mermaid doesn't re-theme on setTheme — re-render existing diagrams (task 59).
+  // reRenderMermaid renders offscreen and swaps the SVG in atomically, so the live DOM
+  // never collapses (no scroll jump, no flash).
   applyMermaidTheme(window, lastInitMsg?.options?.mermaidTheme)
   const el = (window.vditor as any)?.vditor?.[window.vditor.getCurrentMode()]
     ?.element as HTMLElement | undefined
