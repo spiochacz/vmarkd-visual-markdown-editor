@@ -139,7 +139,7 @@ export function getCursorSourceOffset(vditor: any): number {
   }
   if (table && cell) {
     const tables = Array.from(editor.querySelectorAll('table'))
-    const tableIndex = tables.indexOf(table)
+    const tableIndex = tables.indexOf(table as HTMLTableElement)
     const tr = cell.closest('tr')!
     const row = Array.from(table.querySelectorAll('tr')).indexOf(tr)
     const col = Array.from(tr.querySelectorAll('td, th')).indexOf(cell)

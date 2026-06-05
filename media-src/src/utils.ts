@@ -1,5 +1,9 @@
 import { debounce } from './debounce'
 import { shouldOpenLink, isEditorContentLink } from './link-open-policy'
+// Type the global from the package's published types (dist). The source entry
+// (`vditor/src/index`) can't be used as a type root — it pulls Vditor's whole source,
+// which depends on ambient globals not loaded here. main.ts constructs from source and
+// casts the assignment to bridge the two identities.
 import type Vditor from 'vditor'
 window.vscode = (window as any).acquireVsCodeApi?.()
 ;(window as any).global = window

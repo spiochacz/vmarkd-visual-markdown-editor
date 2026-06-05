@@ -48,3 +48,19 @@ test('passes the latest arguments to the function', () => {
   vi.advanceTimersByTime(100)
   expect(received).toEqual([3])
 })
+
+test('cancel() drops a pending invocation', () => {
+  let calls = 0
+  const fn = debounce(() => {
+    calls++
+  }, 100)
+  fn()
+  fn.cancel()
+  vi.advanceTimersByTime(100)
+  expect(calls).toBe(0)
+})
+
+test('cancel() is a no-op when nothing is pending', () => {
+  const fn = debounce(() => {}, 100)
+  expect(() => fn.cancel()).not.toThrow()
+})
