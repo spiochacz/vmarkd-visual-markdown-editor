@@ -437,7 +437,6 @@
     "@types/vscode": "^1.110.0",
     "@vitest/coverage-v8": "^4.1.8",
     "jsdom": "^29.1.1",
-    "sharp": "^0.34.5",
     "typescript": "^5.9.3",
     "vitest": "^4.1.8"
   }

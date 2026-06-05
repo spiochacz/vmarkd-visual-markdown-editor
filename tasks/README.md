@@ -39,6 +39,7 @@ checked here **only when the task is fully complete**.
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
 - [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)
 - [ ] [32 — Link/image path autocomplete](32-link-image-autocomplete.md) — findFiles + watcher, no engines bump
+- [ ] [74 — Convert uploaded images to WebP/AVIF](74-image-convert-webp-avif.md) — opt-in convert on upload. **Portable path (A+C): WebP via webview canvas (0 deps) + AVIF via WASM `@jsquash` host-side** — deliberately NOT `sharp` (native binary → per-platform vsix). Rewrites the link to the new name; verbatim fallback on encode failure. Lets `sharp` be removed.
 - [x] [35 — Status bar (reading time + mode)](35-status-bar-reading-time-mode.md) — reading time + WYSIWYG/Source indicator
 - [x] [36 — Tab-group awareness (open-beside / no dup tabs)](36-tabgroups-awareness.md) — dedup vMarkd tabs + open-source-to-side with reuse
 - [x] [48 — Line-anchored split-view scroll sync](48-split-view-line-scroll-sync.md) — heading-anchored centre sync in `sv` mode (replaces Vditor's proportional drift)
