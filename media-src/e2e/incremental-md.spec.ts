@@ -37,7 +37,10 @@ async function clickInEditor(page: any, contains: string) {
 
 async function expectConsistent(page: any) {
   const r = await page.evaluate(() => (window as any).__incrementalVsFull())
-  expect(r.incr, `incremental != full\n--- incr ---\n${r.incr}\n--- full ---\n${r.full}`).toBe(r.full)
+  expect(
+    r.incr,
+    `incremental != full\n--- incr ---\n${r.incr}\n--- full ---\n${r.full}`,
+  ).toBe(r.full)
 }
 
 test('incremental markdown stays byte-identical to getValue across real edits', async ({
@@ -79,7 +82,9 @@ test('incremental markdown stays byte-identical to getValue across real edits', 
   await expectConsistent(page)
 })
 
-test('rebaselines correctly after the cache is invalidated', async ({ page }) => {
+test('rebaselines correctly after the cache is invalidated', async ({
+  page,
+}) => {
   await gotoHarness(page)
   await clickInEditor(page, 'Intro paragraph')
   await page.keyboard.type(' one')
