@@ -38,7 +38,15 @@ export function useIncrementalSerialize(
   return mode === 'ir' && blockCount >= INCREMENTAL_MIN_BLOCKS
 }
 
-// Pick the serialise/undo idle window (ms) for a document of the given length.
-export function undoDelayForContentLength(length: number): number {
+// Pick the serialise/undo idle window (ms) for a document, by length AND edit mode.
+// task 69: IR now serialises incrementally (fast) and SV serialisation is trivial
+// (`sv.element.textContent`) — neither needs the widened window any more, so they keep
+// the snappy default (finer undo + lower host-sync latency). Only WYSIWYG still runs a
+// full super-linear `VditorDOM2Md`, so it alone widens on large documents.
+export function undoDelayForContentLength(
+  length: number,
+  mode?: string,
+): number {
+  if (mode !== 'wysiwyg') return DEFAULT_UNDO_DELAY
   return length >= LARGE_DOC_CHARS ? LARGE_DOC_UNDO_DELAY : DEFAULT_UNDO_DELAY
 }

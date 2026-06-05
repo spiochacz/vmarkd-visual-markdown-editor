@@ -335,9 +335,25 @@ function initVditor(msg) {
     vscode.postMessage({ command: 'docMode', large, blocks })
   }
 
+  // Keep Vditor's idle window mode-aware (Vditor reads options.undoDelay live). IR/SV
+  // stay snappy (task 69: IR is incremental, SV serialize is trivial); only WYSIWYG, whose
+  // full VditorDOM2Md is still super-linear, widens on large docs. Re-evaluated per edit so
+  // a mode switch takes effect on the next edit's scheduling.
+  const syncUndoDelay = () => {
+    const inner = (window.vditor as any)?.vditor
+    if (!inner?.options) return
+    const mode = window.vditor.getCurrentMode?.()
+    const len =
+      mode === 'wysiwyg'
+        ? (activeModeElement(window.vditor)?.textContent?.length ?? 0)
+        : 0
+    inner.options.undoDelay = undoDelayForContentLength(len, mode)
+  }
+
   const postEdit = () => {
     vscode.postMessage({ command: 'edit', content: serializeForHost() })
     reportDocMode()
+    syncUndoDelay()
   }
   const pendingEdit = createPendingEdit({
     wait: 250,
@@ -473,8 +489,11 @@ function initVditor(msg) {
     // window for big files so the multi-second full-document markdown serialise
     // (Lute, super-linear) fires only after a real idle instead of mid-edit. Set
     // from the initial content size; small docs keep the snappy default.
+    // Constructed in IR (incremental serialize → snappy default). Kept mode-aware at
+    // runtime by syncUndoDelay: only WYSIWYG widens on large docs (still a full serialize).
     undoDelay: undoDelayForContentLength(
       typeof msg.content === 'string' ? msg.content.length : 0,
+      'ir',
     ),
     // Capture Tab so it indents/inserts instead of falling through to the browser
     // (which moves focus to the next tabbable element / the host iframe and scrolls

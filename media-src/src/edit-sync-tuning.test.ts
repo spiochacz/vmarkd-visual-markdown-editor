@@ -9,18 +9,28 @@ import {
 } from './edit-sync-tuning'
 
 describe('undoDelayForContentLength', () => {
-  it('keeps the snappy default for small/empty documents', () => {
-    expect(undoDelayForContentLength(0)).toBe(DEFAULT_UNDO_DELAY)
-    expect(undoDelayForContentLength(LARGE_DOC_CHARS - 1)).toBe(
+  it('keeps the snappy default for IR (incremental) and SV regardless of size', () => {
+    expect(undoDelayForContentLength(500_000, 'ir')).toBe(DEFAULT_UNDO_DELAY)
+    expect(undoDelayForContentLength(500_000, 'sv')).toBe(DEFAULT_UNDO_DELAY)
+    expect(undoDelayForContentLength(500_000, undefined)).toBe(
       DEFAULT_UNDO_DELAY,
     )
   })
 
-  it('widens the idle window at/above the large-doc threshold', () => {
-    expect(undoDelayForContentLength(LARGE_DOC_CHARS)).toBe(
+  it('widens the idle window only for large WYSIWYG docs (full serialize still slow)', () => {
+    expect(undoDelayForContentLength(LARGE_DOC_CHARS, 'wysiwyg')).toBe(
       LARGE_DOC_UNDO_DELAY,
     )
-    expect(undoDelayForContentLength(500_000)).toBe(LARGE_DOC_UNDO_DELAY)
+    expect(undoDelayForContentLength(500_000, 'wysiwyg')).toBe(
+      LARGE_DOC_UNDO_DELAY,
+    )
+  })
+
+  it('keeps WYSIWYG snappy below the large-doc threshold', () => {
+    expect(undoDelayForContentLength(0, 'wysiwyg')).toBe(DEFAULT_UNDO_DELAY)
+    expect(undoDelayForContentLength(LARGE_DOC_CHARS - 1, 'wysiwyg')).toBe(
+      DEFAULT_UNDO_DELAY,
+    )
   })
 
   it('the large-doc window is longer than the default (defers the freeze)', () => {
