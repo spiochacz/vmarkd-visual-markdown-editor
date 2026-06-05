@@ -42,12 +42,17 @@ import {
 
 export { STREAM_CHUNK_CHARS, chunkize } from './stream-chunk'
 
-// Only stream documents above this size. Smaller docs render monolithically in
-// <~100 ms — not worth the brief read-only window or the per-frame yields (which
-// can add wall-clock on medium docs). Tunable; char count is a rough proxy (tables
-// are super-linear, so a smaller table-heavy doc may still be slow — acceptable for
-// v1). The multi-second freezes this targets start around 100 KB+.
-export const STREAM_MIN_CHARS = 100_000
+// Only stream documents above this size. Streaming spreads Lute's render across
+// frames, but each per-frame append forces the browser to re-lay-out the growing
+// (4000-block) editor — an O(n²) reflow that dominates wall-clock. Measured in a
+// real Chromium on a 326 KB doc: monolithic ~2.5 s vs streaming ~4.9 s (and in the
+// VS Code webview, ~0.7 s vs ~14 s once the 1.123 update started freezing the whole
+// window). The MONOLITHIC Lute render is ~0.9 s either way (old/new engine alike —
+// the task-66 upgrade did NOT speed it up; it's the streaming reflow that's the
+// problem). So chunking is net-negative until docs are genuinely huge. Threshold
+// raised from 100 KB accordingly. (Streaming's O(n²) reflow remains an open perf
+// issue — see task 49.)
+export const STREAM_MIN_CHARS = 800_000
 
 // Remove the def blocks we injected (by label), leaving the chunk's own in-place
 // defs untouched — DOM surgery, so no regex on nested footnote markup.
@@ -133,15 +138,26 @@ export async function streamRenderIR(
 
   for (let i = 0; i < chunks.length; i++) {
     const holder = renderChunk(lute, chunks[i], defMap)
-    while (holder.firstChild) irEl.appendChild(holder.firstChild)
-    // Highlight/render code/math/diagram previews in what's been appended so far.
-    // processCodeRender flips data-render off the pending '2' state, so re-querying
-    // only ever processes the new ones.
-    irEl
-      .querySelectorAll(".vditor-ir__preview[data-render='2']")
-      .forEach((item) => {
-        processCodeRender(item as HTMLElement, vditor)
-      })
+    // Move the chunk's top-level nodes into the live editor, keeping references so
+    // we can render code/math/diagram previews in ONLY the new nodes. (Querying the
+    // whole growing `irEl` each chunk was O(n²) — ~12 s of blocked thread on a
+    // 300 KB doc with dozens of chunks. Scope the scan to this chunk.)
+    const appended: HTMLElement[] = []
+    while (holder.firstChild) {
+      const node = holder.firstChild
+      irEl.appendChild(node)
+      if (node.nodeType === 1) appended.push(node as HTMLElement)
+    }
+    for (const node of appended) {
+      if (node.matches?.(".vditor-ir__preview[data-render='2']")) {
+        processCodeRender(node, vditor)
+      }
+      node
+        .querySelectorAll(".vditor-ir__preview[data-render='2']")
+        .forEach((item) => {
+          processCodeRender(item as HTMLElement, vditor)
+        })
+    }
     if (i === 0) hooks.onFirstChunk?.()
     // Yield only once a frame's worth of work has piled up — keeps the thread
     // responsive without paying a frame wait per (fast) chunk.
