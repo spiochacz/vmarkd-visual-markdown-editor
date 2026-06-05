@@ -240,10 +240,11 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
     99,
   )
   mode.name = 'vMarkd Editor Mode'
-  // task 69: large vs normal document marker (incremental serialization regime).
+  // task 69: large-document marker (incremental serialization regime). Left-aligned,
+  // and only shown for large docs — its presence alone signals "incremental mode".
   const docSize = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right,
-    98,
+    vscode.StatusBarAlignment.Left,
+    100,
   )
   docSize.name = 'vMarkd Document Size'
   context.subscriptions.push(reading, mode, docSize)
@@ -270,18 +271,16 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       mode.tooltip = 'Markdown: visual editor — click to edit as source'
       mode.command = 'vmarkd.openTextEditor'
       mode.show()
-      // Large/normal marker (task 69) — only meaningful in the visual editor (it owns
-      // the incremental serializer). Reflects the webview-reported block-count regime.
+      // Large-doc marker (task 69) — shown ONLY for large docs (its presence = incremental
+      // mode). Only meaningful in the visual editor, which owns the incremental serializer.
       const ds = docLargeMode.get(input.uri.toString())
-      const blocks = ds?.blocks ?? 0
       if (ds?.large) {
-        docSize.text = '$(zap) Large'
-        docSize.tooltip = `Large document — ${blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
+        docSize.text = '$(zap) Large doc'
+        docSize.tooltip = `Large document — ${ds.blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
+        docSize.show()
       } else {
-        docSize.text = '$(list-flat) Normal'
-        docSize.tooltip = `Normal document${blocks ? ` — ${blocks} top-level blocks` : ''}: full serialization on edit`
+        docSize.hide()
       }
-      docSize.show()
     } else if (
       input instanceof vscode.TabInputText &&
       isSupportedMarkdownUri(input.uri)

@@ -23,7 +23,7 @@ describe('status bar — reading time + mode (task 35) + doc-size marker (task 6
     })
   })
 
-  it('shows reading time + WYSIWYG + a Normal marker for an active custom-editor markdown tab', () => {
+  it('shows reading time + WYSIWYG, and hides the large-doc marker for a normal doc', () => {
     const text = Array(250).fill('word').join(' ') // ceil(250/200) = 2 min
     mock.createTextDocument('/workspace/note.md', text)
     mock.setActiveTab(
@@ -37,9 +37,8 @@ describe('status bar — reading time + mode (task 35) + doc-size marker (task 6
     expect(modeItem.visible).toBe(true)
     expect(modeItem.text).toContain('WYSIWYG')
     expect(modeItem.command).toBe('vmarkd.openTextEditor') // click → source
-    // No docMode reported yet → defaults to the Normal marker (visible in the visual editor).
-    expect(docSize.visible).toBe(true)
-    expect(docSize.text).toContain('Normal')
+    // No large-doc report → the marker stays hidden (it only appears for large docs).
+    expect(docSize.visible).toBe(false)
   })
 
   it('shows Source + open-editor toggle, and hides the doc-size marker, in the text editor', () => {
