@@ -340,6 +340,11 @@
             "default": false,
             "description": "Open the outline panel automatically when an editor opens."
           },
+          "vmarkd.outline.treeView": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show the 'Markdown Outline' tree in the Explorer sidebar (a clickable heading list for the open markdown file). Turn off to hide it."
+          },
           "vmarkd.outline.position": {
             "type": "string",
             "enum": [

@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import * as NodePath from 'node:path'
 import * as fs from 'node:fs'
 import { readingTime, wordCount } from './reading-time'
-import { MarkdownOutlineProvider, HeadingItem } from './outline-tree'
+import { MarkdownOutlineProvider, type HeadingItem } from './outline-tree'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
 import {
@@ -383,8 +383,11 @@ export function activate(context: vscode.ExtensionContext) {
   // is active (microsoft/vscode#97095). Tracks the active vMarkd/text markdown
   // document and lets a click scroll the webview to that heading.
   const outlineProvider = new MarkdownOutlineProvider()
+  let lastHasOutline: boolean | undefined
   const updateOutline = () => {
-    const target = getCommandTarget()
+    const enabled =
+      MarkdownEditorProvider.config.get<boolean>('outline.treeView') !== false
+    const target = enabled ? getCommandTarget() : undefined
     const doc =
       target && isSupportedMarkdownUri(target)
         ? vscode.workspace.textDocuments.find(
@@ -392,23 +395,30 @@ export function activate(context: vscode.ExtensionContext) {
           )
         : undefined
     outlineProvider.refresh(doc)
-    void vscode.commands.executeCommand(
-      'setContext',
-      'vmarkd.hasOutline',
-      !!doc,
-    )
+    const has = !!doc
+    if (has !== lastHasOutline) {
+      lastHasOutline = has
+      void vscode.commands.executeCommand(
+        'setContext',
+        'vmarkd.hasOutline',
+        has,
+      )
+    }
   }
+  // Debounced — a single file switch fires many editor/tab/view-state events;
+  // coalesce them so the tree rebuilds once (not 4–5×, which froze the UI).
   let outlineTimer: NodeJS.Timeout | undefined
-  const debouncedOutline = () => {
+  const scheduleOutline = () => {
     if (outlineTimer) clearTimeout(outlineTimer)
-    outlineTimer = setTimeout(updateOutline, 300)
+    outlineTimer = setTimeout(updateOutline, 120)
   }
+  const debouncedOutline = scheduleOutline
 
-  refreshOutline = updateOutline
+  refreshOutline = scheduleOutline
   const refreshContexts = () => {
     void updateEditorContexts()
     updateStatusBar()
-    updateOutline()
+    scheduleOutline()
   }
   // Live reading-time on edits, debounced so it doesn't recompute per keystroke.
   let statusBarTimer: NodeJS.Timeout | undefined
@@ -563,6 +573,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeTextDocument((e) => {
       if (e.document.uri.toString() === outlineProvider.uri?.toString())
         debouncedOutline()
+    }),
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('vmarkd.outline.treeView')) scheduleOutline()
     }),
     vscode.window.registerTreeDataProvider('vmarkd.outline', outlineProvider),
     vscode.commands.registerCommand(

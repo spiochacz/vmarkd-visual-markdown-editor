@@ -79,12 +79,20 @@ export class MarkdownOutlineProvider
   readonly onDidChangeTreeData = this._onDidChange.event
   private roots: HeadingItem[] = []
   private currentUri: vscode.Uri | undefined
+  private lastSig = '\0'
 
   refresh(document: vscode.TextDocument | undefined): void {
+    const flat = document ? parseHeadings(document) : []
+    // Skip the (expensive) tree re-render when nothing changed — a rapid burst
+    // of refresh() calls during a file switch would otherwise rebuild the whole
+    // 300+ node tree several times and freeze the VS Code UI.
+    const sig = document
+      ? `${document.uri.toString()}|${flat.map((h) => `${h.level}:${h.line}:${h.name}`).join('\n')}`
+      : ''
     this.currentUri = document?.uri
-    this.roots = document
-      ? buildTree(parseHeadings(document), document.uri)
-      : []
+    this.roots = document && flat.length ? buildTree(flat, document.uri) : []
+    if (sig === this.lastSig) return
+    this.lastSig = sig
     this._onDidChange.fire(undefined)
   }
 
