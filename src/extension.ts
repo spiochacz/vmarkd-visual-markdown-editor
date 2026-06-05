@@ -1442,7 +1442,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
     //     we inject <style> for custom/external CSS).
     //   - images: same-origin + data:/blob:; remote https: only when
-    //     vmarkd.security.allowRemoteImages is on (task 67 — exfil channel).
+    //     vmarkd.image.allowRemoteImages is on (task 67 — exfil channel).
     // Instant paint (perf): render the document to Vditor IR DOM host-side and
     // inline it as a static, read-only overlay. It shows during HTML parse —
     // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
@@ -1548,10 +1548,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // (verified against the vendored engine), so without this they beacon out —
     // a privacy/exfil channel, not code-exec. CSS url() fetches are governed by
     // img-src too, so dropping bare `https:` here closes BOTH vectors at once.
-    // Opt back in per-document via vmarkd.security.allowRemoteImages.
+    // Opt back in per-document via vmarkd.image.allowRemoteImages.
     const allowRemoteImages =
       MarkdownEditorProvider.cfgFor(uri).get<boolean>(
-        'security.allowRemoteImages',
+        'image.allowRemoteImages',
       ) === true
     const imgSrc = `${csp} data: blob:${allowRemoteImages ? ' https:' : ''}`
     const cspMeta =
