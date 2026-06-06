@@ -340,6 +340,7 @@ function freshState() {
       appliedEdits: [] as WorkspaceEdit[],
       postMessage: [] as any[],
       globalStateUpdates: [] as { key: string; value: any }[],
+      fileSystemWatchers: [] as MockWatcher[],
       fsWrites: [] as { uri: Uri; content: Uint8Array }[],
       fsDirsCreated: [] as Uri[],
       customEditor: undefined as
@@ -379,6 +380,8 @@ interface MockWatcher {
   disposed: boolean
   fireChange(): void
   fireCreate(): void
+  _fireCreate(uri: Uri): void
+  _fireDelete(uri: Uri): void
 }
 
 // ---------------------------------------------------------------------------
@@ -534,8 +537,11 @@ export const workspace = {
       disposed: false,
       fireChange: () => change.fire(undefined),
       fireCreate: () => create.fire(undefined),
+      _fireCreate: (uri: Uri) => create.fire(uri),
+      _fireDelete: (uri: Uri) => del.fire(uri),
     }
     state.watchers.push(watcher)
+    state.calls.fileSystemWatchers.push(watcher)
     return watcher
   }),
   onDidOpenTextDocument: (l: any) =>

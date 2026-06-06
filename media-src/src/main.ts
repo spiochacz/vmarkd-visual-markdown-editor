@@ -85,6 +85,11 @@ let reportDocMode: () => void = () => {}
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
 
+// Shared mutable knownPages set — passed to setupCustomRenderer and updated by
+// the host's wiki-update message. Because the custom renderer captures the Set
+// reference (not a copy), mutating it here updates chip rendering live.
+let wikiKnownPages: Set<string> = new Set()
+
 // Reveal-in-Source (task 16): remember the caret inside the editor. When the
 // command runs from VS Code chrome (the toolbar button), focus leaves the
 // webview iframe and the live selection collapses to the editor start — so the
@@ -584,12 +589,14 @@ function initVditor(msg) {
         applyVditorTheme(msg.theme === 'dark' ? 'dark' : 'light')
         // Register wiki renderers on the lute instance BEFORE any content render, so
         // both the monolithic path and the streamed chunks (same lute) emit chips.
+        // Populate the shared knownPages set (updated live by wiki-update).
+        wikiKnownPages.clear()
+        if (wikiEnabled && msg.wiki.pageKeys) {
+          for (const k of msg.wiki.pageKeys as string[]) wikiKnownPages.add(k)
+        }
         setupCustomRenderer(window.vditor, {
           enabled: wikiEnabled,
-          knownPages:
-            wikiEnabled && msg.wiki.pageKeys
-              ? new Set(msg.wiki.pageKeys as string[])
-              : undefined,
+          knownPages: wikiEnabled ? wikiKnownPages : undefined,
         })
 
         if (willStream) {
@@ -894,6 +901,11 @@ const messageHandlers: Record<string, (msg: any) => void> = {
   'diff-info': handleDiffInfo,
   uploaded: handleUploaded,
   'scroll-to-heading': handleScrollToHeading,
+  'wiki-update': (msg: any) => {
+    if (!Array.isArray(msg.pageKeys)) return
+    wikiKnownPages.clear()
+    for (const k of msg.pageKeys as string[]) wikiKnownPages.add(k)
+  },
 }
 
 window.addEventListener('message', (e) => {

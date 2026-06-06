@@ -14,13 +14,17 @@ import {
 import { minimalDiffWriteback } from './minimal-diff-writeback'
 import { escapeTableSpanPipes } from './table-pipe-escape'
 import {
-  collectWikiMarkdownFiles,
   getWikiDocumentContext,
-  getWikiPageKeys,
   getWikiRoot,
   isWikiFile,
-  resolveWikiLink,
+  normalizeWikiLookupKey,
 } from './wiki'
+import {
+  disposeAllCaches,
+  extractWikiTargets,
+  getOrBuildCache,
+  resolveVisibleTargets,
+} from './wiki-cache'
 
 const KeyVditorOptions = 'vmarkd.options'
 const KeyOutlineWidth = 'vmarkd.outlineWidth'
@@ -396,6 +400,7 @@ async function revealCaretInSource(
 export function activate(context: vscode.ExtensionContext) {
   logger = vscode.window.createOutputChannel('vMarkd', { log: true })
   context.subscriptions.push(logger)
+  context.subscriptions.push({ dispose: disposeAllCaches })
 
   // Warm the host-side Lute now so the first file open already gets the instant
   // pre-rendered paint (see src/lute-host.ts). Deferred off the activation path.
@@ -836,12 +841,29 @@ export class EditorSession {
 
   private async onReady() {
     let wikiInit: any = this.wiki
-    if (this.wiki.enabled) {
-      const root = getWikiRoot(this.document.uri)
-      if (root) {
-        const pageKeys = await getWikiPageKeys(root)
-        wikiInit = { ...this.wiki, pageKeys }
-      }
+    const wikiRoot = this.wiki.enabled
+      ? getWikiRoot(this.document.uri)
+      : undefined
+    if (wikiRoot) {
+      const cache = await getOrBuildCache(wikiRoot, () => {
+        // Watcher fired (file create/delete) — push updated keys to webview.
+        this.webviewPanel.webview.postMessage({
+          command: 'wiki-update',
+          pageKeys: cache.allPageKeys(),
+        })
+      })
+      // Resolve only the targets the current document actually uses.
+      const content = this.document.getText()
+      const docTargets = extractWikiTargets(content)
+      const resolvedKeys = resolveVisibleTargets(cache, docTargets)
+      wikiInit = { ...this.wiki, pageKeys: resolvedKeys }
+      // Send full keys after init (non-blocking) so newly typed links resolve too.
+      queueMicrotask(() => {
+        this.webviewPanel.webview.postMessage({
+          command: 'wiki-update',
+          pageKeys: cache.allPageKeys(),
+        })
+      })
     }
     await this.postUpdate({
       type: 'init',
@@ -937,10 +959,8 @@ export class EditorSession {
     if (!wikiRoot) {
       return
     }
-    const allPages = await collectWikiMarkdownFiles(wikiRoot)
-    allPages.sort((a, b) =>
-      NodePath.basename(a.fsPath).localeCompare(NodePath.basename(b.fsPath)),
-    )
+    const cache = await getOrBuildCache(wikiRoot)
+    const allPages = cache.allFiles()
     const picked = await vscode.window.showQuickPick(
       allPages.map((page) => ({
         label: NodePath.basename(page.fsPath, NodePath.extname(page.fsPath)),
@@ -1007,79 +1027,73 @@ export class EditorSession {
   }
 
   private async onOpenWikilink(message: any) {
-    const resolution = await resolveWikiLink(
-      this.document.uri,
-      String(message.target),
-    )
+    const root = getWikiRoot(this.document.uri)
+    if (!root) {
+      showError(
+        'Wiki links are only enabled for Markdown files inside a wiki folder.',
+      )
+      return
+    }
+    const rawTarget = String(message.target)
+    const [targetPart] = rawTarget.split('|', 1)
+    const key = normalizeWikiLookupKey(targetPart.trim())
+    if (!key) {
+      showError('Invalid wiki link target.')
+      return
+    }
+    const cache = await getOrBuildCache(root)
+    const matches = cache.resolve(key)
 
-    switch (resolution.kind) {
-      case 'disabled':
-        showError(
-          `Wiki links are only enabled for Markdown files inside a wiki folder.`,
+    if (matches.length === 0) {
+      const createChoice = await vscode.window.showWarningMessage(
+        `Wiki page "${rawTarget}" was not found under "${vscode.workspace.asRelativePath(root, false)}".`,
+        'Create Page',
+      )
+      if (createChoice === 'Create Page') {
+        if (!ensureCanWriteFiles(this.document.uri)) return
+        const newFileName = `${key.replace(/\//g, '-')}.md`
+        const newFileUri = vscode.Uri.joinPath(root, newFileName)
+        const heading = key
+          .replace(/-/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+        await vscode.workspace.fs.writeFile(
+          newFileUri,
+          Buffer.from(`# ${heading}\n`),
         )
-        break
-      case 'invalid':
-        showError(`Invalid wiki link target.`)
-        break
-      case 'missing': {
-        const createChoice = await vscode.window.showWarningMessage(
-          `Wiki page "${message.target}" was not found under "${vscode.workspace.asRelativePath(
-            resolution.root,
-            false,
-          )}".`,
-          'Create Page',
-        )
-        if (createChoice === 'Create Page') {
-          if (!ensureCanWriteFiles(this.document.uri)) {
-            break
-          }
-          const newFileName = `${resolution.key.replace(/\//g, '-')}.md`
-          const newFileUri = vscode.Uri.joinPath(resolution.root, newFileName)
-          const heading = resolution.key
-            .replace(/-/g, ' ')
-            .replace(/\b\w/g, (c) => c.toUpperCase())
-          await vscode.workspace.fs.writeFile(
-            newFileUri,
-            Buffer.from(`# ${heading}\n`),
-          )
-          await vscode.commands.executeCommand(
-            'vscode.openWith',
-            newFileUri,
-            MarkdownEditorViewType,
-          )
-        }
-        break
-      }
-      case 'ambiguous': {
-        const picked = await vscode.window.showQuickPick(
-          resolution.candidates.map((candidate) => ({
-            label: NodePath.basename(candidate.fsPath),
-            description: vscode.workspace.asRelativePath(candidate, false),
-            uri: candidate,
-          })),
-          {
-            title: `Select wiki page for "${message.target}"`,
-            placeHolder: 'Multiple wiki pages match this link.',
-          },
-        )
-
-        if (picked?.uri) {
-          await vscode.commands.executeCommand(
-            'vscode.openWith',
-            picked.uri,
-            MarkdownEditorViewType,
-          )
-        }
-        break
-      }
-      case 'resolved':
         await vscode.commands.executeCommand(
           'vscode.openWith',
-          resolution.target,
+          newFileUri,
           MarkdownEditorViewType,
         )
-        break
+      }
+      return
     }
+    if (matches.length > 1) {
+      const picked = await vscode.window.showQuickPick(
+        matches.map((candidate) => ({
+          label: NodePath.basename(candidate.fsPath),
+          description: vscode.workspace.asRelativePath(candidate, false),
+          uri: candidate,
+        })),
+        {
+          title: `Select wiki page for "${rawTarget}"`,
+          placeHolder: 'Multiple wiki pages match this link.',
+        },
+      )
+      if (picked?.uri) {
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          picked.uri,
+          MarkdownEditorViewType,
+        )
+      }
+      return
+    }
+    await vscode.commands.executeCommand(
+      'vscode.openWith',
+      matches[0],
+      MarkdownEditorViewType,
+    )
   }
 
   start() {
