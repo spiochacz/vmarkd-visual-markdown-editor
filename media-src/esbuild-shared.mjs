@@ -362,11 +362,10 @@ const fixIrInputSerialize = {
 // `${VDITOR_VERSION}` and `${vditor.options.cdn}` are left literal (single-quoted) so
 // they interpolate at runtime inside Vditor's tip.show template literal.
 function infoDialogHtml(pin) {
-  const luteCell =
-    pin && pin.commit
-      ? `Lute <a href="https://github.com/88250/lute/commit/${pin.commit}" target="_blank">${pin.commit.slice(0, 7)}</a>${pin.committedAt ? ` (${pin.committedAt})` : ''}`
-      : // no vendored pin → keep Vditor's runtime version interpolation
-        'Lute v${Lute.Version}'
+  const luteCell = pin?.commit
+    ? `Lute <a href="https://github.com/88250/lute/commit/${pin.commit}" target="_blank">${pin.commit.slice(0, 7)}</a>${pin.committedAt ? ` (${pin.committedAt})` : ''}`
+    : // no vendored pin → keep Vditor's runtime version interpolation
+      'Lute v${Lute.Version}'
   return (
     '<div style="max-width: 520px;font-size: 14px;line-height: 22px;margin-bottom: 14px;">' +
     // — Original Vditor About (translated) —
