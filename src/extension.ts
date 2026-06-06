@@ -27,6 +27,7 @@ import {
   invalidateCache,
   resolveVisibleTargets,
 } from './wiki-cache'
+import { buildWebviewHtml, sanitizeCss } from './html-builder'
 
 const KeyVditorOptions = 'vmarkd.options'
 const KeyOutlineWidth = 'vmarkd.outlineWidth'
@@ -1427,14 +1428,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       )
   }
 
-  // Neutralize a `</style>` breakout in user CSS (task 18 §2b). When CSS is
-  // baked into the HTML string inside a <style> block, a literal `</style` in
-  // the value closes the tag early and everything after it is parsed as markup
-  // — i.e. arbitrary `<script>` injection. Strip the closing-tag sequence
-  // (case-insensitive). The live `reload-css` path is already safe: swapStyle
-  // assigns `textContent`, which never parses markup.
   static sanitizeCss(css: string | undefined): string {
-    return (css || '').replace(/<\/style/gi, '')
+    return sanitizeCss(css)
   }
 
   // Vditor's saved options can bake absolute webview-resource URLs that embed
@@ -1499,16 +1494,6 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     }
   }
 
-  // Id'd <style> tags so external + custom CSS can be live-swapped by id
-  // (tasks 12/26). External loads first, customCss last, so customCss always
-  // wins on conflicting rules (later tag = higher priority). Both are sanitized
-  // against `</style>` breakout (task 18 §2b).
-  static _cssStyleTags(uri?: vscode.Uri): string {
-    const external = `<style id="external-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.readExternalCss(uri))}</style>`
-    const custom = `<style id="custom-css">${MarkdownEditorProvider.sanitizeCss(MarkdownEditorProvider.cfgFor(uri).get<string>('css.custom'))}</style>`
-    return external + custom
-  }
-
   constructor(private readonly _context: vscode.ExtensionContext) {}
 
   public resolveCustomTextEditor(
@@ -1553,191 +1538,51 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     theme: 'dark' | 'light' = 'light',
   ) {
     const toUri = (f: string) =>
-      webview.asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, f))
+      webview
+        .asWebviewUri(vscode.Uri.joinPath(this._context.extensionUri, f))
+        .toString()
     const baseHref = `${NodePath.dirname(
       webview.asWebviewUri(vscode.Uri.file(uri.fsPath)).toString(),
     )}/`
-    const toMediaPath = (f: string) => `media/dist/${f}`
-    const JsFiles = ['main.js'].map(toMediaPath).map(toUri)
-    const CssFiles = ['main.css'].map(toMediaPath).map(toUri)
-    // Single baked icon sprite (ant symbols with our toolbar glyphs swapped for
-    // codicons — see media-src/build-icon-sprite.mjs, task 44). Loaded under
-    // id="vditorIconScript" so Vditor skips loading its own ant.js.
-    const iconScript = toUri('media/vditor-icons.js')
-    // i18n bundle for the VS Code UI language. Loaded *before* main.js (below) so
-    // `window.VditorI18n` is set when Vditor is constructed → it skips its async
-    // i18n fetch and builds the toolbar synchronously (see resolveVditorI18nLang).
-    const i18nLang = resolveVditorI18nLang(vscode.env?.language)
-    const i18nScript = toUri(`media/vditor/dist/js/i18n/${i18nLang}.js`)
-
-    // Content-Security-Policy (task 18 §2c). default-src 'none' denies
-    // everything, then we re-allow only what the editor needs, all scoped to the
-    // webview origin (`cspSource`, which covers our asWebviewUri assets):
-    //   - scripts: our own tags by nonce + same-origin Vditor assets. 'unsafe-eval'
-    //     is kept because some bundled libs (e.g. GopherJS Lute / diagram engines)
-    //     eval at runtime; injected inline scripts still can't run (no nonce), so
-    //     the §2b/§2c injection protection is preserved.
-    //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
-    //     we inject <style> for custom/external CSS).
-    //   - images: same-origin + data:/blob:; remote https: only when
-    //     vmarkd.image.allowRemoteImages is on (task 67 — exfil channel).
-    // Instant paint (perf): render the document to Vditor IR DOM host-side and
-    // inline it as a static, read-only overlay. It shows during HTML parse —
-    // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
-    // — and is removed once the live editor is ready (media-src/src/main.ts).
-    // Falls back to nothing (normal render path) when Lute isn't warm yet.
-    const showToolbar =
-      MarkdownEditorProvider.config.get<boolean>('editor.toolbar') !== false
-    // Set the body data-attrs statically so the overlay gets the SAME themed
-    // colours/layout the live editor will. Every colour rule in main.css is
-    // gated on `body[data-use-vscode-theme-color="1"] .vditor…`, so without
-    // these the swap shows a colour jump. Mirrors applyBodyOptions() +
-    // resolveFontSize() in media-src/src/live-config.ts — keep in sync.
     const cfg = MarkdownEditorProvider.config
-    const bodyAttrs =
-      `data-use-vscode-theme-color="${cfg.get<boolean>('theme.useVscodeColors') ? '1' : '0'}" ` +
-      `data-full-width="${cfg.get<boolean>('editor.fullWidth') ? '1' : '0'}" ` +
-      `data-highlight-headings="${cfg.get<boolean>('theme.highlightHeadings') ? '1' : '0'}" ` +
-      `data-heading-markers="${cfg.get<boolean>('editor.headingMarkers') === false ? '0' : '1'}"`
-    const fontSizeCss = resolveFontSizeCss(cfg.get<string>('editor.fontSize'))
-    // The editor opens in whatever mode was last saved (Vditor's currentMode,
-    // persisted via save-options) — default 'ir'. Pre-render in THAT mode so the
-    // overlay matches; mismatch showed up as the H1/H2 gutter markers landing
-    // wrong when the editor was in WYSIWYG.
     const savedOpts = MarkdownEditorProvider.sanitizeVditorOptions(
       this._context.globalState.get(KeyVditorOptions),
     ) as { mode?: string } | undefined
-    const mode: EditorMode =
+    const savedMode: EditorMode =
       savedOpts?.mode === 'wysiwyg'
         ? 'wysiwyg'
         : savedOpts?.mode === 'sv'
           ? 'sv'
           : 'ir'
-    const innerClass = mode === 'wysiwyg' ? 'vditor-wysiwyg' : 'vditor-ir'
-    // Advanced: `instantPreview` (default on) gates the whole host pre-render —
-    // both the read-only content teaser and the placeholder toolbar. Off → preIR
-    // stays undefined, so the overlay/toolbar/theme-link/style are all skipped and
-    // the editor opens straight into the live (post-Lute) render.
-    const instantPreview = cfg.get<boolean>('advanced.instantPreview') !== false
-    const preIR =
-      instantPreview && content !== undefined
-        ? renderForMode(this._context.extensionPath, content, mode)
-        : undefined
-    // A static, empty themed toolbar bar (no icons) so the chrome region looks
-    // present during the instant paint — the real toolbar can't be reused here, it
-    // isn't attached to the DOM until Vditor's post-Lute initUI (~the swap moment).
-    // The real icons fade in at the swap. .vditor-toolbar/--pin inherit the themed
-    // bg + bottom border from the .vditor wrapper; min-height set in the style.
-    const prerenderToolbar = showToolbar
-      ? '<div class="vditor-toolbar vditor-toolbar--pin" style="height:35px;box-sizing:content-box;padding-top:0;padding-bottom:0;"></div>'
-      : ''
-    // Mirror the live editor's DOM exactly: .vditor > toolbar + .vditor-content >
-    // .vditor-ir > pre.vditor-reset. The .vditor-content wrapper matters — it lets
-    // Vditor's own CSS make .vditor-reset the scroll container (overflow:auto =
-    // a BFC), which both gives a single scrollbar AND stops the first heading's
-    // margin-top from collapsing through and pushing content down 24px. Measured
-    // (Playwright): content lands at the same offset as the live editor → no jump.
-    // A faint spinner in the toolbar's top-right corner marks the instant-paint
-    // overlay as live. Because it's a child of #vmarkd-prerender, it's removed with
-    // the overlay at the swap — so it's a quiet "still loading the live editor"
-    // signal: present while the host pre-render is showing, gone the moment the
-    // full live render takes over. Styling/keyframes live in prerenderStyle below.
-    const prerenderDot =
-      '<span id="vmarkd-prerender-spinner" title="vMarkd: rendering…" aria-hidden="true"></span>'
-    const prerenderOverlay = preIR
-      ? `<div id="vmarkd-prerender" class="vditor${
-          theme === 'dark' ? ' vditor--dark' : ''
-        }" style="height:100%" aria-hidden="true">${prerenderToolbar}${prerenderDot}<div class="vditor-content"><div class="${innerClass}"><pre class="vditor-reset">${preIR}</pre></div></div></div>`
-      : ''
-    // The base content text colour comes from Vditor's content-theme CSS, which
-    // the live editor loads at runtime via setTheme. Link the SAME file here so
-    // the overlay text/headings match exactly (otherwise they render dim — the
-    // index.css light-theme fallback on a dark background).
-    // id="vditorContentTheme": the live editor's setContentTheme() reuses a link
-    // with this id (leaves it if the href already matches), so the overlay's
-    // theme link becomes the editor's — no duplicate, no stale link on a later
-    // live theme switch.
-    const prerenderThemeLink = preIR
-      ? `<link id="vditorContentTheme" href="${toUri(
-          `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
-        )}" rel="stylesheet">`
-      : ''
-    // The overlay just positions the mirrored editor over #app and clips
-    // (overflow:hidden) — the inner .vditor-reset scrolls natively via Vditor's
-    // own CSS, exactly like the live editor (single scrollbar, correct margins).
-    const nonce = getNonce()
-    const prerenderStyle = preIR
-      ? `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
-      : ''
-    // Prepaint scroll capture (task 49). The overlay paints during HTML parse, but
-    // main.js (the big bundle, after the i18n/icon scripts) executes a moment later —
-    // so a wheel/key scroll done THE INSTANT the teaser appears would be lost before
-    // main.ts could attach a listener. This tiny inline script runs first (right after
-    // the overlay), so it captures that earliest intent into window.__vmarkdScroll;
-    // main.ts applies it to the live editor at swap-in and calls .stop(). Mirrored in
-    // media-src/e2e/prerender.html so the e2e exercises this exact capture path.
-    const prerenderScroll = preIR
-      ? `<script nonce="${nonce}">(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+(e.deltaY||0));}function k(e){if(!s.active)return;var vh=window.innerHeight||800,d=0;switch(e.key){case 'PageDown':case ' ':d=vh*0.9;break;case 'PageUp':d=-vh*0.9;break;case 'ArrowDown':d=48;break;case 'ArrowUp':d=-48;break;case 'End':d=1e7;break;case 'Home':s.intent=0;return;default:return;}s.intent=Math.max(0,s.intent+d);}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>`
-      : ''
 
-    const csp = webview.cspSource
-    // Remote images are off by default (task 67). A remote `<img src=https://…>`
-    // OR an inline `style="background:url(https://…)"` both pass Lute's Sanitize
-    // (verified against the vendored engine), so without this they beacon out —
-    // a privacy/exfil channel, not code-exec. CSS url() fetches are governed by
-    // img-src too, so dropping bare `https:` here closes BOTH vectors at once.
-    // Opt back in per-document via vmarkd.image.allowRemoteImages.
-    const allowRemoteImages =
-      MarkdownEditorProvider.cfgFor(uri).get<boolean>(
-        'image.allowRemoteImages',
-      ) === true
-    const imgSrc = `${csp} data: blob:${allowRemoteImages ? ' https:' : ''}`
-    const cspMeta =
-      `<meta http-equiv="Content-Security-Policy" content="` +
-      `default-src 'none'; ` +
-      `img-src ${imgSrc}; ` +
-      `media-src ${csp} data: blob:; ` +
-      `font-src ${csp} data:; ` +
-      `style-src ${csp} 'unsafe-inline'; ` +
-      `script-src 'nonce-${nonce}' ${csp} 'unsafe-eval'; ` +
-      `connect-src ${csp} data:; ` +
-      `worker-src ${csp} blob:; ` +
-      // Defense-in-depth: today these fall back to default-src 'none', EXCEPT
-      // base-uri (no fallback → was effectively unset). Lute's Sanitize lets
-      // <iframe>/<embed>/<object>/<base> through, so pin them explicitly — the
-      // posture must not hinge on a single default-src line.
-      `frame-src 'none'; object-src 'none'; base-uri ${csp};">`
-
-    return (
-      `<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				${cspMeta}
-
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<base href="${baseHref}" />
-
-
-				${CssFiles.map((f) => `<link href="${f}" rel="stylesheet">`).join('\n')}
-
-				<title>vMarkd</title>
-        ` +
-      prerenderThemeLink +
-      MarkdownEditorProvider._cssStyleTags(uri) +
-      prerenderStyle +
-      `
-			</head>
-			<body ${bodyAttrs} style="--me-font-size:${fontSizeCss}">
-				<div id="app"></div>
-				${prerenderOverlay}
-				${prerenderScroll}
-
-				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
-				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
-				${JsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
-			</body>
-			</html>`
-    )
+    return buildWebviewHtml({
+      toUri,
+      baseHref,
+      cspSource: webview.cspSource,
+      nonce: getNonce(),
+      theme,
+      config: {
+        showToolbar: cfg.get<boolean>('editor.toolbar') !== false,
+        useVscodeThemeColor: cfg.get<boolean>('theme.useVscodeColors') === true,
+        enableFullWidth: cfg.get<boolean>('editor.fullWidth') === true,
+        highlightHeadings: cfg.get<boolean>('theme.highlightHeadings') === true,
+        showHeadingMarkers: cfg.get<boolean>('editor.headingMarkers') !== false,
+        fontSize: resolveFontSizeCss(cfg.get<string>('editor.fontSize')),
+        instantPreview: cfg.get<boolean>('advanced.instantPreview') !== false,
+        allowRemoteImages:
+          MarkdownEditorProvider.cfgFor(uri).get<boolean>(
+            'image.allowRemoteImages',
+          ) === true,
+        customCss:
+          MarkdownEditorProvider.cfgFor(uri).get<string>('css.custom') || '',
+        externalCss: MarkdownEditorProvider.readExternalCss(uri),
+      },
+      preRenderedHtml:
+        content !== undefined
+          ? renderForMode(this._context.extensionPath, content, savedMode)
+          : undefined,
+      savedMode,
+      i18nLang: resolveVditorI18nLang(vscode.env?.language),
+    })
   }
 }
