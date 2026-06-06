@@ -206,6 +206,33 @@ const fixMathRender = {
   },
 }
 
+// preview/index.ts shows a hardcoded Chinese toast on Ctrl+C in preview mode
+// (`vditor.tip.show(`已复制到剪切板`)` — NOT routed through VditorI18n), so an
+// English-locale user copying from the preview sees "已复制到剪切板". vMarkd only ever
+// calls copyToX with type "default", so the zhihu/wechat branch is dead here — just
+// translate the literal the user actually hits to English.
+const COPY_TIP_ANCHOR = '已复制到剪切板'
+export function patchPreviewCopyTip(code) {
+  if (!code.includes(COPY_TIP_ANCHOR)) {
+    throw new Error(
+      'fixPreviewCopyTip: anchor not found in vditor preview/index.ts (version drift?)',
+    )
+  }
+  return code.replaceAll(COPY_TIP_ANCHOR, 'Copied to clipboard')
+}
+const fixPreviewCopyTip = {
+  name: 'fix-preview-copy-tip',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]preview[/\\]index\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchPreviewCopyTip(code) }
+      },
+    )
+  },
+}
+
 // Task 63 (paste) — content-based code-block detection on paste. Vditor's
 // `processPasteCode` (util/processCode.ts) forced pasted content into a code block
 // from IDE-source MARKERS (VS Code monospace font, any single <pre>, Xcode `p1`,
@@ -432,6 +459,7 @@ export const vditorSourceConfig = {
     fixWysiwygLinkClick,
     fixListToggle,
     fixMathRender,
+    fixPreviewCopyTip,
     fixProcessCode,
     fixIrInputSerialize,
     fixInfoDialog,

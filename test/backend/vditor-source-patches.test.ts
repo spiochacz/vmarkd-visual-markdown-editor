@@ -9,6 +9,7 @@ import {
   patchProcessCode,
   patchIrInputSerialize,
   patchInfoDialog,
+  patchPreviewCopyTip,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -32,6 +33,12 @@ const irProcessSource = read(
 )
 const infoSource = read(
   '../../media-src/node_modules/vditor/src/ts/toolbar/Info.ts',
+)
+// Reading this path also guards against a file rename: if Vditor moves
+// preview/index.ts, this readFileSync throws at load and the suite fails loudly —
+// the esbuild onLoad filter would otherwise silently skip the patch (no build error).
+const previewSource = read(
+  '../../media-src/node_modules/vditor/src/ts/preview/index.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -259,6 +266,28 @@ describe('patchInfoDialog (original Vditor About, English, + Help section)', () 
   it('throws (fails the build loudly) if the dialog anchor is gone — version-bump guard', () => {
     expect(() => patchInfoDialog('// unrelated source', pin)).toThrow(
       /fixInfoDialog/,
+    )
+  })
+})
+
+describe('patchPreviewCopyTip (Ctrl+C in preview shows a hardcoded Chinese toast)', () => {
+  const CHINESE_TIP = '已复制到剪切板'
+
+  // The shipped preview shows a hardcoded Chinese "copied to clipboard" toast on
+  // Ctrl+C, NOT routed through VditorI18n, so an English-locale user sees Chinese.
+  it('the shipped preview/index.ts shows the Chinese tip (pre-patch)', () => {
+    expect(previewSource).toContain(`\`${CHINESE_TIP}\``)
+  })
+
+  it('translates the copy toast to English', () => {
+    const patched = patchPreviewCopyTip(previewSource)
+    expect(patched).not.toContain(CHINESE_TIP)
+    expect(patched).toContain('Copied to clipboard')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchPreviewCopyTip('// unrelated source')).toThrow(
+      /fixPreviewCopyTip/,
     )
   })
 })
