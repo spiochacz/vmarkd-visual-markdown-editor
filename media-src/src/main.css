@@ -124,12 +124,19 @@ body[data-use-vscode-theme-color="1"]
 .vditor-ir pre.vditor-reset {
   position: relative;
 }
-/* Big-doc render/repaint cost (VS Code 1.123 = Chromium 148 froze the whole
-   window when a large retained webview became visible on tab switch). Let the
-   browser skip layout/paint of off-screen IR blocks so showing/repainting the
-   editor is O(viewport), not O(whole 4000-block doc). contain-intrinsic-size
-   keeps the scrollbar stable for not-yet-rendered blocks. */
-.vditor-ir > pre.vditor-reset > * {
+/* Big-doc freeze fix (VS Code 1.123 / Chromium 148 froze the whole window when a
+   large retained webview re-laid-out/painted on tab switch). content-visibility:auto
+   makes the browser skip layout/paint of off-screen IR blocks → O(viewport), not
+   O(4000 blocks). Scoped to large docs only (body class set in initVditor) so small
+   docs — and the deterministic e2e suite — are unaffected by the scroll/intrinsic-size
+   side effects.
+   EXCLUDE the gutter-marker blocks (headings H1–H6, link-ref-defs, footnotes, TOC):
+   their `::before` marker is painted in the LEFT gutter at margin-left:-29px, OUTSIDE
+   the block's box, and content-visibility:auto's implied paint containment clips it
+   (markers vanish even while the block is on-screen). These are a tiny fraction of
+   blocks, so skipping them costs nothing perf-wise. */
+body.vmarkd-large-doc .vditor-ir > pre.vditor-reset
+  > *:not(h1, h2, h3, h4, h5, h6, [data-type="link-ref-defs-block"], [data-type="footnotes-block"], .vditor-toc) {
   content-visibility: auto;
   contain-intrinsic-size: auto 40px;
 }

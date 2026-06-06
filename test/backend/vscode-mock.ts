@@ -203,6 +203,18 @@ export class ThemeIcon {
   ) {}
 }
 
+export class MarkdownString {
+  value: string
+  isTrusted?: boolean
+  constructor(value = '') {
+    this.value = value
+  }
+  appendMarkdown(value: string): this {
+    this.value += value
+    return this
+  }
+}
+
 export enum TreeItemCollapsibleState {
   None = 0,
   Collapsed = 1,

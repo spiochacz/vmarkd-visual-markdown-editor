@@ -226,7 +226,13 @@ async function updateEditorContexts() {
 // is the status-bar updater, wired in activate() so the webview report can refresh it.
 export const docLargeMode = new Map<
   string,
-  { large: boolean; blocks: number }
+  {
+    blocks: number
+    chars: number
+    contentVisibility: boolean
+    streaming: boolean
+    incremental: boolean
+  }
 >()
 let refreshStatusBarMarker: () => void = () => {}
 // Wired in activate(); called from a panel's onDidChangeViewState so the
@@ -281,12 +287,33 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       mode.tooltip = 'Markdown: visual editor — click to edit as source'
       mode.command = 'vmarkd.openTextEditor'
       mode.show()
-      // Large-doc marker (task 69) — shown ONLY for large docs (its presence = incremental
-      // mode). Only meaningful in the visual editor, which owns the incremental serializer.
+      // Large-doc marker — shown whenever ANY large-document helper is active
+      // (content-visibility, streaming, or incremental serialization). The tooltip
+      // lists exactly which are on. Only meaningful in the visual editor (webview).
       const ds = docLargeMode.get(input.uri.toString())
-      if (ds?.large) {
+      const active: string[] = []
+      if (ds?.contentVisibility) {
+        const kb = ds.chars ? ` (~${Math.round(ds.chars / 1024)} KB)` : ''
+        active.push(
+          `**content-visibility**${kb} — browser skips layout/paint of off-screen blocks, keeping tab-switch repaint fast`,
+        )
+      }
+      if (ds?.streaming) {
+        active.push(
+          '**chunked streaming** — the document was rendered progressively at open instead of one blocking pass',
+        )
+      }
+      if (ds?.incremental) {
+        active.push(
+          `**incremental serialization** (${ds.blocks} top-level blocks) — only the edited block is reparsed on save`,
+        )
+      }
+      if (active.length) {
         docSize.text = '$(zap) Large md'
-        docSize.tooltip = `Large document — ${ds.blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
+        const tip = new vscode.MarkdownString(
+          `**Large-document helpers active:**\n\n${active.map((a) => `- ${a}`).join('\n')}`,
+        )
+        docSize.tooltip = tip
         docSize.show()
       } else {
         docSize.hide()
@@ -868,12 +895,16 @@ export class EditorSession {
     await this.syncToEditor(message.content)
   }
 
-  // task 69: the webview reports whether this doc is in the large/incremental regime
-  // (≥ block-count gate). Store it per-uri and refresh the status-bar marker.
+  // The webview reports which large-document helpers are active (content-visibility,
+  // streaming, incremental serialization). Store per-uri and refresh the status-bar
+  // marker, whose tooltip lists the active ones.
   private onDocMode(message: any) {
     docLargeMode.set(this.activeUri.toString(), {
-      large: Boolean(message.large),
       blocks: Number(message.blocks) || 0,
+      chars: Number(message.chars) || 0,
+      contentVisibility: Boolean(message.contentVisibility),
+      streaming: Boolean(message.streaming),
+      incremental: Boolean(message.incremental),
     })
     refreshStatusBarMarker()
   }
@@ -1437,6 +1468,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       outlineHighlight: c.get<boolean>('outline.highlight'),
       codeTheme: c.get<string>('theme.code'),
       streamLargeFiles: c.get<boolean>('advanced.streamLargeFiles'),
+      contentVisibility: c.get<boolean>('advanced.contentVisibility'),
       linkOpenWithModifier: c.get<boolean>('editor.linkOpenWithModifier'),
       // Image upload conversion (task 74) — read by the webview's upload handler.
       imageFormat: c.get<string>('image.format'),
