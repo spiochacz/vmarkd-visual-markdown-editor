@@ -18,7 +18,7 @@ const coverageOptions = {
   // Keep only our harness bundles (drop separately-loaded vditor scripts like
   // lute.min.js / i18n that Chromium also reports).
   entryFilter: (entry: { url: string }) =>
-    /\/(harness|behaviors|outline|link|list|math|save-flush|incremental-md|wysiwyg-input|tab|stream|keybugs|scrolljump|mermaid|image-convert)\.js/.test(
+    /\/(harness|behaviors|outline|link|list|math|save-flush|incremental-md|wysiwyg-input|tab|stream|keybugs|scrolljump|mermaid|image-convert|width|wiki)\.js/.test(
       entry.url,
     ),
 

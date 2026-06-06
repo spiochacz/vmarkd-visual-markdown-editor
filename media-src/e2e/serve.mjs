@@ -32,6 +32,7 @@ const built = await esbuild.build({
     mermaid: path.join(__dirname, 'mermaid-harness.ts'),
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
     width: path.join(__dirname, 'width-harness.ts'),
+    wiki: path.join(__dirname, 'wiki-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -69,6 +70,7 @@ const imageConvertHtml = fs.readFileSync(
   path.join(__dirname, 'image-convert.html'),
 )
 const widthHtml = fs.readFileSync(path.join(__dirname, 'width.html'))
+const wikiHtml = fs.readFileSync(path.join(__dirname, 'wiki.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -157,6 +159,10 @@ const server = http.createServer((req, res) => {
   if (url === '/width.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(widthHtml)
+  }
+  if (url === '/wiki.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(wikiHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')
