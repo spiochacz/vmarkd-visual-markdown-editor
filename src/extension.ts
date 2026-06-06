@@ -1200,6 +1200,7 @@ export class EditorSession {
             this.lastWikiRoot = undefined
           }
           this.wiki = getWikiDocumentContext(this.document.uri)
+          void updateEditorContexts()
         }
         this.postLiveConfig()
         this.refreshExternalCssWatchers()
@@ -1494,6 +1495,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       imageFormat: c.get<string>('image.format'),
       imageQuality: c.get<number>('image.quality'),
       imageMaxWidth: c.get<number>('image.maxWidth'),
+      wikiEnabled: c.get<boolean>('wiki.enabled') !== false,
     }
   }
 

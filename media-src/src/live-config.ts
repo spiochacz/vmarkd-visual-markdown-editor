@@ -61,6 +61,7 @@ export const INIT_ONLY_OPTIONS = [
   'outlinePosition',
   'showOutlineByDefault',
   'outlineHighlight',
+  'wikiEnabled',
   // NOTE: mermaidTheme is applied LIVE (applyMermaidTheme + offscreen reRenderMermaid in
   // handleConfigChanged), NOT via re-init — re-init scrolls the editor to the top on big
   // docs (task 59 follow-up: the reported mermaid-theme scroll jump).
