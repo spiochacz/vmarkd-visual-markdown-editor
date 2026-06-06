@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MarkdownEditorProvider } from '../../src/extension'
+import { _resetCacheMap } from '../../src/wiki-cache'
 import { FileType, mock, Uri } from './vscode-mock'
 
 // Drives the `open-wikilink` webview message — the wiki-link click flow in
@@ -32,7 +33,10 @@ function openWithCalls() {
 }
 
 describe('message handler: open-wikilink', () => {
-  beforeEach(() => mock.reset())
+  beforeEach(() => {
+    mock.reset()
+    _resetCacheMap()
+  })
 
   it('opens a uniquely-resolved page in the custom editor', async () => {
     mountFs({
@@ -125,7 +129,10 @@ describe('message handler: open-wikilink', () => {
 // 'list-this.wiki-pages', silently unregistering the command — uncaught because it
 // had no test. These cover the picker flow end to end.
 describe('message handler: list-wiki-pages', () => {
-  beforeEach(() => mock.reset())
+  beforeEach(() => {
+    mock.reset()
+    _resetCacheMap()
+  })
 
   it('lists the wiki pages and opens the chosen one', async () => {
     mountFs({

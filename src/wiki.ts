@@ -127,7 +127,7 @@ function normalizeWikiSegment(value: string) {
     .replace(/^-+|-+$/g, '')
 }
 
-function normalizeWikiLookupKey(value: string) {
+export function normalizeWikiLookupKey(value: string) {
   return value
     .replace(/\\/g, '/')
     .split('/')
@@ -136,7 +136,7 @@ function normalizeWikiLookupKey(value: string) {
     .join('/')
 }
 
-function getWikiKeys(root: vscode.Uri, candidate: vscode.Uri) {
+export function getWikiKeys(root: vscode.Uri, candidate: vscode.Uri) {
   const extension = NodePath.extname(candidate.fsPath)
   const basename = NodePath.basename(candidate.fsPath, extension)
   const relativePath = NodePath.relative(root.fsPath, candidate.fsPath).replace(
