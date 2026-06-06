@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
+import * as NodePath from 'node:path'
 import { collectWikiMarkdownFiles, getWikiKeys } from './wiki'
-import { extractWikiTargets } from './wiki-core'
+import { stripMarkdownExtension } from './wiki-core'
 
 const WIKI_GLOB = '**/*.{md,markdown}'
 const DEBOUNCE_MS = 50
@@ -39,6 +40,37 @@ export class WikiCache {
       this.cachedAllKeys = Array.from(this.keyToUris.keys()).sort()
     }
     return this.cachedAllKeys
+  }
+
+  // Names offered by the autocomplete. A unique basename is shown bare ("Home");
+  // a basename shared by several files is path-qualified ("a/Page", "b/Page") so
+  // each entry is distinguishable AND the inserted [[a/Page]] resolves to exactly
+  // one file (its relative-path key is unique). Without this, duplicate-basename
+  // pages collapse into one ambiguous "Page" entry that can't be told apart.
+  allDisplayNames(): string[] {
+    const files = this.allFiles()
+    // Count basenames case-insensitively, matching how resolution normalizes.
+    const baseCount = new Map<string, number>()
+    for (const uri of files) {
+      const base = stripMarkdownExtension(
+        NodePath.basename(uri.fsPath),
+      ).toLowerCase()
+      baseCount.set(base, (baseCount.get(base) ?? 0) + 1)
+    }
+    const names = new Set<string>()
+    for (const uri of files) {
+      const base = stripMarkdownExtension(NodePath.basename(uri.fsPath))
+      if ((baseCount.get(base.toLowerCase()) ?? 0) > 1) {
+        const rel = NodePath.relative(this.root.fsPath, uri.fsPath).replace(
+          /\\/g,
+          '/',
+        )
+        names.add(stripMarkdownExtension(rel))
+      } else {
+        names.add(base)
+      }
+    }
+    return Array.from(names).sort()
   }
 
   allFiles(): vscode.Uri[] {

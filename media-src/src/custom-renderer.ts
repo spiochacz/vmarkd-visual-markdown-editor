@@ -35,6 +35,20 @@ export function setupCustomRenderer(
     ]
   }
 
+  const renderTextEditable = (node: any, entering: boolean) => {
+    if (!entering) {
+      return ['', WalkContinue]
+    }
+    return [
+      wikiTextToHtml(
+        node.TokensStr(),
+        options.enabled,
+        options.knownPages,
+      ).replace(/<\/span>/g, '</span>​'),
+      WalkContinue,
+    ]
+  }
+
   const renderInlineHTML = (node: any, entering: boolean) => {
     if (!entering) {
       return ['', WalkContinue]
@@ -51,8 +65,8 @@ export function setupCustomRenderer(
 
   lute.SetJSRenderers({
     renderers: {
-      Md2VditorIRDOM: { renderText },
-      Md2VditorDOM: { renderText },
+      Md2VditorIRDOM: { renderText: renderTextEditable },
+      Md2VditorDOM: { renderText: renderTextEditable },
       Md2VditorSVDOM: { renderText },
       Md2HTML: { renderText },
       // Vditor 3.11's Lute dropped the JS *DOM2Md reverse renderers; only

@@ -25,7 +25,27 @@ const value = [
   '',
 ].join('\n')
 
-for (const k of ['home', 'alpha', 'beta', 'target']) knownPages.add(k)
+for (const k of [
+  'home',
+  'alpha',
+  'beta',
+  'target',
+  'getting-started',
+  'sub/deep-page',
+])
+  knownPages.add(k)
+
+// 'sub/Deep Page' models a path-qualified display name (duplicate-basename case):
+// the host sends the relative path so the autocomplete entry is distinguishable
+// and the inserted [[sub/Deep Page]] resolves to exactly one file.
+const hintPages = new Set([
+  'Home',
+  'Alpha',
+  'Beta',
+  'Target',
+  'Getting Started',
+  'sub/Deep Page',
+])
 ;(window as any).__knownPages = knownPages
 ;(window as any).__wikiTextToHtml = wikiTextToHtml
 ;(window as any).__originalValue = value
@@ -56,12 +76,38 @@ if (origPostMessage) {
 installLinkOpenGate()
 applyLinkOpenSetting(true)
 
+function wikiHintExtend(value: string) {
+  const esc = (s: string) =>
+    s.replace(
+      /[&<>"]/g,
+      (c: string) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c,
+    )
+  const lower = value.toLowerCase()
+  const results: { html: string; value: string }[] = []
+  for (const page of hintPages) {
+    if (page.toLowerCase().includes(lower)) {
+      const src = `[[${page}]]`
+      results.push({
+        html: page,
+        value: `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${esc(page)}" data-wiki-source="${esc(src)}">${esc(page)}</span>`,
+      })
+    }
+  }
+  return results
+}
+;(window as any).__wikiHintExtend = wikiHintExtend
+
 const editor = new Vditor('app', {
   cache: { enable: false },
   mode: 'ir',
   cdn: `${location.origin}/vditor`,
   value,
   toolbar: ['preview'],
+  hint: {
+    parse: false,
+    extend: [{ key: '[[', hint: wikiHintExtend }],
+  },
   after() {
     ;(window as any).vditor = editor
     setupCustomRenderer(editor, { enabled: true, knownPages })

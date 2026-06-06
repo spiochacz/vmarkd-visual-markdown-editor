@@ -294,8 +294,8 @@ export function fixLinkClick() {
         sel.removeAllRanges()
         sel.addRange(range)
         // Trigger Vditor's input handler to re-parse the block
-        parent
-          .closest('[contenteditable]')
+        ;(parent as Element)
+          .closest?.('[contenteditable]')
           ?.dispatchEvent(new Event('input', { bubbles: true }))
         return
       }
@@ -338,8 +338,8 @@ export function fixLinkClick() {
         range.collapse(true)
         sel.removeAllRanges()
         sel.addRange(range)
-        parent
-          .closest('[contenteditable]')
+        ;(parent as Element)
+          .closest?.('[contenteditable]')
           ?.dispatchEvent(new Event('input', { bubbles: true }))
       }
     },

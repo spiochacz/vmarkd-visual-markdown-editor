@@ -15,7 +15,7 @@
 import { WikiLinkPattern, parseWikiPayload } from '../../src/wiki-core'
 
 const CHIP_RE =
-  /<span\b[^>]*\bclass="[^"]*wiki-link-chip[^"]*"[^>]*\bdata-wiki-source="([^"]*)"[^>]*>.*?<\/span>/g
+  /<span\b[^>]*\bclass="[^"]*wiki-link-chip[^"]*"[^>]*\bdata-wiki-source="([^"]*)"[^>]*>.*?<\/span>\u200B?/g
 
 function unescapeAttr(s: string): string {
   return s
@@ -36,7 +36,16 @@ function escapeAttr(s: string): string {
 }
 
 export function rewriteWikiChipsToSource(html: string): string {
-  return html.replace(CHIP_RE, (_, source) => unescapeAttr(source))
+  // If the caret marker (<wbr>) landed INSIDE a chip — e.g. a click at the end
+  // of a line resolved the caret into the trailing chip's text node — preserve it
+  // AFTER the [[source]]. Otherwise CHIP_RE swallows the whole span (wbr included)
+  // and Vditor's setRangeByWbr, finding no marker, collapses the caret to the
+  // block start (the "press space → jump to line start" bug).
+  return html.replace(CHIP_RE, (full, source) =>
+    full.includes('<wbr>')
+      ? `${unescapeAttr(source)}<wbr>`
+      : unescapeAttr(source),
+  )
 }
 
 let _knownPages: Set<string> | undefined
@@ -66,7 +75,7 @@ function reintroduceChips(html: string): string {
       `data-wiki-source="${escapeAttr(full)}"` +
       `${isMissing ? ' data-wiki-missing="1"' : ''} ` +
       `title="${isMissing ? 'Missing wiki page' : 'Open wiki page'} ${escapeAttr(target)}"` +
-      `>${escapeAttr(displayText)}</span>`
+      `>${escapeAttr(displayText)}</span>​`
     )
   })
 }

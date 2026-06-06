@@ -91,6 +91,7 @@ let lastInitMsg: any = null
 // the host's wiki-update message. Because the custom renderer captures the Set
 // reference (not a copy), mutating it here updates chip rendering live.
 const wikiKnownPages: Set<string> = new Set()
+const wikiDisplayNames: Set<string> = new Set()
 
 // Reveal-in-Source (task 16): remember the caret inside the editor. When the
 // command runs from VS Code chrome (the toolbar button), focus leaves the
@@ -251,34 +252,85 @@ function removeStreamSpinner() {
 // gap, INCLUDING the brief moment a freshly-mounted editor isn't yet responding to
 // native wheel, and honours a scroll the user began on the teaser. After the window we
 // stop accumulating and hand fully back to native scrolling.
-function bridgePrepaintScroll(): void {
-  const cap = (window as any).__vmarkdScroll as
-    | { intent: number; active: boolean; stop?: () => void }
-    | undefined
+interface PrepaintCapture {
+  intent: number
+  active: boolean
+  stop?: () => void
+  stopKeys?: () => void
+}
+
+// Hand the prepaint teaser scroll (window.__vmarkdScroll) to the live editor.
+// Two paths, because they have fundamentally different timing:
+//   • streaming (huge files > STREAM_MIN_CHARS): content arrives over time, so the
+//     target offset is only reachable as the document grows AND the end-of-load
+//     jump-to-top happens seconds later — a bounded rAF window is the simplest fit.
+//   • monolithic (the common case): the whole document is laid out at mount, so
+//     there is nothing growing over time. Pure event-driven: apply once, then guard
+//     ONLY the single spurious jump-to-top reactively until the user takes over —
+//     no arbitrary multi-second timer.
+function bridgePrepaintScroll(willStream: boolean): void {
+  const cap = (window as any).__vmarkdScroll as PrepaintCapture | undefined
   if (!cap) return
+  if (willStream) bridgeStreamingScroll(cap)
+  else bridgeMonolithicScroll(cap)
+}
+
+function irEditorEl(): HTMLElement | undefined {
+  return (window.vditor as any)?.vditor?.ir?.element as HTMLElement | undefined
+}
+
+// Streaming path: re-apply intent across the ~3 s load window (content grows; the
+// jump-to-top lands at end-of-stream), then hand back to native scrolling.
+function bridgeStreamingScroll(cap: PrepaintCapture): void {
   let frames = 0
+  let keysStopped = false
   const tick = () => {
-    const editorEl = (window.vditor as any)?.vditor?.ir?.element as
-      | HTMLElement
-      | undefined
+    const editorEl = irEditorEl()
     if (editorEl) {
+      if (cap.intent === 0) {
+        cap.stop?.()
+        return
+      }
+      if (!keysStopped) {
+        cap.stopKeys?.()
+        keysStopped = true
+      }
       const scroller = findScroller(editorEl)
       const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
       const target = Math.min(cap.intent, max)
-      // Only ever pull the view DOWN toward the intended offset — never reduce
-      // scrollTop. `cap.intent` is the cumulative wheel/key delta (it tracks up-scroll
-      // too), so this honours the teaser scroll, covers the dead window right after
-      // swap-in, AND corrects a spurious jump-to-top (Vditor scrolling the caret into
-      // view when the editor becomes editable at end-of-stream / on reflow) — without
-      // ever yanking the user upward or fighting further native scrolling.
+      // Only ever pull DOWN toward the intended offset — honours the teaser scroll,
+      // covers the swap-in dead window, and corrects the end-of-stream jump-to-top,
+      // without ever yanking the user upward or fighting native scrolling.
       if (scroller.scrollTop < target) scroller.scrollTop = target
     }
-    // ~3 s window so it spans a streaming load (the jump-to-top happens at end-of-
-    // stream); then stop capturing and hand fully back to native scrolling.
     if (frames++ < 180) requestAnimationFrame(tick)
     else cap.stop?.()
   }
   tick()
+}
+
+// Monolithic path (the common case): the whole document is rendered by the Vditor
+// constructor and is editable BEFORE this runs, and we apply the offset AFTER
+// finishInit() (settled layout) — so there's no end-of-load jump-to-top to chase
+// (that's a streaming-only symptom). Just apply the teaser offset once and hand
+// fully back to native scrolling. No scroll guard, no timer.
+function bridgeMonolithicScroll(cap: PrepaintCapture): void {
+  const apply = () => {
+    const editorEl = irEditorEl()
+    if (!editorEl) {
+      requestAnimationFrame(apply)
+      return
+    }
+    if (cap.intent > 0) {
+      const scroller = findScroller(editorEl)
+      const max = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+      scroller.scrollTop = Math.min(cap.intent, max)
+    }
+    // stop() removes BOTH the wheel and keydown capture (so a Space typed in the
+    // freshly-opened editor isn't read as a teaser PageDown) and marks it inactive.
+    cap.stop?.()
+  }
+  apply()
 }
 
 function buildVditorOptions(msg: any): any {
@@ -550,6 +602,47 @@ function initVditor(msg) {
       click: (markerEl: Element) =>
         openLinkFromMarker(markerEl, (m) => vscode.postMessage(m)),
     },
+    ...(msg.wiki?.enabled
+      ? {
+          hint: {
+            parse: false,
+            extend: [
+              {
+                key: '[[',
+                hint(value: string) {
+                  const esc = (s: string) =>
+                    s.replace(
+                      /[&<>"]/g,
+                      (c: string) =>
+                        ({
+                          '&': '&amp;',
+                          '<': '&lt;',
+                          '>': '&gt;',
+                          '"': '&quot;',
+                        })[c] ?? c,
+                    )
+                  const lower = value.toLowerCase()
+                  const results: { html: string; value: string }[] = []
+                  const pages =
+                    wikiDisplayNames.size > 0
+                      ? wikiDisplayNames
+                      : wikiKnownPages
+                  for (const page of pages) {
+                    if (page.toLowerCase().includes(lower)) {
+                      const src = `[[${page}]]`
+                      results.push({
+                        html: page,
+                        value: `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${esc(page)}" data-wiki-source="${esc(src)}">${esc(page)}</span>`,
+                      })
+                    }
+                  }
+                  return results
+                },
+              },
+            ],
+          },
+        }
+      : {}),
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
     // the wysiwyg toolbar; without it the editor throws on init and never
     // finishes (window.vditor stays undefined, table panel never mounts).
@@ -567,8 +660,13 @@ function initVditor(msg) {
         // both the monolithic path and the streamed chunks (same lute) emit chips.
         // Populate the shared knownPages set (updated live by wiki-update).
         wikiKnownPages.clear()
+        wikiDisplayNames.clear()
         if (wikiEnabled && msg.wiki.pageKeys) {
           for (const k of msg.wiki.pageKeys as string[]) wikiKnownPages.add(k)
+        }
+        if (wikiEnabled && msg.wiki.displayNames) {
+          for (const n of msg.wiki.displayNames as string[])
+            wikiDisplayNames.add(n)
         }
         setupCustomRenderer(window.vditor, {
           enabled: wikiEnabled,
@@ -607,7 +705,7 @@ function initVditor(msg) {
               // scroll into the (now mounting) editor — see bridgePrepaintScroll.
               removePrerenderOverlay()
               showStreamSpinner()
-              bridgePrepaintScroll()
+              bridgePrepaintScroll(true)
             },
             onDone: () => {
               removeStreamSpinner()
@@ -644,7 +742,7 @@ function initVditor(msg) {
         }
         finishInit()
         // Bridge any prepaint scroll into the (fully rendered) editor.
-        bridgePrepaintScroll()
+        bridgePrepaintScroll(false)
       } finally {
         // Belt-and-suspenders for the non-streaming path: guarantee the overlay is
         // gone even if a helper threw. The streaming path manages it via hooks.
@@ -892,6 +990,10 @@ const messageHandlers: Record<string, (msg: HostMessage) => void> = {
     if (!Array.isArray(msg.pageKeys)) return
     wikiKnownPages.clear()
     for (const k of msg.pageKeys as string[]) wikiKnownPages.add(k)
+    wikiDisplayNames.clear()
+    if (Array.isArray(msg.displayNames)) {
+      for (const n of msg.displayNames as string[]) wikiDisplayNames.add(n)
+    }
   },
 }
 

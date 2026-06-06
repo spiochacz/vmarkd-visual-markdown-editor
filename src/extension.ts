@@ -22,10 +22,8 @@ import {
 } from './wiki'
 import {
   disposeAllCaches,
-  extractWikiTargets,
   getOrBuildCache,
   invalidateCache,
-  resolveVisibleTargets,
 } from './wiki-cache'
 import { buildWebviewHtml, sanitizeCss } from './html-builder'
 
@@ -855,20 +853,17 @@ export class EditorSession {
         this.webviewPanel.webview.postMessage({
           command: 'wiki-update',
           pageKeys: cache.allPageKeys(),
+          displayNames: cache.allDisplayNames(),
         })
       })
-      // Resolve only the targets the current document actually uses.
-      const content = this.document.getText()
-      const docTargets = extractWikiTargets(content)
-      const resolvedKeys = resolveVisibleTargets(cache, docTargets)
-      wikiInit = { ...this.wiki, pageKeys: resolvedKeys }
-      // Send full keys after init (non-blocking) so newly typed links resolve too.
-      queueMicrotask(() => {
-        this.webviewPanel.webview.postMessage({
-          command: 'wiki-update',
-          pageKeys: cache.allPageKeys(),
-        })
-      })
+      // Send the full key + display-name set at init so the hint and the
+      // missing-link check agree from the first render. (These are precomputed
+      // and cached on the WikiCache, so this is cheap — no per-target resolve.)
+      wikiInit = {
+        ...this.wiki,
+        pageKeys: cache.allPageKeys(),
+        displayNames: cache.allDisplayNames(),
+      }
     }
     await this.postUpdate({
       type: 'init',

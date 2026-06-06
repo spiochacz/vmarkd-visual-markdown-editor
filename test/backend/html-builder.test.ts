@@ -143,6 +143,9 @@ describe('buildWebviewHtml', () => {
       )
       expect(html).toContain('__vmarkdScroll')
       expect(html).toContain(`nonce="${NONCE}"`)
+      // Exposes stopKeys so the bridge can drop keydown capture the moment the
+      // editor mounts (else a Space in the editor is read as a PageDown scroll).
+      expect(html).toContain('stopKeys')
     })
 
     it('includes toolbar placeholder when showToolbar is true', () => {

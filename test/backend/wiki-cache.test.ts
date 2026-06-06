@@ -7,6 +7,7 @@ import {
   invalidateCache,
   resolveVisibleTargets,
 } from '../../src/wiki-cache'
+import { normalizeWikiLookupKey } from '../../src/wiki-core'
 import { FileType, mock, Uri } from './vscode-mock'
 
 const F = FileType.File
@@ -80,6 +81,80 @@ describe('WikiCache', () => {
     expect(keys).toContain('beta')
     expect(keys).toContain('sub/beta')
     expect(keys).toEqual([...keys].sort())
+    cache.dispose()
+  })
+
+  it('allDisplayNames returns original-cased basenames without extension', async () => {
+    mountFs({
+      '/ws/wiki': [
+        ['Home.md', F],
+        ['Getting Started.md', F],
+        ['sub', D],
+      ],
+      '/ws/wiki/sub': [['Deep Page.md', F]],
+    })
+    const cache = await WikiCache.build(Uri.file('/ws/wiki'))
+    const names = cache.allDisplayNames()
+    expect(names).toContain('Home')
+    expect(names).toContain('Getting Started')
+    expect(names).toContain('Deep Page')
+    // No extension, no lowercasing, no slugification
+    expect(names).not.toContain('home')
+    expect(names).not.toContain('getting-started')
+    cache.dispose()
+  })
+
+  it('path-qualifies display names for duplicate basenames', async () => {
+    mountFs({
+      '/ws/wiki': [
+        ['Home.md', F], // unique basename → stays bare
+        ['a', D],
+        ['b', D],
+      ],
+      '/ws/wiki/a': [['Page.md', F]], // Page.md exists in two dirs
+      '/ws/wiki/b': [['Page.md', F]],
+    })
+    const cache = await WikiCache.build(Uri.file('/ws/wiki'))
+    const names = cache.allDisplayNames()
+    // Unique basename: bare
+    expect(names).toContain('Home')
+    // Duplicate basename: path-qualified, NOT a bare "Page"
+    expect(names).toContain('a/Page')
+    expect(names).toContain('b/Page')
+    expect(names).not.toContain('Page')
+    // Each qualified name resolves to exactly one file
+    expect(cache.resolve(normalizeWikiLookupKey('a/Page'))).toHaveLength(1)
+    expect(cache.resolve(normalizeWikiLookupKey('b/Page'))).toHaveLength(1)
+    cache.dispose()
+  })
+
+  it('every display name normalizes to a key present in allPageKeys', async () => {
+    // Guards the hint↔missing-check contract: a page offered in the autocomplete
+    // (display name) must resolve to a known key, or its chip renders as a broken
+    // (red) link even though the page exists.
+    mountFs({
+      '/ws/wiki': [
+        ['Home.md', F],
+        ['Getting Started.md', F],
+        ['C++ Notes.md', F],
+        ['sub', D],
+        ['other', D],
+      ],
+      // Deep Page is unique; Dup exists in two dirs (path-qualified display names)
+      '/ws/wiki/sub': [
+        ['Deep Page.md', F],
+        ['Dup.md', F],
+      ],
+      '/ws/wiki/other': [['Dup.md', F]],
+    })
+    const cache = await WikiCache.build(Uri.file('/ws/wiki'))
+    const keys = new Set(cache.allPageKeys())
+    const names = cache.allDisplayNames()
+    expect(names).toContain('sub/Dup')
+    expect(names).toContain('other/Dup')
+    for (const name of names) {
+      expect(keys.has(normalizeWikiLookupKey(name))).toBe(true)
+    }
     cache.dispose()
   })
 

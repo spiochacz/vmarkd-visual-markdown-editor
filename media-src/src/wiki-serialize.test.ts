@@ -50,4 +50,22 @@ describe('rewriteWikiChipsToSource', () => {
       '<p><strong>see [[Page]]</strong></p>',
     )
   })
+
+  it('preserves a <wbr> caret marker inside a chip, placing it after the source', () => {
+    // Caret clicked into the trailing chip's text → <wbr> lands inside the span.
+    const html = `<p>kh [[CLI]] <span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="API" data-wiki-source="[[API]]" title="Open wiki page API">API <wbr></span></p>`
+    expect(rewriteWikiChipsToSource(html)).toBe(
+      '<p>kh [[CLI]] [[API]]<wbr></p>',
+    )
+  })
+
+  it('consumes a trailing zero-width space after a chip', () => {
+    const html = `<p>${chip('Home', '[[Home]]')}​ more</p>`
+    expect(rewriteWikiChipsToSource(html)).toBe('<p>[[Home]] more</p>')
+  })
+
+  it('keeps a <wbr> that sits AFTER the chip untouched', () => {
+    const html = `<p>${chip('Home', '[[Home]]')}<wbr> x</p>`
+    expect(rewriteWikiChipsToSource(html)).toBe('<p>[[Home]]<wbr> x</p>')
+  })
 })
