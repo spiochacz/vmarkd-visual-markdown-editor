@@ -85,6 +85,7 @@ let reportDocMode: () => void = () => {}
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
 
+
 // Reveal-in-Source (task 16): remember the caret inside the editor. When the
 // command runs from VS Code chrome (the toolbar button), focus leaves the
 // webview iframe and the live selection collapses to the editor start — so the

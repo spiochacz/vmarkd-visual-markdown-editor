@@ -93,6 +93,10 @@ test('showHeadingMarkers toggle hides the gutter markers and tightens the gutter
     const reset = document.querySelector(
       '.vditor-ir .vditor-reset',
     ) as HTMLElement
+    // Gutter tightening on markers-off is a FULL-WIDTH behaviour: in narrow mode the
+    // content is centred, so the gutter must NOT collapse to a fixed 10px (that left-
+    // aligns it — see width.spec.ts). Exercise the tightening in full-width mode.
+    document.body.setAttribute('data-full-width', '1')
     document.body.setAttribute('data-heading-markers', '1')
     const shown = getComputedStyle(h1, '::before').display
     const padOn = getComputedStyle(reset).paddingLeft

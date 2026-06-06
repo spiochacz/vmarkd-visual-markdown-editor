@@ -31,6 +31,7 @@ const built = await esbuild.build({
     scrolljump: path.join(__dirname, 'scrolljump-harness.ts'),
     mermaid: path.join(__dirname, 'mermaid-harness.ts'),
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
+    width: path.join(__dirname, 'width-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -67,6 +68,7 @@ const mermaidHarnessHtml = fs.readFileSync(path.join(__dirname, 'mermaid.html'))
 const imageConvertHtml = fs.readFileSync(
   path.join(__dirname, 'image-convert.html'),
 )
+const widthHtml = fs.readFileSync(path.join(__dirname, 'width.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -151,6 +153,10 @@ const server = http.createServer((req, res) => {
   if (url === '/image-convert.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(imageConvertHtml)
+  }
+  if (url === '/width.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(widthHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')
