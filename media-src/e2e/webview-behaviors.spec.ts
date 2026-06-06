@@ -438,6 +438,31 @@ test.describe('createToolbar (task 44/wiki) — custom item click handlers', () 
     )
   })
 
+  test('wiki section has a trailing separator when enabled', async ({
+    page,
+  }) => {
+    await buildToolbar(page, true)
+    const items: string[] = await page.evaluate(() => {
+      const tb = (window as any).__createToolbar({ wikiEnabled: true })
+      return tb.map((i: any) => (typeof i === 'string' ? i : i.name))
+    })
+    const wikiIdx = items.indexOf('wiki-pages')
+    expect(wikiIdx).toBeGreaterThan(-1)
+    expect(items[wikiIdx + 1]).toBe('|')
+  })
+
+  test('no stray separator when wiki is disabled', async ({ page }) => {
+    await buildToolbar(page, false)
+    const items: string[] = await page.evaluate(() => {
+      const tb = (window as any).__createToolbar({ wikiEnabled: false })
+      return tb.map((i: any) => (typeof i === 'string' ? i : i.name))
+    })
+    expect(items).not.toContain('navigate-back')
+    for (let i = 0; i < items.length - 1; i++) {
+      if (items[i] === '|') expect(items[i + 1]).not.toBe('|')
+    }
+  })
+
   test('omits the wiki items when wiki is disabled', async ({ page }) => {
     const names = await buildToolbar(page, false)
     expect(names).not.toContain('navigate-back')

@@ -218,6 +218,20 @@ body.vmarkd-large-doc .vditor-ir > pre.vditor-reset
   text-decoration-style: dashed;
 }
 
+.wiki-link-chip--expanded::before {
+  content: '[[';
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.wiki-link-chip--expanded::after {
+  content: ']]';
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
 .vditor-reset table {
   display: table !important;
   table-layout: fixed !important;

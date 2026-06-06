@@ -82,6 +82,57 @@ test.describe('IR mode — modifier policy (default: Ctrl+click to navigate)', (
   })
 })
 
+test.describe('IR mode — plain click expands [[…]] markers', () => {
+  test('plain click on chip adds the expanded class with [[…]] markers', async ({
+    page,
+  }) => {
+    await gotoWiki(page)
+    const home = chip(page, 'Home')
+    await home.click()
+    await expect(home).toHaveClass(/wiki-link-chip--expanded/)
+  })
+
+  test('clicking elsewhere collapses the expanded markers', async ({
+    page,
+  }) => {
+    await gotoWiki(page)
+    const home = chip(page, 'Home')
+    await home.click()
+    await expect(home).toHaveClass(/wiki-link-chip--expanded/)
+    // Click on the editor body (not a chip)
+    await page.click('.vditor-ir .vditor-reset')
+    await expect(home).not.toHaveClass(/wiki-link-chip--expanded/)
+  })
+
+  test('clicking a different chip collapses the previous one', async ({
+    page,
+  }) => {
+    await gotoWiki(page)
+    const home = chip(page, 'Home')
+    const missing = chip(page, 'Missing Page')
+    await home.click()
+    await expect(home).toHaveClass(/wiki-link-chip--expanded/)
+    await missing.click()
+    await expect(home).not.toHaveClass(/wiki-link-chip--expanded/)
+    await expect(missing).toHaveClass(/wiki-link-chip--expanded/)
+  })
+
+  test('expanded chip shows [[ and ]] pseudo-elements', async ({ page }) => {
+    await gotoWiki(page)
+    await chip(page, 'Home').click()
+    const before = await page.evaluate(() => {
+      const el = document.querySelector('.wiki-link-chip--expanded')
+      return el ? getComputedStyle(el, '::before').content : ''
+    })
+    const after = await page.evaluate(() => {
+      const el = document.querySelector('.wiki-link-chip--expanded')
+      return el ? getComputedStyle(el, '::after').content : ''
+    })
+    expect(before).toBe('"[["')
+    expect(after).toBe('"]]"')
+  })
+})
+
 test.describe('Delete/Backspace removes wiki chips', () => {
   test('Backspace after a wiki chip removes it', async ({ page }) => {
     await gotoWiki(page)

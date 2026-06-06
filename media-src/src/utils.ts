@@ -189,6 +189,12 @@ export function fixResponsiveTables() {
   }
 }
 
+function collapseExpandedWikiChips() {
+  for (const el of document.querySelectorAll('.wiki-link-chip--expanded')) {
+    el.classList.remove('wiki-link-chip--expanded')
+  }
+}
+
 export function fixLinkClick() {
   const openLink = (url: string) => {
     vscode.postMessage({ command: 'open-link', href: url })
@@ -216,10 +222,18 @@ export function fixLinkClick() {
         e.stopPropagation()
         activateWikiLink(wikiElement)
       }
-      // In editable mode with plain click: do NOT return — let the event
-      // propagate to Vditor so it can place the caret for editing.
+      // In editable mode with plain click: show [[…]] markers around the
+      // chip (expand), but don't allow text editing. Click elsewhere collapses.
+      if (inEditable) {
+        e.preventDefault()
+        e.stopPropagation()
+        collapseExpandedWikiChips()
+        wikiElement.classList.add('wiki-link-chip--expanded')
+      }
       return
     }
+
+    collapseExpandedWikiChips()
 
     // Real <a href>. Always cancel the browser's own navigation (a webview anchor
     // must never navigate the panel), then route to the host. The modifier policy

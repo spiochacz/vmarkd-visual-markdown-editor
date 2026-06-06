@@ -178,6 +178,7 @@ export function createToolbar(options: ToolbarOptions = {}) {
               })
             },
           },
+          '|',
         ]
       : []),
     {
