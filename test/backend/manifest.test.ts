@@ -194,12 +194,7 @@ describe('package.json manifest', () => {
       enum: ['left', 'right'],
       default: 'right',
     })
-    expect(props['vmarkd.outline.width']).toMatchObject({
-      type: 'number',
-      default: 200,
-      minimum: 100,
-      maximum: 800,
-    })
+    expect(props['vmarkd.outline.width']).toBeUndefined()
     expect(props['vmarkd.outline.openByDefault']).toMatchObject({
       type: 'boolean',
       default: false,

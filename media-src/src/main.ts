@@ -20,12 +20,18 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
-import { setupOutlineFlash } from './outline'
+import { setupOutlineFlash, FLASH_CLASS } from './outline'
+import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
 import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
 import { preserveCaretAndScroll } from './caret-preserve'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
+
+// Lower bound for the content-visibility band (see initVditor). Its own constant —
+// NOT reused from LARGE_DOC_CHARS (which gates undo-delay / incremental serialize) —
+// because the layout-cost break-even is a different point from the serialize one.
+const CONTENT_VIS_MIN_CHARS = 100_000
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
@@ -271,6 +277,19 @@ function bridgePrepaintScroll(): void {
 function initVditor(msg) {
   // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
+  // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
+  // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
+  // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
+  // small docs untouched. No upper bound: huge docs (which ALSO stream) want it most
+  // — it keeps tab-switch repaint O(viewport).
+  {
+    const len = typeof msg.content === 'string' ? msg.content.length : 0
+    const cvEnabled = msg.options?.contentVisibility !== false // default on
+    document.body.classList.toggle(
+      'vmarkd-large-doc',
+      cvEnabled && len >= CONTENT_VIS_MIN_CHARS,
+    )
+  }
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
   // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
   applyMermaidTheme(window, msg.options?.mermaidTheme)
@@ -328,15 +347,31 @@ function initVditor(msg) {
   // (external setValue / streaming) so the next serialize rebaselines cleanly.
   invalidateIncrementalIr = () => incrementalIr.invalidate()
 
-  // Tell the host whether this doc is in the large/incremental regime (≥ block gate),
-  // for the status-bar marker. Posts only when it flips, so it's cheap to call often.
-  let lastReportedLarge: boolean | null = null
+  // Report which large-document helpers are active to the host, for the status-bar
+  // marker + tooltip. content-visibility (≥100 KB) and streaming (>700 KB) are fixed
+  // for the doc's lifetime; incremental serialization (≥700 blocks) can flip as the
+  // user edits. Post only when the active SET changes, so it's cheap to call often.
+  const docChars = typeof msg.content === 'string' ? msg.content.length : 0
+  const cvActive =
+    msg.options?.contentVisibility !== false &&
+    docChars >= CONTENT_VIS_MIN_CHARS
+  const streamActive =
+    msg.options?.streamLargeFiles !== false && docChars > STREAM_MIN_CHARS
+  let lastReportedSig: string | null = null
   reportDocMode = () => {
-    const large = irIncrementalElement() !== undefined
+    const incremental = irIncrementalElement() !== undefined
     const blocks = irElement()?.children.length ?? 0
-    if (large === lastReportedLarge) return
-    lastReportedLarge = large
-    vscode.postMessage({ command: 'docMode', large, blocks })
+    const sig = `${cvActive}|${streamActive}|${incremental}`
+    if (sig === lastReportedSig) return
+    lastReportedSig = sig
+    vscode.postMessage({
+      command: 'docMode',
+      contentVisibility: cvActive,
+      streaming: streamActive,
+      incremental,
+      blocks,
+      chars: docChars,
+    })
   }
 
   // Keep Vditor's idle window mode-aware (Vditor reads options.undoDelay live). IR/SV
@@ -461,10 +496,7 @@ function initVditor(msg) {
   // Large documents are streamed in chunk-by-chunk (task 49) instead of handed to
   // Vditor whole — one monolithic Md2VditorIRDOM(fullDoc) blocks the editor for
   // seconds. When streaming, construct empty and fill in after() via streamRenderIR.
-  const willStream =
-    msg.options?.streamLargeFiles !== false &&
-    typeof msg.content === 'string' &&
-    msg.content.length > STREAM_MIN_CHARS
+  const willStream = streamActive
   // Constructed from `vditor/src` (we bundle from source); the global is typed from the
   // published `vditor` (dist) types — cast across the two identities at the assignment.
   ;(window as any).vditor = new Vditor('app', {
@@ -529,6 +561,17 @@ function initVditor(msg) {
         fixPanelHover()
         if (msg.options?.outlineHighlight !== false) {
           setupOutlineFlash(window.vditor)
+        }
+        {
+          const oel: HTMLElement | undefined = (window.vditor as any)?.vditor
+            ?.outline?.element
+          if (oel) {
+            const pos =
+              msg.options?.outlinePosition === 'left' ? 'left' : 'right'
+            setupOutlineResize(oel, pos, (w) =>
+              vscode.postMessage({ command: 'save-outline-width', width: w }),
+            )
+          }
         }
         // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
         setupSplitScrollSync()
@@ -828,6 +871,20 @@ function handleUploaded(msg: any) {
   })
 }
 
+// Scroll the webview to the Nth heading (the native-outline tree click, task 78).
+// Headings render in document order across IR/WYSIWYG/SV, so the source-parsed
+// ordinal lines up with the Nth <h1-6> in the active editor element.
+function handleScrollToHeading(msg: any) {
+  const el = activeModeElement(window.vditor)
+  if (!el) return
+  const headings = el.querySelectorAll('h1, h2, h3, h4, h5, h6')
+  const target = headings[msg.index] as HTMLElement | undefined
+  if (!target) return
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  target.classList.add(FLASH_CLASS)
+  setTimeout(() => target.classList.remove(FLASH_CLASS), 1400)
+}
+
 const messageHandlers: Record<string, (msg: any) => void> = {
   update: handleUpdate,
   'set-theme': handleSetTheme,
@@ -836,6 +893,7 @@ const messageHandlers: Record<string, (msg: any) => void> = {
   'get-cursor-offset': handleGetCursorOffset,
   'diff-info': handleDiffInfo,
   uploaded: handleUploaded,
+  'scroll-to-heading': handleScrollToHeading,
 }
 
 window.addEventListener('message', (e) => {

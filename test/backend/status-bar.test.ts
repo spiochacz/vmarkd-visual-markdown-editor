@@ -44,11 +44,14 @@ describe('status bar — reading time + mode (task 35) + doc-size marker (task 6
     expect(docSize.visible).toBe(false)
   })
 
-  it('shows the "Large md" marker when the webview has reported the large regime', () => {
+  it('shows the "Large md" marker and lists every active helper in the tooltip', () => {
     mock.createTextDocument('/workspace/big.md', 'word word word')
     docLargeMode.set(Uri.file('/workspace/big.md').toString(), {
-      large: true,
       blocks: 1234,
+      chars: 350_000,
+      contentVisibility: true,
+      streaming: false,
+      incremental: true,
     })
     mock.setActiveTab(
       new TabInputCustom(Uri.file('/workspace/big.md'), VIEW_TYPE),
@@ -58,7 +61,50 @@ describe('status bar — reading time + mode (task 35) + doc-size marker (task 6
     const { docSize } = bar()
     expect(docSize.visible).toBe(true)
     expect(docSize.text).toContain('Large md')
-    expect(docSize.tooltip).toContain('1234')
+    const tip = (docSize.tooltip as { value: string }).value
+    expect(tip).toContain('content-visibility')
+    expect(tip).toContain('incremental serialization')
+    expect(tip).toContain('1234')
+    // streaming was NOT active for this doc → not listed
+    expect(tip).not.toContain('chunked streaming')
+  })
+
+  it('shows the marker when ONLY content-visibility is active (sub-block-gate doc)', () => {
+    mock.createTextDocument('/workspace/mid.md', 'word word word')
+    docLargeMode.set(Uri.file('/workspace/mid.md').toString(), {
+      blocks: 120,
+      chars: 150_000,
+      contentVisibility: true,
+      streaming: false,
+      incremental: false,
+    })
+    mock.setActiveTab(
+      new TabInputCustom(Uri.file('/workspace/mid.md'), VIEW_TYPE),
+    )
+    activate(mock.createExtensionContext() as any)
+
+    const { docSize } = bar()
+    expect(docSize.visible).toBe(true)
+    const tip = (docSize.tooltip as { value: string }).value
+    expect(tip).toContain('content-visibility')
+    expect(tip).not.toContain('incremental serialization')
+  })
+
+  it('hides the marker when no helper is active', () => {
+    mock.createTextDocument('/workspace/small.md', 'word word word')
+    docLargeMode.set(Uri.file('/workspace/small.md').toString(), {
+      blocks: 10,
+      chars: 1000,
+      contentVisibility: false,
+      streaming: false,
+      incremental: false,
+    })
+    mock.setActiveTab(
+      new TabInputCustom(Uri.file('/workspace/small.md'), VIEW_TYPE),
+    )
+    activate(mock.createExtensionContext() as any)
+
+    expect(bar().docSize.visible).toBe(false)
   })
 
   it('shows Source + open-editor toggle, and hides the doc-size marker, in the text editor', () => {

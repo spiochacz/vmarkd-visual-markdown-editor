@@ -40,7 +40,9 @@ describe('activate()', () => {
   it('marks the vmarkd.options key for settings sync', () => {
     const context = mock.createExtensionContext()
     activate(context as any)
-    expect(mock.calls.setKeysForSync).toContainEqual(['vmarkd.options'])
+    expect(mock.calls.setKeysForSync).toContainEqual(
+      expect.arrayContaining(['vmarkd.options', 'vmarkd.outlineWidth']),
+    )
   })
 
   it('creates a levelled log channel and registers it for disposal (task 18 §2d)', () => {
@@ -107,7 +109,6 @@ describe('resolveCustomTextEditor — init handshake', () => {
       'editor.headingMarkers': false,
       'editor.fontSize': 'vditor',
       'outline.position': 'left',
-      'outline.width': 320,
       'outline.openByDefault': true,
       'outline.highlight': false,
     })
@@ -118,7 +119,6 @@ describe('resolveCustomTextEditor — init handshake', () => {
       showHeadingMarkers: false,
       fontSize: 'vditor',
       outlinePosition: 'left',
-      outlineWidth: 320,
       showOutlineByDefault: true,
       outlineHighlight: false,
     })

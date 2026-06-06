@@ -2,6 +2,7 @@ import * as vscode from 'vscode'
 import * as NodePath from 'node:path'
 import * as fs from 'node:fs'
 import { readingTime, wordCount } from './reading-time'
+import { MarkdownOutlineProvider, type HeadingItem } from './outline-tree'
 import { selectionForLine } from './reveal-range'
 import { createDiffScheduler, makeDiffComputer } from './git-diff'
 import {
@@ -22,6 +23,7 @@ import {
 } from './wiki'
 
 const KeyVditorOptions = 'vmarkd.options'
+const KeyOutlineWidth = 'vmarkd.outlineWidth'
 const MarkdownEditorViewType = 'vmarkd.editor'
 const WikiFileContextKey = 'vmarkd.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])
@@ -224,9 +226,19 @@ async function updateEditorContexts() {
 // is the status-bar updater, wired in activate() so the webview report can refresh it.
 export const docLargeMode = new Map<
   string,
-  { large: boolean; blocks: number }
+  {
+    blocks: number
+    chars: number
+    contentVisibility: boolean
+    streaming: boolean
+    incremental: boolean
+  }
 >()
 let refreshStatusBarMarker: () => void = () => {}
+// Wired in activate(); called from a panel's onDidChangeViewState so the
+// Markdown Outline tree (task 78) follows the active vMarkd editor — custom
+// editors don't fire onDidChangeActiveTextEditor.
+let refreshOutline: () => void = () => {}
 
 // Native status-bar items (task 35): estimated reading time + an editor-mode
 // indicator (WYSIWYG vs Source) + a large/normal document marker (task 69), shown
@@ -275,12 +287,33 @@ function setupStatusBar(context: vscode.ExtensionContext): () => void {
       mode.tooltip = 'Markdown: visual editor — click to edit as source'
       mode.command = 'vmarkd.openTextEditor'
       mode.show()
-      // Large-doc marker (task 69) — shown ONLY for large docs (its presence = incremental
-      // mode). Only meaningful in the visual editor, which owns the incremental serializer.
+      // Large-doc marker — shown whenever ANY large-document helper is active
+      // (content-visibility, streaming, or incremental serialization). The tooltip
+      // lists exactly which are on. Only meaningful in the visual editor (webview).
       const ds = docLargeMode.get(input.uri.toString())
-      if (ds?.large) {
+      const active: string[] = []
+      if (ds?.contentVisibility) {
+        const kb = ds.chars ? ` (~${Math.round(ds.chars / 1024)} KB)` : ''
+        active.push(
+          `**content-visibility**${kb} — browser skips layout/paint of off-screen blocks, keeping tab-switch repaint fast`,
+        )
+      }
+      if (ds?.streaming) {
+        active.push(
+          '**chunked streaming** — the document was rendered progressively at open instead of one blocking pass',
+        )
+      }
+      if (ds?.incremental) {
+        active.push(
+          `**incremental serialization** (${ds.blocks} top-level blocks) — only the edited block is reparsed on save`,
+        )
+      }
+      if (active.length) {
         docSize.text = '$(zap) Large md'
-        docSize.tooltip = `Large document — ${ds.blocks} top-level blocks: incremental serialization (only the edited block is reparsed)`
+        const tip = new vscode.MarkdownString(
+          `**Large-document helpers active:**\n\n${active.map((a) => `- ${a}`).join('\n')}`,
+        )
+        docSize.tooltip = tip
         docSize.show()
       } else {
         docSize.hide()
@@ -371,9 +404,48 @@ export function activate(context: vscode.ExtensionContext) {
   const updateStatusBar = setupStatusBar(context)
   // Let a webview's large/normal-mode report (task 69) refresh the status-bar marker.
   refreshStatusBarMarker = updateStatusBar
+
+  // Markdown Outline tree (task 78): a sidebar TreeView, because VS Code's
+  // built-in Outline does not query DocumentSymbolProvider while a custom editor
+  // is active (microsoft/vscode#97095). Tracks the active vMarkd/text markdown
+  // document and lets a click scroll the webview to that heading.
+  const outlineProvider = new MarkdownOutlineProvider()
+  let lastHasOutline: boolean | undefined
+  const updateOutline = () => {
+    const enabled =
+      MarkdownEditorProvider.config.get<boolean>('outline.treeView') !== false
+    const target = enabled ? getCommandTarget() : undefined
+    const doc =
+      target && isSupportedMarkdownUri(target)
+        ? vscode.workspace.textDocuments.find(
+            (d) => d.uri.toString() === target.toString(),
+          )
+        : undefined
+    outlineProvider.refresh(doc)
+    const has = !!doc
+    if (has !== lastHasOutline) {
+      lastHasOutline = has
+      void vscode.commands.executeCommand(
+        'setContext',
+        'vmarkd.hasOutline',
+        has,
+      )
+    }
+  }
+  // Debounced — a single file switch fires many editor/tab/view-state events;
+  // coalesce them so the tree rebuilds once (not 4–5×, which froze the UI).
+  let outlineTimer: NodeJS.Timeout | undefined
+  const scheduleOutline = () => {
+    if (outlineTimer) clearTimeout(outlineTimer)
+    outlineTimer = setTimeout(updateOutline, 120)
+  }
+  const debouncedOutline = scheduleOutline
+
+  refreshOutline = scheduleOutline
   const refreshContexts = () => {
     void updateEditorContexts()
     updateStatusBar()
+    scheduleOutline()
   }
   // Live reading-time on edits, debounced so it doesn't recompute per keystroke.
   let statusBarTimer: NodeJS.Timeout | undefined
@@ -525,9 +597,40 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidOpenTextDocument(refreshContexts),
     vscode.workspace.onDidCloseTextDocument(refreshContexts),
     vscode.workspace.onDidChangeTextDocument(debouncedStatusBar),
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      if (e.document.uri.toString() === outlineProvider.uri?.toString())
+        debouncedOutline()
+    }),
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('vmarkd.outline.treeView')) scheduleOutline()
+    }),
+    vscode.window.registerTreeDataProvider('vmarkd.outline', outlineProvider),
+    vscode.commands.registerCommand(
+      'vmarkd.outlineReveal',
+      (item: HeadingItem) => {
+        const panel = MarkdownEditorProvider.findPanelForUri(item.documentUri)
+        if (panel) {
+          panel.panel.webview.postMessage({
+            command: 'scroll-to-heading',
+            index: item.index,
+          })
+          panel.panel.reveal?.(undefined, false)
+        } else {
+          // No open vMarkd webview — fall back to revealing the source line.
+          void vscode.window.showTextDocument(item.documentUri).then((ed) => {
+            const pos = new vscode.Position(item.line, 0)
+            ed.selection = new vscode.Selection(pos, pos)
+            ed.revealRange(
+              new vscode.Range(pos, pos),
+              vscode.TextEditorRevealType.AtTop,
+            )
+          })
+        }
+      },
+    ),
   )
 
-  context.globalState.setKeysForSync([KeyVditorOptions])
+  context.globalState.setKeysForSync([KeyVditorOptions, KeyOutlineWidth])
   refreshContexts()
 }
 
@@ -748,6 +851,13 @@ export class EditorSession {
         ...MarkdownEditorProvider.sanitizeVditorOptions(
           this.context.globalState.get(KeyVditorOptions),
         ),
+        // Drag-resized outline width overrides the setting default.
+        ...(this.context.globalState.get<number>(KeyOutlineWidth)
+          ? {
+              outlineWidth:
+                this.context.globalState.get<number>(KeyOutlineWidth),
+            }
+          : {}),
       },
       theme: currentThemeKind(),
       wiki: wikiInit,
@@ -785,12 +895,16 @@ export class EditorSession {
     await this.syncToEditor(message.content)
   }
 
-  // task 69: the webview reports whether this doc is in the large/incremental regime
-  // (≥ block-count gate). Store it per-uri and refresh the status-bar marker.
+  // The webview reports which large-document helpers are active (content-visibility,
+  // streaming, incremental serialization). Store per-uri and refresh the status-bar
+  // marker, whose tooltip lists the active ones.
   private onDocMode(message: any) {
     docLargeMode.set(this.activeUri.toString(), {
-      large: Boolean(message.large),
       blocks: Number(message.blocks) || 0,
+      chars: Number(message.chars) || 0,
+      contentVisibility: Boolean(message.contentVisibility),
+      streaming: Boolean(message.streaming),
+      incremental: Boolean(message.incremental),
     })
     refreshStatusBarMarker()
   }
@@ -1050,6 +1164,8 @@ export class EditorSession {
       'navigate-back': () => this.onNavigateBack(),
       'open-settings': () => this.onOpenSettings(),
       'list-wiki-pages': () => this.onListWikiPages(),
+      'save-outline-width': (message) =>
+        this.context.globalState.update(KeyOutlineWidth, message.width),
       upload: (message) => this.onUpload(message),
       'open-link': (message) => this.onOpenLink(message),
       'open-wikilink': (message) => this.onOpenWikilink(message),
@@ -1142,6 +1258,11 @@ export class EditorSession {
         }
         webviewPanel.title = `${event.document.isDirty ? '[edit]' : ''}${NodePath.basename(this.activeFsPath)}`
       }),
+      webviewPanel.onDidChangeViewState(() => {
+        // Custom editors don't fire onDidChangeActiveTextEditor, so refresh the
+        // Markdown Outline tree (task 78) when this panel becomes active/inactive.
+        refreshOutline()
+      }),
       webviewPanel.webview.onDidReceiveMessage(async (message) => {
         debug('msg from webview review', message, webviewPanel.active)
 
@@ -1170,6 +1291,10 @@ export class EditorSession {
       document.getText(),
       currentThemeKind(),
     )
+
+    // Populate the Markdown Outline tree for this freshly-opened editor (task 78);
+    // onDidChangeViewState may not fire on the initial open.
+    refreshOutline()
   }
 }
 
@@ -1339,11 +1464,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),
       fontSize: c.get<string>('editor.fontSize'),
       outlinePosition: c.get<string>('outline.position'),
-      outlineWidth: c.get<number>('outline.width'),
       showOutlineByDefault: c.get<boolean>('outline.openByDefault'),
       outlineHighlight: c.get<boolean>('outline.highlight'),
       codeTheme: c.get<string>('theme.code'),
       streamLargeFiles: c.get<boolean>('advanced.streamLargeFiles'),
+      contentVisibility: c.get<boolean>('advanced.contentVisibility'),
       linkOpenWithModifier: c.get<boolean>('editor.linkOpenWithModifier'),
       // Image upload conversion (task 74) — read by the webview's upload handler.
       imageFormat: c.get<string>('image.format'),
@@ -1433,7 +1558,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     //   - styles: same-origin + 'unsafe-inline' (Vditor sets inline style attrs and
     //     we inject <style> for custom/external CSS).
     //   - images: same-origin + data:/blob:; remote https: only when
-    //     vmarkd.security.allowRemoteImages is on (task 67 — exfil channel).
+    //     vmarkd.image.allowRemoteImages is on (task 67 — exfil channel).
     // Instant paint (perf): render the document to Vditor IR DOM host-side and
     // inline it as a static, read-only overlay. It shows during HTML parse —
     // before main.js loads + the webview's own Lute runtime bootstraps (~150 ms)
@@ -1539,10 +1664,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // (verified against the vendored engine), so without this they beacon out —
     // a privacy/exfil channel, not code-exec. CSS url() fetches are governed by
     // img-src too, so dropping bare `https:` here closes BOTH vectors at once.
-    // Opt back in per-document via vmarkd.security.allowRemoteImages.
+    // Opt back in per-document via vmarkd.image.allowRemoteImages.
     const allowRemoteImages =
       MarkdownEditorProvider.cfgFor(uri).get<boolean>(
-        'security.allowRemoteImages',
+        'image.allowRemoteImages',
       ) === true
     const imgSrc = `${csp} data: blob:${allowRemoteImages ? ' https:' : ''}`
     const cspMeta =

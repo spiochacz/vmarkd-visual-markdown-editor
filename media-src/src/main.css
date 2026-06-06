@@ -124,6 +124,22 @@ body[data-use-vscode-theme-color="1"]
 .vditor-ir pre.vditor-reset {
   position: relative;
 }
+/* Big-doc freeze fix (VS Code 1.123 / Chromium 148 froze the whole window when a
+   large retained webview re-laid-out/painted on tab switch). content-visibility:auto
+   makes the browser skip layout/paint of off-screen IR blocks → O(viewport), not
+   O(4000 blocks). Scoped to large docs only (body class set in initVditor) so small
+   docs — and the deterministic e2e suite — are unaffected by the scroll/intrinsic-size
+   side effects.
+   EXCLUDE the gutter-marker blocks (headings H1–H6, link-ref-defs, footnotes, TOC):
+   their `::before` marker is painted in the LEFT gutter at margin-left:-29px, OUTSIDE
+   the block's box, and content-visibility:auto's implied paint containment clips it
+   (markers vanish even while the block is on-screen). These are a tiny fraction of
+   blocks, so skipping them costs nothing perf-wise. */
+body.vmarkd-large-doc .vditor-ir > pre.vditor-reset
+  > *:not(h1, h2, h3, h4, h5, h6, [data-type="link-ref-defs-block"], [data-type="footnotes-block"], .vditor-toc) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 40px;
+}
 /* Collapse-to-"..." applies ONLY to the IR table panel (it sits near the cursor
    and should be unobtrusive). Scoped to #fix-table-ir-wrapper so it does NOT
    touch the toolbar dropdown panels (emoji, "more", code/content theme), which
@@ -350,6 +366,58 @@ body[data-highlight-headings="1"] .vditor-reset h6 {
    width) still wins. */
 .vditor-outline {
   width: var(--me-outline-width, 200px);
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Drag-resize handle — sits as a flex sibling between the editor and the
+   outline (NOT inside .vditor-outline, because Vditor uses lastElementChild
+   as its render target). Zero width in flow so it doesn't push layout. */
+.outline-resize-handle {
+  width: 6px;
+  margin-left: -3px;
+  margin-right: -3px;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 10;
+  cursor: col-resize;
+}
+/* Thin visible line, centred in the wider (easy-to-grab) hit area. */
+.outline-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background 0.15s;
+}
+.outline-resize-handle:hover::after,
+body.outline-resizing .outline-resize-handle::after {
+  background: var(--vscode-sash-hoverBorder, rgba(0, 122, 204, 0.6));
+}
+body.outline-resizing {
+  cursor: col-resize !important;
+  user-select: none;
+}
+body.outline-resizing .vditor-reset,
+body.outline-resizing .vditor-ir,
+body.outline-resizing .vditor-wysiwyg,
+body.outline-resizing .vditor-sv {
+  pointer-events: none;
+}
+
+/* Fix: the webview's user-agent stylesheet can render native list markers
+   (disclosure triangles) on outline <li> even though Vditor sets list-style:
+   none on <ul>. Kill them at the <li> level + the ::marker pseudo. */
+.vditor-outline li {
+  list-style: none !important;
+}
+.vditor-outline li::marker {
+  content: none;
+  display: none;
 }
 
 /* Outline navigation flash (task 13): brief highlight on the clicked heading. */
