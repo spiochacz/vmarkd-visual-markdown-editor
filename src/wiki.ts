@@ -4,12 +4,18 @@ import { normalizeWikiLookupKey, wikiKeysForRelativePath } from './wiki-core'
 
 export { normalizeWikiLookupKey } from './wiki-core'
 
-const WikiFolderName = 'wiki'
 const SupportedMarkdownExtensions = new Set(['.md', '.markdown'])
 
 export interface WikiDocumentContext {
   enabled: boolean
   rootLabel?: string
+}
+
+function getWikiConfig() {
+  const cfg = vscode.workspace.getConfiguration('vmarkd.wiki')
+  const enabled = cfg.get<boolean>('enabled') !== false
+  const rootPath = cfg.get<string>('root') ?? ''
+  return { enabled, rootPath }
 }
 
 export function isWikiFile(uri: vscode.Uri | undefined) {
@@ -23,7 +29,6 @@ export function getWikiDocumentContext(
   if (!root) {
     return { enabled: false }
   }
-
   return {
     enabled: true,
     rootLabel: vscode.workspace.asRelativePath(root, false),
@@ -34,19 +39,14 @@ export function getWikiRoot(uri: vscode.Uri) {
   if (uri.scheme !== 'file' || !isSupportedMarkdownUri(uri)) {
     return undefined
   }
+  const { enabled, rootPath } = getWikiConfig()
+  if (!enabled) return undefined
 
-  let current = NodePath.dirname(uri.fsPath)
-  while (true) {
-    if (NodePath.basename(current).toLowerCase() === WikiFolderName) {
-      return vscode.Uri.file(current)
-    }
+  const folder = vscode.workspace.getWorkspaceFolder(uri)
+  if (!folder) return undefined
 
-    const parent = NodePath.dirname(current)
-    if (parent === current) {
-      return undefined
-    }
-    current = parent
-  }
+  // Explicit root → that subfolder. Empty root → workspace root.
+  return rootPath ? vscode.Uri.joinPath(folder.uri, rootPath) : folder.uri
 }
 
 function isSupportedMarkdownUri(uri: vscode.Uri) {
@@ -69,9 +69,7 @@ export async function collectWikiMarkdownFiles(root: vscode.Uri) {
 
   while (queue.length) {
     const current = queue.shift()
-    if (!current) {
-      continue
-    }
+    if (!current) continue
 
     const entries = await vscode.workspace.fs.readDirectory(current)
     for (const [name, type] of entries) {
@@ -80,7 +78,6 @@ export async function collectWikiMarkdownFiles(root: vscode.Uri) {
         queue.push(entryUri)
         continue
       }
-
       if (
         (type & vscode.FileType.File) !== 0 &&
         SupportedMarkdownExtensions.has(NodePath.extname(name).toLowerCase())
@@ -93,7 +90,6 @@ export async function collectWikiMarkdownFiles(root: vscode.Uri) {
   return results
 }
 
-// Create a new wiki page file with a heading derived from the normalized key.
 export async function createWikiPage(
   root: vscode.Uri,
   key: string,

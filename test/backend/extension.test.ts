@@ -84,7 +84,7 @@ describe('resolveCustomTextEditor — init handshake', () => {
       type: 'init',
       content: '# Hello\n',
       options: { useVscodeThemeColor: true, enableFullWidth: true },
-      wiki: { enabled: false },
+      wiki: { enabled: true },
     })
     expect(init.cdn).toContain('/ext/media/vditor')
   })

@@ -406,8 +406,24 @@
         }
       },
       {
-        "title": "Advanced",
+        "title": "Wiki",
         "order": 6,
+        "properties": {
+          "vmarkd.wiki.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable wiki-link rendering ([[Page Name]] chips, navigation, and page creation)."
+          },
+          "vmarkd.wiki.root": {
+            "type": "string",
+            "default": "",
+            "description": "Wiki root folder (relative to the workspace root). Leave empty to use the workspace root. Example: 'docs/wiki'."
+          }
+        }
+      },
+      {
+        "title": "Advanced",
+        "order": 7,
         "properties": {
           "vmarkd.advanced.instantPreview": {
             "type": "boolean",
