@@ -146,9 +146,7 @@ describe('buildWebviewHtml', () => {
     })
 
     it('includes toolbar placeholder when showToolbar is true', () => {
-      const html = buildWebviewHtml(
-        defaults({ preRenderedHtml: '<p>tb</p>' }),
-      )
+      const html = buildWebviewHtml(defaults({ preRenderedHtml: '<p>tb</p>' }))
       expect(html).toContain('vditor-toolbar')
     })
 
@@ -253,9 +251,9 @@ describe('buildWebviewHtml', () => {
 describe('sanitizeCss', () => {
   it('strips </style closing-tag sequence case-insensitively', () => {
     expect(sanitizeCss('a</STYLE >b')).toBe('a >b')
-    expect(sanitizeCss('body{}</style><script>alert(1)</script>')).not.toContain(
-      '</style',
-    )
+    expect(
+      sanitizeCss('body{}</style><script>alert(1)</script>'),
+    ).not.toContain('</style')
   })
 
   it('returns empty string for undefined', () => {

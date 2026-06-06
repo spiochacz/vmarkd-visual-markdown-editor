@@ -56,10 +56,7 @@ function buildBodyAttrs(config: HtmlBuildConfig): string {
   )
 }
 
-function buildCssStyleTags(
-  externalCss: string,
-  customCss: string,
-): string {
+function buildCssStyleTags(externalCss: string, customCss: string): string {
   return (
     `<style id="external-css">${sanitizeCss(externalCss)}</style>` +
     `<style id="custom-css">${sanitizeCss(customCss)}</style>`
@@ -98,17 +95,24 @@ function buildPrerenderOverlay(
     `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
   )}" rel="stylesheet">`
 
-  const style =
-    `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
+  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
 
-  const scrollScript =
-    `<script nonce="${nonce}">(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+(e.deltaY||0));}function k(e){if(!s.active)return;var vh=window.innerHeight||800,d=0;switch(e.key){case 'PageDown':case ' ':d=vh*0.9;break;case 'PageUp':d=-vh*0.9;break;case 'ArrowDown':d=48;break;case 'ArrowUp':d=-48;break;case 'End':d=1e7;break;case 'Home':s.intent=0;return;default:return;}s.intent=Math.max(0,s.intent+d);}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>`
+  const scrollScript = `<script nonce="${nonce}">(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+(e.deltaY||0));}function k(e){if(!s.active)return;var vh=window.innerHeight||800,d=0;switch(e.key){case 'PageDown':case ' ':d=vh*0.9;break;case 'PageUp':d=-vh*0.9;break;case 'ArrowDown':d=48;break;case 'ArrowUp':d=-48;break;case 'End':d=1e7;break;case 'Home':s.intent=0;return;default:return;}s.intent=Math.max(0,s.intent+d);}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>`
 
   return { overlay, themeLink, style, scrollScript }
 }
 
 export function buildWebviewHtml(params: HtmlBuildParams): string {
-  const { toUri, baseHref, cspSource, nonce, theme, config, savedMode, i18nLang } = params
+  const {
+    toUri,
+    baseHref,
+    cspSource,
+    nonce,
+    theme,
+    config,
+    savedMode,
+    i18nLang,
+  } = params
 
   const jsFiles = ['media/dist/main.js'].map(toUri)
   const cssFiles = ['media/dist/main.css'].map(toUri)

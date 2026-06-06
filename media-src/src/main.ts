@@ -788,8 +788,7 @@ function handleConfigChanged(msg: any) {
     const wiki = lastInitMsg.wiki
       ? {
           ...lastInitMsg.wiki,
-          enabled:
-            msg.options?.wikiEnabled ?? lastInitMsg.wiki.enabled,
+          enabled: msg.options?.wikiEnabled ?? lastInitMsg.wiki.enabled,
         }
       : lastInitMsg.wiki
     initVditor({
