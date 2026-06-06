@@ -20,6 +20,7 @@ import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
 import { isMac } from './platform'
 import { setupCustomRenderer } from './custom-renderer'
+import { patchLuteSerialize } from './wiki-serialize'
 import { setupOutlineFlash, FLASH_CLASS } from './outline'
 import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
@@ -598,6 +599,7 @@ function initVditor(msg) {
           enabled: wikiEnabled,
           knownPages: wikiEnabled ? wikiKnownPages : undefined,
         })
+        if (wikiEnabled) patchLuteSerialize(window.vditor)
 
         if (willStream) {
           // Large doc (task 49): stream it in chunk-by-chunk. Keep the instant-paint

@@ -1,6 +1,7 @@
 import '../src/preload'
 import Vditor from 'vditor'
 import { setupCustomRenderer, wikiTextToHtml } from '../src/custom-renderer'
+import { patchLuteSerialize } from '../src/wiki-serialize'
 
 // Wiki-link rendering harness. Creates a real Vditor (IR mode) with wiki
 // custom renderers registered, so [[wiki]] syntax renders as chip spans.
@@ -37,10 +38,13 @@ for (const k of ['home', 'alpha', 'beta', 'target']) knownPages.add(k)
   for (const k of keys) knownPages.add(k)
 }
 
-// Re-render with current knownPages using the ORIGINAL markdown.
-// setValue(getValue()) loses [[wiki]] syntax (Lute 3.11 dropped reverse renderers).
+// Re-render with current knownPages. With patchLuteSerialize, getValue()
+// preserves [[wiki]] syntax, so we can use it for re-render. Falls back
+// to the original value in case of any issue.
 ;(window as any).__reRender = () => {
-  ;(window as any).vditor.setValue(value)
+  const v = (window as any).vditor
+  const md = v.getValue()
+  v.setValue(md.includes('[[') ? md : value)
 }
 
 const editor = new Vditor('app', {
@@ -51,6 +55,7 @@ const editor = new Vditor('app', {
   after() {
     ;(window as any).vditor = editor
     setupCustomRenderer(editor, { enabled: true, knownPages })
+    patchLuteSerialize(editor)
     // Re-render with wiki renderers active (constructor ran before setup).
     editor.setValue(value)
     ;(window as any).__ready = true

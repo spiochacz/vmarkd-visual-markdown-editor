@@ -106,6 +106,19 @@ test('removing from knownPages and re-rendering flips existing to missing', asyn
   expect(await chip(page, 'Home').getAttribute('data-wiki-missing')).toBe('1')
 })
 
+test('getValue() round-trips wiki syntax without corruption', async ({
+  page,
+}) => {
+  await gotoWiki(page)
+  const md = await page.evaluate(() => (window as any).vditor.getValue())
+  expect(md).toContain('[[Home]]')
+  expect(md).toContain('[[Missing Page]]')
+  expect(md).toContain('[[Target|Display Label]]')
+  expect(md).toContain('[[Alpha]]')
+  expect(md).toContain('[[Beta]]')
+  expect(md).toContain('[[Gamma]]')
+})
+
 test('multiple chips on the same line all render', async ({ page }) => {
   await gotoWiki(page)
   const alpha = chip(page, 'Alpha')
