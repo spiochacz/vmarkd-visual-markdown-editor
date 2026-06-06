@@ -1,4 +1,5 @@
 import './preload'
+import type { HostMessage } from './protocol'
 
 import {
   fileToBase64,
@@ -280,8 +281,59 @@ function bridgePrepaintScroll(): void {
   tick()
 }
 
+function buildVditorOptions(msg: any): any {
+  let opts: any = msg.cdn ? { cdn: msg.cdn } : {}
+  const codeStyle = codeHljsStyle(
+    msg.theme === 'dark' ? 'dark' : 'light',
+    msg.options,
+  )
+  if (msg.theme === 'dark') {
+    opts = deepMerge(opts, {
+      theme: 'dark',
+      preview: { theme: { current: 'dark' }, hljs: { style: codeStyle } },
+    })
+  } else {
+    opts = deepMerge(opts, { preview: { hljs: { style: codeStyle } } })
+  }
+  opts = deepMerge(opts, msg.options, {
+    preview: { math: { inlineDigit: true }, actions: [] },
+  })
+  if (msg.options?.codeBlockLineNumbers) {
+    opts = deepMerge(opts, { preview: { hljs: { lineNumber: true } } })
+  }
+  opts = deepMerge(opts, {
+    outline: {
+      enable: msg.options?.showOutlineByDefault === true,
+      position: msg.options?.outlinePosition === 'left' ? 'left' : 'right',
+    },
+  })
+  return opts
+}
+
+function runFinishInit(msg: any): void {
+  handleToolbarClick()
+  guardToolbarScroll(window.vditor)
+  fixTableIr()
+  fixResponsiveTables()
+  fixPanelHover()
+  if (msg.options?.outlineHighlight !== false) {
+    setupOutlineFlash(window.vditor)
+  }
+  {
+    const oel: HTMLElement | undefined = (window.vditor as any)?.vditor?.outline
+      ?.element
+    if (oel) {
+      const pos = msg.options?.outlinePosition === 'left' ? 'left' : 'right'
+      setupOutlineResize(oel, pos, (w) =>
+        vscode.postMessage({ command: 'save-outline-width', width: w }),
+      )
+    }
+  }
+  setupSplitScrollSync()
+  reportDocMode()
+}
+
 function initVditor(msg) {
-  // Do not log `msg` — it carries the full document content (task 18 §2d).
   lastInitMsg = msg
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
@@ -441,60 +493,7 @@ function initVditor(msg) {
     },
   })
   flushPendingEdit = () => pendingEdit.flush()
-  let defaultOptions: any = msg.cdn ? { cdn: msg.cdn } : {}
-  const codeStyle = codeHljsStyle(
-    msg.theme === 'dark' ? 'dark' : 'light',
-    msg.options,
-  )
-  if (msg.theme === 'dark') {
-    // vditor.setTheme('dark', 'dark')
-    defaultOptions = deepMerge(defaultOptions, {
-      theme: 'dark',
-      preview: {
-        theme: {
-          current: 'dark',
-        },
-        hljs: {
-          style: codeStyle,
-        },
-      },
-    })
-  } else {
-    // Explicit light code theme — avoids any init flash of Vditor's default
-    // before applyVditorTheme runs (task 05). Honors the codeTheme setting.
-    defaultOptions = deepMerge(defaultOptions, {
-      preview: {
-        hljs: {
-          style: codeStyle,
-        },
-      },
-    })
-  }
-  defaultOptions = deepMerge(defaultOptions, msg.options, {
-    preview: {
-      math: {
-        inlineDigit: true,
-      },
-      // Drop Vditor's default preview action bar (Desktop/Tablet/Mobile device
-      // widths + the China-specific "copy for WeChat 公众号 / Zhihu" buttons) —
-      // irrelevant in a VS Code markdown editor.
-      actions: [],
-    },
-  })
-  // Code-block line numbers (rendered preview only). deepMerge keeps the
-  // dark-theme hljs.style sibling intact.
-  if (msg.options?.codeBlockLineNumbers) {
-    defaultOptions = deepMerge(defaultOptions, {
-      preview: { hljs: { lineNumber: true } },
-    })
-  }
-  // Outline panel: open-by-default + side (tasks 07/08). Default position right.
-  defaultOptions = deepMerge(defaultOptions, {
-    outline: {
-      enable: msg.options?.showOutlineByDefault === true,
-      position: msg.options?.outlinePosition === 'left' ? 'left' : 'right',
-    },
-  })
+  const defaultOptions = buildVditorOptions(msg)
   if (window.vditor) {
     vditor.destroy()
     window.vditor = null
@@ -559,31 +558,7 @@ function initVditor(msg) {
       const wikiEnabled = Boolean(msg.wiki?.enabled)
       // Non-visual helpers that need the full editor DOM. Factored out so the
       // streaming path can run them once the whole document is streamed in.
-      const finishInit = () => {
-        handleToolbarClick()
-        guardToolbarScroll(window.vditor)
-        fixTableIr()
-        fixResponsiveTables()
-        fixPanelHover()
-        if (msg.options?.outlineHighlight !== false) {
-          setupOutlineFlash(window.vditor)
-        }
-        {
-          const oel: HTMLElement | undefined = (window.vditor as any)?.vditor
-            ?.outline?.element
-          if (oel) {
-            const pos =
-              msg.options?.outlinePosition === 'left' ? 'left' : 'right'
-            setupOutlineResize(oel, pos, (w) =>
-              vscode.postMessage({ command: 'save-outline-width', width: w }),
-            )
-          }
-        }
-        // Centre-anchored scroll sync for split (sv) view (task 48). Idempotent.
-        setupSplitScrollSync()
-        // Report the initial large/normal doc mode for the status-bar marker (task 69).
-        reportDocMode()
-      }
+      const finishInit = () => runFinishInit(msg)
       try {
         // Force the theme through setTheme at init (constructor options don't
         // reliably apply content/code theme — see applyVditorTheme).
@@ -810,10 +785,18 @@ function handleConfigChanged(msg: any) {
       window.vditor && !applyingExtensionUpdate
         ? vditor.getValue()
         : lastInitMsg.content
+    const wiki = lastInitMsg.wiki
+      ? {
+          ...lastInitMsg.wiki,
+          enabled:
+            msg.options?.wikiEnabled ?? lastInitMsg.wiki.enabled,
+        }
+      : lastInitMsg.wiki
     initVditor({
       ...lastInitMsg,
       content,
       options: { ...lastInitMsg.options, ...msg.options },
+      wiki,
     })
     return
   }
@@ -897,7 +880,7 @@ function handleScrollToHeading(msg: any) {
   setTimeout(() => target.classList.remove(FLASH_CLASS), 1400)
 }
 
-const messageHandlers: Record<string, (msg: any) => void> = {
+const messageHandlers: Record<string, (msg: HostMessage) => void> = {
   update: handleUpdate,
   'set-theme': handleSetTheme,
   'config-changed': handleConfigChanged,
