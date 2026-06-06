@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { rewriteWikiChipsToSource } from './wiki-serialize'
 
 describe('rewriteWikiChipsToSource', () => {
-  const chip = (target: string, source: string, label?: string) =>
-    `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${target}" data-wiki-source="${source}" title="Open wiki page ${target}" role="link" tabindex="0">${label ?? target}</span>`
+  const chip = (target: string, source: string, label?: string, extra = '') =>
+    `<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="${target}" data-wiki-source="${source}"${extra} title="Open wiki page ${target}">${label ?? target}</span>`
 
   it('replaces a simple wiki chip with its [[source]]', () => {
     const html = `<p>See ${chip('Home', '[[Home]]')} here.</p>`
@@ -25,15 +25,12 @@ describe('rewriteWikiChipsToSource', () => {
   })
 
   it('handles missing-page chips (data-wiki-missing="1")', () => {
-    const missingChip =
-      '<span class="wiki-link-chip" data-wiki-link="1" data-wiki-target="Missing" data-wiki-source="[[Missing]]" data-wiki-missing="1" role="link" tabindex="0">Missing</span>'
-    expect(rewriteWikiChipsToSource(`<p>${missingChip}</p>`)).toBe(
-      '<p>[[Missing]]</p>',
-    )
+    const html = `<p>${chip('Missing', '[[Missing]]', undefined, ' data-wiki-missing="1"')}</p>`
+    expect(rewriteWikiChipsToSource(html)).toBe('<p>[[Missing]]</p>')
   })
 
   it('unescapes HTML entities in data-wiki-source', () => {
-    const html = chip('A&B', '[[A&amp;B]]', 'A&amp;B')
+    const html = chip('A&amp;B', '[[A&amp;B]]', 'A&amp;B')
     expect(rewriteWikiChipsToSource(html)).toBe('[[A&B]]')
   })
 

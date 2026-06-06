@@ -103,7 +103,7 @@ export function wikiTextToHtml(
         payload.target,
       )}" data-wiki-source="${escapeAttribute(source)}"${isMissing ? ' data-wiki-missing="1"' : ''} title="${isMissing ? 'Missing wiki page' : 'Open wiki page'} ${escapeAttribute(
         payload.target,
-      )}" role="link" tabindex="0">${escapeHTML(displayText)}</span>`,
+      )}">${escapeHTML(displayText)}</span>`,
     )
 
     lastIndex = WikiLinkPattern.lastIndex

@@ -33,6 +33,7 @@ const built = await esbuild.build({
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
     width: path.join(__dirname, 'width-harness.ts'),
     wiki: path.join(__dirname, 'wiki-harness.ts'),
+    'split-scroll': path.join(__dirname, 'split-scroll-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -71,6 +72,9 @@ const imageConvertHtml = fs.readFileSync(
 )
 const widthHtml = fs.readFileSync(path.join(__dirname, 'width.html'))
 const wikiHtml = fs.readFileSync(path.join(__dirname, 'wiki.html'))
+const splitScrollHtml = fs.readFileSync(
+  path.join(__dirname, 'split-scroll.html'),
+)
 
 const types = {
   '.js': 'text/javascript',
@@ -163,6 +167,10 @@ const server = http.createServer((req, res) => {
   if (url === '/wiki.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(wikiHtml)
+  }
+  if (url === '/split-scroll.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(splitScrollHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

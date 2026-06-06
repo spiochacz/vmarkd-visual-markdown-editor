@@ -20,7 +20,7 @@ describe('wikiTextToHtml', () => {
     expect(html).toContain('class="wiki-link-chip"')
     expect(html).toContain('data-wiki-target="Page"')
     expect(html).toContain('data-wiki-source="[[Page]]"')
-    expect(html).toContain('role="link"')
+    expect(html).toContain('data-wiki-link="1"')
     expect(html).toMatch(/>Page<\/span>/)
   })
 

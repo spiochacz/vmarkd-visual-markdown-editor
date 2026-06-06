@@ -206,9 +206,18 @@ export function fixLinkClick() {
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement | null
     const wikiElement = target?.closest<HTMLElement>('[data-wiki-link="1"]')
-    if (activateWikiLink(wikiElement)) {
-      e.preventDefault()
-      e.stopPropagation()
+    if (wikiElement) {
+      // In editable areas (IR/wysiwyg contenteditable) the modifier policy
+      // applies: plain click = edit (place caret), Ctrl/Cmd+click = navigate.
+      // In read-only areas (preview, chrome) plain click navigates directly.
+      const inEditable = !!wikiElement.closest('[contenteditable]')
+      if (!inEditable || shouldOpenLink(e)) {
+        e.preventDefault()
+        e.stopPropagation()
+        activateWikiLink(wikiElement)
+      }
+      // In editable mode with plain click: do NOT return — let the event
+      // propagate to Vditor so it can place the caret for editing.
       return
     }
 
@@ -240,6 +249,88 @@ export function fixLinkClick() {
       activateWikiLink(wikiElement)
     }
   })
+
+  // Delete/Backspace on wiki chips: contenteditable can't natively remove an
+  // opaque inline <span> with one keystroke. Handle it ourselves: if the caret
+  // is adjacent to a wiki chip (or inside one), remove the chip and leave the
+  // caret in its place. Capture phase so we run before Vditor's input handler.
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      const sel = window.getSelection()
+      if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return
+
+      const range = sel.getRangeAt(0)
+      const container = range.startContainer
+      const offset = range.startOffset
+
+      // Case 1: caret is INSIDE a wiki chip span
+      const inside =
+        (container as HTMLElement)?.closest?.('[data-wiki-link="1"]') ??
+        container.parentElement?.closest?.('[data-wiki-link="1"]')
+      if (inside) {
+        e.preventDefault()
+        e.stopPropagation()
+        const parent = inside.parentNode!
+        const textNode = document.createTextNode('')
+        parent.replaceChild(textNode, inside)
+        range.setStart(textNode, 0)
+        range.collapse(true)
+        sel.removeAllRanges()
+        sel.addRange(range)
+        // Trigger Vditor's input handler to re-parse the block
+        parent
+          .closest('[contenteditable]')
+          ?.dispatchEvent(new Event('input', { bubbles: true }))
+        return
+      }
+
+      // Case 2: caret is right BEFORE a chip (Delete) or right AFTER (Backspace)
+      let chip: Element | null = null
+      if (container.nodeType === 1) {
+        // caret in element — check child at offset
+        const el = container as HTMLElement
+        if (e.key === 'Delete' && el.childNodes[offset]) {
+          const next = el.childNodes[offset] as HTMLElement
+          if (next.nodeType === 1 && next.matches?.('[data-wiki-link="1"]'))
+            chip = next
+        }
+        if (e.key === 'Backspace' && offset > 0 && el.childNodes[offset - 1]) {
+          const prev = el.childNodes[offset - 1] as HTMLElement
+          if (prev.nodeType === 1 && prev.matches?.('[data-wiki-link="1"]'))
+            chip = prev
+        }
+      } else if (container.nodeType === 3) {
+        // caret in text node — check adjacent sibling
+        if (e.key === 'Delete' && offset === container.textContent!.length) {
+          const next = container.nextSibling as HTMLElement
+          if (next?.nodeType === 1 && next.matches?.('[data-wiki-link="1"]'))
+            chip = next
+        }
+        if (e.key === 'Backspace' && offset === 0) {
+          const prev = container.previousSibling as HTMLElement
+          if (prev?.nodeType === 1 && prev.matches?.('[data-wiki-link="1"]'))
+            chip = prev
+        }
+      }
+      if (chip) {
+        e.preventDefault()
+        e.stopPropagation()
+        const parent = chip.parentNode!
+        const textNode = document.createTextNode('')
+        parent.replaceChild(textNode, chip)
+        range.setStart(textNode, 0)
+        range.collapse(true)
+        sel.removeAllRanges()
+        sel.addRange(range)
+        parent
+          .closest('[contenteditable]')
+          ?.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+    },
+    true, // capture phase — before Vditor
+  )
   window.open = (url: string, ..._args: any[]) => {
     openLink(url)
     return window

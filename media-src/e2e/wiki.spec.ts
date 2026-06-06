@@ -119,6 +119,33 @@ test('getValue() round-trips wiki syntax without corruption', async ({
   expect(md).toContain('[[Gamma]]')
 })
 
+test('wiki chips survive typing in the same block (SpinVditorIRDOM round-trip)', async ({
+  page,
+}) => {
+  await gotoWiki(page)
+  // Verify chips exist before edit
+  await expect(chip(page, 'Home')).toBeVisible()
+
+  // Click at the end of the first paragraph (after the chip) and type
+  await page.evaluate(() => {
+    const p = document.querySelector(
+      '.vditor-ir .vditor-reset > p',
+    ) as HTMLElement
+    if (!p) return
+    const sel = window.getSelection()!
+    const range = document.createRange()
+    range.selectNodeContents(p)
+    range.collapse(false)
+    sel.removeAllRanges()
+    sel.addRange(range)
+  })
+  await page.keyboard.type(' extra text')
+
+  // After SpinVditorIRDOM re-parses the block, wiki chips must still be there
+  await expect(chip(page, 'Home')).toBeVisible()
+  await expect(chip(page, 'Missing Page')).toBeVisible()
+})
+
 test('multiple chips on the same line all render', async ({ page }) => {
   await gotoWiki(page)
   const alpha = chip(page, 'Alpha')

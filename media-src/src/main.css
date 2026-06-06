@@ -187,39 +187,35 @@ body.vmarkd-large-doc .vditor-ir > pre.vditor-reset
   padding-left: 35px;
 }
 
+/* Wiki-link chips — styled as VS Code-native text links, not pill buttons.
+   Existing pages look like regular clickable links; missing pages use the
+   error foreground with a dotted underline to signal "not found". */
 .wiki-link-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.1rem 0.5rem;
-  margin: 0 0.1rem;
-  border: 1px solid var(--vscode-textLink-foreground, #2b7cff);
-  border-radius: 999px;
-  background: var(--vscode-badge-background, rgba(43, 124, 255, 0.14));
-  color: var(--vscode-textLink-foreground, #2b7cff);
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: underline;
+  text-decoration-style: solid;
+  text-underline-offset: 2px;
   cursor: pointer;
-  font-weight: 600;
-  line-height: 1.4;
-  text-decoration: none;
 }
 
 .wiki-link-chip:hover {
-  background: var(--vscode-button-secondaryHoverBackground, rgba(43, 124, 255, 0.22));
+  color: var(--vscode-textLink-activeForeground, #3794ff);
+  text-decoration-style: solid;
 }
 
 .wiki-link-chip:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder, var(--vscode-textLink-foreground, #2b7cff));
+  outline: 1px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: 1px;
+  border-radius: 2px;
 }
 
 .wiki-link-chip[data-wiki-missing="1"] {
-  border-style: dashed;
   color: var(--vscode-errorForeground, #f44747);
-  border-color: var(--vscode-errorForeground, #f44747);
-  background: rgba(244, 71, 71, 0.1);
+  text-decoration-style: dotted;
 }
 
 .wiki-link-chip[data-wiki-missing="1"]:hover {
-  background: rgba(244, 71, 71, 0.18);
+  text-decoration-style: dashed;
 }
 
 .vditor-reset table {
@@ -464,25 +460,21 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
   padding: 10px 20px !important;
 }
 
-/* Preview pane (toolbar Preview button), narrow width. The preview .vditor-preview
-   is the scroll container; its scrollbar sits INSIDE the pane on the right. If we
-   centre .vditor-reset via `margin:0 auto`, the auto-margins split the REMAINING
-   space (pane − scrollbar), shifting the column ~8px left vs the editor (whose
-   scrollbar sits inside the right padding of a full-width pre, not alongside content).
-   Fix: mirror the editor's own approach — make .vditor-reset full-width inside the
-   pane and use symmetric padding. The scrollbar then eats from the RIGHT padding
-   (same as the editor), and the text column stays pixel-identical across Edit↔Preview.
-   The 800px cap is expressed through `max(0, (100% − 800px) / 2)`, which collapses
-   to 0 when the viewport is ≤800px (responsive). */
-/* Move the scrollbar from the pane to .vditor-reset (same as IR, where the
-   pre.vditor-reset owns the scrollbar). This way .vditor-reset spans the FULL pane
-   width and its padding calc matches IR exactly — the scrollbar eats from the right
-   padding, not from the available width before padding is computed. */
-body[data-full-width="0"] .vditor-preview {
+/* Preview pane (toolbar Preview button), narrow width. Scoped to FULL preview only
+   (not split view) via :has(.vditor-sv) — in split mode .vditor-sv is display:block
+   alongside .vditor-preview; in full preview the sv pane is hidden. Without this scope,
+   overflow:hidden on .vditor-preview kills split-view scroll sync (task 48). The
+   overflow swap (hidden on pane, auto on reset) moves the scrollbar into the reset so
+   its width eats from the right padding, matching the editor's scroll layout. */
+body[data-full-width="0"] .vditor-content:not(:has(.vditor-sv)) > .vditor-preview,
+body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview,
+body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview {
   max-width: none !important;
   overflow: hidden !important;
 }
-body[data-full-width="0"] .vditor-preview > .vditor-reset {
+body[data-full-width="0"] .vditor-content:not(:has(.vditor-sv)) > .vditor-preview > .vditor-reset,
+body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview > .vditor-reset,
+body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview > .vditor-reset {
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
