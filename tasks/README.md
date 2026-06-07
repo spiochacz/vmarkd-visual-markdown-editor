@@ -63,6 +63,7 @@ check that line for their authoritative state.
 - [x] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — ✅ code-complete: manifest identity + vMarkd icon (`media/logo.png`) all set. Remaining is purely operational: `vsce login spiochacz` at publish time.
 - [x] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md)
 - [ ] [54 — Marketplace onboarding (editorAssociations docs + walkthrough)](54-marketplace-onboarding.md) — 📋 planned (do near a Marketplace release)
+- [ ] [81 — Verify the Marketplace publisher via domain](81-marketplace-verify-publisher-domain.md) — 📋 TODO (optional, no code): DNS TXT domain verification → verified badge on `spiochacz`
 
 ## Pro / i18n (engines bump — see note)
 - [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ⏸ **parked** (unblocked; do only if PL UI wanted)
@@ -79,6 +80,7 @@ check that line for their authoritative state.
 - [x] [24 — CI/CD pipeline](24-ci-cd-pipeline.md) — ✅ Part A (PR gate `ci.yml`) + Part B done. Single release path: one-click `release.yml` (dispatch `patch`/`minor`/`major` → bump, commit-back + tag) calls reusable `publish.yml` (build/test/package → GitHub Release + Marketplace + Open VSX, token-gated, idempotent re-runs). `main.yml` + bash publish scripts retired; source maps excluded from the VSIX. Open only by choice: `main` branch-protection (repo setting) + optional Vditor asset-sync CI guard (§5b).
 - [x] [45 — Build toolchain (drop foy/ts-node)](45-build-toolchain.md) — landed on plain Node + npm: `build.mjs` run by `node`, no `foy`/`ts-node`/Bun (tried Bun, reverted to minimise tooling)
 - [x] [49 — Adopt Biome (lint + format)](49-biome-lint-format.md) — single-tool lint+format, tuned to existing style, wired into CI (`biome ci`)
+- [ ] [80 — Bump GitHub Actions off Node 20](80-actions-node24-bump.md) — 📋 TODO (low pri): `checkout@v4`/`setup-node@v4` → `@v5` in all 3 workflows; Node 20 runtime removed from runners 2026-09-16
 
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)
