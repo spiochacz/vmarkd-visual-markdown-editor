@@ -4,6 +4,7 @@ import {
   prerenderPrefix,
   prewarmLute,
   renderForMode,
+  renderWikiChipsInHtml,
   reserializeMarkdown,
 } from '../../src/lute-host'
 
@@ -51,6 +52,42 @@ describe('prerenderPrefix', () => {
   })
 })
 
+// renderWikiChipsInHtml is pure — no Lute needed. It rewrites [[…]] literals in
+// the host-rendered overlay HTML into the same chip spans the live editor emits.
+describe('renderWikiChipsInHtml', () => {
+  it('rewrites a simple [[link]] to a chip span', () => {
+    const out = renderWikiChipsInHtml('<p data-block="0">[[Home]]</p>')
+    expect(out).toContain('class="wiki-link-chip"')
+    expect(out).toContain('data-wiki-target="Home"')
+    expect(out).toContain('data-wiki-source="[[Home]]"')
+    expect(out).toContain('>Home</span>')
+    expect(out).not.toContain('[[Home]]</p>')
+  })
+
+  it('uses the label for [[target|label]] but targets the key', () => {
+    const out = renderWikiChipsInHtml('<p>[[Target|Display Label]]</p>')
+    expect(out).toContain('data-wiki-target="Target"')
+    expect(out).toContain('data-wiki-source="[[Target|Display Label]]"')
+    expect(out).toContain('>Display Label</span>')
+  })
+
+  it('rewrites multiple links on one line', () => {
+    const out = renderWikiChipsInHtml('<p>[[A]] and [[B]]</p>')
+    expect(out.match(/wiki-link-chip/g)).toHaveLength(2)
+  })
+
+  it('escapes HTML in target/label', () => {
+    const out = renderWikiChipsInHtml('<p>[[A&B]]</p>')
+    expect(out).toContain('data-wiki-target="A&amp;B"')
+    expect(out).toContain('>A&amp;B</span>')
+  })
+
+  it('leaves HTML without wiki links untouched', () => {
+    const html = '<p>Just text with [single] brackets</p>'
+    expect(renderWikiChipsInHtml(html)).toBe(html)
+  })
+})
+
 describe('lute-host renderForMode', () => {
   it('skips split (sv) mode — structurally different, no overlay', () => {
     expect(renderForMode(ROOT, '# Heading\n', 'sv')).toBeUndefined()
@@ -93,6 +130,19 @@ describe('lute-host renderForMode', () => {
       expect(html).toContain('Section 0')
       // …but the far tail is not (it was truncated for the overlay)
       expect(html).not.toContain('Section 599')
+    })
+
+    it('renders wiki [[links]] as chips when wikiEnabled (instant-paint match)', () => {
+      const html = renderForMode(ROOT, 'See [[Home]] here.\n', 'ir', true)
+      expect(html).toContain('class="wiki-link-chip"')
+      expect(html).toContain('data-wiki-target="Home"')
+      expect(html).not.toContain('[[Home]]</') // no raw literal left in text
+    })
+
+    it('leaves [[links]] as literal text when wiki is disabled', () => {
+      const html = renderForMode(ROOT, 'See [[Home]] here.\n', 'ir', false)
+      expect(html).toContain('[[Home]]')
+      expect(html).not.toContain('wiki-link-chip')
     })
 
     it('does not leak Lute into the shared host global', () => {

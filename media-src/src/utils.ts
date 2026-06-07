@@ -300,40 +300,55 @@ export function fixLinkClick() {
         return
       }
 
-      // Case 2: caret is right BEFORE a chip (Delete) or right AFTER (Backspace)
-      let chip: Element | null = null
-      if (container.nodeType === 1) {
-        // caret in element — check child at offset
+      // Case 2: caret is right BEFORE a chip (Delete) or right AFTER (Backspace),
+      // tolerating the zero-width space (U+200B) we render after each chip — the
+      // caret typically sits in/after that ZWSP, so we skip ZWSP-only text nodes
+      // (and ZWSP chars before the caret) when looking for the adjacent chip.
+      const isChip = (n: Node | null): n is HTMLElement =>
+        !!n &&
+        n.nodeType === 1 &&
+        (n as HTMLElement).matches?.('[data-wiki-link="1"]') === true
+      const isZwspText = (n: Node | null): boolean =>
+        !!n &&
+        n.nodeType === 3 &&
+        (n.textContent ?? '').replace(/\u200B/g, '') === ''
+
+      let node: Node | null = null
+      if (container.nodeType === 3) {
+        const slice =
+          e.key === 'Backspace'
+            ? container.textContent!.slice(0, offset)
+            : container.textContent!.slice(offset)
+        // only proceed if there's no REAL text between the caret and the edge
+        if (slice.replace(/\u200B/g, '') === '') {
+          node =
+            e.key === 'Backspace'
+              ? container.previousSibling
+              : container.nextSibling
+        }
+      } else if (container.nodeType === 1) {
         const el = container as HTMLElement
-        if (e.key === 'Delete' && el.childNodes[offset]) {
-          const next = el.childNodes[offset] as HTMLElement
-          if (next.nodeType === 1 && next.matches?.('[data-wiki-link="1"]'))
-            chip = next
-        }
-        if (e.key === 'Backspace' && offset > 0 && el.childNodes[offset - 1]) {
-          const prev = el.childNodes[offset - 1] as HTMLElement
-          if (prev.nodeType === 1 && prev.matches?.('[data-wiki-link="1"]'))
-            chip = prev
-        }
-      } else if (container.nodeType === 3) {
-        // caret in text node — check adjacent sibling
-        if (e.key === 'Delete' && offset === container.textContent!.length) {
-          const next = container.nextSibling as HTMLElement
-          if (next?.nodeType === 1 && next.matches?.('[data-wiki-link="1"]'))
-            chip = next
-        }
-        if (e.key === 'Backspace' && offset === 0) {
-          const prev = container.previousSibling as HTMLElement
-          if (prev?.nodeType === 1 && prev.matches?.('[data-wiki-link="1"]'))
-            chip = prev
-        }
+        node =
+          e.key === 'Backspace'
+            ? (el.childNodes[offset - 1] ?? null)
+            : (el.childNodes[offset] ?? null)
       }
-      if (chip) {
+      // hop over any ZWSP-only text nodes between the caret and the chip
+      const junk: Node[] = []
+      while (isZwspText(node)) {
+        junk.push(node as Node)
+        node =
+          e.key === 'Backspace'
+            ? (node as Node).previousSibling
+            : (node as Node).nextSibling
+      }
+      if (isChip(node)) {
         e.preventDefault()
         e.stopPropagation()
-        const parent = chip.parentNode!
+        for (const j of junk) j.parentNode?.removeChild(j)
+        const parent = node.parentNode!
         const textNode = document.createTextNode('')
-        parent.replaceChild(textNode, chip)
+        parent.replaceChild(textNode, node)
         range.setStart(textNode, 0)
         range.collapse(true)
         sel.removeAllRanges()

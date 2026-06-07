@@ -158,6 +158,73 @@ test.describe('Delete/Backspace removes wiki chips', () => {
     await expect(chip(page, 'Home')).toHaveCount(0)
   })
 
+  test('Backspace with caret just past the chip ZWSP still removes it', async ({
+    page,
+  }) => {
+    await gotoWiki(page)
+    await expect(chip(page, 'Home')).toBeVisible()
+    // The chip is followed by a zero-width space (then the rest of the line as one
+    // text node). Put the caret right AFTER that ZWSP — where it lands when you
+    // click immediately past a link — which the old handler ignored.
+    const placed = await page.evaluate(() => {
+      const c = document.querySelector('[data-wiki-target="Home"]')!
+      const next = c.nextSibling
+      if (!next || next.nodeType !== 3) return false
+      if (!(next.textContent ?? '').startsWith('\u200B')) return false
+      const range = document.createRange()
+      range.setStart(next, 1) // just past the ZWSP
+      range.collapse(true)
+      const sel = window.getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(range)
+      return true
+    })
+    expect(placed).toBe(true) // confirms a ZWSP follows the chip
+    await page.keyboard.press('Backspace')
+    await expect(chip(page, 'Home')).toHaveCount(0)
+  })
+
+  test('Backspace with caret INSIDE a chip removes it', async ({ page }) => {
+    await gotoWiki(page)
+    await expect(chip(page, 'Home')).toBeVisible()
+    await page.evaluate(() => {
+      const c = document.querySelector('[data-wiki-target="Home"]')!
+      const t = c.firstChild! // the chip's text node ("Home")
+      const range = document.createRange()
+      range.setStart(t, (t.textContent ?? '').length)
+      range.collapse(true)
+      const sel = window.getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(range)
+    })
+    await page.keyboard.press('Backspace')
+    await expect(chip(page, 'Home')).toHaveCount(0)
+  })
+
+  test('removing a chip via Backspace drops it from getValue()', async ({
+    page,
+  }) => {
+    await gotoWiki(page)
+    const before = await page.evaluate(() => (window as any).vditor.getValue())
+    expect(before).toContain('[[Home]]')
+    await page.evaluate(() => {
+      const c = document.querySelector('[data-wiki-target="Home"]')!
+      const next = c.nextSibling!
+      const range = document.createRange()
+      range.setStart(next, 1) // just past the ZWSP
+      range.collapse(true)
+      const sel = window.getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(range)
+    })
+    await page.keyboard.press('Backspace')
+    await page.waitForTimeout(300)
+    const after = await page.evaluate(() => (window as any).vditor.getValue())
+    expect(after).not.toContain('[[Home]]')
+    // the rest of the document survives
+    expect(after).toContain('[[Missing Page]]')
+  })
+
   test('Delete before a wiki chip removes it', async ({ page }) => {
     await gotoWiki(page)
     await expect(chip(page, 'Home')).toBeVisible()

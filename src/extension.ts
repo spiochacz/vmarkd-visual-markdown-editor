@@ -1574,7 +1574,12 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       },
       preRenderedHtml:
         content !== undefined
-          ? renderForMode(this._context.extensionPath, content, savedMode)
+          ? renderForMode(
+              this._context.extensionPath,
+              content,
+              savedMode,
+              isWikiFile(uri),
+            )
           : undefined,
       savedMode,
       i18nLang: resolveVditorI18nLang(vscode.env?.language),

@@ -5,6 +5,7 @@ import {
   patchIrLinkClick,
   patchWysiwygLinkClick,
   patchListToggle,
+  patchOutlineCurrent,
   patchMathRender,
   patchProcessCode,
   patchIrInputSerialize,
@@ -27,6 +28,9 @@ const wysiwygSource = read(
 )
 const processCodeSource = read(
   '../../media-src/node_modules/vditor/src/ts/util/processCode.ts',
+)
+const outlineSource = read(
+  '../../media-src/node_modules/vditor/src/ts/toolbar/Outline.ts',
 )
 const irProcessSource = read(
   '../../media-src/node_modules/vditor/src/ts/ir/process.ts',
@@ -119,6 +123,27 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchListToggle('// unrelated source')).toThrow(
       /fixListToggle/,
+    )
+  })
+})
+
+describe('patchOutlineCurrent (outline toolbar button blue-flash on init)', () => {
+  // The shipped Outline item highlights itself with `if (vditor.options.outline)`,
+  // an always-truthy object check — so the button is marked active on init even
+  // when the outline panel is closed.
+  it('the shipped Vditor source checks the truthy object (pre-patch)', () => {
+    expect(outlineSource).toContain('if (vditor.options.outline) {')
+  })
+
+  it('gates the active highlight on .enable so it matches the panel state', () => {
+    const patched = patchOutlineCurrent(outlineSource)
+    expect(patched).not.toContain('if (vditor.options.outline) {')
+    expect(patched).toContain('if (vditor.options.outline.enable) {')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchOutlineCurrent('// unrelated source')).toThrow(
+      /fixOutlineCurrent/,
     )
   })
 })

@@ -176,6 +176,38 @@ const fixListToggle = {
   },
 }
 
+// fixOutlineCurrent: Vditor's Outline toolbar item marks itself "current" (the
+// accent/blue active highlight) with `if (vditor.options.outline)` — but
+// options.outline is an OBJECT ({enable, position}), always truthy, so the button
+// is highlighted on init even when the outline panel is closed (enable:false). The
+// instant-paint toolbar clone then freezes that blue, and the live editor clears it
+// a beat later via outline.toggle → a blue→white flash on the closed outline button.
+// Gate the highlight on `.enable` so it matches the actual panel state.
+const OUTLINE_CURRENT_ANCHOR = 'if (vditor.options.outline) {'
+export function patchOutlineCurrent(code) {
+  if (!code.includes(OUTLINE_CURRENT_ANCHOR)) {
+    throw new Error(
+      'fixOutlineCurrent: anchor not found in vditor toolbar/Outline.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    OUTLINE_CURRENT_ANCHOR,
+    'if (vditor.options.outline.enable) {',
+  )
+}
+const fixOutlineCurrent = {
+  name: 'fix-outline-current',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Outline\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchOutlineCurrent(code) }
+      },
+    )
+  },
+}
+
 // Task 57 — KaTeX error resilience. Vditor's `katex.renderToString` (mathRender.ts)
 // passes no `throwOnError`/`strict`, so one malformed formula can throw and break
 // the render instead of showing KaTeX's inline red error. Inject the resilient
@@ -457,6 +489,7 @@ export const vditorSourceConfig = {
     fixIrLinkClick,
     fixWysiwygLinkClick,
     fixListToggle,
+    fixOutlineCurrent,
     fixMathRender,
     fixPreviewCopyTip,
     fixProcessCode,
