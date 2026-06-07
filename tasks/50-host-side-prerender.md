@@ -1,6 +1,8 @@
 # Task 50 — Host-side pre-render for instant warm-open paint
 
-**Status:** spike (perf/host-side-prerender) — awaiting visual review
+**Status:** ✅ shipped — instant read-only preview on open (host-side prerender),
+gated by `vmarkd.advanced.instantPreview`. Wired in `extension.ts` / `html-builder.ts`
+/ `lute-host.ts` + webview `main.ts`; documented in CHANGELOG.
 
 ## Problem
 

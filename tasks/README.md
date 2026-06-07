@@ -6,7 +6,9 @@ steps with file refs, verification).
 
 **This index is informative.** Each task file is the **single source of truth for
 its own status** — open the task file for progress/partial detail. A box is
-checked here **only when the task is fully complete**.
+checked here **only when the task is fully complete**. Tasks numbered **50+** also
+carry a top-of-file `**Status:**` line (e.g. `done` / `planned` / `spike` / `TODO`) —
+check that line for their authoritative state.
 
 ## Quick wins (low risk, fast)
 - [x] [01 — Search Ctrl+F keybinding](01-search-keybinding.md)
@@ -27,6 +29,7 @@ checked here **only when the task is fully complete**.
 - [x] [25 — Live theme switching (follow VS Code theme)](25-theme-live-switch.md)
 - [x] [26 — Live config reload (onDidChangeConfiguration)](26-live-config-reload.md) — pairs with 12
 - [x] [44 — Unify the toolbar/chrome icons on codicons](44-unify-source-button-icons.md) — full codicon restyle: chrome `$(…)`, toolbar via icon-override sprite (24 codicons + 6 codicon-style customs)
+- [x] [51 — Config & manifest polish (settings UX)](51-config-manifest-polish.md) — settings grouping/order + enum descriptions, plus `scope: resource` + URI threading so per-folder settings apply (PR #41 + `feat/config-resource-scope`)
 
 ## Features
 - [x] [13 — Outline navigation + heading flash](13-outline-heading-flash.md)
@@ -37,7 +40,7 @@ checked here **only when the task is fully complete**.
 - [x] [49 — Streaming / incremental render for large docs](49-streaming-incremental-render.md) — chunked webview render (approach B) + referenced-only ref injection; kills the multi-second freeze on big files. QA'd: e2e (cross-chunk refs + mermaid SVG + no truncation) + bench on a real 319 KB file (exact DOM match vs monolithic). Editable-during-stream deferred to v2.
 - [ ] [46 — Side-by-side rendered diff view](46-rendered-diff-view.md) — two-pane rendered original-vs-modified comparison (inspired by phfsantos fork); not scheduled yet
 - [ ] [22 — Image resize (drag handles)](22-image-resize.md) — spike first
-- [ ] [23 — Wikilinks resolution](23-wikilinks-resolution.md)
+- [x] [23 — Wikilinks resolution](23-wikilinks-resolution.md) — ✅ `[[page]]` indexed + resolved, clickable chips in preview, `[[` autocomplete, one-click create of missing pages, missing/duplicate surfaced. Settings `vmarkd.wiki.enabled` / `.root`. Unit-tested; resilient to a deleted/vanished wiki root.
 - [ ] [32 — Link/image path autocomplete](32-link-image-autocomplete.md) — findFiles + watcher, no engines bump
 - [x] [74 — WebP image conversion on upload](74-image-convert-webp-avif.md) — ✅ raster uploads re-encoded to WebP via webview OffscreenCanvas (0 deps); `maxWidth` downscale; SVG/GIF passthrough; fallback to original on failure. Settings: `vmarkd.image.format` (default webp), `.quality`, `.maxWidth`. AVIF dropped after benchmark (task doc has results). `sharp` removed.
 - [x] [75 — Outline drag-resize + persist](75-outline-drag-resize.md) — ✅ drag handle on the outline border (col-resize, VS Code sash color); width persisted in globalState (survives restart + Settings Sync). Setting `outline.width` removed.
@@ -46,6 +49,9 @@ checked here **only when the task is fully complete**.
 - [x] [48 — Line-anchored split-view scroll sync](48-split-view-line-scroll-sync.md) — heading-anchored centre sync in `sv` mode (replaces Vditor's proportional drift)
 - [x] [78 — Markdown Outline tree view](78-vscode-native-outline.md) — ✅ sidebar TreeView (Explorer) with click-to-scroll. NOT a `DocumentSymbolProvider` (VS Code doesn't query it for custom editors — #97095). Parser skips code fences; click posts `scroll-to-heading` to the webview.
 - [ ] [73 — Editor line-number gutter (IR/WYSIWYG)](73-editor-line-number-gutter.md) — 🟡 whole-document line numbers in a left gutter while editing (NOT code-block/preview = task 03). Hard: markdown isn't line-based; recommended approach = source-line gutter reusing the DOM↔source map (15/16/52). Medium-high risk (alignment + re-render perf).
+- [ ] [52 — Source → webview cursor sync](52-source-to-webview-cursor-sync.md) — 📋 planned: reveal the caret in the visual editor from the text editor (reverse of 16); reuses the DOM↔source map
+- [ ] [55 — Markdown diagnostics / lint](55-markdown-diagnostics-lint.md) — 📋 planned (idea, needs design): Problems-panel squiggles in WYSIWYG
+- [ ] [79 — Preview polish: heading spacing + scroll sync](79-preview-polish.md) — 📋 TODO
 
 ## Security
 - [x] [18 — Security hardening (fs / CSS / CSP / logging)](18-security-hardening.md) — scoped roots, CSS sanitize, CSP+nonce, levelled logging (live-verified)
@@ -54,8 +60,9 @@ checked here **only when the task is fully complete**.
 - [x] [67 — Webview CSP + Lute Sanitize hardening](67-webview-csp-sanitize-hardening.md) — 🟡 done: remote images off by default (`vmarkd.security.allowRemoteImages`) closes the `<img https>`/inline-`style url()` exfil channel; added `frame-src/object-src/base-uri 'none'`. Verified the Lute master upgrade does NOT fix the Sanitize surface (iframe/embed/base/style still pass) — CSP is the boundary; Sanitize source-patch infeasible (compiled blob). Unit-tested.
 
 ## Marketplace / publication
-- [ ] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md)
+- [x] [28 — Extension identity (publisher/name/author/repo)](28-extension-identity.md) — ✅ code-complete: manifest identity + vMarkd icon (`media/logo.png`) all set. Remaining is purely operational: `vsce login spiochacz` at publish time.
 - [x] [29 — Declare capabilities (untrusted / virtual workspaces)](29-capabilities-declaration.md)
+- [ ] [54 — Marketplace onboarding (editorAssociations docs + walkthrough)](54-marketplace-onboarding.md) — 📋 planned (do near a Marketplace release)
 
 ## Pro / i18n (engines bump — see note)
 - [ ] [30 — Localization (l10n + package.nls.json)](30-localization-l10n.md) — ⏸ **parked** (unblocked; do only if PL UI wanted)
@@ -69,7 +76,7 @@ checked here **only when the task is fully complete**.
 - [x] [19 — Replace user-event with native keyboard](19-replace-user-event-native-keyboard.md)
 - [x] [20 — Tree-shake Vditor source import](20-tree-shake-vditor-source-import.md) — import from source; main.js 310→261 KB (−16%)
 - [x] [21 — Backend tests (vitest)](21-backend-tests-vitest.md)
-- [ ] [24 — CI/CD pipeline](24-ci-cd-pipeline.md) — Part A (PR gate `ci.yml`) ✅ done; Part B (single release path / version policy) open
+- [x] [24 — CI/CD pipeline](24-ci-cd-pipeline.md) — ✅ Part A (PR gate `ci.yml`) + Part B done. Single release path: one-click `release.yml` (dispatch `patch`/`minor`/`major` → bump, commit-back + tag) calls reusable `publish.yml` (build/test/package → GitHub Release + Marketplace + Open VSX, token-gated, idempotent re-runs). `main.yml` + bash publish scripts retired; source maps excluded from the VSIX. Open only by choice: `main` branch-protection (repo setting) + optional Vditor asset-sync CI guard (§5b).
 - [x] [45 — Build toolchain (drop foy/ts-node)](45-build-toolchain.md) — landed on plain Node + npm: `build.mjs` run by `node`, no `foy`/`ts-node`/Bun (tried Bun, reverted to minimise tooling)
 - [x] [49 — Adopt Biome (lint + format)](49-biome-lint-format.md) — single-tool lint+format, tuned to existing style, wired into CI (`biome ci`)
 
@@ -80,6 +87,7 @@ checked here **only when the task is fully complete**.
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md)
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md)
 - [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — init-latency investigation; finding in task file
+- [x] [50 — Host-side pre-render for instant warm-open paint](50-host-side-prerender.md) — ✅ shipped: instant read-only preview paints on open, then swaps to the live editor. Setting `vmarkd.advanced.instantPreview`; host-side prerender via `html-builder.ts` + `lute-host.ts`.
 - [x] [68 — IR edit/paste latency on large docs](68-ir-edit-serialize-perf.md) — ✅ A (no double serialize) + C2 (widen `undoDelay`) + **C3 (incremental serialize, task 69)** all shipped; large-doc edit freeze removed. C1 (auto-SV for huge) deliberately not pursued (incremental made it unnecessary).
 - [ ] [70 — Off-main-thread serialize (Web Worker)](70-worker-serialize.md) — ⏸ **parked**: incremental serialize (task 69) already removed the large-doc edit freeze, so the Worker win isn't needed. Revisit only if the very largest docs still stutter. (Was: run Lute `VditorIRDOM2Md` in a Worker; spike-first.)
 - [x] [69 — Incremental IR serialization (C3)](69-incremental-ir-serialize.md) — ✅ re-serialize only the edited block (O(block) not O(doc)) → large-doc edit freeze gone. Content-diff + range-splice + window-reserialize, full-serialize fallback + drift self-heal. Gated to IR ≥700 blocks; status-bar "Large md" marker. 4000-edit fuzz byte-identical, **0 fallbacks**; 19 unit + 2 e2e. Merged (PR #69).

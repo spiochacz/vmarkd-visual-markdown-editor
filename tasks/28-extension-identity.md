@@ -7,7 +7,7 @@
 > **Status (2026-05-30):** ✅ manifest identity set — `name: vmarkd`,
 > `displayName: vMarkd — Visual Markdown Editor`, `publisher: spiochacz`,
 > `author: Sławomir Piochacz`, `repository.url →
-> github.com/spiochacz/vmarkd-visual-markdown-editor`, `version → 0.3.0`.
+> github.com/spiochacz/vmarkd-visual-markdown-editor`, `version → 1.0.0`.
 > `viewType` / command ids left unchanged (internal). VSIX filename convention
 > aligned to `vmarkd-<ver>.vsix` across the release tooling (`release-marketplace.sh`,
 > `republish.md`, `copilot-instructions.md`, `README.md`). Brand text refreshed:
@@ -15,10 +15,12 @@
 > `customEditors[0].displayName → "Visual Markdown Editor"`.
 > Release tooling `master → main` fixed (`release-marketplace.sh`, `republish.md`,
 > `copilot-instructions.md`; task 24 plan text too).
-> **Remaining before publish:** (a) `icon` (`media/logo.png`) is still the
-> inherited logo — needs a vMarkd asset (design, not code); (b) register/login the
-> `spiochacz` Marketplace publisher (`vsce login spiochacz`); (c) verify with a
-> local `vsce package` once a publisher exists; (d) security tasks 18/27.
+> **Verified since:** (a) `icon` ✅ — `media/logo.png` is now the vMarkd brand mark
+> (M↓V), which `package.json` already references; (c) `vsce package` builds a clean
+> VSIX under the new identity (done while preparing 1.0.0); (d) security tasks
+> 18/27 ✅ landed.
+> **Remaining before publish:** (b) register/login the `spiochacz` Marketplace
+> publisher (`vsce login spiochacz`) — operational, not code.
 
 ## Problem
 `package.json` still carries the **original author's** identity — you cannot publish
@@ -40,7 +42,7 @@ Switch the manifest to the vMark identity under your own Marketplace publisher.
    - [x] `repository.url` → `github.com/spiochacz/vmarkd-visual-markdown-editor`
    - [x] `description` refreshed for the brand
    - [x] `keywords` += `vmarkd`, `visual-markdown`
-   - [ ] `icon` → still `media/logo.png` (inherited); needs a vMarkd asset (design)
+   - [x] `icon` → `media/logo.png` is the vMarkd brand mark (M↓V); referenced by `package.json`
 2. [x] `viewType` (`markdown-editor.editor`) and command ids (`markdown-editor.*`)
    kept unchanged (internal — changing them would break user keybindings/settings).
    Note: `customEditors[0].displayName` (a label, not an id) was rebranded to
