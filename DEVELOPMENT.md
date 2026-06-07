@@ -241,7 +241,7 @@ All four `coverage-*.ts` files are no-ops unless `E2E_COVERAGE` is set.
 
 ## CI
 
-Three GitHub Actions workflows (`.github/workflows/`):
+Two GitHub Actions workflows (`.github/workflows/`):
 
 - **`ci.yml`** — the gate, on every PR and push to `main`. Installs root +
   `media-src`, then in order: `npm audit --audit-level=moderate` (both trees) →
@@ -249,11 +249,10 @@ Three GitHub Actions workflows (`.github/workflows/`):
   `tsc` + bundles the webview) → `npm test` (unit) → `npm --prefix media-src run
   test:e2e` (Playwright chromium, browser binaries cached). **E2e now runs in CI**
   — keep it green locally.
-- **`main.yml`** ("Deploy Extension") — manual (`workflow_dispatch`). Builds and
-  publishes to **Open VSX** and the **VS Marketplace** (`OPEN_VSX_TOKEN` /
-  `VS_MARKETPLACE_TOKEN` secrets).
-- **`publish.yml`** — on `v*` tags. Builds and publishes to the Marketplace via
-  `VSCE_PAT` (falls back to `VS_MARKETPLACE_TOKEN`).
+- **`publish.yml`** ("Release") — on `v*` tags or a manual run. Builds, tests,
+  packages the `.vsix`, **creates a GitHub Release with the `.vsix`**, then publishes
+  to the VS Marketplace (`VSCE_PAT` / `VS_MARKETPLACE_TOKEN`) and Open VSX
+  (`OPEN_VSX_TOKEN`) — each only if its token secret is set. See [Releasing](#releasing).
 
 `ci.yml` enforces lint + audit on the whole tree, so run `npm run lint:ci` and a
 clean `npm audit` locally before pushing — pre-existing drift in untouched files
@@ -263,29 +262,33 @@ still fails the gate.
 
 ## Releasing
 
-Publisher `spiochacz`; Marketplace id `spiochacz.vmarkd`. A publish needs a
-**`VSCE_PAT`** (Azure DevOps Personal Access Token, scope *Marketplace → Manage*)
-in a root **`.env`** (git-ignored):
+Publisher `spiochacz`; Marketplace id `spiochacz.vmarkd`. Releases are **CI-driven**:
+pushing a `v*` tag (or running the **Release** workflow manually) triggers
+`.github/workflows/publish.yml`, which builds, runs the unit tests, packages the
+`.vsix`, and **creates a GitHub Release with the `.vsix` attached**. It then
+publishes to a registry — each only if its token is set as a repo secret:
 
-```
-VSCE_PAT=…
-```
+- `VSCE_PAT` (or `VS_MARKETPLACE_TOKEN`) — VS Marketplace. Azure DevOps PAT, scope
+  *Marketplace → Manage*.
+- `OPEN_VSX_TOKEN` — Open VSX.
 
-One-shot release from a clean `main`:
+With no token the run still produces the GitHub Release — so you can ship the `.vsix`
+first, add a token later, and **re-run** the workflow (Actions → Re-run, or the
+manual *Run workflow* button) to publish to a registry. The release step is
+idempotent (create-or-update), so re-runs are safe.
+
+To cut a release from a clean `main`:
 
 ```bash
-npm run pub          # = scripts/release-marketplace.sh
+npm version 1.0.0     # bump: commits + tags (or edit package.json + commit)
+npm run pub           # tag current version + push  (CI does build/release/publish)
 ```
 
-which runs: `git pull --ff-only` → `npm version patch` (bumps + commits + tags) →
-rewrite the install line in `README.md` → `node build.mjs` → `vsce package` into
-`artifacts/` → `npm run publish:marketplace` (`vsce publish -p $VSCE_PAT`) →
-`git push --tags`. Pushing the `v*` tag also triggers `publish.yml`.
-
-Before releasing, move the `[Unreleased]` block in `CHANGELOG.md` under a dated
-`[x.y.z]` heading. `release:marketplace` is hard-coded to `npm version patch` — for
-a minor/major bump, run the steps manually. To build a local `.vsix` without
-publishing: `npx @vscode/vsce package --out vmarkd-<ver>.vsix`, then
+`npm run pub` (= `scripts/release-marketplace.sh`) only tags the current
+`package.json` version and pushes — CI owns the build, GitHub Release, and
+publishing. Set `CHANGELOG.md`'s top heading to the version you're shipping first.
+To build a local `.vsix` without releasing:
+`npx @vscode/vsce package --out vmarkd-<ver>.vsix`, then
 `code --install-extension vmarkd-<ver>.vsix`.
 
 ---

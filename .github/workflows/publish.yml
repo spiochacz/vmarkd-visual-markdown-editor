@@ -1,11 +1,20 @@
-name: Publish Extension
+name: Release
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch: # manual re-run from the Actions tab (pick the tag as the ref)
+permissions:
+  contents: write # needed to create the GitHub Release
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
+    env:
+      # Registry tokens are optional: set them as repo secrets to enable publishing.
+      # Without them the run still builds and creates the GitHub Release with the .vsix.
+      VSCE_PAT: ${{ secrets.VSCE_PAT != '' && secrets.VSCE_PAT || secrets.VS_MARKETPLACE_TOKEN }}
+      OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,12 +24,18 @@ jobs:
       - run: npm ci
       - run: npm --prefix media-src ci
       - run: node build.mjs
-      - name: Publish to Marketplace
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT != '' && secrets.VSCE_PAT || secrets.VS_MARKETPLACE_TOKEN }}
+      - run: npm test
+      - name: Package VSIX
         run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "No Marketplace token configured in VSCE_PAT or VS_MARKETPLACE_TOKEN" >&2
-            exit 1
-          fi
-          npx @vscode/vsce publish -p "$VSCE_PAT"
+          echo "VSIX=vmarkd-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_ENV"
+          npx @vscode/vsce package --out "vmarkd-${GITHUB_REF_NAME#v}.vsix"
+      - name: Create or update GitHub Release (attach the VSIX)
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$VSIX" --generate-notes \
+            || gh release upload "$GITHUB_REF_NAME" "$VSIX" --clobber
+      - name: Publish to VS Marketplace (only if a token is set)
+        if: env.VSCE_PAT != ''
+        run: npx @vscode/vsce publish --packagePath "$VSIX" -p "$VSCE_PAT"
+      - name: Publish to Open VSX (only if a token is set)
+        if: env.OPEN_VSX_TOKEN != ''
+        run: npx ovsx publish "$VSIX" -p "$OPEN_VSX_TOKEN"

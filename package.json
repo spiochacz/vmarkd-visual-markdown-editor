@@ -3,7 +3,7 @@
   "displayName": "vMarkd — Visual Markdown Editor",
   "icon": "media/logo.png",
   "description": "vMarkd — a full-featured visual markdown editor.",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publisher": "spiochacz",
   "author": "Sławomir Piochacz",
   "license": "MIT",
@@ -373,7 +373,10 @@
           },
           "vmarkd.image.format": {
             "type": "string",
-            "enum": ["original", "webp"],
+            "enum": [
+              "original",
+              "webp"
+            ],
             "enumDescriptions": [
               "Keep uploaded/pasted images in their original format and bytes.",
               "Convert raster uploads to WebP (smaller files). SVG and animated GIF are always kept as-is."
@@ -482,7 +485,6 @@
     "lint:ci": "biome ci",
     "lint:fix": "biome check --write",
     "format": "biome format --write",
-    "publish:marketplace": "bash scripts/publish-marketplace.sh",
     "release:marketplace": "bash scripts/release-marketplace.sh",
     "pub": "npm run release:marketplace"
   },
