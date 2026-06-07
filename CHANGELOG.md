@@ -18,6 +18,11 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - Search in the editor: `Ctrl/Cmd+F` wired to the webview find.
 - Outline panel: navigation with click-to-flash, configurable width and side
   (`vmarkd.outline.position`), open-by-default, and a heading-level markers toggle.
+- Wiki-style `[[page]]` links: rendered as clickable chips that navigate
+  (Ctrl/Cmd+click, or a plain click in preview) and offer to create the page when
+  it's missing. An autocomplete dropdown on `[[` lists workspace pages by their
+  original-case name (path-qualified when basenames collide). Enable and scope it
+  with `vmarkd.wiki.enabled` / `vmarkd.wiki.root`.
 - Reveal-in-source: "Open source to the side" and the toolbar "open in vs code"
   button jump to the caret's line in the text editor (exact Lute-caret mapping).
 - Git gutters: added/modified change bars vs git HEAD in the visual editor.
@@ -90,6 +95,14 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
   unsupported Lute reverse renderers and correct lute access.
 - Position the table panel at the clicked cell instead of pinned far-left.
 - Skip the wiki custom renderer for non-wiki files.
+- Wiki autocomplete: picking a page inserts its chip cleanly — it no longer
+  swallows the next character, extends the link as you keep typing, or drops the
+  caret at the start of the line; an existing page also stops flashing as missing
+  (red) for a beat right after selection.
+- Backspace removes a wiki-link chip when the caret sits immediately after it
+  (previously blocked by the chip's trailing zero-width-space delimiter).
+- The instant-paint preview renders wiki links as chips instead of raw `[[…]]`
+  while the live editor warms up.
 - Changing the Mermaid theme (`vmarkd.theme.mermaid`) re-themes diagrams live
   instead of re-initialising the editor — no more scroll-to-top jump on large docs.
 - Toolbar clicks no longer jump a long document to the top when there is no caret
@@ -107,6 +120,13 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 - KaTeX renders resiliently (`strict:false` / `throwOnError:false`) instead of
   throwing on a single malformed formula.
 - Fix a null-dereference crash in Vditor's list-toggle.
+- Outline toolbar button no longer shows the active (blue) highlight on open when
+  the outline panel is closed.
+- Code-block line numbers now follow `vmarkd.editor.codeLineNumbers` in both
+  directions — turning the setting off reliably removes the gutter, which could
+  previously stay on once it had ever been enabled.
+- The code-block syntax theme (`vmarkd.theme.code`) follows the current setting on
+  open instead of briefly flashing a previously-used theme.
 
 ### Security
 - Bump `esbuild` 0.21 → 0.28 — clears the dev-server advisory
@@ -122,6 +142,9 @@ Work accumulated since 0.2.32 (the 0.3.x line) — not yet cut into a dated rele
 
 ### Performance
 - `retainContextWhenHidden` memory dial (`vmarkd.advanced.retainHidden`).
+- Host pre-render cap raised 4 KB → 10 KB, so more pages get an instant
+  full-document paint on open (worst-case first paint ~55 ms; see
+  `npm run bench:prerender`).
 - Drop unused MathJax (~6.5 MB) from the shipped Vditor assets (KaTeX is used).
 - Debounce activation; drop the broad `onLanguage` activation event.
 - Large-document IR editing no longer freezes: the webview owns the markdown
