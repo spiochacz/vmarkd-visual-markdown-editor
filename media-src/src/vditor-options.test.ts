@@ -65,3 +65,43 @@ describe('buildVditorOptions — codeLineNumbers is authoritative', () => {
     expect(opts.preview.hljs.lineNumber).toBe(true)
   })
 })
+
+describe('buildVditorOptions — codeTheme (hljs style) is authoritative', () => {
+  test('auto/unset follows the VS Code theme', () => {
+    expect(
+      buildVditorOptions({ theme: 'dark', options: {} }).preview.hljs.style,
+    ).toBe('github-dark')
+    expect(
+      buildVditorOptions({ theme: 'light', options: {} }).preview.hljs.style,
+    ).toBe('github')
+  })
+
+  test('explicit codeTheme wins', () => {
+    const opts = buildVditorOptions({
+      theme: 'light',
+      options: { codeTheme: 'dracula' },
+    })
+    expect(opts.preview.hljs.style).toBe('dracula')
+  })
+
+  test('codeTheme OVERRIDES a stale saved preview.hljs.style (the bug class)', () => {
+    // saveVditorOptions persists hljs.style; the current setting must win, not the
+    // saved value spread in from msg.options.
+    const opts = buildVditorOptions({
+      theme: 'light',
+      options: {
+        codeTheme: 'dracula',
+        preview: { hljs: { style: 'monokai' } },
+      },
+    })
+    expect(opts.preview.hljs.style).toBe('dracula')
+  })
+
+  test('auto + stale saved style still resolves to the theme default, not the saved value', () => {
+    const opts = buildVditorOptions({
+      theme: 'dark',
+      options: { preview: { hljs: { style: 'monokai' } } },
+    })
+    expect(opts.preview.hljs.style).toBe('github-dark')
+  })
+})

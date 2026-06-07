@@ -2,31 +2,43 @@ import '../src/preload'
 import Vditor from 'vditor'
 import { buildVditorOptions } from '../src/vditor-options'
 
-// Code-block line-number harness. Drives Vditor through the REAL buildVditorOptions
-// (the same option mapping main.ts uses) so the spec can prove the `codeLineNumbers`
-// setting actually governs the rendered line-number gutter — including the
-// regression where a stale SAVED `preview.hljs.lineNumber` (saveVditorOptions
-// persists the whole preview object) pinned line numbers on even with the setting off.
+// Code-block hljs config harness (line numbers + highlight theme). Drives Vditor
+// through the REAL buildVditorOptions (the same option mapping main.ts uses) so the
+// spec can prove the `codeLineNumbers` and `codeTheme` settings actually govern the
+// rendered code block — INCLUDING the regression class where a stale SAVED
+// `preview.hljs.*` value (saveVditorOptions persists the whole preview object)
+// shadows the live setting and pins it.
 //
 // Query params let each test pick a scenario without re-init gymnastics:
-//   ?setting=1|0   -> msg.options.codeBlockLineNumbers (the live setting)
-//   ?saved=1       -> simulate a saved Vditor-options blob carrying lineNumber:true
-//   ?mode=ir|wysiwyg|sv  -> editor mode (default ir)
+//   ?setting=1|0      -> msg.options.codeBlockLineNumbers (the line-number setting)
+//   ?codeTheme=NAME   -> msg.options.codeTheme (the highlight theme setting)
+//   ?saved=1          -> simulate a saved blob carrying preview.hljs.lineNumber:true
+//   ?savedStyle=NAME  -> simulate a saved blob carrying a stale preview.hljs.style
+//   ?theme=dark|light -> VS Code theme (default light)
+//   ?mode=ir|wysiwyg|sv -> editor mode (default ir)
 const params = new URLSearchParams(location.search)
 const settingOn = params.get('setting') === '1'
 const savedOn = params.get('saved') === '1'
+const codeTheme = params.get('codeTheme') || undefined
+const savedStyle = params.get('savedStyle') || undefined
+const theme = params.get('theme') === 'dark' ? 'dark' : 'light'
 const mode = params.get('mode') || 'ir'
+
+// The webview saves the ENTIRE preview object (utils.ts saveVditorOptions), so a
+// past session persists hljs.lineNumber / hljs.style; on the next open the host
+// spreads that saved blob into msg.options.
+const savedHljs: any = {}
+if (savedOn) savedHljs.lineNumber = true
+if (savedStyle) savedHljs.style = savedStyle
+
+const options: any = { codeBlockLineNumbers: settingOn }
+if (codeTheme) options.codeTheme = codeTheme
+if (Object.keys(savedHljs).length > 0) options.preview = { hljs: savedHljs }
 
 const msg: any = {
   cdn: `${location.origin}/vditor`,
-  theme: 'light',
-  options: {
-    codeBlockLineNumbers: settingOn,
-    // The webview saves the ENTIRE preview object (utils.ts saveVditorOptions),
-    // so a session that once had line numbers on persists hljs.lineNumber:true.
-    // On the next open the host spreads that saved blob into msg.options.
-    ...(savedOn ? { preview: { hljs: { lineNumber: true } } } : {}),
-  },
+  theme,
+  options,
 }
 
 const opts = buildVditorOptions(msg)
@@ -52,12 +64,18 @@ const editor = new Vditor('app', {
   value,
   after() {
     ;(window as any).vditor = editor
-    // Read the effective option Vditor merged in — lets the spec assert the
+    // Read the effective options Vditor merged in — lets the spec assert the
     // option mapping independently of async highlight rendering.
     ;(window as any).__effectiveLineNumber =
       editor.vditor.options.preview.hljs.lineNumber === true
+    ;(window as any).__effectiveCodeStyle =
+      editor.vditor.options.preview.hljs.style
     ;(window as any).__lineNumberCount = () =>
       document.querySelectorAll('.vditor-linenumber__rows').length
+    // highlightRender installs the hljs stylesheet <link> from hljs.style — the
+    // observable end of "the code theme applied".
+    ;(window as any).__hljsHref = () =>
+      document.getElementById('vditorHljsStyle')?.getAttribute('href') ?? ''
     ;(window as any).__ready = true
   },
 })

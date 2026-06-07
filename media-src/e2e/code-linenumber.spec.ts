@@ -80,3 +80,41 @@ test.describe('codeLineNumbers setting governs the gutter (WYSIWYG mode)', () =>
     await expect(gutters(page)).toHaveCount(0)
   })
 })
+
+// The `codeTheme` setting resolves to the highlight.js style (codeHljsStyle) and
+// must, like lineNumber, be authoritative over a stale saved `preview.hljs.style`.
+// At init main.ts force-applies it through setTheme too, but the constructor option
+// must still be correct so the first paint isn't a wrong-theme flash. Asserted at
+// both the option level (__effectiveCodeStyle) and the installed hljs stylesheet.
+test.describe('codeTheme setting governs the highlight style', () => {
+  test('explicit codeTheme installs that hljs stylesheet', async ({ page }) => {
+    await goto(page, '?mode=ir&codeTheme=monokai')
+    expect(
+      await page.evaluate(() => (window as any).__effectiveCodeStyle),
+    ).toBe('monokai')
+    expect(await page.evaluate(() => (window as any).__hljsHref())).toContain(
+      '/monokai.min.css',
+    )
+  })
+
+  test('codeTheme auto follows the dark VS Code theme', async ({ page }) => {
+    await goto(page, '?mode=ir&codeTheme=auto&theme=dark')
+    expect(
+      await page.evaluate(() => (window as any).__effectiveCodeStyle),
+    ).toBe('github-dark')
+  })
+
+  test('codeTheme wins over a stale saved preview.hljs.style (the bug class)', async ({
+    page,
+  }) => {
+    // A past session saved hljs.style:nord; the setting now resolves to monokai.
+    // The setting must win — both the option and the installed stylesheet are monokai.
+    await goto(page, '?mode=ir&codeTheme=monokai&savedStyle=nord')
+    expect(
+      await page.evaluate(() => (window as any).__effectiveCodeStyle),
+    ).toBe('monokai')
+    const href = await page.evaluate(() => (window as any).__hljsHref())
+    expect(href).toContain('/monokai.min.css')
+    expect(href).not.toContain('/nord.min.css')
+  })
+})

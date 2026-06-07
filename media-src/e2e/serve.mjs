@@ -35,6 +35,7 @@ const built = await esbuild.build({
     wiki: path.join(__dirname, 'wiki-harness.ts'),
     'split-scroll': path.join(__dirname, 'split-scroll-harness.ts'),
     'code-linenumber': path.join(__dirname, 'code-linenumber-harness.ts'),
+    'config-apply': path.join(__dirname, 'config-apply-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -78,6 +79,9 @@ const splitScrollHtml = fs.readFileSync(
 )
 const codeLineNumberHtml = fs.readFileSync(
   path.join(__dirname, 'code-linenumber.html'),
+)
+const configApplyHtml = fs.readFileSync(
+  path.join(__dirname, 'config-apply.html'),
 )
 
 const types = {
@@ -179,6 +183,10 @@ const server = http.createServer((req, res) => {
   if (url === '/code-linenumber.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(codeLineNumberHtml)
+  }
+  if (url === '/config-apply.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(configApplyHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

@@ -28,23 +28,28 @@ export function buildVditorOptions(msg: any): any {
   if (msg.theme === 'dark') {
     opts = deepMerge(opts, {
       theme: 'dark',
-      preview: { theme: { current: 'dark' }, hljs: { style: codeStyle } },
+      preview: { theme: { current: 'dark' } },
     })
-  } else {
-    opts = deepMerge(opts, { preview: { hljs: { style: codeStyle } } })
   }
   opts = deepMerge(opts, msg.options, {
     preview: { math: { inlineDigit: true }, actions: [] },
   })
-  // The code-block line-number gutter follows the `codeLineNumbers` setting.
-  // Apply it LAST and ALWAYS (true AND false) so it overrides any stale
-  // `preview.hljs.lineNumber` spread in from msg.options above (the webview's
-  // saveVditorOptions persists the whole preview object). Without the explicit
-  // false branch, a value saved while the setting was on would pin line numbers
-  // on forever, making the setting a one-way switch (the "always there" bug).
+  // Config-derived hljs options are AUTHORITATIVE: apply them LAST so they override
+  // any stale `preview.hljs.*` spread in from msg.options above — the webview's
+  // saveVditorOptions persists the WHOLE preview object, so a value saved in a past
+  // session would otherwise win over the current setting:
+  //   - lineNumber: set explicitly true AND false, else a saved `true` pins the
+  //     gutter on forever, making `codeLineNumbers` a one-way switch (the "always
+  //     there" bug).
+  //   - style: the `codeTheme` setting (codeHljsStyle) must win over a saved style,
+  //     else the constructor carries a stale theme and the first paint flashes the
+  //     wrong code colours before main.ts's init setTheme corrects it.
   opts = deepMerge(opts, {
     preview: {
-      hljs: { lineNumber: msg.options?.codeBlockLineNumbers === true },
+      hljs: {
+        style: codeStyle,
+        lineNumber: msg.options?.codeBlockLineNumbers === true,
+      },
     },
   })
   opts = deepMerge(opts, {
