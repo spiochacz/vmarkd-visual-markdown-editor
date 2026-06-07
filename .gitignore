@@ -91,3 +91,6 @@ test-results/
 
 # Packaged extension (build artifact)
 *.vsix
+
+# Local scratch / throwaway files
+tmp/
