@@ -1,15 +1,28 @@
-name: Release
+name: Publish
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch: # manual re-run from the Actions tab (pick the tag as the ref)
+  workflow_dispatch: # re-publish an existing tag (e.g. after adding a token)
+    inputs:
+      tag:
+        description: 'Existing tag to (re)publish, e.g. v1.0.0'
+        required: true
+        type: string
+  workflow_call: # invoked by release.yml right after it cuts a new tag
+    inputs:
+      tag:
+        description: 'Tag to publish'
+        required: true
+        type: string
 permissions:
   contents: write # needed to create the GitHub Release
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     env:
+      # Resolves to the dispatch/call input when present, else the pushed tag.
+      TAG: ${{ inputs.tag || github.ref_name }}
       # Registry tokens are optional: set them as repo secrets to enable publishing.
       # Without them the run still builds and creates the GitHub Release with the .vsix.
       VSCE_PAT: ${{ secrets.VSCE_PAT != '' && secrets.VSCE_PAT || secrets.VS_MARKETPLACE_TOKEN }}
@@ -17,6 +30,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,12 +42,12 @@ jobs:
       - run: npm test
       - name: Package VSIX
         run: |
-          echo "VSIX=vmarkd-${GITHUB_REF_NAME#v}.vsix" >> "$GITHUB_ENV"
-          npx @vscode/vsce package --out "vmarkd-${GITHUB_REF_NAME#v}.vsix"
+          echo "VSIX=vmarkd-${TAG#v}.vsix" >> "$GITHUB_ENV"
+          npx @vscode/vsce package --out "vmarkd-${TAG#v}.vsix"
       - name: Create or update GitHub Release (attach the VSIX)
         run: |
-          gh release create "$GITHUB_REF_NAME" "$VSIX" --generate-notes \
-            || gh release upload "$GITHUB_REF_NAME" "$VSIX" --clobber
+          gh release create "$TAG" "$VSIX" --generate-notes \
+            || gh release upload "$TAG" "$VSIX" --clobber
       - name: Publish to VS Marketplace (only if a token is set)
         if: env.VSCE_PAT != ''
         run: npx @vscode/vsce publish --packagePath "$VSIX" -p "$VSCE_PAT"

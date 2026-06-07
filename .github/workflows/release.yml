@@ -1,0 +1,52 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Semver bump for the new release'
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+permissions:
+  contents: write # push the version-bump commit + tag to main
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+      - run: npm ci
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Bump version, commit, tag
+        id: bump
+        # `npm version` edits package.json + package-lock.json, commits, and
+        # creates the vX.Y.Z tag, printing the new tag to stdout.
+        run: |
+          tag="$(npm version "${{ inputs.bump }}" -m "release: %s")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Push commit and tag
+        run: git push origin main --follow-tags
+
+  publish:
+    needs: bump
+    # The tag was just pushed by GITHUB_TOKEN, which can't trigger publish.yml's
+    # `push` event — so we invoke it directly instead of relying on the tag push.
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ needs.bump.outputs.tag }}
+    secrets: inherit

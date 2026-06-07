@@ -241,7 +241,7 @@ All four `coverage-*.ts` files are no-ops unless `E2E_COVERAGE` is set.
 
 ## CI
 
-Two GitHub Actions workflows (`.github/workflows/`):
+Three GitHub Actions workflows (`.github/workflows/`):
 
 - **`ci.yml`** — the gate, on every PR and push to `main`. Installs root +
   `media-src`, then in order: `npm audit --audit-level=moderate` (both trees) →
@@ -249,10 +249,14 @@ Two GitHub Actions workflows (`.github/workflows/`):
   `tsc` + bundles the webview) → `npm test` (unit) → `npm --prefix media-src run
   test:e2e` (Playwright chromium, browser binaries cached). **E2e now runs in CI**
   — keep it green locally.
-- **`publish.yml`** ("Release") — on `v*` tags or a manual run. Builds, tests,
-  packages the `.vsix`, **creates a GitHub Release with the `.vsix`**, then publishes
-  to the VS Marketplace (`VSCE_PAT` / `VS_MARKETPLACE_TOKEN`) and Open VSX
-  (`OPEN_VSX_TOKEN`) — each only if its token secret is set. See [Releasing](#releasing).
+- **`release.yml`** ("Release") — the one-click cut button: a manual *Run workflow*
+  with a `patch` / `minor` / `major` choice. Bumps `package.json` + lock, commits and
+  tags `vX.Y.Z` on `main`, then calls `publish.yml`. Use this for 1.0.1 onward.
+- **`publish.yml`** ("Publish") — the actual build + ship, on `v*` tags, a manual run
+  (pick a tag), or a `workflow_call` from `release.yml`. Builds, tests, packages the
+  `.vsix`, **creates a GitHub Release with the `.vsix`**, then publishes to the VS
+  Marketplace (`VSCE_PAT` / `VS_MARKETPLACE_TOKEN`) and Open VSX (`OPEN_VSX_TOKEN`) —
+  each only if its token secret is set. See [Releasing](#releasing).
 
 `ci.yml` enforces lint + audit on the whole tree, so run `npm run lint:ci` and a
 clean `npm audit` locally before pushing — pre-existing drift in untouched files
@@ -263,31 +267,35 @@ still fails the gate.
 ## Releasing
 
 Publisher `spiochacz`; Marketplace id `spiochacz.vmarkd`. Releases are **CI-driven**:
-pushing a `v*` tag (or running the **Release** workflow manually) triggers
-`.github/workflows/publish.yml`, which builds, runs the unit tests, packages the
-`.vsix`, and **creates a GitHub Release with the `.vsix` attached**. It then
-publishes to a registry — each only if its token is set as a repo secret:
+`publish.yml` builds, runs the unit tests, packages the `.vsix`, and **creates a
+GitHub Release with the `.vsix` attached**. It then publishes to a registry — each
+only if its token is set as a repo secret:
 
 - `VSCE_PAT` (or `VS_MARKETPLACE_TOKEN`) — VS Marketplace. Azure DevOps PAT, scope
   *Marketplace → Manage*.
 - `OPEN_VSX_TOKEN` — Open VSX.
 
 With no token the run still produces the GitHub Release — so you can ship the `.vsix`
-first, add a token later, and **re-run** the workflow (Actions → Re-run, or the
-manual *Run workflow* button) to publish to a registry. The release step is
+first, add a token later, and **re-run** publishing for that tag (Actions → **Publish**
+→ *Run workflow* → enter the tag) to push it to a registry. The release step is
 idempotent (create-or-update), so re-runs are safe.
 
-To cut a release from a clean `main`:
+**Routine releases (1.0.1+) — one click, no local steps:** Actions → **Release** →
+*Run workflow* → pick `patch` / `minor` / `major`. It bumps the version, commits and
+tags on `main`, then runs `publish.yml` for that tag. Edit `CHANGELOG.md`'s top
+heading to the version you're shipping (and push it) **before** clicking.
+
+**The first release / tagging from local** still works too — `publish.yml` fires on
+any pushed `v*` tag:
 
 ```bash
-npm version 1.0.0     # bump: commits + tags (or edit package.json + commit)
+# version already set in package.json (e.g. the initial 1.0.0)
 npm run pub           # tag current version + push  (CI does build/release/publish)
 ```
 
 `npm run pub` (= `scripts/release-marketplace.sh`) only tags the current
 `package.json` version and pushes — CI owns the build, GitHub Release, and
-publishing. Set `CHANGELOG.md`'s top heading to the version you're shipping first.
-To build a local `.vsix` without releasing:
+publishing. To build a local `.vsix` without releasing:
 `npx @vscode/vsce package --out vmarkd-<ver>.vsix`, then
 `code --install-extension vmarkd-<ver>.vsix`.
 
