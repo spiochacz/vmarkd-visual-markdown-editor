@@ -10,14 +10,24 @@ body,
   height: 100%;
   width: 100%;
 }
-body[data-use-vscode-theme-color="1"] .vditor {
-  --panel-background-color: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+/* Toolbar/resize CHROME always follows VS Code — independent of the content
+   rendering theme (task 82). So the Vditor toolbar ("bar") stays VS Code-native
+   even when the markdown content uses a GitHub theme; only the md-display area is
+   themed. These vars drive the TOOLBAR + resize handle only — NOT the content
+   panes (those use --panel/--textarea, kept theme-scoped below). */
+.vditor {
   --toolbar-background-color: var(--vscode-editor-background);
   --toolbar-icon-color: var(--vscode-editor-foreground, #586069);
   --toolbar-icon-hover-color: var(--vscode-textLink-foreground, #4285f4);
-  --textarea-background-color: var(--vscode-editor-background);
   --border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
   --resize-icon-color: var(--vscode-editor-foreground, #586069);
+}
+/* Content-surface backgrounds (the editing panes + dropdown panels both use these
+   vars) follow VS Code for `auto`. A GitHub theme makes the editing surfaces
+   transparent instead (rule after the block below), so the themed canvas shows. */
+body[data-use-vscode-theme-color="1"] .vditor {
+  --panel-background-color: var(--vscode-editorWidget-background, var(--vscode-editor-background));
+  --textarea-background-color: var(--vscode-editor-background);
 }
 /* Keep the whole editor background = the VS Code editor background on every
    layer + the body, so it stays consistent whether or not the editor has focus.
@@ -33,62 +43,91 @@ body[data-use-vscode-theme-color="1"] .vditor-wysiwyg,
 body[data-use-vscode-theme-color="1"] .vditor-reset {
   background-color: var(--vscode-editor-background) !important;
 }
-/* When Vditor is in dark mode, use light fallback colors for toolbar icons */
-body[data-use-vscode-theme-color="1"] .vditor.vditor--dark {
+/* When Vditor is in dark mode, use light fallback colors for toolbar icons.
+   Always-on (chrome follows VS Code regardless of the content theme). */
+.vditor.vditor--dark {
   --toolbar-icon-color: var(--vscode-editor-foreground, #b9b9b9);
   --toolbar-icon-hover-color: var(--vscode-textLink-foreground, #fff);
   --resize-icon-color: var(--vscode-editor-foreground, #b9b9b9);
 }
 
-/* Make rendered content (tables, code, quotes, rules) follow the VS Code theme
-   colours instead of Vditor's fixed content-theme palette (which clashes with
-   custom themes). Only when the use-VS-Code-colour option is on; the --vscode-*
-   vars are theme-aware so a single rule covers both light and dark. Higher
-   specificity than Vditor's `.vditor-reset table tr {…}` so it wins. */
-body[data-use-vscode-theme-color="1"] .vditor-reset table tr,
-body[data-use-vscode-theme-color="1"] .vditor-reset table th {
-  background-color: var(--vscode-editor-background) !important;
+/* Named content-theme bridge (task 82). These `body.markdown-body …` rules are
+   SHARED by every named content theme (github/material/vscode), NOT github-only — the
+   class is on <body> for all of them. Keep them here (one home) rather than copied
+   into each theme file. The per-theme palette lives in media/markdown-themes/*.css.
+
+   1) Make the editing surfaces transparent so the themed body canvas shows through —
+      for any theme and any VS Code light/dark mode. Toolbar/dropdowns keep VS Code vars. */
+body.markdown-body
+  :is(.vditor-content, .vditor-ir, .vditor-wysiwyg, .vditor-sv, .vditor-preview),
+body.markdown-body :is(.vditor-ir, .vditor-wysiwyg) pre.vditor-reset,
+body.markdown-body :is(.vditor-ir, .vditor-wysiwyg) pre.vditor-reset:focus,
+body.markdown-body .vditor-sv:focus {
+  background-color: transparent !important;
 }
-body[data-use-vscode-theme-color="1"] .vditor-reset table tbody tr:nth-child(2n) {
-  background-color: var(
+/* 2) Neutralise the blockquote background. VS Code injects a webview-default
+   `blockquote { background: var(--vscode-textBlockQuote-background) }`; left alone, a
+   dark theme's blockquote bg leaks a dark box into a light document. GitHub/Material
+   want no background (this transparent default wins); the VS Code themes re-assert
+   their own panel bg in their theme file (loaded later, same specificity). */
+body.markdown-body .vditor-reset blockquote {
+  /* Neutralise VS Code's injected default (the !important must stay to beat it), but
+     let a theme opt into a panel background via --vmarkd-blockquote-bg (task 84/85).
+     Unset → transparent (GitHub/Material); the VS Code themes set their panel colour. */
+  background-color: var(--vmarkd-blockquote-bg, transparent) !important;
+}
+/* 3) Content scrollbars follow the content theme, not the VS Code editor. VS Code drives
+   the webview's NATIVE scrollbars via color-scheme on the root, so a dark code block on a
+   light editor gets a light scrollbar (and vice-versa). `scrollbar-color` is INHERITED,
+   so setting it on the themed body recolours every content scroller (code blocks,
+   tables, the editor pane) in one go; a neutral translucent thumb reads on any surface
+   (tunable via --vmarkd-scrollbar-thumb). `!important` to beat the root. Scoped to
+   body.markdown-body so `auto` keeps VS Code's editor-matched scrollbars. */
+body.markdown-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vmarkd-scrollbar-thumb, rgba(128, 128, 128, 0.5))
+    transparent !important;
+}
+
+/* `auto` (theme.content = auto) makes rendered content follow the VS Code theme.
+   Unified with the named themes (task 84/85): instead of out-ranking Vditor's palette
+   with !important, feed the SAME `--vmarkd-*` variables that Vditor's var-ified
+   content-theme rules read. The --vscode-* vars are theme-aware, so one set covers
+   light + dark and updates live. (`auto` always has Vditor's content-theme loaded, so
+   those var-consuming rules are present — see the e2e baseline.) */
+body[data-use-vscode-theme-color="1"] {
+  --vmarkd-table-row-bg: var(--vscode-editor-background);
+  --vmarkd-table-stripe: var(
     --vscode-editorWidget-background,
     var(--vscode-editor-background)
-  ) !important;
+  );
+  --vmarkd-hr-bg: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  --vmarkd-blockquote-border: var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+  --vmarkd-code-bg: var(
+    --vscode-textCodeBlock-background,
+    rgba(127, 127, 127, 0.18)
+  );
 }
+/* These can't flow through a --vmarkd-* var, so they stay explicit overrides:
+   - cell borders: the table-border var also feeds Vditor's `tr` border-top, which the
+     dark content-theme leaves non-var — keep the cell border explicit for exact parity;
+   - blockquote background: Vditor blockquotes have no background for a var to feed, and
+     `auto` uses a translucent overlay (tints with the editor bg), not a fixed colour;
+   - code BLOCK background: the `.hljs`/`pre` surface is a separate axis from inline code. */
 body[data-use-vscode-theme-color="1"] .vditor-reset table td,
 body[data-use-vscode-theme-color="1"] .vditor-reset table th,
 body[data-use-vscode-theme-color="1"] .vditor-reset table {
   border-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35)) !important;
 }
 body[data-use-vscode-theme-color="1"] .vditor-reset blockquote {
-  /* VS Code's default webview stylesheet gives blockquotes a
-     --vscode-textBlockQuote-background, which is a fixed blue-grey in some
-     custom themes; a translucent overlay tints with the actual editor bg. */
   background-color: rgba(127, 127, 127, 0.1) !important;
-  border-left-color: var(
-    --vscode-panel-border,
-    rgba(128, 128, 128, 0.35)
-  ) !important;
 }
-body[data-use-vscode-theme-color="1"] .vditor-reset hr {
-  background-color: var(--vscode-panel-border, rgba(128, 128, 128, 0.35)) !important;
-}
-/* code blocks (rendered preview + raw) and inline code follow VS Code's code
-   background so they don't stay GitHub-dark blue-grey on a custom theme. */
 body[data-use-vscode-theme-color="1"] .vditor-reset pre,
 body[data-use-vscode-theme-color="1"] .vditor-reset pre > code,
 body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   background-color: var(
     --vscode-textCodeBlock-background,
     var(--vscode-editor-background)
-  ) !important;
-}
-body[data-use-vscode-theme-color="1"]
-  .vditor-reset
-  code:not(.hljs):not(.highlight-chroma) {
-  background-color: var(
-    --vscode-textCodeBlock-background,
-    rgba(127, 127, 127, 0.18)
   ) !important;
 }
 /* Task-list checkboxes are native form controls — default blue check + white
@@ -113,9 +152,21 @@ body[data-use-vscode-theme-color="1"]
   font-family: var(--vscode-editor-font-family)!important;
   font-size: var(--me-font-size, var(--vscode-editor-font-size, 14px))!important;
 }
-/* fix code block color in dark mode */
+/* Named content-theme bridge (task 82): every named theme (github/material/vscode)
+   reads in a system sans stack instead of the VS Code EDITOR font (the rule above),
+   matching how GitHub / VS Code's own markdown preview render. Higher specificity, so
+   it wins only while body.markdown-body is set; `auto` keeps the editor font. Shared
+   here (not per-theme). The font-SIZE flows through --me-font-size (registry default:
+   16px for github, editor size otherwise); per-theme inline-code bg lives in the
+   theme files. */
+body.markdown-body .vditor .vditor-reset {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji" !important;
+}
+/* Dark-mode inline code: higher specificity than Vditor's content-theme code rule, so
+   it must also read --vmarkd-code-bg or it would re-shadow a dark theme's value. Unset
+   (auto/dark) → Vditor's blue-tinted default. */
 .vditor--dark .vditor-reset code:not(.hljs):not(.highlight-chroma) {
-  background-color: rgba(66,133,244,.1);
+  background-color: var(--vmarkd-code-bg, rgba(66,133,244,.1));
 }
 /* fix outline toolbar padding */
 .vditor-toolbar.vditor-toolbar--pin {

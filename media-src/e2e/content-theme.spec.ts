@@ -1,4 +1,41 @@
+import type { Page } from '@playwright/test'
 import { test, expect } from './coverage-fixture'
+
+// The GitHub themes are the vendored upstream github-markdown-css files under
+// media/markdown-themes/ (loaded as <link> in the real webview). The harness page
+// doesn't include them, so load the actual file via addStyleTag (path resolved
+// against the cwd = media-src, where Playwright runs) and add the markdown-body
+// class the upstream CSS targets — exactly what the webview does.
+const THEME_DIR = '../media/markdown-themes'
+
+// A2: reproduce the cascade the REAL webview sits on but the harness page omits, so a
+// theme that "looks fine here" can't quietly lose in the editor:
+//   1. Vditor's own content-theme palette (`.vditor-reset …`, loaded via setContentTheme),
+//   2. VS Code's injected webview default stylesheet (`blockquote{background:…}`, a bare
+//      low-priority rule like the UA sheet).
+// Both sit UNDER the theme link in source order. Call this BEFORE adding the theme link
+// so the theme loads last (the html-builder order), then add markdown-body + attr 0.
+async function installRealWebviewBaseline(
+  page: Page,
+  mode: 'light' | 'dark' = 'light',
+): Promise<void> {
+  // Vditor's palette — inlined first, like the vditorContentTheme link in the head.
+  await page.addStyleTag({
+    path: `../media/vditor/dist/css/content-theme/${mode}.css`,
+  })
+  // VS Code's injected default (a dark theme's blockquote bg, to make a leak obvious).
+  await page.evaluate(() => {
+    const s = document.createElement('style')
+    s.id = 'vscode-injected-default'
+    s.textContent =
+      'blockquote{background:var(--vscode-textBlockQuote-background);}'
+    document.head.insertBefore(s, document.head.firstChild) // low priority, like UA
+    document.documentElement.style.setProperty(
+      '--vscode-textBlockQuote-background',
+      'rgb(20, 22, 28)',
+    )
+  })
+}
 
 // Guards the content-theme fix (table/content theme must follow live theme
 // switches). Vditor's setContentTheme is a no-op when its path is empty — which
@@ -88,11 +125,16 @@ test('task-list checkbox accent follows the VS Code theme when the option is on'
 // + elements resolve their colours from --vscode-* vars (so a custom VS Code
 // theme is honoured), and the background stays consistent across wrapper layers
 // (the focus-shade fix). Sentinel colours prove the var — not a fixed palette.
+// `auto` now feeds Vditor's var-ified content-theme via --vmarkd-* (task 84/85 unify),
+// so load Vditor's content-theme like the real webview does (the harness omits it).
 test('content elements + wrapper layers follow VS Code theme vars when the option is on', async ({
   page,
 }) => {
   await page.goto('/')
   await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({
+    path: '../media/vditor/dist/css/content-theme/light.css',
+  })
   const got = await page.evaluate(() => {
     const root = document.documentElement.style
     root.setProperty('--vscode-editor-background', 'rgb(1, 2, 3)')
@@ -140,3 +182,646 @@ test('the theme overrides are gated on the option (off → not applied)', async 
   })
   expect(bg).not.toBe('rgb(1, 2, 3)') // override only applies when the attr is "1"
 })
+
+// Task 82: a GitHub rendering theme recolours the rendered markdown to the GitHub
+// canvas REGARDLESS of the VS Code theme. The upstream CSS uses fixed hex values
+// (no --vscode-* vars), so loading it + the markdown-body class is inherently
+// independent of the editor theme; simulate the opposite VS Code bg to make that
+// explicit. The upstream `.markdown-body` rule paints the container background.
+test('github-dark paints the GitHub dark canvas independent of the VS Code theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({ path: `${THEME_DIR}/github-markdown-dark.css` })
+  const got = await page.evaluate(() => {
+    // simulate a LIGHT VS Code theme to prove the GitHub theme wins
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(255, 255, 255)',
+    )
+    document.documentElement.style.setProperty(
+      '--vscode-editor-font-family',
+      'Comic Sans MS',
+    )
+    document.body.classList.add('markdown-body')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    return {
+      bg: getComputedStyle(document.body).backgroundColor,
+      font: getComputedStyle(reset).fontFamily,
+    }
+  })
+  expect(got.bg).toBe('rgb(13, 17, 23)') // GitHub dark canvas #0d1117, not the white VS Code bg
+  // content uses GitHub's system font stack, NOT the VS Code editor font (task 43 override)
+  expect(got.font).toContain('BlinkMacSystemFont')
+  expect(got.font).not.toContain('Comic Sans')
+})
+
+test('github-light paints the GitHub light canvas independent of the VS Code theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({ path: `${THEME_DIR}/github-markdown-light.css` })
+  const bg = await page.evaluate(() => {
+    // simulate a DARK VS Code theme to prove the GitHub theme wins
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(0, 0, 0)',
+    )
+    document.body.classList.add('markdown-body')
+    return getComputedStyle(document.body).backgroundColor
+  })
+  expect(bg).toBe('rgb(255, 255, 255)') // GitHub light canvas #ffffff, not the black VS Code bg
+})
+
+// Task 82: Material Dark (One Dark) content theme — vendored from raycon, adapted.
+test('material-dark paints the One Dark palette independent of the VS Code theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({ path: '../media/markdown-themes/material-dark.css' })
+  const got = await page.evaluate(() => {
+    // simulate a LIGHT VS Code theme to prove the theme wins
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(255, 255, 255)',
+    )
+    document.body.classList.add('markdown-body')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    const a = document.createElement('a')
+    a.href = '#'
+    a.textContent = 'x'
+    reset.appendChild(a)
+    return {
+      bg: getComputedStyle(document.body).backgroundColor,
+      text: getComputedStyle(reset).color,
+      link: getComputedStyle(a).color,
+    }
+  })
+  expect(got.bg).toBe('rgb(40, 44, 52)') // One Dark canvas #282c34, not the white VS Code bg
+  expect(got.text).toBe('rgb(171, 178, 191)') // One Dark fg #abb2bf
+  expect(got.link).toBe('rgb(97, 175, 239)') // One Dark accent #61afef
+})
+
+// Task 82: VS Code markdown preview dark — fixed dark palette regardless of VS Code.
+test('vscode-dark-modern paints a fixed dark palette independent of the VS Code theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  // Vditor's own content-theme palette loads FIRST in the real webview; the theme
+  // must out-rank it (esp. inline code, which Vditor tints blue at 0,3,1).
+  await page.addStyleTag({
+    path: '../media/vditor/dist/css/content-theme/dark.css',
+  })
+  await page.addStyleTag({ path: `${THEME_DIR}/vscode-dark-modern.css` })
+  const got = await page.evaluate(() => {
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(255, 255, 255)',
+    )
+    document.body.classList.add('markdown-body')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    const bq = document.createElement('blockquote')
+    bq.textContent = 'q'
+    reset.appendChild(bq)
+    const code = document.createElement('code')
+    code.textContent = 'x'
+    reset.appendChild(code)
+    return {
+      bg: getComputedStyle(document.body).backgroundColor,
+      text: getComputedStyle(reset).color,
+      bqBg: getComputedStyle(bq).backgroundColor,
+      codeBg: getComputedStyle(code).backgroundColor,
+    }
+  })
+  expect(got.bg).toBe('rgb(31, 31, 31)') // Dark Modern editor.background #1f1f1f, not the white VS Code bg
+  expect(got.text).toBe('rgb(204, 204, 204)') // Dark Modern editor.foreground #cccccc
+  // VS Code blockquote is a subtle grey panel (textBlockQuote #2b2b2b), not transparent
+  expect(got.bqBg).toBe('rgb(43, 43, 43)')
+  // inline code = textPreformat #3c3c3c — NOT Vditor's blue-tinted dark code bg
+  expect(got.codeBg).toBe('rgb(60, 60, 60)')
+})
+
+// Task 82: the Vditor toolbar ("bar") always follows VS Code — even with a GitHub
+// content theme active (body.markdown-body), the toolbar background resolves from
+// --vscode-editor-background, not from the theme. Only the content is themed.
+test('toolbar background follows VS Code even with a GitHub content theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const bg = await page.evaluate(() => {
+    document.documentElement.style.setProperty(
+      '--vscode-editor-background',
+      'rgb(7, 8, 9)',
+    )
+    // a GitHub theme is active on the content…
+    document.body.classList.add('markdown-body')
+    // …but the toolbar chrome must still resolve to the VS Code background.
+    const tb = document.querySelector('.vditor-toolbar') as HTMLElement
+    return tb ? getComputedStyle(tb).backgroundColor : null
+  })
+  expect(bg).toBe('rgb(7, 8, 9)') // VS Code sentinel, not a GitHub palette colour
+})
+
+// Task 82 regression: the REAL VS Code webview injects a default stylesheet that
+// paints `blockquote { background: var(--vscode-textBlockQuote-background) }`. Our
+// `auto` rule overrides it, but GitHub's blockquote rule sets only colour/border —
+// no background — so a dark VS Code theme's blockquote background would leak through
+// a GitHub (light) content theme: a dark quote box in a light document. The content
+// theme must neutralise that so the blockquote matches GitHub (no background).
+test('GitHub blockquote ignores the VS Code default blockquote background (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({
+    path: `${THEME_DIR}/github-markdown-light.css`,
+  })
+  const bg = await page.evaluate(() => {
+    // Simulate VS Code's injected webview default (a dark theme's blockquote bg),
+    // inserted first so it sits at low priority like the UA/default sheet.
+    const s = document.createElement('style')
+    s.textContent =
+      'blockquote{background:var(--vscode-textBlockQuote-background);}'
+    document.head.insertBefore(s, document.head.firstChild)
+    document.documentElement.style.setProperty(
+      '--vscode-textBlockQuote-background',
+      'rgb(20, 22, 28)',
+    )
+    document.body.classList.add('markdown-body')
+    document.body.setAttribute('data-use-vscode-theme-color', '0')
+    ;(window as any).vditor.setValue('> **Status:** Done\n> **Source:** x')
+    const bq = document.querySelector(
+      '.vditor-ir .vditor-reset blockquote',
+    ) as HTMLElement
+    return getComputedStyle(bq).backgroundColor
+  })
+  // not the leaked dark VS Code blockquote background — GitHub blockquotes have none
+  expect(bg).not.toBe('rgb(20, 22, 28)')
+  expect(bg).toBe('rgba(0, 0, 0, 0)')
+})
+
+// Task 82: the toolbar dropdown menus (.vditor-panel / .vditor-hint) are chrome —
+// they must follow VS Code's menu background even with a GitHub content theme. The
+// VS Code-native chrome rules live in vscode-chrome.css; they must NOT be gated on
+// the content theme (a white menu on a dark VS Code toolbar otherwise).
+test('toolbar dropdown menu follows VS Code with a GitHub content theme (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.addStyleTag({ path: 'src/vscode-chrome.css' })
+  const bg = await page.evaluate(() => {
+    document.documentElement.style.setProperty(
+      '--vscode-menu-background',
+      'rgb(30, 31, 34)',
+    )
+    // GitHub content theme is active (attr 0 + markdown-body) — chrome must still
+    // resolve to the VS Code menu surface.
+    document.body.classList.add('markdown-body')
+    document.body.setAttribute('data-use-vscode-theme-color', '0')
+    const panel = document.createElement('div')
+    panel.className = 'vditor-hint'
+    document.querySelector('.vditor')!.appendChild(panel)
+    return getComputedStyle(panel).backgroundColor
+  })
+  expect(bg).toBe('rgb(30, 31, 34)') // VS Code menu bg, not Vditor's default light panel
+})
+
+// Task 82 regression: the REAL webview loads Vditor's own content-theme palette
+// (content-theme/light.css, id=vditorContentTheme, applied via setTheme) which styles
+// `.vditor-reset blockquote/code/...` — at the SAME specificity as github-markdown-css's
+// `.markdown-body …` rules, and the vendored github CSS carries no !important. So github
+// only wins if its <link> loads AFTER Vditor's (html-builder emits it after
+// prerender.themeLink). The harness page omits Vditor's content-theme, so without this
+// test the github cascade looks fine here but loses in the real editor. Mirror the real
+// order: Vditor content-theme first, github second, and assert github's palette wins —
+// blockquote colour + inline-code background — and that font-size follows --me-font-size.
+test("github wins Vditor's content-theme palette when loaded after it (task 82)", async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const got = await page.evaluate(async () => {
+    // 1) Vditor's bundled content-theme palette — loaded FIRST, like setContentTheme does.
+    const vditorCt = document.createElement('link')
+    vditorCt.id = 'vditorContentTheme'
+    vditorCt.rel = 'stylesheet'
+    vditorCt.href = '/vditor/dist/css/content-theme/light.css'
+    document.head.appendChild(vditorCt)
+    await new Promise((r) => {
+      vditorCt.addEventListener('load', r)
+      vditorCt.addEventListener('error', r)
+    })
+    // 2) github-light — loaded AFTER (the html-builder order).
+    const gh = document.createElement('link')
+    gh.id = 'ct-github-light'
+    gh.rel = 'stylesheet'
+    gh.href = '/markdown-themes/github-markdown-light.css'
+    document.head.appendChild(gh)
+    await new Promise((r) => {
+      gh.addEventListener('load', r)
+      gh.addEventListener('error', r)
+    })
+    document.body.classList.add('markdown-body')
+    // font-size follows --me-font-size (the host/webview default it to 16px for a
+    // GitHub theme; an explicit `fontSize` setting still scales it). Pin a sentinel
+    // to prove the theme honours it rather than hard-coding a size.
+    document.body.style.setProperty('--me-font-size', '19px')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    reset.insertAdjacentHTML(
+      'beforeend',
+      '<blockquote id="t-bq">q</blockquote><p><code id="t-code">x</code></p>',
+    )
+    const cs = (id: string, p: string) =>
+      (getComputedStyle(document.getElementById(id)!) as any)[p]
+    return {
+      bqColor: cs('t-bq', 'color'),
+      codeBg: cs('t-code', 'backgroundColor'),
+      fontSize: getComputedStyle(reset).fontSize,
+    }
+  })
+  // GitHub blockquote text #59636e — NOT Vditor's content-theme #6a737d rgb(106,115,125)
+  expect(got.bqColor).toBe('rgb(89, 99, 110)')
+  // GitHub inline-code bg #818b981f — NOT Vditor's rgba(27,31,35,.05)
+  expect(got.codeBg).toContain('129, 139, 152')
+  // font-size honours --me-font-size (the `fontSize` setting), not a hard-coded value
+  expect(got.fontSize).toBe('19px')
+})
+
+// Task 82: exercise the REAL mechanism the extension uses — two <link> stylesheets,
+// one enabled via link.disabled — and confirm a blockquote follows the enabled
+// GitHub theme, and re-follows when the enabled link is switched (auto ↔ light ↔ dark).
+test('blockquote follows the enabled GitHub <link>, and switches with link.disabled (task 82)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  // Mirror html-builder exactly: both links present, the inactive one carries the
+  // `disabled` ATTRIBUTE from the start (setting the .disabled property before load
+  // is ineffective — the sheet would load and win regardless).
+  await page.evaluate(async () => {
+    const light = document.createElement('link')
+    light.id = 'ct-github-light'
+    light.rel = 'stylesheet'
+    light.href = '/markdown-themes/github-markdown-light.css'
+    const dark = document.createElement('link')
+    dark.id = 'ct-github-dark'
+    dark.rel = 'stylesheet'
+    dark.href = '/markdown-themes/github-markdown-dark.css'
+    dark.setAttribute('disabled', '') // inactive via attribute (server-HTML path)
+    document.head.appendChild(light)
+    document.head.appendChild(dark)
+    await new Promise((r) => {
+      light.addEventListener('load', r)
+      light.addEventListener('error', r)
+    })
+    document.body.classList.add('markdown-body')
+    ;(window as any).vditor.setValue('> a quoted line')
+  })
+  const bqColor = () =>
+    page.evaluate(() => {
+      const bq = document.querySelector(
+        '.vditor-ir .vditor-reset blockquote',
+      ) as HTMLElement
+      return bq ? getComputedStyle(bq).color : null
+    })
+  // github-light enabled → light blockquote text (#59636e)
+  expect(await bqColor()).toBe('rgb(89, 99, 110)')
+  // switch enabled link to dark (the applyContentTheme toggle)
+  await page.evaluate(() => {
+    ;(document.getElementById('ct-github-light') as HTMLLinkElement).disabled =
+      true
+    ;(document.getElementById('ct-github-dark') as HTMLLinkElement).disabled =
+      false
+  })
+  // github-dark now enabled → dark blockquote text (#9198a1)
+  await page.waitForFunction(() => {
+    const bq = document.querySelector('.vditor-ir .vditor-reset blockquote')
+    return bq && getComputedStyle(bq).color === 'rgb(145, 152, 161)'
+  })
+  expect(await bqColor()).toBe('rgb(145, 152, 161)')
+})
+
+// A3: every content theme renders its blockquote correctly against the REAL webview
+// baseline (Vditor's palette + VS Code's injected blockquote bg). GitHub + Material
+// have no blockquote background (neutralised to transparent so the injected dark box
+// can't leak); the VS Code themes keep their own panel background. One parametrized
+// guard for the whole "leaks only in the real editor" class, across all themes.
+test.describe('blockquote survives the real webview baseline (task 82 / A3)', () => {
+  const cases = [
+    {
+      theme: 'github-light',
+      file: 'github-markdown-light.css',
+      mode: 'light',
+      bg: 'rgba(0, 0, 0, 0)',
+    },
+    {
+      theme: 'github-dark',
+      file: 'github-markdown-dark.css',
+      mode: 'dark',
+      bg: 'rgba(0, 0, 0, 0)',
+    },
+    {
+      theme: 'material-dark',
+      file: 'material-dark.css',
+      mode: 'dark',
+      bg: 'rgba(0, 0, 0, 0)',
+    },
+    {
+      theme: 'vscode-light-modern',
+      file: 'vscode-light-modern.css',
+      mode: 'light',
+      bg: 'rgb(248, 248, 248)',
+    },
+    {
+      theme: 'vscode-dark-modern',
+      file: 'vscode-dark-modern.css',
+      mode: 'dark',
+      bg: 'rgb(43, 43, 43)',
+    },
+  ] as const
+  for (const c of cases) {
+    test(`${c.theme} blockquote = ${c.bg}`, async ({ page }) => {
+      await page.goto('/')
+      await page.waitForFunction(() => (window as any).__ready === true)
+      await installRealWebviewBaseline(page, c.mode)
+      await page.addStyleTag({ path: `${THEME_DIR}/${c.file}` })
+      const bg = await page.evaluate(() => {
+        document.body.classList.add('markdown-body')
+        document.body.setAttribute('data-use-vscode-theme-color', '0')
+        const reset = document.querySelector('.vditor-reset') as HTMLElement
+        const bq = document.createElement('blockquote')
+        bq.textContent = 'q'
+        reset.appendChild(bq)
+        return getComputedStyle(bq).backgroundColor
+      })
+      expect(bg).not.toBe('rgb(20, 22, 28)') // never the leaked VS Code injected default
+      expect(bg).toBe(c.bg) // the theme's own blockquote treatment
+    })
+  }
+})
+
+// Task 85: completeness — `hr` and table-row backgrounds. Vditor's base palette gives
+// `hr` a background-coloured bar and zebra-striped rows (and the dark content-theme
+// makes the bar light) that don't match a theme; a complete theme owns both on the
+// editor surface. Asserted against the real webview baseline (Vditor palette loaded).
+test.describe('hr + table row backgrounds are owned by each theme (task 85)', () => {
+  const cases = [
+    {
+      theme: 'github-light',
+      file: 'github-markdown-light.css',
+      mode: 'light',
+      hr: 'rgb(209, 217, 224)',
+      even: 'rgb(246, 248, 250)',
+    },
+    {
+      theme: 'github-dark',
+      file: 'github-markdown-dark.css',
+      mode: 'dark',
+      hr: 'rgb(61, 68, 77)',
+      even: 'rgb(21, 27, 35)',
+    },
+    {
+      theme: 'material-dark',
+      file: 'material-dark.css',
+      mode: 'dark',
+      hr: 'rgb(59, 64, 72)',
+      even: 'rgba(171, 178, 191, 0.04)',
+    },
+    {
+      theme: 'vscode-light-modern',
+      file: 'vscode-light-modern.css',
+      mode: 'light',
+      hr: 'rgb(229, 229, 229)',
+      even: 'rgb(248, 248, 248)',
+    },
+    {
+      theme: 'vscode-dark-modern',
+      file: 'vscode-dark-modern.css',
+      mode: 'dark',
+      hr: 'rgb(43, 43, 43)',
+      even: 'rgb(43, 43, 43)',
+    },
+  ] as const
+  // Vditor's default `hr` bar leaks light on a dark theme — must never be the result.
+  const VDITOR_HR_LEAK = ['rgb(209, 213, 218)', 'rgb(234, 236, 239)']
+  for (const c of cases) {
+    test(`${c.theme}: hr=${c.hr}, even row=${c.even}`, async ({ page }) => {
+      await page.goto('/')
+      await page.waitForFunction(() => (window as any).__ready === true)
+      await installRealWebviewBaseline(page, c.mode)
+      await page.addStyleTag({ path: `${THEME_DIR}/${c.file}` })
+      const got = await page.evaluate(() => {
+        document.body.classList.add('markdown-body')
+        document.body.setAttribute('data-use-vscode-theme-color', '0')
+        const reset = document.querySelector('.vditor-reset') as HTMLElement
+        reset.insertAdjacentHTML(
+          'beforeend',
+          '<hr id="t-hr"><table><tbody><tr><td>a</td></tr><tr id="t-even"><td>b</td></tr></tbody></table>',
+        )
+        const cs = (id: string) =>
+          getComputedStyle(document.getElementById(id)!).backgroundColor
+        return { hr: cs('t-hr'), even: cs('t-even') }
+      })
+      expect(VDITOR_HR_LEAK).not.toContain(got.hr) // never Vditor's leaked bar
+      expect(got.hr).toBe(c.hr)
+      expect(got.even).toBe(c.even)
+    })
+  }
+})
+
+// Scrollbars + form controls follow the theme's light/dark scheme (color-scheme), not
+// the VS Code editor's — else a dark content theme on a light editor shows light
+// scrollbars on dark code blocks (and vice-versa). github-markdown-css sets it; the
+// vMarkd themes must too.
+test.describe('color-scheme matches the theme, not the editor (task 85)', () => {
+  const cases = [
+    {
+      theme: 'github-light',
+      file: 'github-markdown-light.css',
+      scheme: 'light',
+    },
+    { theme: 'github-dark', file: 'github-markdown-dark.css', scheme: 'dark' },
+    { theme: 'material-dark', file: 'material-dark.css', scheme: 'dark' },
+    {
+      theme: 'vscode-light-modern',
+      file: 'vscode-light-modern.css',
+      scheme: 'light',
+    },
+    {
+      theme: 'vscode-dark-modern',
+      file: 'vscode-dark-modern.css',
+      scheme: 'dark',
+    },
+  ] as const
+  for (const c of cases) {
+    test(`${c.theme} → color-scheme: ${c.scheme}`, async ({ page }) => {
+      await page.goto('/')
+      await page.waitForFunction(() => (window as any).__ready === true)
+      await page.addStyleTag({ path: `${THEME_DIR}/${c.file}` })
+      const scheme = await page.evaluate(() => {
+        document.body.classList.add('markdown-body')
+        return getComputedStyle(document.body).colorScheme
+      })
+      expect(scheme).toBe(c.scheme)
+    })
+  }
+})
+
+// Task 85: content scrollbars follow the content theme, not the VS Code editor. VS Code
+// drives the webview's NATIVE scrollbars (it sets color-scheme on the root); we override
+// with the inherited `scrollbar-color` on the themed body so EVERY content scroller —
+// incl. nested ones like code blocks — is recoloured, beating a root-level value. `auto`
+// (no markdown-body) is untouched.
+test('content scrollbar-color overrides the editor and inherits to nested scrollers (task 85)', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const got = await page.evaluate(() => {
+    // simulate VS Code colouring the webview-root scrollbars (a sentinel)
+    document.documentElement.style.setProperty(
+      'scrollbar-color',
+      'rgb(200, 200, 200) rgb(200, 200, 200)',
+    )
+    document.body.classList.add('markdown-body')
+    const reset = document.querySelector('.vditor-reset') as HTMLElement
+    const code = document.createElement('pre') // a nested scroller (code block)
+    code.style.overflow = 'auto'
+    reset.appendChild(code)
+    return {
+      body: getComputedStyle(document.body).scrollbarColor,
+      nested: getComputedStyle(code).scrollbarColor, // inherits from the themed body
+      root: getComputedStyle(document.documentElement).scrollbarColor, // editor value, untouched
+    }
+  })
+  // themed body + every nested content scroller use our thumb, NOT the editor sentinel
+  expect(got.body).toBe('rgba(128, 128, 128, 0.5) rgba(0, 0, 0, 0)')
+  expect(got.nested).toBe('rgba(128, 128, 128, 0.5) rgba(0, 0, 0, 0)')
+  expect(got.nested).not.toContain('200, 200, 200')
+  expect(got.root).toBe('rgb(200, 200, 200) rgb(200, 200, 200)') // editor scrollbars unchanged
+})
+
+// ── Theme completeness contract (task 85) ─────────────────────────────────────
+// One parametrized guard: every registry theme renders the FULL palette correctly
+// against the real webview baseline (Vditor's palette + VS Code's injected blockquote
+// default). Mechanism-agnostic — github wins via direct `.markdown-body` rules, the
+// others via `--vmarkd-*` variables; this asserts the RESULT either way. A new theme
+// added to the registry must get a row here (the coverage guard fails otherwise), so a
+// theme can't silently ship missing a property (the hr / scrollbar class of bug).
+import { NAMED_THEME_VALUES } from '../../src/theme-registry'
+
+const THEME_CONTRACT = [
+  {
+    theme: 'github-light',
+    file: 'github-markdown-light.css',
+    mode: 'light',
+    canvas: 'rgb(255, 255, 255)',
+    bqColor: 'rgb(89, 99, 110)',
+    bqBg: 'rgba(0, 0, 0, 0)',
+    hr: 'rgb(209, 217, 224)',
+    code: 'rgba(129, 139, 152, 0.12)',
+    stripe: 'rgb(246, 248, 250)',
+    scheme: 'light',
+  },
+  {
+    theme: 'github-dark',
+    file: 'github-markdown-dark.css',
+    mode: 'dark',
+    canvas: 'rgb(13, 17, 23)',
+    bqColor: 'rgb(145, 152, 161)',
+    bqBg: 'rgba(0, 0, 0, 0)',
+    hr: 'rgb(61, 68, 77)',
+    code: 'rgba(101, 108, 118, 0.2)',
+    stripe: 'rgb(21, 27, 35)',
+    scheme: 'dark',
+  },
+  {
+    theme: 'material-dark',
+    file: 'material-dark.css',
+    mode: 'dark',
+    canvas: 'rgb(40, 44, 52)',
+    bqColor: 'rgb(127, 132, 142)',
+    bqBg: 'rgba(0, 0, 0, 0)',
+    hr: 'rgb(59, 64, 72)',
+    code: 'rgba(171, 178, 191, 0.1)',
+    stripe: 'rgba(171, 178, 191, 0.04)',
+    scheme: 'dark',
+  },
+  {
+    theme: 'vscode-light-modern',
+    file: 'vscode-light-modern.css',
+    mode: 'light',
+    canvas: 'rgb(255, 255, 255)',
+    bqColor: 'rgb(59, 59, 59)',
+    bqBg: 'rgb(248, 248, 248)',
+    hr: 'rgb(229, 229, 229)',
+    code: 'rgba(0, 0, 0, 0.12)',
+    stripe: 'rgb(248, 248, 248)',
+    scheme: 'light',
+  },
+  {
+    theme: 'vscode-dark-modern',
+    file: 'vscode-dark-modern.css',
+    mode: 'dark',
+    canvas: 'rgb(31, 31, 31)',
+    bqColor: 'rgb(204, 204, 204)',
+    bqBg: 'rgb(43, 43, 43)',
+    hr: 'rgb(43, 43, 43)',
+    code: 'rgb(60, 60, 60)',
+    stripe: 'rgb(43, 43, 43)',
+    scheme: 'dark',
+  },
+] as const
+
+test('every registry theme has a completeness-contract row (no silent gaps)', () => {
+  expect([...THEME_CONTRACT.map((c) => c.theme)].sort()).toEqual(
+    [...NAMED_THEME_VALUES].sort(),
+  )
+})
+
+for (const c of THEME_CONTRACT) {
+  test(`completeness: ${c.theme} renders the full palette (task 85)`, async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.waitForFunction(() => (window as any).__ready === true)
+    await installRealWebviewBaseline(page, c.mode)
+    await page.addStyleTag({ path: `${THEME_DIR}/${c.file}` })
+    const got = await page.evaluate(() => {
+      document.body.classList.add('markdown-body')
+      document.body.setAttribute('data-use-vscode-theme-color', '0')
+      const reset = document.querySelector('.vditor-reset') as HTMLElement
+      reset.insertAdjacentHTML(
+        'beforeend',
+        '<blockquote id="c-bq">q</blockquote>' +
+          '<p><code id="c-code">x</code></p>' +
+          '<hr id="c-hr">' +
+          '<table><tbody><tr><td>a</td></tr><tr id="c-even"><td>b</td></tr></tbody></table>',
+      )
+      const bg = (id: string) =>
+        getComputedStyle(document.getElementById(id)!).backgroundColor
+      return {
+        canvas: getComputedStyle(document.body).backgroundColor,
+        bqColor: getComputedStyle(document.getElementById('c-bq')!).color,
+        bqBg: bg('c-bq'),
+        hr: bg('c-hr'),
+        code: bg('c-code'),
+        stripe: bg('c-even'),
+        scheme: getComputedStyle(document.body).colorScheme,
+      }
+    })
+    expect(got.canvas).toBe(c.canvas)
+    expect(got.bqColor).toBe(c.bqColor)
+    expect(got.bqBg).toBe(c.bqBg)
+    expect(got.hr).toBe(c.hr)
+    expect(got.code).toBe(c.code)
+    expect(got.stripe).toBe(c.stripe)
+    expect(got.scheme).toBe(c.scheme)
+  })
+}

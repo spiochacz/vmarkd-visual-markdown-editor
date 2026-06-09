@@ -16,6 +16,78 @@ Built artifacts (`out/`, `media/dist/`, `media/vditor/dist/`) are generated and
 git-ignored. The Vditor assets the webview needs are synced from
 `media-src/node_modules/vditor` into `media/vditor/` by the build.
 
+**GitHub rendering themes (task 82):** `media/markdown-themes/github-markdown-light.css`
+and `github-markdown-dark.css` are the **unmodified** upstream files from
+[github-markdown-css](https://github.com/sindresorhus/github-markdown-css) (MIT),
+vendored verbatim (only a provenance comment is prepended). The webview ships ALL
+content-theme stylesheets as `<link>` tags and enables one via `link.disabled` + the
+`markdown-body` class the CSS targets (`CONTENT_THEME_FILES` in `html-builder.ts` +
+`applyContentTheme` in `live-config.ts`). To update github, copy the newer upstream
+files over these — no transform or build step.
+
+**Adding a content theme (task 84):** the theme metadata is single-sourced in
+`src/theme-registry.ts` (`CONTENT_THEMES`). Add **one row** — `value`, `file`, `mode`
+(dark/light), `code` (paired hljs style), `fontDefaultPx` (16 for a GitHub-style
+reading size, else `null` = follow the VS Code editor size) — then add the value to
+the `vmarkd.theme.content` enum in `package.json` (a manifest↔registry test enforces
+they match). Everything else derives from the registry: `CONTENT_THEME_FILES`,
+`effectiveThemeKind`, `codeHljsStyle`, `resolveFontSize`. Drop the CSS file under
+`media/markdown-themes/` and keep the README acknowledgement. The `material-dark`
+theme (adapted from [raycon/vscode-markdown-style](https://github.com/raycon/vscode-markdown-style),
+MIT) is the worked example.
+
+### How content themes control the palette (tasks 84/85)
+
+Markdown renders inside Vditor's `.vditor-reset`, and Vditor ships a **full github-ish
+palette of its own** (`hr`/`blockquote`/`table`/inline-code colours) in two
+always-present layers — its base `vditor/dist/index.css` (bundled into
+`media/dist/main.css`) and `content-theme/{light,dark}.css` (the `vditorContentTheme`
+`<link>`). To stop themes from having to out-rank those with `!important`/specificity
+tricks, the build (`build.mjs` → `varifyVditorPalette`) rewrites those few Vditor
+declarations to **`var(--vmarkd-*, <Vditor default>)`** (and `main.css` does the same
+for its blockquote-bg neutraliser + dark inline-code rule). So:
+
+- **`auto`** (follow VS Code) sets the `--vmarkd-*` on `body[data-use-vscode-theme-color="1"]`
+  to the theme-aware `--vscode-*` vars (e.g. `--vmarkd-code-bg: var(--vscode-textCodeBlock-background)`),
+  so content follows the editor through the SAME mechanism as named themes — no separate
+  `!important` block. A few non-mappable bits stay explicit (wrapper bg, blockquote
+  overlay, code-block bg, cell borders, checkbox). Unset vars fall back to Vditor's
+  default, so anything not driven still looks as Vditor intends.
+- A **named theme** just sets the variables on `body.markdown-body` — they inherit into
+  `.vditor-reset` and Vditor's own rule resolves to the theme's colour. **No
+  `!important`, no `.vditor-reset` specificity matching.**
+
+The variables a theme can set (see any `media/markdown-themes/*.css` for the worked
+form):
+
+| Variable | Element |
+|---|---|
+| `--vmarkd-heading-border` | h1/h2 underline colour |
+| `--vmarkd-hr-bg` | `hr` (Vditor draws it as a `background-color` bar, not a border) |
+| `--vmarkd-blockquote-fg` / `--vmarkd-blockquote-border` | blockquote text / left bar |
+| `--vmarkd-blockquote-bg` | blockquote panel background (unset → transparent) |
+| `--vmarkd-table-border` | table cell / row borders |
+| `--vmarkd-table-row-bg` / `--vmarkd-table-stripe` | table rows / even-row striping |
+| `--vmarkd-code-bg` | inline-code background |
+
+Properties **not** in the table are set directly on `.markdown-body` by the theme (and
+win ties because the theme `<link>` is emitted **after** Vditor's in `html-builder.ts`;
+`setContentTheme` no-ops at runtime so that order holds): canvas `background`, base
+`color` (also on `.vditor-reset`, since Vditor sets the reset's colour directly), link
+colour, heading colours, inline-code **colour**, the `.hljs` code-block background
+(`!important`, to override the paired hljs `theme.code` stylesheet), and
+**`color-scheme: light|dark`** (native form controls). Note `color-scheme` does **not**
+fix scrollbars — VS Code drives the webview's native scrollbars from the editor theme, so
+`main.css` sets the inherited `scrollbar-color` (+ `scrollbar-width: thin`) on
+`body.markdown-body` (`!important`) for every named theme; being inherited it recolours
+every content scroller incl. nested code blocks (tunable via `--vmarkd-scrollbar-thumb`).
+Font-**size** is never set in theme files — it flows through `--me-font-size` (the
+registry default + the `fontSize` setting).
+
+> Why not just strip Vditor's palette? Disabling the `vditorContentTheme` link doesn't
+> remove it — the base `index.css` carries it too (structural/bundled). Var-ifying both
+> layers in the build is the clean equivalent. See `tasks/85-theme-completeness-contract.md`.
+
 **Webview bundle (task 20):** `media-src/build.mjs` (the `start`/`build` scripts)
 imports Vditor from **source** (`vditor/src/index`) so esbuild can tree-shake it.
 The source-import specifics live in `media-src/esbuild-shared.mjs` — `define

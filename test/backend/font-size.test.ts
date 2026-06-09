@@ -25,4 +25,23 @@ describe('resolveFontSizeCss', () => {
     expect(resolveFontSizeCss('-4')).toBe(editorFont)
     expect(resolveFontSizeCss('abc')).toBe(editorFont)
   })
+
+  // task 82: a GitHub content theme defaults to GitHub's 16px reading size for
+  // unset/"editor" (renders like GitHub out of the box), but an explicit size
+  // still wins so the `fontSize` setting scales it.
+  it('defaults a GitHub theme to 16px for unset / "editor"', () => {
+    expect(resolveFontSizeCss(undefined, 'github-light')).toBe('16px')
+    expect(resolveFontSizeCss('editor', 'github-dark')).toBe('16px')
+  })
+
+  it('lets an explicit fontSize win over the GitHub 16px default', () => {
+    expect(resolveFontSizeCss('20', 'github-light')).toBe('20px')
+    expect(resolveFontSizeCss('vditor', 'github-dark')).toBe('16px')
+  })
+
+  it('keeps the editor-font default for non-GitHub themes', () => {
+    expect(resolveFontSizeCss('editor', 'auto')).toBe(editorFont)
+    expect(resolveFontSizeCss(undefined, 'vscode-dark-modern')).toBe(editorFont)
+    expect(resolveFontSizeCss('abc', 'material-dark')).toBe(editorFont)
+  })
 })

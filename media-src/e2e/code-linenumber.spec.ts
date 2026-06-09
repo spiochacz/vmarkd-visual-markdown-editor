@@ -118,3 +118,38 @@ test.describe('codeTheme setting governs the highlight style', () => {
     expect(href).not.toContain('/nord.min.css')
   })
 })
+
+// Task 82: an `auto` codeTheme pairs with the markdown content theme so the code
+// block colours match the surrounding palette (codeHljsStyle): material-dark →
+// atom-one-dark, vscode-dark-modern → vs2015, vscode-light-modern → vs. Asserted at
+// the option level AND the installed hljs stylesheet (the end of "code theme applied").
+test.describe('an auto codeTheme follows the content theme (task 82)', () => {
+  const cases: Array<[string, string]> = [
+    ['github-light', 'github'],
+    ['github-dark', 'github-dark'],
+    ['material-dark', 'atom-one-dark'],
+    ['vscode-dark-modern', 'vs2015'],
+    ['vscode-light-modern', 'vs'],
+  ]
+  for (const [contentTheme, expected] of cases) {
+    test(`${contentTheme} → ${expected}`, async ({ page }) => {
+      await goto(page, `?mode=ir&codeTheme=auto&contentTheme=${contentTheme}`)
+      expect(
+        await page.evaluate(() => (window as any).__effectiveCodeStyle),
+      ).toBe(expected)
+      expect(await page.evaluate(() => (window as any).__hljsHref())).toContain(
+        `/${expected}.min.css`,
+      )
+    })
+  }
+
+  test('an explicit codeTheme still wins over the content-theme pairing', async ({
+    page,
+  }) => {
+    // codeTheme=monokai must beat material-dark's atom-one-dark pairing.
+    await goto(page, '?mode=ir&codeTheme=monokai&contentTheme=material-dark')
+    expect(
+      await page.evaluate(() => (window as any).__effectiveCodeStyle),
+    ).toBe('monokai')
+  })
+})

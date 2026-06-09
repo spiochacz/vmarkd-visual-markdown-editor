@@ -292,7 +292,7 @@ interface MockTextDocument {
 
 const DEFAULT_CONFIG: Record<string, any> = {
   'image.saveFolder': 'assets',
-  'theme.useVscodeColors': true,
+  'theme.content': 'auto',
   'css.custom': '',
   'editor.fullWidth': true,
   'advanced.retainHidden': true,

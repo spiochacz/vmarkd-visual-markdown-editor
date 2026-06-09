@@ -86,6 +86,181 @@ async function removeMacMetadata(dirPath) {
   )
 }
 
+// Make Vditor's content-theme palette CUSTOM-PROPERTY driven (task 84/85). Vditor
+// hard-codes the `.vditor-reset` palette (hr/blockquote/table/code colours) in its
+// content-theme stylesheets — which sit on top of every vMarkd content theme and force
+// each theme to out-rank them with `!important`/specificity tricks. Here we rewrite
+// those few declarations to `var(--vmarkd-*, <Vditor default>)` so a theme just sets
+// the variables (no cascade fight); `auto` leaves them unset → the Vditor default.
+// Operates on the COPIED files (post-sync). Each replacement is asserted, so a Vditor
+// bump that changes a declaration fails the build loudly instead of silently drifting.
+async function varifyVditorPalette() {
+  const dir = path.resolve('media/vditor/dist/css/content-theme')
+  // [selector marker, [ [exact decl, var-wrapped decl], … ] ] — per file (defaults
+  // differ light/dark, so `auto` keeps Vditor's per-mode look).
+  const edits = {
+    'light.css': [
+      [
+        '.vditor-reset h1, .vditor-reset h2 {',
+        [
+          [
+            '1px solid #eaecef',
+            '1px solid var(--vmarkd-heading-border, #eaecef)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset hr {',
+        [
+          [
+            'background-color: #eaecef',
+            'background-color: var(--vmarkd-hr-bg, #eaecef)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset blockquote {',
+        [
+          ['color: #6a737d', 'color: var(--vmarkd-blockquote-fg, #6a737d)'],
+          [
+            '.25em solid #eaecef',
+            '.25em solid var(--vmarkd-blockquote-border, #eaecef)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table tr {',
+        [
+          [
+            '1px solid #c6cbd1',
+            '1px solid var(--vmarkd-table-border, #c6cbd1)',
+          ],
+          [
+            'background-color: #fafbfc',
+            'background-color: var(--vmarkd-table-row-bg, #fafbfc)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table td, .vditor-reset table th {',
+        [
+          [
+            '1px solid #dfe2e5',
+            '1px solid var(--vmarkd-table-border, #dfe2e5)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table tbody tr:nth-child(2n) {',
+        [
+          [
+            'background-color: #fff',
+            'background-color: var(--vmarkd-table-stripe, #fff)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset code:not(.hljs):not(.highlight-chroma) {',
+        [
+          [
+            'rgba(27, 31, 35, .05)',
+            'var(--vmarkd-code-bg, rgba(27, 31, 35, .05))',
+          ],
+        ],
+      ],
+    ],
+    'dark.css': [
+      [
+        '.vditor-reset h1, .vditor-reset h2 {',
+        [
+          [
+            '1px solid #d1d5da',
+            '1px solid var(--vmarkd-heading-border, #d1d5da)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset hr {',
+        [
+          [
+            'background-color: #d1d5da',
+            'background-color: var(--vmarkd-hr-bg, #d1d5da)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset blockquote {',
+        [
+          ['color: #b9b9b9', 'color: var(--vmarkd-blockquote-fg, #b9b9b9)'],
+          [
+            '.25em solid #d1d5da',
+            '.25em solid var(--vmarkd-blockquote-border, #d1d5da)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table tr {',
+        [
+          [
+            'background-color: #2f363d',
+            'background-color: var(--vmarkd-table-row-bg, #2f363d)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table td, .vditor-reset table th {',
+        [
+          [
+            '1px solid #dfe2e5',
+            '1px solid var(--vmarkd-table-border, #dfe2e5)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset table tbody tr:nth-child(2n) {',
+        [
+          [
+            'background-color: #24292e',
+            'background-color: var(--vmarkd-table-stripe, #24292e)',
+          ],
+        ],
+      ],
+      [
+        '.vditor-reset code:not(.hljs):not(.highlight-chroma) {',
+        [
+          [
+            'rgba(66, 133, 244, .36)',
+            'var(--vmarkd-code-bg, rgba(66, 133, 244, .36))',
+          ],
+        ],
+      ],
+    ],
+  }
+  for (const [file, rules] of Object.entries(edits)) {
+    const filePath = path.join(dir, file)
+    let css = await fs.readFile(filePath, 'utf8')
+    for (const [marker, decls] of rules) {
+      const start = css.indexOf(marker)
+      if (start < 0)
+        throw new Error(`[theme-vars] selector not found in ${file}: ${marker}`)
+      const end = css.indexOf('}', start)
+      let block = css.slice(start, end)
+      for (const [oldDecl, newDecl] of decls) {
+        if (!block.includes(oldDecl))
+          throw new Error(
+            `[theme-vars] decl "${oldDecl}" not found in ${file} rule "${marker}" — Vditor changed; update build.mjs`,
+          )
+        block = block.replace(oldDecl, newDecl)
+      }
+      css = css.slice(0, start) + block + css.slice(end)
+    }
+    await fs.writeFile(filePath, css)
+  }
+  console.log(
+    '[theme-vars] content-theme palette → --vmarkd-* custom properties',
+  )
+}
+
 // Overwrite Vditor's bundled lute.min.js with our pinned, vendored Lute build
 // (media-src/vendor/lute, pinned to an explicit 88250/lute commit — see tasks/66).
 // Verifies the vendored file against source.json (tamper/corruption guard) and
@@ -141,6 +316,7 @@ async function syncLute() {
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
+await varifyVditorPalette()
 await syncLute()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.

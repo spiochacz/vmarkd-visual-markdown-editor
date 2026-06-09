@@ -203,6 +203,20 @@ const server = http.createServer((req, res) => {
       return res.end(fs.readFileSync(file))
     }
   }
+  // The vendored content-theme stylesheets (task 82) — so e2e can exercise the real
+  // <link disabled> toggle the extension uses, not just addStyleTag.
+  if (url.startsWith('/markdown-themes/')) {
+    const dir = path.join(__dirname, '../../media/markdown-themes')
+    const file = path.join(dir, url.slice('/markdown-themes/'.length))
+    if (
+      file.startsWith(dir) &&
+      fs.existsSync(file) &&
+      fs.statSync(file).isFile()
+    ) {
+      res.setHeader('content-type', 'text/css')
+      return res.end(fs.readFileSync(file))
+    }
+  }
   res.statusCode = 404
   res.end('not found')
 })

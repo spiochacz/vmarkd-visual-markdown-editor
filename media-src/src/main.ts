@@ -12,6 +12,7 @@ import {
 } from './utils'
 
 import { buildVditorOptions, codeHljsStyle } from './vditor-options'
+import { setVditorTheme } from './vditor-theme'
 import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
 import { convertForUpload } from './image-convert'
@@ -142,26 +143,18 @@ function restoreEditorCaretIfLost(): boolean {
   }
 }
 
-// Apply Vditor's UI + content + code theme via setTheme — the proven path.
-// The constructor `theme`/`preview.theme.current` options alone do NOT reliably
-// apply the content/code theme at init, which left a dark VS Code showing light
-// content text + white tables. Used by both init (after()) and live switching.
-//
-// We pass the content-theme path EXPLICITLY (4th arg) instead of letting
-// setTheme fall back to `options.preview.theme.path`: that option is unreliable
-// here — the host strips a stale baked path from saved options (the colors-401
-// fix), which would otherwise leave setContentTheme with an empty path and make
-// it a no-op, so the table/content theme never followed a live theme switch.
+// Apply the editor's light/dark mode + paired code style to the live Vditor. Thin
+// wrapper that pulls the current instance/options/cdn from module state; the Vditor
+// theme-API coupling itself lives in vditor-theme.ts (setVditorTheme). Used by both
+// init (after()) and live switching.
 function applyVditorTheme(theme: 'dark' | 'light') {
   if (!window.vditor) return
-  const cdn = lastInitMsg?.cdn
-  const contentThemePath = cdn ? `${cdn}/dist/css/content-theme` : undefined
-  const code = codeHljsStyle(theme, lastInitMsg?.options)
-  if (theme === 'dark') {
-    vditor.setTheme('dark', 'dark', code, contentThemePath)
-  } else {
-    vditor.setTheme('classic', 'light', code, contentThemePath)
-  }
+  setVditorTheme(
+    window.vditor,
+    theme,
+    codeHljsStyle(theme, lastInitMsg?.options),
+    lastInitMsg?.cdn,
+  )
 }
 
 // Show the REAL toolbar in the instant-paint overlay. Vditor builds its toolbar
@@ -841,6 +834,12 @@ function handleConfigChanged(msg: any) {
   const mermaidThemeChanged =
     lastInitMsg &&
     lastInitMsg.options?.mermaidTheme !== msg.options?.mermaidTheme
+  // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
+  // its own (so content + code blocks are themed, not VS Code-dark). The host sends
+  // the new effective mode in msg.theme; re-theme live so the content follows it.
+  const contentThemeChanged =
+    lastInitMsg &&
+    lastInitMsg.options?.contentTheme !== msg.options?.contentTheme
   if (lastInitMsg && initOnlyChanged(lastInitMsg.options, msg.options)) {
     const content =
       window.vditor && !applyingExtensionUpdate
@@ -862,9 +861,15 @@ function handleConfigChanged(msg: any) {
   }
   if (!lastInitMsg || !window.vditor) return
   lastInitMsg.options = { ...lastInitMsg.options, ...msg.options }
-  // Code-block theme isn't a constructor-only option — apply it live via setTheme
-  // (swaps the hljs stylesheet) without re-init, keeping cursor.
-  if (codeThemeChanged) {
+  // A content-theme switch flips the effective light/dark mode (e.g. github-dark
+  // under a light VS Code theme) — adopt the host's effective mode so the re-theme
+  // below uses it. The github <link>/markdown-body class toggle in applyBodyOptions.
+  if (contentThemeChanged && typeof msg.theme === 'string') {
+    lastInitMsg.theme = msg.theme
+  }
+  // Code-block + content theme aren't constructor-only options — apply live via
+  // setTheme (swaps the hljs stylesheet + UI mode) without re-init, keeping cursor.
+  if (codeThemeChanged || contentThemeChanged) {
     applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
   }
   // Mermaid theme: apply LIVE via the task-59 offscreen re-render (used to re-init, which

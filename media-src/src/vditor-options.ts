@@ -9,14 +9,18 @@
 // stale saved value can't override the current setting — otherwise a setting
 // becomes a one-way switch (e.g. line numbers that turn on but never off).
 
+import { autoCodeStyle } from '../../src/theme-registry'
 import { deepMerge } from './deep-merge'
 
-// Resolve the code-block highlight style: the `codeTheme` setting, or — when
-// 'auto'/unset — github/github-dark following the VS Code light/dark theme.
+// Resolve the code-block highlight style: the explicit `codeTheme` setting, or — when
+// 'auto'/unset — the style paired with the content theme (registry: material-dark →
+// atom-one-dark, vscode-* → vs/vs2015, github → github/github-dark), else github/
+// github-dark by the effective mode (which follows the content theme via
+// effectiveThemeKind, host-side). Pairing lives in the single-source registry (task 84).
 export function codeHljsStyle(theme: 'dark' | 'light', options: any): string {
   const ct = options?.codeTheme
-  if (!ct || ct === 'auto') return theme === 'dark' ? 'github-dark' : 'github'
-  return ct
+  if (ct && ct !== 'auto') return ct
+  return autoCodeStyle(theme, options?.contentTheme)
 }
 
 export function buildVditorOptions(msg: any): any {

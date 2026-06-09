@@ -18,6 +18,7 @@ function defaults(overrides: Partial<HtmlBuildParams> = {}): HtmlBuildParams {
     config: {
       showToolbar: true,
       useVscodeThemeColor: true,
+      contentTheme: 'auto',
       enableFullWidth: false,
       highlightHeadings: true,
       showHeadingMarkers: true,
@@ -172,6 +173,46 @@ describe('buildWebviewHtml', () => {
         }),
       )
       expect(html).toContain('data-use-vscode-theme-color="1"')
+    })
+
+    it('enables the matching GitHub theme link + markdown-body class (task 82)', () => {
+      const html = buildWebviewHtml(
+        defaults({
+          config: { ...defaults().config, contentTheme: 'github-dark' },
+        }),
+      )
+      // the dark link is active (not disabled), the others disabled
+      expect(html).toMatch(
+        /<link id="ct-github-dark"[^>]*github-markdown-dark\.css"\s*>/,
+      )
+      expect(html).toMatch(/<link id="ct-github-light"[^>]*disabled>/)
+      expect(html).toMatch(/<link id="ct-material-dark"[^>]*disabled>/)
+      // the class the theme stylesheets target
+      expect(html).toMatch(/<body[^>]*class="markdown-body"/)
+    })
+
+    it('disables all content-theme links and omits markdown-body for auto', () => {
+      const html = buildWebviewHtml(defaults())
+      expect(html).toMatch(/<link id="ct-github-light"[^>]*disabled>/)
+      expect(html).toMatch(/<link id="ct-github-dark"[^>]*disabled>/)
+      expect(html).toMatch(/<link id="ct-material-dark"[^>]*disabled>/)
+      expect(html).not.toContain('class="markdown-body"')
+    })
+
+    // The markdown-body class must be in the SERVER HTML for every named theme (not
+    // just github) so the prerender teaser is themed from first paint — A1.
+    it('emits the markdown-body class for non-github named themes too (task 82 / A1)', () => {
+      for (const ct of [
+        'material-dark',
+        'vscode-light-modern',
+        'vscode-dark-modern',
+      ]) {
+        const html = buildWebviewHtml(
+          defaults({ config: { ...defaults().config, contentTheme: ct } }),
+        )
+        expect(html).toMatch(/<body[^>]*class="markdown-body"/)
+        expect(html).toMatch(new RegExp(`<link id="ct-${ct}"[^>]*\\.css"\\s*>`))
+      }
     })
 
     it('sets data-full-width from config', () => {

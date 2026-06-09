@@ -368,6 +368,52 @@ test.describe('live-config (tasks 12/26)', () => {
     expect(res.second).toBe('body{color:blue}')
     expect(res.count).toBe(1) // swapped in place, not duplicated
   })
+
+  // The swapped style node is a real, live stylesheet — the injected rule cascades
+  // onto matching elements (this is how the `css.custom` / `css.external` settings
+  // take effect), and re-swapping re-applies. Asserts computed style, not textContent.
+  test('a swapped style is actually applied (cascades) and re-applies on swap', async ({
+    page,
+  }) => {
+    await gotoBehaviors(page)
+    const res = await page.evaluate(() => {
+      const lc = (window as any).__liveConfig
+      const probe = document.createElement('div')
+      probe.id = 'probe'
+      document.body.appendChild(probe)
+      lc.swapStyle('external-css', '#probe{width:42px}')
+      const first = getComputedStyle(probe).width
+      lc.swapStyle('external-css', '#probe{width:84px}')
+      const second = getComputedStyle(probe).width
+      return { first, second }
+    })
+    expect(res.first).toBe('42px')
+    expect(res.second).toBe('84px') // live re-apply, not stale
+  })
+
+  // task 82: --me-font-size (the `fontSize` setting) is theme-aware via applyBodyOptions
+  // → resolveFontSize. A GitHub content theme defaults to GitHub's 16px reading size for
+  // unset/"editor"; an explicit size still wins (so the setting scales it); non-GitHub
+  // themes default to the VS Code editor font size.
+  test('applyBodyOptions makes --me-font-size theme-aware (GitHub 16px default, explicit wins)', async ({
+    page,
+  }) => {
+    await gotoBehaviors(page)
+    const res = await page.evaluate(() => {
+      const lc = (window as any).__liveConfig
+      const read = () => document.body.style.getPropertyValue('--me-font-size')
+      lc.applyBodyOptions({ contentTheme: 'github-light', fontSize: 'editor' })
+      const githubDefault = read()
+      lc.applyBodyOptions({ contentTheme: 'github-dark', fontSize: '20' })
+      const githubExplicit = read()
+      lc.applyBodyOptions({ contentTheme: 'auto', fontSize: 'editor' })
+      const autoDefault = read()
+      return { githubDefault, githubExplicit, autoDefault }
+    })
+    expect(res.githubDefault).toBe('16px') // GitHub reading size out of the box
+    expect(res.githubExplicit).toBe('20px') // the fontSize setting still scales GitHub
+    expect(res.autoDefault).toBe('var(--vscode-editor-font-size, 14px)') // editor size
+  })
 })
 
 test.describe('createToolbar (task 44/wiki) — custom item click handlers', () => {

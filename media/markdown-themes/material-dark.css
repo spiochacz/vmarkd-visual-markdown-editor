@@ -1,0 +1,57 @@
+/*!
+ * Material Dark (One Dark) markdown-rendering theme for vMarkd.
+ * Adapted from raycon/vscode-markdown-style dark-material.css (MIT) — retargeted
+ * from `.vscode-dark` to `.markdown-body` and given an explicit canvas background
+ * (the upstream file relied on VS Code's dark theme). https://github.com/raycon/vscode-markdown-style
+ * Pairs with the atom-one-dark highlight.js code theme.
+ */
+.markdown-body {
+  background-color: #282c34;
+  /* native scrollbars + form controls follow this theme, not the VS Code editor */
+  color-scheme: dark;
+}
+/* base text — also on .vditor-reset (Vditor sets the reset's color directly via
+   --textarea-text-color, which beats inheritance from .markdown-body). */
+.markdown-body,
+.markdown-body .vditor-reset {
+  color: #abb2bf;
+}
+.markdown-body a {
+  color: #61afef;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: #e06c75;
+  font-weight: 600;
+  border-bottom-color: #3b4048;
+}
+/* inline code: colour via this rule (nothing else sets it), background via the
+   --vmarkd-code-bg variable below (Vditor's content-theme + main.css dark rule read it). */
+.markdown-body code:not(.hljs) {
+  color: #98c379;
+}
+.markdown-body blockquote {
+  color: #7f848e;
+  font-style: italic;
+  background: transparent;
+  border-left-color: #3b4048;
+}
+.markdown-body table th,
+.markdown-body table td,
+.markdown-body table tr {
+  border-color: #3b4048;
+}
+/* Editor-surface vars (task 84/85): the build makes Vditor's content-theme palette
+   `var(--vmarkd-*, …)`, so we own these by setting variables — no `!important`, no
+   `.vditor-reset` specificity tricks. hr is background-based in Vditor; table rows
+   default to Vditor's off-canvas dark. */
+body.markdown-body {
+  --vmarkd-code-bg: rgba(171, 178, 191, 0.1); /* One Dark inline-code bg */
+  --vmarkd-hr-bg: #3b4048;
+  --vmarkd-table-row-bg: transparent; /* canvas shows through */
+  --vmarkd-table-stripe: rgba(171, 178, 191, 0.04);
+}
