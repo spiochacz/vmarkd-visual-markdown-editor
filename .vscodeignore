@@ -20,6 +20,8 @@ AGENTS.md
 docs
 tasks
 test-results
+tmp
+.nvmrc
 out/**/*.md
 out/**/*.test.js
 
