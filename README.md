@@ -45,8 +45,10 @@ Built on the [Vditor](https://github.com/Vanessa219/vditor) editor, this plugin 
 
 ### Appearance & customization
 
-- **Markdown rendering theme** — `auto` matches your VS Code theme's colours, or
-  render like **GitHub** (light / dark) regardless of the editor theme.
+- **Markdown rendering themes** — `auto` matches your VS Code theme's colours, or pick
+  a fixed look regardless of the editor theme: **GitHub** (light / dark), **Material
+  Dark**, or **VS Code Light / Dark Modern**. Code-block highlighting pairs with the
+  chosen theme automatically.
 - **Code-block syntax themes** — 73 highlight.js styles, or auto-follow your
   light/dark theme.
 - Optional **code-block line numbers**, **heading highlighting** and level markers,
