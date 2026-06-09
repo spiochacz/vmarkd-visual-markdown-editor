@@ -105,3 +105,50 @@ test('explicit setting wins over the content-theme pairing', async ({
   expect(nord.toLowerCase()).toContain('#4c566a') // nord line, not github
   expect(nord.toLowerCase()).not.toContain('#d1d9e0') // github-light line absent
 })
+
+// The webview must actually load the Mermaid version we vendor over Vditor's bundled
+// copy (build.mjs syncMermaid + the esbuild ?v= bump) — not Vditor's pinned 11.6.0.
+// Guards that the version bump reaches the running webview, not just the vendored file.
+test("loads a bumped Mermaid build (not Vditor's pinned 11.6.0)", async ({
+  page,
+}) => {
+  const src = await page.evaluate(
+    () =>
+      (
+        document.getElementById(
+          'vditorMermaidScript',
+        ) as HTMLScriptElement | null
+      )?.src ?? '',
+  )
+  expect(src).toMatch(/mermaid\.min\.js\?v=\d+\.\d+\.\d+/) // cache-buster present
+  expect(src).not.toContain('v=11.6.0') // the esbuild ?v= bump applied
+})
+
+// Each content theme's `auto` pairing resolves to the same palette as picking that
+// palette explicitly — proves the registry rows (incl. the user's vscode/material
+// picks) are wired end-to-end through the bundled resolver, not just in unit tests.
+const PAIRINGS: Array<[string, string, 'dark' | 'light']> = [
+  ['github-dark', 'github-dark', 'dark'],
+  ['material-dark', 'one-dark', 'dark'],
+  ['vscode-dark-modern', 'zinc-dark', 'dark'],
+  ['vscode-light-modern', 'zinc-light', 'light'],
+  ['github-light', 'github-light', 'light'],
+]
+for (const [content, palette, mode] of PAIRINGS) {
+  test(`auto pairs ${content} → ${palette}`, async ({ page }) => {
+    // __applyTheme stores the resolved themeVariables on window before re-rendering;
+    // read them for auto+content vs the explicit palette and assert they match.
+    const vars = (setting: string, ct?: string) =>
+      page.evaluate(
+        ([s, c, m]) => {
+          ;(window as any).__applyTheme(s, c, m)
+          return (window as any).__vmarkdMermaidVars
+        },
+        [setting, ct, mode] as const,
+      )
+    const auto = await vars('auto', content)
+    const explicit = await vars(palette, undefined)
+    expect(auto).not.toBeNull()
+    expect(auto).toEqual(explicit)
+  })
+}
