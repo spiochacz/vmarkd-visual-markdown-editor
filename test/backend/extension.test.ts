@@ -375,6 +375,30 @@ describe('resolveCustomTextEditor — live theme switch', () => {
       theme: 'light',
     })
   })
+
+  it('a GitHub content theme pins the editor mode to its own light/dark (task 82)', () => {
+    // github-dark under a LIGHT VS Code theme renders dark content (incl. code
+    // blocks); the toolbar stays VS Code-coloured via mode-independent CSS vars.
+    mock.setThemeKind(ColorThemeKind.Light)
+    mock.setConfig({ 'theme.content': 'github-dark' })
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'dark',
+    })
+  })
+
+  it('github-light pins light mode even under a dark VS Code theme (task 82)', () => {
+    mock.setThemeKind(ColorThemeKind.Dark)
+    mock.setConfig({ 'theme.content': 'github-light' })
+    resolveProvider()
+    mock.fireDidChangeActiveColorTheme()
+    expect(mock.calls.postMessage).toContainEqual({
+      command: 'set-theme',
+      theme: 'light',
+    })
+  })
 })
 
 describe('resolveCustomTextEditor — rename tracking (task 14)', () => {
@@ -450,6 +474,24 @@ describe('resolveCustomTextEditor — live config reload (tasks 12/26)', () => {
     const before = mock.calls.postMessage.length
     mock.fireDidChangeConfiguration('editor')
     expect(mock.calls.postMessage.length).toBe(before)
+  })
+
+  it('config-changed carries contentTheme + the effective mode (task 82)', () => {
+    mock.setThemeKind(ColorThemeKind.Light)
+    resolveProvider()
+    mock.setConfig({ 'theme.content': 'github-dark' })
+    mock.fireDidChangeConfiguration()
+
+    const configChanged = mock.calls.postMessage.find(
+      (m) => m.command === 'config-changed',
+    )
+    // a GitHub theme themes the CONTENT (useVscodeThemeColor off → VS Code content
+    // rules disabled) and pins the mode (dark) so content/code follow it.
+    expect(configChanged?.options).toMatchObject({
+      contentTheme: 'github-dark',
+      useVscodeThemeColor: false,
+    })
+    expect(configChanged?.theme).toBe('dark')
   })
 })
 

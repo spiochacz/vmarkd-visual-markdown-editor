@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { NAMED_THEME_VALUES } from '../../src/theme-registry'
 
 const pkg = JSON.parse(
   readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
@@ -8,6 +9,20 @@ const pkg = JSON.parse(
 const VIEW_TYPE = 'vmarkd.editor'
 
 describe('package.json manifest', () => {
+  // task 84: the manifest enum must stay in sync with the single-source theme
+  // registry — `auto` plus exactly the registry's named themes, in order. Guards
+  // against adding a theme to the registry but forgetting the manifest (or vice versa).
+  it('theme.content enum == auto + the registry themes (registry is the source)', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
+    )
+    expect(props['vmarkd.theme.content'].enum).toEqual([
+      'auto',
+      ...NAMED_THEME_VALUES,
+    ])
+  })
+
   it('points main at the compiled extension entry', () => {
     expect(pkg.main).toBe('out/extension.js')
   })
@@ -134,9 +149,17 @@ describe('package.json manifest', () => {
       type: 'string',
       default: 'assets',
     })
-    expect(props['vmarkd.theme.useVscodeColors']).toMatchObject({
-      type: 'boolean',
-      default: true,
+    expect(props['vmarkd.theme.content']).toMatchObject({
+      type: 'string',
+      default: 'auto',
+      enum: [
+        'auto',
+        'github-light',
+        'github-dark',
+        'material-dark',
+        'vscode-light-modern',
+        'vscode-dark-modern',
+      ],
     })
     expect(props['vmarkd.editor.fullWidth']).toMatchObject({
       type: 'boolean',

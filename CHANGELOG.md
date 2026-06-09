@@ -4,6 +4,21 @@ All notable changes to this extension are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/).
 
+## [1.1.0]
+
+### Added
+
+- Markdown **rendering themes** (`vmarkd.theme.content`): `auto` follows your VS Code
+  theme's colours, or pick a fixed look that restyles the rendered markdown
+  (background, headings, blockquotes, tables, code, scrollbars) regardless of the
+  editor theme — **GitHub** light/dark, **Material Dark** (One Dark), and **VS Code
+  Light/Dark Modern**. Replaces the old `vmarkd.theme.useVscodeColors` toggle.
+- Code-block syntax highlighting **pairs automatically** with the chosen rendering
+  theme when `vmarkd.theme.code` is `auto` (e.g. Material Dark → atom-one-dark, VS
+  Code Dark Modern → vs2015); an explicit `vmarkd.theme.code` still wins.
+- The editor **font size** follows GitHub's 16px reading size under a GitHub theme by
+  default, and still honours an explicit `vmarkd.editor.fontSize`.
+
 ## [1.0.0]
 
 ### Added

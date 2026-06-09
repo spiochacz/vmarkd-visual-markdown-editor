@@ -45,6 +45,10 @@ Built on the [Vditor](https://github.com/Vanessa219/vditor) editor, this plugin 
 
 ### Appearance & customization
 
+- **Markdown rendering themes** — `auto` matches your VS Code theme's colours, or pick
+  a fixed look regardless of the editor theme: **GitHub** (light / dark), **Material
+  Dark**, or **VS Code Light / Dark Modern**. Code-block highlighting pairs with the
+  chosen theme automatically.
 - **Code-block syntax themes** — 73 highlight.js styles, or auto-follow your
   light/dark theme.
 - Optional **code-block line numbers**, **heading highlighting** and level markers,
@@ -97,7 +101,9 @@ See the [changelog](./CHANGELOG.md) for the full list of features and changes.
 - [Vditor](https://github.com/Vanessa219/vditor) — the Markdown editor component
 - [Lute](https://github.com/88250/lute) — the Markdown engine (vendored and pinned)
 - Rendering & highlighting bundled via Vditor: [highlight.js](https://github.com/highlightjs/highlight.js), [Mermaid](https://github.com/mermaid-js/mermaid), [KaTeX](https://github.com/KaTeX/KaTeX), [ECharts](https://github.com/apache/echarts), [abc.js](https://github.com/paulrosen/abcjs), [Graphviz / Viz.js](https://github.com/mdaines/viz.js), [flowchart.js](https://github.com/adrai/flowchart.js), [markmap](https://github.com/markmap/markmap), [plantuml-encoder](https://github.com/markushedvall/plantuml-encoder), [smiles-drawer](https://github.com/reymond-group/smilesDrawer)
-- [VS Code](https://github.com/microsoft/vscode)
+- [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) by Sindre Sorhus (MIT) — the GitHub light/dark markdown-rendering themes (`vmarkd.theme.content`), vendored under `media/markdown-themes/` (upstream verbatim, plus a small marked override block re-asserting the inline-code background on the editor surface)
+- [vscode-markdown-style](https://github.com/raycon/vscode-markdown-style) by raycon (MIT) — the Material Dark (One Dark) rendering theme (`vmarkd.theme.content`), adapted under `media/markdown-themes/`
+- [microsoft/vscode](https://github.com/microsoft/vscode) (MIT) — the `vscode-light-modern` / `vscode-dark-modern` rendering themes use the built-in **Light Modern / Dark Modern** palettes ([`extensions/theme-defaults/themes`](https://github.com/microsoft/vscode/tree/main/extensions/theme-defaults/themes)) + the markdown preview layout ([`extensions/markdown-language-features/media/markdown.css`](https://github.com/microsoft/vscode/blob/main/extensions/markdown-language-features/media/markdown.css))
 
 ## License
 

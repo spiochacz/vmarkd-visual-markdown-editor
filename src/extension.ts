@@ -26,6 +26,7 @@ import {
   invalidateCache,
 } from './wiki-cache'
 import { buildWebviewHtml, sanitizeCss } from './html-builder'
+import { resolveFontSize, themeDef } from './theme-registry'
 
 const KeyVditorOptions = 'vmarkd.options'
 const KeyOutlineWidth = 'vmarkd.outlineWidth'
@@ -98,18 +99,12 @@ export function resolveVditorI18nLang(envLang: string | undefined): string {
   return byBase[l.split('-')[0]] ?? 'en_US'
 }
 
-// Resolve the `fontSize` setting to a CSS value for the editor's --me-font-size:
-// 'editor'/unset → the VS Code editor font, 'vditor' → Vditor's 16px default, a
-// positive number → that many px, anything else → the editor font. Pure/exported
-// for unit tests. (The webview has its own resolveFontSize in live-config.ts —
-// separate bundle, so they can't share a module.)
-export function resolveFontSizeCss(opt: string | undefined): string {
-  const editorFont = 'var(--vscode-editor-font-size, 14px)'
-  if (!opt || opt === 'editor') return editorFont
-  if (opt === 'vditor') return '16px'
-  const n = parseFloat(opt)
-  return Number.isFinite(n) && n > 0 ? `${n}px` : editorFont
-}
+// Resolve the `fontSize` setting to the --me-font-size CSS value. Thin alias over the
+// shared registry resolver (src/theme-registry.ts) so the host and webview can't
+// diverge — the registry is now importable by BOTH build units (it's dependency-free),
+// retiring the old "separate bundle, can't share" duplication. Kept exported under this
+// name for the host unit tests + the call site below.
+export const resolveFontSizeCss = resolveFontSize
 
 function normalizeContent(content: string) {
   return content.replace(/\r\n/g, '\n')
@@ -124,6 +119,19 @@ function currentThemeKind(): 'dark' | 'light' {
     kind === vscode.ColorThemeKind.HighContrast
     ? 'dark'
     : 'light'
+}
+
+// The editor's light/dark MODE (task 82). A GitHub content theme pins the mode to
+// its own light/dark so the rendered content — including code blocks (hljs) — is
+// themed consistently (github-light → light code, not the VS Code dark code). The
+// toolbar/chrome stays VS Code-coloured regardless (its CSS vars are mode-independent
+// in main.css). `auto` follows the VS Code theme.
+function effectiveThemeKind(): 'dark' | 'light' {
+  const ct = vscode.workspace
+    .getConfiguration('vmarkd')
+    .get<string>('theme.content')
+  // A named theme pins its own mode (registry); `auto`/unknown follows VS Code.
+  return themeDef(ct)?.mode ?? currentThemeKind()
 }
 
 // Gate filesystem-writing actions (image upload, wiki page creation) on the
@@ -808,6 +816,9 @@ export class EditorSession {
     this.webviewPanel.webview.postMessage({
       command: 'config-changed',
       options: MarkdownEditorProvider.collectConfigOptions(),
+      // Effective light/dark mode so a live theme.content change re-themes the
+      // editor (mode + code) without a reopen (task 82).
+      theme: effectiveThemeKind(),
     })
     this.webviewPanel.webview.postMessage({
       command: 'reload-css',
@@ -881,7 +892,7 @@ export class EditorSession {
             }
           : {}),
       },
-      theme: currentThemeKind(),
+      theme: effectiveThemeKind(),
       wiki: wikiInit,
     })
   }
@@ -1254,10 +1265,12 @@ export class EditorSession {
         }, 0)
       }),
       vscode.window.onDidChangeActiveColorTheme(() => {
-        // Live re-theme this editor when the VS Code theme changes (task 25).
+        // Live re-theme this editor when the VS Code theme changes (task 25). A
+        // GitHub content theme pins the mode to its own light/dark (task 82), so
+        // effectiveThemeKind keeps the content stable here while `auto` follows VS Code.
         webviewPanel.webview.postMessage({
           command: 'set-theme',
-          theme: currentThemeKind(),
+          theme: effectiveThemeKind(),
         })
       }),
       vscode.workspace.onDidCloseTextDocument((closedDocument) => {
@@ -1306,7 +1319,7 @@ export class EditorSession {
       webviewPanel.webview,
       document.uri,
       document.getText(),
-      currentThemeKind(),
+      effectiveThemeKind(),
     )
 
     // Populate the Markdown Outline tree for this freshly-opened editor (task 78);
@@ -1465,8 +1478,13 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // so adding a setting means touching only this list.
   static collectConfigOptions() {
     const c = MarkdownEditorProvider.config
+    // Rendering theme (task 82): `auto` keeps the VS Code-colour look (the old
+    // useVscodeColors=true path); github-light/github-dark force a GitHub palette
+    // via the vendored github-markdown-css <link>, so `auto` ⇔ useVscodeThemeColor.
+    const contentTheme = c.get<string>('theme.content') || 'auto'
     return {
-      useVscodeThemeColor: c.get<boolean>('theme.useVscodeColors'),
+      contentTheme,
+      useVscodeThemeColor: contentTheme === 'auto',
       enableFullWidth: c.get<boolean>('editor.fullWidth'),
       codeBlockLineNumbers: c.get<boolean>('editor.codeLineNumbers'),
       mermaidTheme: c.get<string>('theme.mermaid'),
@@ -1558,11 +1576,16 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       theme,
       config: {
         showToolbar: cfg.get<boolean>('editor.toolbar') !== false,
-        useVscodeThemeColor: cfg.get<boolean>('theme.useVscodeColors') === true,
+        contentTheme: cfg.get<string>('theme.content') || 'auto',
+        useVscodeThemeColor:
+          (cfg.get<string>('theme.content') || 'auto') === 'auto',
         enableFullWidth: cfg.get<boolean>('editor.fullWidth') === true,
         highlightHeadings: cfg.get<boolean>('theme.highlightHeadings') === true,
         showHeadingMarkers: cfg.get<boolean>('editor.headingMarkers') !== false,
-        fontSize: resolveFontSizeCss(cfg.get<string>('editor.fontSize')),
+        fontSize: resolveFontSizeCss(
+          cfg.get<string>('editor.fontSize'),
+          cfg.get<string>('theme.content') || 'auto',
+        ),
         instantPreview: cfg.get<boolean>('advanced.instantPreview') !== false,
         allowRemoteImages:
           MarkdownEditorProvider.cfgFor(uri).get<boolean>(

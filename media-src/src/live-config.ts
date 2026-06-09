@@ -4,8 +4,15 @@
 // and external-CSS file changes), so setting/CSS edits apply to open editors
 // without reopening.
 
+// `--me-font-size` resolution lives in the shared theme registry so the webview and
+// the host can't diverge (task 84). Re-exported so existing importers/tests are
+// unchanged — the old duplicate definition is gone.
+import { resolveFontSize } from '../../src/theme-registry'
+export { resolveFontSize }
+
 export interface BodyOptions {
   useVscodeThemeColor?: boolean
+  contentTheme?: string
   enableFullWidth?: boolean
   highlightHeadings?: boolean
   showHeadingMarkers?: boolean
@@ -13,19 +20,18 @@ export interface BodyOptions {
   fontSize?: string | number
 }
 
-const VSCODE_FONT_SIZE = 'var(--vscode-editor-font-size, 14px)'
-
-// Resolve the `fontSize` setting into a CSS value for `--me-font-size`.
-//   "editor" / unset  -> follow VS Code's editor font size
-//   "vditor"          -> Vditor's own 16px reading size
-//   a number / "15"   -> that many pixels
-// Anything unrecognised falls back to the VS Code size.
-export function resolveFontSize(value: string | number | undefined): string {
-  if (value === undefined || value === '' || value === 'editor')
-    return VSCODE_FONT_SIZE
-  if (value === 'vditor') return '16px'
-  const n = typeof value === 'number' ? value : parseFloat(value)
-  return Number.isFinite(n) && n > 0 ? `${n}px` : VSCODE_FONT_SIZE
+// Rendering theme (task 82): apply a markdown content theme by toggling the
+// `markdown-body` class on <body> (the class the vendored theme stylesheets target)
+// and enabling exactly one of the pre-emitted `ct-<value>` <link> stylesheets via
+// `link.disabled`. `auto` disables all + drops the class → the VS Code-colour path
+// (data-use-vscode-theme-color) renders, unchanged. New themes need no change here.
+export function applyContentTheme(contentTheme: string | undefined): void {
+  const ct = contentTheme || 'auto'
+  document.body.classList.toggle('markdown-body', ct !== 'auto')
+  const links = document.querySelectorAll<HTMLLinkElement>('link[id^="ct-"]')
+  links.forEach((l) => {
+    l.disabled = l.id !== `ct-${ct}`
+  })
 }
 
 // Apply the body-attribute / CSS-var driven options. Mirrors what the CSS keys
@@ -36,6 +42,7 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
     'data-use-vscode-theme-color',
     options?.useVscodeThemeColor ? '1' : '0',
   )
+  applyContentTheme(options?.contentTheme)
   body.setAttribute('data-full-width', options?.enableFullWidth ? '1' : '0')
   body.setAttribute(
     'data-highlight-headings',
@@ -48,7 +55,10 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
   if (typeof options?.outlineWidth === 'number' && options.outlineWidth > 0) {
     body.style.setProperty('--me-outline-width', `${options.outlineWidth}px`)
   }
-  body.style.setProperty('--me-font-size', resolveFontSize(options?.fontSize))
+  body.style.setProperty(
+    '--me-font-size',
+    resolveFontSize(options?.fontSize, options?.contentTheme),
+  )
 }
 
 // Settings that are Vditor *constructor* options (toolbar, counter, code-block

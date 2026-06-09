@@ -1,6 +1,9 @@
+import { CONTENT_THEMES } from './theme-registry'
+
 export interface HtmlBuildConfig {
   showToolbar: boolean
   useVscodeThemeColor: boolean
+  contentTheme: string
   enableFullWidth: boolean
   highlightHeadings: boolean
   showHeadingMarkers: boolean
@@ -95,7 +98,10 @@ function buildPrerenderOverlay(
     `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
   )}" rel="stylesheet">`
 
-  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vscode-editor-background,#fff);}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
+  // Background is transparent so the (theme-correct) body background shows through:
+  // for a forced GitHub theme (task 82) the body is the GitHub canvas, for `auto`
+  // it's --vscode-editor-background — either way no light/dark flash before swap.
+  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:transparent;}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
 
   // Prepaint scroll capture: accumulate the user's wheel/key scroll over the static
   // teaser (before the live editor mounts) so the editor opens at the scrolled
@@ -106,6 +112,31 @@ function buildPrerenderOverlay(
   const scrollScript = `<script nonce="${nonce}">(function(){var s={intent:0,active:true};window.__vmarkdScroll=s;function w(e){if(s.active)s.intent=Math.max(0,s.intent+(e.deltaY||0));}function k(e){if(!s.active)return;var vh=window.innerHeight||800,d=0;switch(e.key){case 'PageDown':case ' ':d=vh*0.9;break;case 'PageUp':d=-vh*0.9;break;case 'ArrowDown':d=48;break;case 'ArrowUp':d=-48;break;case 'End':d=1e7;break;case 'Home':s.intent=0;return;default:return;}s.intent=Math.max(0,s.intent+d);}window.addEventListener('wheel',w,{passive:true});window.addEventListener('keydown',k);s.stopKeys=function(){window.removeEventListener('keydown',k);};s.stop=function(){s.active=false;window.removeEventListener('wheel',w);window.removeEventListener('keydown',k);};})();</script>`
 
   return { overlay, themeLink, style, scrollScript }
+}
+
+// Rendering theme (task 82): the file-backed content themes. Each ships a vendored
+// stylesheet targeting `.markdown-body`; all are emitted as <link>s and all but the
+// active one are `disabled`, so exactly one applies. The webview flips `link.disabled`
+// + the body `markdown-body` class live (applyContentTheme). `auto` = none active.
+// Derived from the single-source theme registry (task 84) — add a theme by adding ONE
+// row in src/theme-registry.ts; everything else (mode, code pairing, font default,
+// this map, the manifest enum) follows from it.
+export const CONTENT_THEME_FILES: Record<string, string> = Object.fromEntries(
+  CONTENT_THEMES.map((t) => [t.value, t.file]),
+)
+
+function buildContentThemeLinks(
+  toUri: (path: string) => string,
+  contentTheme: string,
+): string {
+  return Object.entries(CONTENT_THEME_FILES)
+    .map(
+      ([value, file]) =>
+        `<link id="ct-${value}" rel="stylesheet" href="${toUri(file)}"${
+          value === contentTheme ? '' : ' disabled'
+        }>`,
+    )
+    .join('')
 }
 
 export function buildWebviewHtml(params: HtmlBuildParams): string {
@@ -128,6 +159,14 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
   const cspMeta = buildCspMeta(cspSource, nonce, config.allowRemoteImages)
   const bodyAttrs = buildBodyAttrs(config)
   const cssStyleTags = buildCssStyleTags(config.externalCss, config.customCss)
+  const contentTheme = config.contentTheme || 'auto'
+  const contentThemeLinks = buildContentThemeLinks(toUri, contentTheme)
+  // The class the content-theme stylesheets target (github-markdown-css and the
+  // material/vscode themes). Present for EVERY named theme so the prerender teaser
+  // (a static .vditor-reset under <body>) is themed from the first paint — otherwise
+  // a non-github theme flashes Vditor's default palette until applyContentTheme adds
+  // the class at runtime. `auto` keeps no class (the VS Code-colour path).
+  const bodyClass = contentTheme !== 'auto' ? ' class="markdown-body"' : ''
 
   const prerender = buildPrerenderOverlay(
     config.instantPreview ? params.preRenderedHtml : undefined,
@@ -153,12 +192,19 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 
 				<title>vMarkd</title>
       ` +
+    // Order matters: prerender.themeLink is Vditor's own content-theme palette
+    // (content-theme/{light,dark}.css), which targets `.vditor-reset` at the same
+    // specificity (0,1,1) as github-markdown-css's `.markdown-body …` rules. The
+    // vendored github CSS carries no `!important`, so it only wins the ties when it
+    // loads AFTER Vditor's. setContentTheme() no-ops at runtime (href === cssPath),
+    // so this static order holds. User CSS (cssStyleTags) stays last to win over all.
     prerender.themeLink +
+    contentThemeLinks +
     cssStyleTags +
     prerender.style +
     `
 			</head>
-			<body ${bodyAttrs} style="--me-font-size:${config.fontSize}">
+			<body ${bodyAttrs}${bodyClass} style="--me-font-size:${config.fontSize}">
 				<div id="app"></div>
 				${prerender.overlay}
 				${prerender.scrollScript}

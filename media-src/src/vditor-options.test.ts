@@ -11,6 +11,36 @@ describe('codeHljsStyle', () => {
   test('uses an explicit codeTheme when set', () => {
     expect(codeHljsStyle('light', { codeTheme: 'dracula' })).toBe('dracula')
   })
+
+  test('auto follows the content theme paired code style (task 82)', () => {
+    // material-dark pins atom-one-dark to match its One Dark palette
+    expect(
+      codeHljsStyle('dark', {
+        codeTheme: 'auto',
+        contentTheme: 'material-dark',
+      }),
+    ).toBe('atom-one-dark')
+    // vscode-light-modern/dark pair the Visual Studio hljs themes
+    expect(
+      codeHljsStyle('light', {
+        codeTheme: 'auto',
+        contentTheme: 'vscode-light-modern',
+      }),
+    ).toBe('vs')
+    expect(
+      codeHljsStyle('dark', {
+        codeTheme: 'auto',
+        contentTheme: 'vscode-dark-modern',
+      }),
+    ).toBe('vs2015')
+    // an explicit codeTheme still wins over the content-theme pairing
+    expect(
+      codeHljsStyle('dark', {
+        codeTheme: 'nord',
+        contentTheme: 'material-dark',
+      }),
+    ).toBe('nord')
+  })
 })
 
 describe('buildVditorOptions — codeLineNumbers is authoritative', () => {

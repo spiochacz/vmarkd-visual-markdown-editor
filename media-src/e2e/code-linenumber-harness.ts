@@ -15,12 +15,14 @@ import { buildVditorOptions } from '../src/vditor-options'
 //   ?saved=1          -> simulate a saved blob carrying preview.hljs.lineNumber:true
 //   ?savedStyle=NAME  -> simulate a saved blob carrying a stale preview.hljs.style
 //   ?theme=dark|light -> VS Code theme (default light)
+//   ?contentTheme=NAME -> msg.options.contentTheme (pairs an `auto` codeTheme)
 //   ?mode=ir|wysiwyg|sv -> editor mode (default ir)
 const params = new URLSearchParams(location.search)
 const settingOn = params.get('setting') === '1'
 const savedOn = params.get('saved') === '1'
 const codeTheme = params.get('codeTheme') || undefined
 const savedStyle = params.get('savedStyle') || undefined
+const contentTheme = params.get('contentTheme') || undefined
 const theme = params.get('theme') === 'dark' ? 'dark' : 'light'
 const mode = params.get('mode') || 'ir'
 
@@ -33,6 +35,7 @@ if (savedStyle) savedHljs.style = savedStyle
 
 const options: any = { codeBlockLineNumbers: settingOn }
 if (codeTheme) options.codeTheme = codeTheme
+if (contentTheme) options.contentTheme = contentTheme
 if (Object.keys(savedHljs).length > 0) options.preview = { hljs: savedHljs }
 
 const msg: any = {

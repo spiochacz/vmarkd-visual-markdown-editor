@@ -164,10 +164,26 @@
         "title": "Appearance",
         "order": 2,
         "properties": {
-          "vmarkd.theme.useVscodeColors": {
-            "type": "boolean",
-            "default": true,
-            "description": "Apply the VS Code theme's colors to the markdown editor."
+          "vmarkd.theme.content": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "github-light",
+              "github-dark",
+              "material-dark",
+              "vscode-light-modern",
+              "vscode-dark-modern"
+            ],
+            "enumDescriptions": [
+              "Match the VS Code theme's colors, following the active light/dark theme.",
+              "Render the markdown like GitHub's light theme, regardless of the VS Code theme.",
+              "Render the markdown like GitHub's dark theme, regardless of the VS Code theme.",
+              "Material Dark (One Dark) palette, regardless of the VS Code theme.",
+              "VS Code's built-in markdown preview — light, regardless of the VS Code theme.",
+              "VS Code's built-in markdown preview — dark, regardless of the VS Code theme."
+            ],
+            "default": "auto",
+            "description": "How the rendered markdown looks. \"auto\" matches the VS Code theme's colors (light/dark); the named themes (github-light/dark, material-dark) render with that palette regardless of the VS Code theme. Code-block syntax colors are set separately by \"Syntax Highlight Theme\" (\"auto\" follows this theme). Applies live."
           },
           "vmarkd.theme.code": {
             "type": "string",
