@@ -26,6 +26,13 @@ export interface ThemeDef {
    * themes). GitHub themes read at GitHub's own 16px.
    */
   fontDefaultPx: number | null
+  /**
+   * Mermaid palette id (see `mermaid-palettes.ts`) auto-paired with this theme when
+   * `theme.mermaid` is `auto` — task 86. Only set where a palette obviously maps
+   * (github↔github); the rest are left undefined (→ mermaid's own light/dark) for the
+   * user to pick visually.
+   */
+  mermaid?: string
 }
 
 // Order here is the order the `ct-<value>` <link>s are emitted; `auto` is implicit
@@ -37,6 +44,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'light',
     code: 'github',
     fontDefaultPx: 16,
+    mermaid: 'github-light',
   },
   {
     value: 'github-dark',
@@ -44,6 +52,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'github-dark',
     fontDefaultPx: 16,
+    mermaid: 'github-dark',
   },
   {
     value: 'material-dark',
@@ -51,6 +60,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'atom-one-dark',
     fontDefaultPx: null,
+    mermaid: 'one-dark',
   },
   {
     value: 'vscode-light-modern',
@@ -58,6 +68,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'light',
     code: 'vs',
     fontDefaultPx: null,
+    mermaid: 'zinc-light',
   },
   {
     value: 'vscode-dark-modern',
@@ -65,6 +76,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'vs2015',
     fontDefaultPx: null,
+    mermaid: 'zinc-dark',
   },
 ]
 
@@ -120,4 +132,16 @@ export function autoCodeStyle(
   return (
     themeDef(contentTheme)?.code ?? (mode === 'dark' ? 'github-dark' : 'github')
   )
+}
+
+/**
+ * The mermaid palette auto-paired with a content theme (task 86), or undefined when the
+ * theme has no pairing — then the caller falls back to mermaid's own light/dark. Unlike
+ * `autoCodeStyle` there is no binary palette fallback: only github↔github is paired so
+ * far; vscode/material are left for the user's visual pick.
+ */
+export function autoMermaidTheme(
+  contentTheme: string | undefined,
+): string | undefined {
+  return themeDef(contentTheme)?.mermaid
 }

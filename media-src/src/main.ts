@@ -36,7 +36,7 @@ import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
 // because the layout-cost break-even is a different point from the serialize one.
 const CONTENT_VIS_MIN_CHARS = 100_000
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
-import { applyMermaidTheme } from './mermaid-theme'
+import { applyMermaidTheme, resolveMermaidInit } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
@@ -357,8 +357,16 @@ function initVditor(msg) {
     )
   }
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
-  // lazy-loads/renders it). 'auto' = follow Vditor's own dark/default choice.
-  applyMermaidTheme(window, msg.options?.mermaidTheme)
+  // lazy-loads/renders it). 'auto' follows the content-theme pairing if any, else
+  // Vditor's own dark/default choice (task 86).
+  applyMermaidTheme(
+    window,
+    resolveMermaidInit(
+      msg.options?.mermaidTheme,
+      msg.options?.contentTheme,
+      msg.theme === 'dark' ? 'dark' : 'light',
+    ),
+  )
   // Link-open policy (task 62): Ctrl/Cmd+click vs plain-click follow. Applied live
   // here (and on config-changed) so the IR/WYSIWYG patches + fixLinkClick agree.
   applyLinkOpenSetting(msg.options?.linkOpenWithModifier)
@@ -812,7 +820,14 @@ function handleSetTheme(msg: any) {
   // Mermaid doesn't re-theme on setTheme — re-render existing diagrams (task 59).
   // reRenderMermaid renders offscreen and swaps the SVG in atomically, so the live DOM
   // never collapses (no scroll jump, no flash).
-  applyMermaidTheme(window, lastInitMsg?.options?.mermaidTheme)
+  applyMermaidTheme(
+    window,
+    resolveMermaidInit(
+      lastInitMsg?.options?.mermaidTheme,
+      lastInitMsg?.options?.contentTheme,
+      theme,
+    ),
+  )
   const el = (window.vditor as any)?.vditor?.[window.vditor.getCurrentMode()]
     ?.element as HTMLElement | undefined
   reRenderMermaid(
@@ -874,13 +889,23 @@ function handleConfigChanged(msg: any) {
   }
   // Mermaid theme: apply LIVE via the task-59 offscreen re-render (used to re-init, which
   // scrolled big docs to the top — the reported bug). applyMermaidTheme updates the
-  // mermaid.initialize wrapper; reRenderMermaid swaps each diagram's SVG in place.
-  if (mermaidThemeChanged) {
-    applyMermaidTheme(window, msg.options?.mermaidTheme)
+  // mermaid.initialize wrapper; reRenderMermaid swaps each diagram's SVG in place. A
+  // content-theme switch can change the paired palette / effective mode, so re-render on
+  // that too (task 86 — previously mermaid stayed stale until a VS Code theme flip).
+  if (mermaidThemeChanged || contentThemeChanged) {
+    const mode = lastInitMsg.theme === 'dark' ? 'dark' : 'light'
+    applyMermaidTheme(
+      window,
+      resolveMermaidInit(
+        lastInitMsg.options?.mermaidTheme,
+        lastInitMsg.options?.contentTheme,
+        mode,
+      ),
+    )
     reRenderMermaid(
       activeModeElement(window.vditor) ?? undefined,
       lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
-      lastInitMsg.theme === 'dark' ? 'dark' : 'light',
+      mode,
     )
   }
 }
