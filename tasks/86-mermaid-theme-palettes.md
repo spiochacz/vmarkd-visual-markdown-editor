@@ -10,8 +10,12 @@
 > name OR `{theme, themeVariables}`) wired into init/`set-theme`/`config-changed`.
 > Re-theme gap closed: mermaid now re-renders on a content-theme change too, not just a
 > VS Code flip. Unit (palettes + pairing + resolver) + e2e (`mermaid-palette.spec.ts`:
-> explicit palette, auto pairing, explicit-wins). 578 unit / 226 e2e / typecheck / lint
-> all green.
+> explicit palette, auto pairing, explicit-wins). All green.
+> **Also bundled Mermaid 11.6.0 → 11.15.0**: Vditor pins 11.6.0; we vendor the newer
+> same-major build (`media-src/vendor/mermaid`, MIT, sha-guarded) and `build.mjs`
+> (`syncMermaid`) copies it over Vditor's copy. `esbuild-shared.mjs` bumps the `?v=`
+> cache-buster to the pinned version. Re-pin: `node media-src/scripts/fetch-mermaid.mjs
+> <version>`; guard: `test/backend/mermaid-pin.test.ts`.
 > **Source:** user request (2026-06-09) — follow-up to [59 — mermaid live re-theme](59-mermaid-live-retheme.md)
 > + the [84](84-theme-registry.md)/[85](85-theme-completeness-contract.md) theme system. GitHub
 > survey of mermaid theme projects: only [`beautiful-mermaid`](https://github.com/lukilabs/beautiful-mermaid)

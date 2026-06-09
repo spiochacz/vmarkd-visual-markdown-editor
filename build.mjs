@@ -313,11 +313,55 @@ async function syncLute() {
   )
 }
 
+// Overwrite Vditor's bundled mermaid.min.js (11.6.0) with our pinned, vendored
+// newer build (media-src/vendor/mermaid — see tasks/86). Same major, API-compatible
+// (globalThis.mermaid + initialize/render). Verifies sha256 + ships the MIT LICENSE/
+// NOTICE next to the binary (.vscodeignore excludes media-src/, so notices live in media/).
+async function syncMermaid() {
+  const vendorDir = path.resolve('media-src/vendor/mermaid')
+  const targetDir = path.resolve('media/vditor/dist/js/mermaid')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[mermaid] no vendored pin (media-src/vendor/mermaid) — using Vditor default',
+    )
+    return
+  }
+
+  const js = await fs.readFile(path.join(vendorDir, 'mermaid.min.js'))
+  const got = createHash('sha256').update(js).digest('hex')
+  if (got !== source.sha256) {
+    throw new Error(
+      `[mermaid] vendored mermaid.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
+        `Re-pin with: node media-src/scripts/fetch-mermaid.mjs <version>`,
+    )
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'mermaid.min.js'),
+    path.join(targetDir, 'mermaid.min.js'),
+  )
+  for (const f of ['LICENSE', 'NOTICE']) {
+    await fs.copyFile(
+      path.join(vendorDir, f),
+      path.join(targetDir, `mermaid.${f}`),
+    )
+  }
+  console.log(`[mermaid] vendored v${source.version} verified + installed`)
+}
+
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
 await varifyVditorPalette()
 await syncLute()
+await syncMermaid()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

@@ -31,6 +31,20 @@ try {
   lutePin = null
 }
 
+// The vendored Mermaid pin (build.mjs `syncMermaid` overwrites Vditor's bundled
+// mermaid.min.js with this version — task 86). null if unpinned.
+let mermaidPin = null
+try {
+  mermaidPin = JSON.parse(
+    readFileSync(
+      new URL('./vendor/mermaid/source.json', import.meta.url),
+      'utf8',
+    ),
+  )
+} catch {
+  mermaidPin = null
+}
+
 const stubPath = fileURLToPath(
   new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url),
 )
@@ -473,6 +487,37 @@ const fixInfoDialog = {
   },
 }
 
+// Task 86 — we vendor a newer Mermaid than Vditor bundles (syncMermaid). Vditor's
+// mermaidRender.ts loads `…/mermaid.min.js?v=11.6.0`; the `?v=` is a cache-buster, so
+// bump it to the vendored version or a stale webview could serve the old bytes across
+// an extension update. Anchored on the literal; throws if Vditor's URL drifts.
+const MERMAID_VER_ANCHOR = /mermaid\.min\.js\?v=[\d.]+/
+export function patchMermaidVersion(code, version) {
+  if (!MERMAID_VER_ANCHOR.test(code)) {
+    throw new Error(
+      'fixMermaidVersion: `mermaid.min.js?v=` anchor not found in vditor mermaidRender.ts (version drift?)',
+    )
+  }
+  return code.replace(MERMAID_VER_ANCHOR, `mermaid.min.js?v=${version}`)
+}
+const fixMermaidVersion = {
+  name: 'fix-mermaid-version',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mermaidRender\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return {
+          loader: 'ts',
+          contents: mermaidPin?.version
+            ? patchMermaidVersion(code, mermaidPin.version)
+            : code,
+        }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
   define: {
     VDITOR_VERSION: JSON.stringify(vditorVersion),
@@ -495,5 +540,6 @@ export const vditorSourceConfig = {
     fixProcessCode,
     fixIrInputSerialize,
     fixInfoDialog,
+    fixMermaidVersion,
   ],
 }

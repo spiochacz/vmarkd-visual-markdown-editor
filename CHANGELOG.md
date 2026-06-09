@@ -17,6 +17,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   the VS Code light/dark theme. Palette colours from
   [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT).
 
+### Changed
+
+- Bundled **Mermaid upgraded 11.6.0 → 11.15.0** (the version Vditor ships is pinned at
+  11.6.0; vMarkd vendors the newer same-major build), picking up upstream diagram fixes
+  and rendering improvements.
+
 ## [1.1.0]
 
 ### Added

@@ -1,0 +1,8 @@
+Mermaid — generation of diagrams from text (mermaid-js/mermaid)
+Copyright (c) 2014 - present Knut Sveidqvist
+Licensed under the MIT License (see LICENSE).
+Vendored prebuilt: dist/mermaid.min.js @ v11.15.0
+Upstream: https://github.com/mermaid-js/mermaid
+
+Vditor bundles Mermaid 11.6.0; vMarkd vendors a newer 11.15.0 build (same major,
+API-compatible) and copies it over Vditor's bundled copy at build time.

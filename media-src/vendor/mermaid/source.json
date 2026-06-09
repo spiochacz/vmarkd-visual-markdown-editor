@@ -1,0 +1,8 @@
+{
+  "package": "mermaid",
+  "version": "11.15.0",
+  "fetchedFrom": "https://unpkg.com/mermaid@11.15.0/dist/mermaid.min.js",
+  "sha256": "70137e77bb273bb2ef972b86e8b0400cca8be53cb25bfc45911a186dc98665de",
+  "license": "MIT",
+  "note": "Vditor bundles Mermaid 11.6.0; we vendor a newer 11.15.0 (same major, API-compatible: globalThis.mermaid + initialize/render). Re-pin with: node media-src/scripts/fetch-mermaid.mjs <version>. build.mjs (syncMermaid) verifies sha256 and copies over Vditor's bundled copy; esbuild-shared.mjs bumps the ?v= cache-buster to this version."
+}
