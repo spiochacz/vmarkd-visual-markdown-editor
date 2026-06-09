@@ -28,6 +28,7 @@ vditor runs on a newer, pinned Lute build with the security and fidelity fixes, 
    - `media-src/vendor/lute/LICENSE` — full Mulan PSL v2 text (from `88250/lute/LICENSE`).
    - `media-src/vendor/lute/NOTICE` (or fields in `source.json`) — `Copyright (c) 2019-present, b3log.org · Mulan PSL v2 · source: 88250/lute@<SHA>`.
    - Ensure the license/notice is included in the packaged VSIX (check `.vscodeignore` doesn't exclude `media-src/vendor/lute/` — or copy the notice into a shipped path). Note: we *already* redistribute `lute.min.js` indirectly via the `vditor` dependency, so this formalizes existing attribution rather than adding a new obligation; no copyleft / source-disclosure / relicensing required.
+   - **As shipped:** the VSIX carries the LICENSE + NOTICE via `media/vditor/dist/js/lute/lute.LICENSE` + `lute.NOTICE` (the `media/` tree is packaged). The `media-src/vendor/lute/` copies are dev-source only — `.vscodeignore` excludes all of `media-src/`, so they do **not** ship. Compliance is met through the `media/` path.
 6. `node build.mjs`, install locally, smoke-test.
 
 ## Compat test strategy (to build during execution)

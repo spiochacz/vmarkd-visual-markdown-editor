@@ -73,13 +73,13 @@ Trigger: `pull_request` + `push` to `main`. Single job on `ubuntu-latest`,
 `playwright install --with-deps chromium` → e2e (56). `concurrency` cancels
 superseded runs.
 
-**Follow-up — webview type-check is NOT in the gate.** `tsc --noEmit` in `media-src`
-currently fails: `media-src/tsconfig.json` sets `moduleResolution: "bundler"` (a
-**TS 5.0+** option) while media-src is on **TS 4.9.5** — esbuild ignores it so the
-build is fine, but CLI `tsc` can't parse the config. To add a webview type-check
-step, first reconcile this (switch to `moduleResolution: "node"`/`"node16"` under
-TS 4.9, or bump media-src to TS 5.x — note the user chose TS 4.9). The webview is
-still exercised by the 56 e2e on the real bundle.
+**Follow-up — webview type-check is now IN the gate (2026-06-09).** `build.mjs`
+type-checks the host (`tsc -p ./`) but bundles the webview with esbuild, which strips
+types without checking them. A dedicated `media-src/tsconfig.typecheck.json` (`noEmit`,
+`skipLibCheck`) + the `typecheck` npm script (`tsc -p media-src/tsconfig.typecheck.json`)
+now type-checks `media-src/src` cleanly — the old blocker (TS 4.9 couldn't parse
+`moduleResolution: "bundler"`) is gone now that media-src is on **TS 5.9.x**. Wired into
+`ci.yml` as the `Type-check (webview)` step (after `Build`, before unit tests).
 
 Original step notes (for reference):
 1. `actions/checkout@v4`, `actions/setup-node@v4`.
