@@ -1,6 +1,11 @@
 # Task 80 — Bump GitHub Actions off the deprecated Node 20 runtime
 
-**Status:** TODO (low priority; do at the next release touch-up)
+**Status:** ✅ Done (2026-06-10). Bumped `actions/checkout@v4` → `@v5` and
+`actions/setup-node@v4` → `@v5` in all three workflows (`ci.yml`, `publish.yml`,
+`release.yml`) — both run on Node 24 with the same inputs we use (`node-version`,
+`cache: npm`). `actions/cache@v4` left as-is: it was NOT in the Node-20 deprecation
+warning (already Node 24-based) and no `@v5` exists. Done ahead of the 2026-06-16
+force-to-Node-24 date.
 
 > **Source:** CI annotation on the v1.0.0 `Publish` run (2026-06-07).
 > **Value / Risk:** 🟢 keep CI working past the deprecation / trivial.

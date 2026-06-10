@@ -27,7 +27,11 @@ sources under `src/main/java/net/sourceforge/plantuml/teavm/`). Per its
     include `{ dark: true }`.
   - `renderToString(lines, onSuccess, onError)` — returns the SVG **string** via callback.
 - **Two files**: `plantuml.js` (TeaVM-compiled engine) + `viz-global.js` (GraphViz layout).
-  **We already bundle Viz.js** for the `graphviz` renderer — reuse it.
+  ⚠️ **Not the Viz.js we already bundle.** Our `graphviz` renderer uses the OLD mdaines
+  `viz.js` + `full.render.js` (worker, `new Viz({worker})`). `viz-global.js` is the **modern
+  `@viz-js/viz` 3.x** build (verified: `@viz-js/viz@3.28` ships `dist/viz-global.js`). So we
+  vendor `@viz-js/viz`'s `viz-global.js` here — and (see note below) can repoint `graphviz`
+  onto the SAME file, replacing the old two-file mdaines build with one shared Viz.js.
 - **No server, no CDN, no proprietary runtime** — runs entirely in-browser; the engine starts
   an internal worker on first use (no explicit init). **Offline-capable. Self-hostable. MIT.**
 - **Output is SVG** (crisp, scalable) — not PNG.
@@ -62,9 +66,15 @@ into the repo (`media/...`), and have `build.mjs` just copy it. CI/users never n
 5. **Decision gate:** acceptable bundle size + runs under CSP offline → GO. Record numbers here.
 
 ## Approach (if GO)
-1. **Vendor** the TeaVM `plantuml.js` (pinned PlantUML SHA) into `media/` + a `build.mjs`
-   copy step (Lute pattern). Reuse the bundled Viz.js if compatible, else vendor
-   `viz-global.js` too. Lazy-loaded — **not** in `main.js`.
+1. **Vendor** the TeaVM `plantuml.js` (pinned PlantUML SHA) + **`@viz-js/viz`'s
+   `viz-global.js`** into `media/` + a `build.mjs` copy step (Lute pattern). Lazy-loaded —
+   **not** in `main.js`.
+   - **Shared Viz.js opportunity (coordinate with [task 94](94-graphviz-theme-pairing.md)):**
+     PlantUML's `viz-global.js` IS the maintained `@viz-js/viz` (our graphviz still runs the
+     dead mdaines line). Once vendored here, **repoint `graphvizRender` onto the same
+     `viz-global.js`** (`Viz.instance().then(v => v.renderSVGElement(dot))`) and drop the old
+     `viz.js` + `full.render.js`. One Viz.js for both PlantUML + graphviz: smaller, maintained,
+     one dependency. Graphviz's DOT-attr theming (task 94) is engine-agnostic, so it's unaffected.
 2. **Replace vditor's `plantumlRender`** (esbuild patch, or a `media-src/src/plantuml-render.ts`
    the preview pipeline calls): when a `.language-plantuml` block exists, lazy-import the
    engine, `renderToString(code, …)` per block, inject the returned **inline SVG**. No

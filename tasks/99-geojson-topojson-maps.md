@@ -1,0 +1,47 @@
+# Task 99 — GeoJSON / TopoJSON interactive maps (GitHub parity)
+
+> **Status:** 📋 TODO. Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps
+> — a **GitHub-native** Markdown feature (since 2022) that vMarkd lacks. Offline via a bundled
+> JS map lib (Leaflet/MapLibre). **First of the new-renderer tasks: it establishes the shared
+> custom fenced-renderer pass** that 100–103 reuse.
+> **Source:** GitHub-parity gap (internet survey — GitHub renders only mermaid+geojson+topojson+stl
+> natively; we have mermaid). User request.
+> **Value / Risk:** 🟡 parity + useful / medium — new renderer plumbing + a real offline-basemap caveat.
+
+## Problem
+GitHub renders ` ```geojson `/` ```topojson ` as interactive maps; vMarkd shows them as plain code
+blocks. We want parity, offline.
+
+## Shared mechanism (this task establishes it; 100–103 reuse)
+vMarkd has **no custom fenced-diagram renderer pass** today — Vditor's renderers (mermaid, …) are
+built-in; our `custom-renderer.ts` is Lute-level (wiki chips). Add a **post-render DOM pass** over
+`.language-<x>` code blocks (mirror how `mermaidRender` finds `.language-mermaid`), registered for
+a set of `{lang → renderFn}`. Wire it into **every** render entry point mermaid is handled at:
+init render, live update, **streaming** (`stream-render.ts`), and the host-side **instant-preview
+prerender** (or accept no map in the teaser). Re-run is idempotent (`data-processed`). Build this as
+`media-src/src/custom-diagrams.ts` (or extend the render dispatch) so 100–103 just add a `{lang, fn}`.
+
+## Approach (this renderer)
+1. **Lib** — **Leaflet** (MIT, ~150 KB) or **MapLibre GL** (BSD, larger, WebGL). Prefer **Leaflet**
+   (lighter, SVG/DOM, no WebGL). `topojson` → convert with **topojson-client** (BSD) to GeoJSON,
+   then same path. Add as `media-src` deps; esbuild bundles into `main.js` (lazy-import so docs
+   without maps don't pay for it).
+2. **Render** — parse the fenced JSON; `L.geoJSON(data).addTo(map)`; fit bounds to the geometry.
+3. **CSP / offline caveat (the catch):** a real **basemap = remote tiles** (`img-src https:`),
+   which our CSP blocks unless `vmarkd.image.allowRemoteImages` is on. **Default: render the
+   geometry on a blank/no-tile canvas** (shapes + a neutral background), so it works offline; if
+   `allowRemoteImages` is on, add an OSM/Carto tile layer for a true basemap. Document this clearly.
+4. **Theme** — shape stroke/fill from the palette (`line`/`accent`) so it reads on any background;
+   blank canvas bg from the surface.
+5. **Live re-theme** — re-render on a theme flip (mirror `reRenderMermaid`).
+
+## Tests (per AGENTS)
+- **e2e** — a ` ```geojson ` block renders an SVG/DOM map with the geometry path present (not a code
+  block); `topojson` converts + renders; **no remote request** when `allowRemoteImages` is off
+  (assert no tile fetch); theme flip re-renders.
+- **Unit** — the lang-dispatch pass picks `.language-geojson`/`.language-topojson` and skips others.
+
+## See also
+- Skill `vmarkd-renderer-theming` (offline/CSP discipline — remote tiles are the `<img https>` case
+  task 67 gates). [GitHub Docs — creating diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams).
+- Tasks 100–103 (reuse the pass this task builds).
