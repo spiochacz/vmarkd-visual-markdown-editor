@@ -4,6 +4,25 @@ All notable changes to this extension are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/).
 
+## [1.2.0]
+
+### Added
+
+- **Mermaid diagram themes** (`vmarkd.theme.mermaid`): 15 named palettes (GitHub
+  light/dark, Dracula, Nord, Tokyo Night, Catppuccin, Solarized, One Dark, Zinc, …)
+  rendered via mermaid's customisable base theme, alongside mermaid's built-ins. `auto`
+  pairs the palette to your rendering theme (`vmarkd.theme.content`) — GitHub → GitHub,
+  Material Dark → One Dark, VS Code Light/Dark Modern → Zinc light/dark — and an explicit
+  palette still wins. Diagrams re-theme live when you switch the rendering theme, not just
+  the VS Code light/dark theme. Palette colours from
+  [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid) (MIT).
+
+### Changed
+
+- Bundled **Mermaid upgraded 11.6.0 → 11.15.0** (the version Vditor ships is pinned at
+  11.6.0; vMarkd vendors the newer same-major build), picking up upstream diagram fixes
+  and rendering improvements.
+
 ## [1.1.0]
 
 ### Added

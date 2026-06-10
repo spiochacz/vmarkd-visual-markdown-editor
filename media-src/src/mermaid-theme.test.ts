@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { applyMermaidTheme, MERMAID_THEMES } from './mermaid-theme'
+import {
+  applyMermaidTheme,
+  MERMAID_THEMES,
+  resolveMermaidInit,
+} from './mermaid-theme'
 
 function fakeWin(mermaid?: any) {
   return { mermaid } as any
@@ -52,9 +56,65 @@ describe('applyMermaidTheme', () => {
     expect(seen).toEqual({ a: 1 }) // theme injection removed
   })
 
-  it('exposes auto + the supported mermaid themes', () => {
+  it('injects a palette via base theme + themeVariables (object spec)', () => {
+    let seen: any
+    const win = fakeWin({ initialize: (cfg: any) => (seen = cfg) })
+    applyMermaidTheme(win, {
+      theme: 'base',
+      themeVariables: { background: '#0d1117', darkMode: true },
+    })
+    win.mermaid.initialize({ securityLevel: 'loose' })
+    expect(seen).toEqual({
+      securityLevel: 'loose',
+      theme: 'base',
+      themeVariables: { background: '#0d1117', darkMode: true },
+    })
+  })
+
+  it('null spec leaves initialize untouched', () => {
+    let seen: any
+    const win = fakeWin({ initialize: (cfg: any) => (seen = cfg) })
+    applyMermaidTheme(win, null)
+    win.mermaid.initialize({ a: 1 })
+    expect(seen).toEqual({ a: 1 })
+  })
+
+  it('exposes auto + the built-in mermaid themes + the palettes', () => {
     expect(MERMAID_THEMES).toContain('auto')
     expect(MERMAID_THEMES).toContain('forest')
     expect(MERMAID_THEMES).toContain('default')
+    expect(MERMAID_THEMES).toContain('github-dark')
+    expect(MERMAID_THEMES).toContain('dracula')
+  })
+})
+
+describe('resolveMermaidInit', () => {
+  it('built-in setting → theme only, no themeVariables', () => {
+    expect(resolveMermaidInit('forest', undefined)).toEqual({ theme: 'forest' })
+    expect(resolveMermaidInit('dark', 'github-light')).toEqual({
+      theme: 'dark',
+    })
+  })
+
+  it('explicit palette → base + themeVariables (wins over content pairing)', () => {
+    const init = resolveMermaidInit('dracula', 'github-light')
+    expect(init?.theme).toBe('base')
+    expect(init?.themeVariables?.background).toBe('#282a36')
+  })
+
+  it('auto + paired content theme → that palette', () => {
+    const gh = resolveMermaidInit('auto', 'github-dark')
+    expect(gh?.theme).toBe('base')
+    expect(gh?.themeVariables?.background).toBe('#0d1117')
+    // vscode/material are paired too (zinc / one-dark)
+    const vs = resolveMermaidInit('auto', 'vscode-dark-modern')
+    expect(vs?.theme).toBe('base')
+    expect(vs?.themeVariables?.background).toBe('#18181b') // zinc-dark
+  })
+
+  it('auto + unpaired/unknown content theme → null (mermaid keeps its own light/dark)', () => {
+    expect(resolveMermaidInit('auto', 'no-such-theme')).toBeNull()
+    expect(resolveMermaidInit('auto', undefined)).toBeNull()
+    expect(resolveMermaidInit(undefined, undefined)).toBeNull()
   })
 })

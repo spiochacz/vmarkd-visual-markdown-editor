@@ -53,7 +53,11 @@ Built on the [Vditor](https://github.com/Vanessa219/vditor) editor, this plugin 
   light/dark theme.
 - Optional **code-block line numbers**, **heading highlighting** and level markers,
   and an editor **font size** that follows VS Code's.
-- **Mermaid diagram theme**, **toolbar visibility**, and **full-width layout** toggles.
+- **Mermaid diagram themes** — `auto` matches the rendering theme above (e.g. GitHub →
+  GitHub, Material Dark → One Dark, VS Code → Zinc), or pick from 15 palettes (Dracula,
+  Nord, Tokyo Night, Catppuccin, Solarized, …) or mermaid's built-ins. Diagrams re-theme
+  live when you switch.
+- **Toolbar visibility** and **full-width layout** toggles.
 - **Custom CSS** inline, plus **external CSS files** with live reload.
 - **Configurable links** — Ctrl/Cmd+click to open and a plain click to edit (or the
   reverse).
@@ -103,6 +107,7 @@ See the [changelog](./CHANGELOG.md) for the full list of features and changes.
 - Rendering & highlighting bundled via Vditor: [highlight.js](https://github.com/highlightjs/highlight.js), [Mermaid](https://github.com/mermaid-js/mermaid), [KaTeX](https://github.com/KaTeX/KaTeX), [ECharts](https://github.com/apache/echarts), [abc.js](https://github.com/paulrosen/abcjs), [Graphviz / Viz.js](https://github.com/mdaines/viz.js), [flowchart.js](https://github.com/adrai/flowchart.js), [markmap](https://github.com/markmap/markmap), [plantuml-encoder](https://github.com/markushedvall/plantuml-encoder), [smiles-drawer](https://github.com/reymond-group/smilesDrawer)
 - [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) by Sindre Sorhus (MIT) — the GitHub light/dark markdown-rendering themes (`vmarkd.theme.content`), vendored under `media/markdown-themes/` (upstream verbatim, plus a small marked override block re-asserting the inline-code background on the editor surface)
 - [vscode-markdown-style](https://github.com/raycon/vscode-markdown-style) by raycon (MIT) — the Material Dark (One Dark) rendering theme (`vmarkd.theme.content`), adapted under `media/markdown-themes/`
+- [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid) by Craft Docs (MIT) — the 15 Mermaid diagram palettes (`vmarkd.theme.mermaid`); only the colour values are vendored (in `src/mermaid-palettes.ts`, translated to mermaid `themeVariables`), not the renderer
 - [microsoft/vscode](https://github.com/microsoft/vscode) (MIT) — the `vscode-light-modern` / `vscode-dark-modern` rendering themes use the built-in **Light Modern / Dark Modern** palettes ([`extensions/theme-defaults/themes`](https://github.com/microsoft/vscode/tree/main/extensions/theme-defaults/themes)) + the markdown preview layout ([`extensions/markdown-language-features/media/markdown.css`](https://github.com/microsoft/vscode/blob/main/extensions/markdown-language-features/media/markdown.css))
 
 ## License

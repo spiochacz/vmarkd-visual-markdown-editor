@@ -4,6 +4,7 @@
 import '../src/preload'
 import Vditor from 'vditor/src/index'
 import { reRenderMermaid } from '../src/mermaid-retheme'
+import { applyMermaidTheme, resolveMermaidInit } from '../src/mermaid-theme'
 
 // A diagram near the top + filler below so the doc scrolls (for the scroll-preservation
 // repro); bounded height so pre.vditor-reset is the scroller (webview-like).
@@ -27,6 +28,20 @@ const editor = new Vditor('app', {
         `${location.origin}/vditor`,
         theme,
       )
+    // Task 86: apply the resolved mermaid init (built-in / palette / content-theme
+    // pairing) the way main.ts does, then re-render so the SVG reflects it.
+    ;(window as any).__applyTheme = (
+      setting: string | undefined,
+      contentTheme: string | undefined,
+      mode: 'dark' | 'light' = 'light',
+    ) => {
+      applyMermaidTheme(window, resolveMermaidInit(setting, contentTheme, mode))
+      reRenderMermaid(
+        (editor as any).vditor.ir.element as HTMLElement,
+        `${location.origin}/vditor`,
+        mode,
+      )
+    }
     ;(window as any).__ready = true
   },
 })
