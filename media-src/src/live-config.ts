@@ -30,7 +30,15 @@ export function applyContentTheme(contentTheme: string | undefined): void {
   document.body.classList.toggle('markdown-body', ct !== 'auto')
   const links = document.querySelectorAll<HTMLLinkElement>('link[id^="ct-"]')
   links.forEach((l) => {
-    l.disabled = l.id !== `ct-${ct}`
+    // Only WRITE when the state actually changes. On first init this runs while the
+    // instant-paint overlay is still on screen and the links are ALREADY in their
+    // correct enabled/disabled state (the initial HTML emitted them that way) — and
+    // assigning `link.disabled` even to its current value makes some browsers re-
+    // evaluate the stylesheet, momentarily dropping the active theme's `--vmarkd-*`
+    // vars so var-driven elements (hr, inline code, …) flash to Vditor's fallback
+    // colour. Guarding the write keeps the overlay→live swap flicker-free.
+    const want = l.id !== `ct-${ct}`
+    if (l.disabled !== want) l.disabled = want
   })
 }
 
@@ -38,24 +46,35 @@ export function applyContentTheme(contentTheme: string | undefined): void {
 // off (`data-*` attributes, `--me-outline-width`). Vditor is untouched.
 export function applyBodyOptions(options: BodyOptions | undefined): void {
   const body = document.body
-  body.setAttribute(
+  // Write only on change. On first init this runs while the instant-paint overlay is
+  // still on screen, and the body already carries the matching attributes/vars from the
+  // initial HTML (html-builder emits the same values). Re-setting an attribute or CSS var
+  // to its current value can still trigger a style recalc / stylesheet re-eval, which
+  // flashes the overlay (text colour, hr, inline-code — whatever a theme drives). Guarding
+  // every write keeps the overlay→live swap flicker-free; live config changes still apply.
+  const setAttr = (name: string, val: string) => {
+    if (body.getAttribute(name) !== val) body.setAttribute(name, val)
+  }
+  const setVar = (name: string, val: string) => {
+    if (body.style.getPropertyValue(name) !== val) {
+      body.style.setProperty(name, val)
+    }
+  }
+  setAttr(
     'data-use-vscode-theme-color',
     options?.useVscodeThemeColor ? '1' : '0',
   )
   applyContentTheme(options?.contentTheme)
-  body.setAttribute('data-full-width', options?.enableFullWidth ? '1' : '0')
-  body.setAttribute(
-    'data-highlight-headings',
-    options?.highlightHeadings ? '1' : '0',
-  )
-  body.setAttribute(
+  setAttr('data-full-width', options?.enableFullWidth ? '1' : '0')
+  setAttr('data-highlight-headings', options?.highlightHeadings ? '1' : '0')
+  setAttr(
     'data-heading-markers',
     options?.showHeadingMarkers === false ? '0' : '1',
   )
   if (typeof options?.outlineWidth === 'number' && options.outlineWidth > 0) {
-    body.style.setProperty('--me-outline-width', `${options.outlineWidth}px`)
+    setVar('--me-outline-width', `${options.outlineWidth}px`)
   }
-  body.style.setProperty(
+  setVar(
     '--me-font-size',
     resolveFontSize(options?.fontSize, options?.contentTheme),
   )

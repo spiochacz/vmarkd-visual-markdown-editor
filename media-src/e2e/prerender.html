@@ -3,6 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <title>instant-paint overlay harness</title>
+    <!-- Vditor's own IR CSS (the marker collapse/show rules). In prod it's folded into
+         media/dist/main.css; the harness serves the SOURCE main.css, so load it the way
+         blockbg.html does — without it the overlay's source <pre> never collapses and the
+         code-block height check is meaningless. -->
+    <link rel="stylesheet" href="/vditor/dist/index.css" />
     <link rel="stylesheet" href="/main.css" />
     <link
       id="vditorContentTheme"
@@ -24,7 +29,11 @@
       ></div>
       <div class="vditor-content">
         <div class="vditor-ir">
-          <pre class="vditor-reset"><h1 data-block="0" class="vditor-ir__node" data-marker="#"><span class="vditor-ir__marker vditor-ir__marker--heading"># </span>Hello world</h1></pre>
+          <pre class="vditor-reset"><h1 data-block="0" class="vditor-ir__node" data-marker="#"><span class="vditor-ir__marker vditor-ir__marker--heading"># </span>Hello world</h1><div data-block="0" data-type="code-block" class="vditor-ir__node"><span data-type="code-block-open-marker">```</span><span class="vditor-ir__marker vditor-ir__marker--info" data-type="code-block-info">​js</span><pre class="vditor-ir__marker--pre vditor-ir__marker"><code class="language-js">const x = 1
+console.log(x)
+</code></pre><pre class="vditor-ir__preview" data-render="2"><code class="language-js">const x = 1
+console.log(x)
+</code></pre><span data-type="code-block-close-marker">```</span></div></pre>
         </div>
       </div>
     </div>

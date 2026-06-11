@@ -45,6 +45,20 @@ try {
   mermaidPin = null
 }
 
+// The vendored ECharts pin (build.mjs `syncEcharts` overwrites Vditor's bundled
+// echarts.min.js with this version — task 89). null if unpinned.
+let echartsPin = null
+try {
+  echartsPin = JSON.parse(
+    readFileSync(
+      new URL('./vendor/echarts/source.json', import.meta.url),
+      'utf8',
+    ),
+  )
+} catch {
+  echartsPin = null
+}
+
 const stubPath = fileURLToPath(
   new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url),
 )
@@ -217,6 +231,41 @@ const fixOutlineCurrent = {
       async (args) => {
         const code = await readFile(args.path, 'utf8')
         return { loader: 'ts', contents: patchOutlineCurrent(code) }
+      },
+    )
+  },
+}
+
+// fixIrBlurExpand: Vditor's blurEvent (editorCommonEvent.ts) removes `vditor-ir__node--expand`
+// from the edited node on EVERY blur. In the VS Code webview a click inside the editor causes a
+// transient blur→refocus, so --expand is dropped mid-click → our CSS stops hiding the rendered
+// `.vditor-ir__preview` → the syntax-highlighted render flashes until mouseup re-expands it (very
+// visible when clicking to reposition the caret in a code block). Defer the collapse to the next
+// frame and skip it if focus has returned to the editor — so a transient blur no longer collapses,
+// while a genuine blur (focus truly left) still collapses one frame later.
+const IR_BLUR_EXPAND_ANCHOR =
+  'expandElement.classList.remove("vditor-ir__node--expand");'
+export function patchIrBlurExpand(code) {
+  if (!code.includes(IR_BLUR_EXPAND_ANCHOR)) {
+    throw new Error(
+      'fixIrBlurExpand: anchor not found in vditor util/editorCommonEvent.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    IR_BLUR_EXPAND_ANCHOR,
+    'requestAnimationFrame(() => { const ae = document.activeElement; ' +
+      'if (ae !== editorElement && !editorElement.contains(ae)) { ' +
+      'expandElement.classList.remove("vditor-ir__node--expand"); } });',
+  )
+}
+const fixIrBlurExpand = {
+  name: 'fix-ir-blur-expand',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]editorCommonEvent\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchIrBlurExpand(code) }
       },
     )
   },
@@ -518,6 +567,102 @@ const fixMermaidVersion = {
   },
 }
 
+// Task 89 — we vendor a newer ECharts than Vditor bundles (syncEcharts). Three vditor modules
+// load `…/echarts.min.js?v=5.5.1` under the SAME script id (`vditorEchartsScript`): chartRender
+// (charts), mindmapRender (mind maps), devtools. addScript dedupes by id, so whichever loads
+// first pins the URL — bump the `?v=` cache-buster in ALL of them to the vendored version, or a
+// stale webview could serve old bytes across an update. Anchored on the literal (one per file);
+// throws if Vditor's URL drifts. (Replaces every occurrence in case a file gains more.)
+export function patchEchartsVersion(code, version) {
+  if (!code.includes('echarts.min.js?v=')) {
+    throw new Error(
+      'fixEchartsVersion: `echarts.min.js?v=` anchor not found in a vditor echarts loader (version drift?)',
+    )
+  }
+  return code.replace(
+    /echarts\.min\.js\?v=[\d.]+/g,
+    `echarts.min.js?v=${version}`,
+  )
+}
+
+// Task 90 — Vditor's chartRender hardcodes the ECharts theme: `init(e, theme === "dark" ?
+// "dark" : undefined)`. Rewrite that single call to consult `window.__vmarkdEchartsResolve`
+// (installed by echarts-apply.ts) so charts follow the content-theme palette; falls back to
+// Vditor's original dark/light when the resolver isn't installed. Anchored on the literal init
+// call; throws if it drifts.
+const ECHARTS_INIT_ANCHOR =
+  /echarts\.init\(e,\s*theme === "dark" \? "dark" : undefined\)/
+export function patchEchartsThemeInit(code) {
+  if (!ECHARTS_INIT_ANCHOR.test(code)) {
+    throw new Error(
+      'fixEcharts: `echarts.init(e, theme === "dark" ? "dark" : undefined)` anchor not found in vditor chartRender.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    ECHARTS_INIT_ANCHOR,
+    'echarts.init(e, window.__vmarkdEchartsResolve ? window.__vmarkdEchartsResolve(echarts) : (theme === "dark" ? "dark" : undefined))',
+  )
+}
+
+// One plugin for ECharts: esbuild runs only the FIRST matching onLoad per file, so the `?v=`
+// bump (all 3 echarts loaders) and the theme-init rewrite (chartRender only) must share it.
+const fixEcharts = {
+  name: 'fix-echarts',
+  setup(build) {
+    build.onLoad(
+      {
+        filter:
+          /vditor[/\\]src[/\\]ts[/\\](markdown[/\\](chartRender|mindmapRender)|devtools[/\\]index)\.ts$/,
+      },
+      async (args) => {
+        let code = await readFile(args.path, 'utf8')
+        if (echartsPin?.version)
+          code = patchEchartsVersion(code, echartsPin.version)
+        if (/[/\\]chartRender\.ts$/.test(args.path)) {
+          code = patchEchartsThemeInit(code)
+        }
+        return { loader: 'ts', contents: code }
+      },
+    )
+  },
+}
+
+// setContentTheme content-theme flicker. Vditor's `setContentTheme` (ui/setContentTheme.ts)
+// reloads the `#vditorContentTheme` stylesheet whenever `getAttribute("href") !== cssPath`
+// — it does `link.remove(); addStyle(cssPath)`, an ASYNC re-fetch. On init the instant-paint
+// overlay already shipped that link, but its href is the host's `toUri(...)` STRING while the
+// runtime cssPath is the `${cdn}/…` STRING — different strings, SAME file. So Vditor needlessly
+// tears the stylesheet down and re-fetches it; for the ~100 ms until it reloads, the content
+// theme isn't applied and the editor flashes wrong colours (hr, inline-code, text — whatever the
+// theme drives) before snapping back. Compare RESOLVED absolute URLs instead, so the same file
+// is never reloaded. A genuine theme switch (different file) still reloads. Anchored single-line
+// rewrite; throws on drift.
+const SET_CONTENT_THEME_ANCHOR =
+  'vditorContentTheme.getAttribute("href") !== cssPath'
+export function patchSetContentTheme(code) {
+  if (!code.includes(SET_CONTENT_THEME_ANCHOR)) {
+    throw new Error(
+      'fixSetContentTheme: anchor not found in vditor ui/setContentTheme.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    SET_CONTENT_THEME_ANCHOR,
+    'new URL(vditorContentTheme.getAttribute("href"), document.baseURI).href !== new URL(cssPath, document.baseURI).href',
+  )
+}
+const fixSetContentTheme = {
+  name: 'fix-set-content-theme',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]src[/\\]ts[/\\]ui[/\\]setContentTheme\.ts$/ },
+      async (args) => {
+        const code = await readFile(args.path, 'utf8')
+        return { loader: 'ts', contents: patchSetContentTheme(code) }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
   define: {
     VDITOR_VERSION: JSON.stringify(vditorVersion),
@@ -535,11 +680,14 @@ export const vditorSourceConfig = {
     fixWysiwygLinkClick,
     fixListToggle,
     fixOutlineCurrent,
+    fixIrBlurExpand,
     fixMathRender,
     fixPreviewCopyTip,
     fixProcessCode,
     fixIrInputSerialize,
     fixInfoDialog,
     fixMermaidVersion,
+    fixEcharts,
+    fixSetContentTheme,
   ],
 }

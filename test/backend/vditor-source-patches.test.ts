@@ -11,6 +11,8 @@ import {
   patchIrInputSerialize,
   patchInfoDialog,
   patchPreviewCopyTip,
+  patchIrBlurExpand,
+  patchSetContentTheme,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -43,6 +45,12 @@ const infoSource = read(
 // the esbuild onLoad filter would otherwise silently skip the patch (no build error).
 const previewSource = read(
   '../../media-src/node_modules/vditor/src/ts/preview/index.ts',
+)
+const editorCommonEventSource = read(
+  '../../media-src/node_modules/vditor/src/ts/util/editorCommonEvent.ts',
+)
+const setContentThemeSource = read(
+  '../../media-src/node_modules/vditor/src/ts/ui/setContentTheme.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -123,6 +131,30 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchListToggle('// unrelated source')).toThrow(
       /fixListToggle/,
+    )
+  })
+})
+
+describe('patchSetContentTheme (content-theme stylesheet reload flicker)', () => {
+  it('the shipped Vditor source reloads on a raw-string href mismatch (pre-patch)', () => {
+    expect(setContentThemeSource).toContain(
+      'vditorContentTheme.getAttribute("href") !== cssPath',
+    )
+  })
+
+  it('compares RESOLVED urls so the same file is not reloaded', () => {
+    const patched = patchSetContentTheme(setContentThemeSource)
+    expect(patched).not.toContain(
+      'vditorContentTheme.getAttribute("href") !== cssPath',
+    )
+    expect(patched).toContain(
+      'new URL(vditorContentTheme.getAttribute("href"), document.baseURI).href !== new URL(cssPath, document.baseURI).href',
+    )
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchSetContentTheme('// unrelated source')).toThrow(
+      /fixSetContentTheme/,
     )
   })
 })
@@ -313,6 +345,30 @@ describe('patchPreviewCopyTip (Ctrl+C in preview shows a hardcoded Chinese toast
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchPreviewCopyTip('// unrelated source')).toThrow(
       /fixPreviewCopyTip/,
+    )
+  })
+})
+
+describe('patchIrBlurExpand (code-block edit click flash)', () => {
+  const ANCHOR = 'expandElement.classList.remove("vditor-ir__node--expand");'
+
+  it('Vditor ships the unguarded synchronous collapse-on-blur', () => {
+    expect(editorCommonEventSource).toContain(ANCHOR)
+  })
+
+  it('defers the collapse and skips it when focus returns to the editor', () => {
+    const patched = patchIrBlurExpand(editorCommonEventSource)
+    // wrapped in a deferred, focus-rechecked callback
+    expect(patched).toContain('requestAnimationFrame(')
+    expect(patched).toContain('document.activeElement')
+    expect(patched).toContain('editorElement.contains(ae)')
+    // the removal still happens — but only inside the guard
+    expect(patched).toContain(ANCHOR)
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchIrBlurExpand('// unrelated source')).toThrow(
+      /fixIrBlurExpand/,
     )
   })
 })

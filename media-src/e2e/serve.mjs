@@ -30,6 +30,10 @@ const built = await esbuild.build({
     keybugs: path.join(__dirname, 'keybugs-harness.ts'),
     scrolljump: path.join(__dirname, 'scrolljump-harness.ts'),
     mermaid: path.join(__dirname, 'mermaid-harness.ts'),
+    echarts: path.join(__dirname, 'echarts-harness.ts'),
+    blockbg: path.join(__dirname, 'blockbg-harness.ts'),
+    gap: path.join(__dirname, 'gap-harness.ts'),
+    'callout-ir': path.join(__dirname, 'callout-ir-harness.ts'),
     callouts: path.join(__dirname, 'callouts-harness.ts'),
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
     width: path.join(__dirname, 'width-harness.ts'),
@@ -70,6 +74,10 @@ const streamHtml = fs.readFileSync(path.join(__dirname, 'stream.html'))
 const keybugsHtml = fs.readFileSync(path.join(__dirname, 'keybugs.html'))
 const scrolljumpHtml = fs.readFileSync(path.join(__dirname, 'scrolljump.html'))
 const mermaidHarnessHtml = fs.readFileSync(path.join(__dirname, 'mermaid.html'))
+const echartsHarnessHtml = fs.readFileSync(path.join(__dirname, 'echarts.html'))
+const blockbgHtml = fs.readFileSync(path.join(__dirname, 'blockbg.html'))
+const gapHtml = fs.readFileSync(path.join(__dirname, 'gap.html'))
+const calloutIrHtml = fs.readFileSync(path.join(__dirname, 'callout-ir.html'))
 const calloutsHtml = fs.readFileSync(path.join(__dirname, 'callouts.html'))
 const imageConvertHtml = fs.readFileSync(
   path.join(__dirname, 'image-convert.html'),
@@ -165,6 +173,22 @@ const server = http.createServer((req, res) => {
   if (url === '/mermaid.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(mermaidHarnessHtml)
+  }
+  if (url === '/echarts.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(echartsHarnessHtml)
+  }
+  if (url === '/blockbg.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(blockbgHtml)
+  }
+  if (url === '/gap.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(gapHtml)
+  }
+  if (url === '/callout-ir.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(calloutIrHtml)
   }
   if (url === '/callouts.html') {
     res.setHeader('content-type', 'text/html')

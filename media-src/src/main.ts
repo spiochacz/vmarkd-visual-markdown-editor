@@ -38,7 +38,12 @@ const CONTENT_VIS_MIN_CHARS = 100_000
 import { applyBodyOptions, swapStyle, initOnlyChanged } from './live-config'
 import { applyMermaidTheme, resolveMermaidInit } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
-import { applyCallouts } from './callouts'
+import { resolveEchartsTheme } from '../../src/echarts-theme'
+import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
+import { reRenderEcharts } from './echarts-retheme'
+import { observeCallouts } from './callouts'
+import { observeCodeSource } from './code-source'
+import { observeGapParagraphs } from './gap-paragraph'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
 import { createIncrementalMd } from './incremental-md'
@@ -88,6 +93,9 @@ let reportDocMode: () => void = () => {}
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: any = null
+// Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
+let disposeCallouts: (() => void) | null = null
+let disposeCodeSource: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -117,6 +125,13 @@ function trackEditorCaret() {
   lastEditorRange = sel.getRangeAt(0).cloneRange()
 }
 document.addEventListener('selectionchange', trackEditorCaret)
+
+// Reclaim transient empty "gap" paragraphs Vditor splices when arrowing between adjacent
+// blocks (blockquote↔code, code↔code). Wired once; reads the active editor lazily so it
+// covers every re-init. See gap-paragraph.ts.
+observeGapParagraphs(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
+)
 
 // Close toolbar dropdowns when clicking outside them (VS Code-native menu
 // behaviour; see toolbar-dismiss.ts).
@@ -339,9 +354,16 @@ function runFinishInit(msg: any): void {
     }
   }
   setupSplitScrollSync()
-  // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes in rendered
-  // (non-editable) panes. Idempotent + skips contenteditable, so the source round-trips.
-  applyCallouts(document.body)
+  // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
+  // safe in the editable IR and round-trips). Observe the active editor element so styling
+  // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
+  disposeCallouts?.()
+  disposeCallouts = observeCallouts(activeModeElement(window.vditor))
+  // Code-block edit surface: tag the editable source `<code>` with `.hljs` so the highlight.js
+  // theme styles it like the render (size/padding/bg/base colour) — editing matches preview, no
+  // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
+  disposeCodeSource?.()
+  disposeCodeSource = observeCodeSource(activeModeElement(window.vditor))
   reportDocMode()
 }
 
@@ -369,6 +391,17 @@ function initVditor(msg) {
       msg.options?.mermaidTheme,
       msg.options?.contentTheme,
       msg.theme === 'dark' ? 'dark' : 'light',
+    ),
+  )
+  // ECharts follows the content-theme palette too (task 90). Installs the resolver the patched
+  // chartRender reads on init; no diagrams → harmless.
+  applyEchartsTheme(
+    window,
+    resolveEchartsTheme(
+      msg.options?.echartsTheme,
+      msg.options?.contentTheme,
+      msg.theme === 'dark' ? 'dark' : 'light',
+      readVscodePalette(window),
     ),
   )
   // Link-open policy (task 62): Ctrl/Cmd+click vs plain-click follow. Applied live
@@ -839,6 +872,17 @@ function handleSetTheme(msg: any) {
     lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
     theme,
   )
+  // ECharts likewise paints once — re-render in the new theme (task 90).
+  applyEchartsTheme(
+    window,
+    resolveEchartsTheme(
+      lastInitMsg?.options?.echartsTheme,
+      lastInitMsg?.options?.contentTheme,
+      theme,
+      readVscodePalette(window),
+    ),
+  )
+  reRenderEcharts(window, el, theme)
 }
 
 function handleConfigChanged(msg: any) {
@@ -853,6 +897,9 @@ function handleConfigChanged(msg: any) {
   const mermaidThemeChanged =
     lastInitMsg &&
     lastInitMsg.options?.mermaidTheme !== msg.options?.mermaidTheme
+  const echartsThemeChanged =
+    lastInitMsg &&
+    lastInitMsg.options?.echartsTheme !== msg.options?.echartsTheme
   // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
   // its own (so content + code blocks are themed, not VS Code-dark). The host sends
   // the new effective mode in msg.theme; re-theme live so the content follows it.
@@ -911,6 +958,21 @@ function handleConfigChanged(msg: any) {
       lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
       mode,
     )
+  }
+  // ECharts: re-theme live when its own setting changes OR the content theme it pairs with
+  // (`auto`) changes (task 90).
+  if (echartsThemeChanged || contentThemeChanged) {
+    const mode = lastInitMsg.theme === 'dark' ? 'dark' : 'light'
+    applyEchartsTheme(
+      window,
+      resolveEchartsTheme(
+        lastInitMsg.options?.echartsTheme,
+        lastInitMsg.options?.contentTheme,
+        mode,
+        readVscodePalette(window),
+      ),
+    )
+    reRenderEcharts(window, activeModeElement(window.vditor) ?? undefined, mode)
   }
 }
 
