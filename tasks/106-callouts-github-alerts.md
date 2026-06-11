@@ -1,13 +1,42 @@
 # Task 106 — Callouts / GitHub Alerts (`> [!NOTE]`)
 
-> **Status:** 🟡 v1 done (2026-06-10, branch `feat/callouts`). `callouts.ts` (`matchCallout`
-> pure + `applyCallouts` DOM transform) restyles `[!TYPE]` blockquotes → callout box (CSS in
-> main.css, 5 GitHub + Obsidian types, per-type accents, foldable `-`/`+` marked). Wired into
-> `runFinishInit` (`applyCallouts(document.body)`); **display-only, skips `contenteditable`** so
-> the markdown round-trips. Unit (6, matchCallout) + e2e (6, `callouts.spec.ts`: type/title/
-> marker-strip/foldable/plain-untouched/editable-skipped/styled). **Deferred:** live transform of
-> the editable IR blockquote (currently transforms non-editable/preview panes), foldable click-to-
-> toggle JS, codicon icons in the title (CSS hook `--vmarkd-callout-icon` is in place).
+> **Status:** 🟢 done (2026-06-10, branch `feat/callouts`). `callouts.ts` (`matchCallout` pure +
+> `applyCallouts` **attribute-only** + `observeCallouts` MutationObserver) restyles `[!TYPE]`
+> blockquotes → callout box (CSS in main.css, 5 GitHub + Obsidian types, per-type accents,
+> foldable `-`/`+` marked). **Attribute-only**: sets `data-callout` / `data-callout-title` /
+> classes and NOTHING else — no DOM/text mutation, so it's safe in the **editable IR** (caret +
+> round-trip safe) and works in both edit and preview. CSS draws the title via
+> `::before { content: attr(data-callout-title) }`; the raw `[!NOTE]` marker stays in the source.
+> Wired into `runFinishInit` (`observeCallouts(activeModeElement(vditor))`, one disposer torn down
+> + replaced on re-init). Unit (6, matchCallout) + e2e (7, `callouts.spec.ts`: type/title-attr/
+> ::before-title/explicit-title/foldable/plain-untouched/editable-styled-text-intact/styled). All
+> green; lint + typecheck + build clean; installed locally. **Deferred (phase 2):** foldable
+> click-to-toggle JS (CSS marks open/closed only), codicon icons in the title (CSS hook
+> `--vmarkd-callout-icon` is in place).
+>
+> **Rework note (the v1→done fix):** v1 transformed the DOM (stripped marker, injected a
+> `.vmarkd-callout__title` div) and skipped `contenteditable`. In the default IR editing view that
+> meant callouts were effectively invisible (the editable blockquote was skipped) AND it was
+> caret/round-trip-unsafe. Rewrote to run in the editable IR + an observer that re-applies as
+> Vditor rebuilds the IR DOM on each edit — now visible while editing, zero source mutation.
+>
+> **Dual-node feel (edits like code/mermaid blocks):** the raw `[!NOTE]` marker run is wrapped in a
+> `<span class="vmarkd-callout__marker">` and CSS-hidden behind the rendered `::before` title; it's
+> revealed for editing while the caret is inside the callout (source-on-focus, preview-on-blur).
+> Two findings made this work:
+> - **`:focus-within` does NOT work here.** In the IR the `contenteditable` host is an *ancestor*
+>   of the blockquote, so the caret is never a *descendant* of the callout. Instead callouts.ts
+>   toggles `data-callout-editing` from the live selection (`observeCallouts` adds a debounced
+>   `selectionchange` listener) and CSS keys off that attribute.
+> - **The wrapper span is transparent to Lute** — verified by a Node round-trip test
+>   (`Lute.VditorIRDOM2Md`): bare `<p>[!NOTE]<br>body</p>` and
+>   `<p><span class=…>[!NOTE]</span><br>body</p>` both serialise to `> [!NOTE]\n> body`. So the
+>   marker text staying in the DOM (just collapsed) means the markdown round-trips unchanged.
+>
+> The wrap mutation is skipped while the caret is inside (never restructure the node being typed
+> in); it (re)wraps on blur via the observer. Known minor wart: if the whole webview loses focus
+> without a selection change, the last-edited callout keeps its marker shown until the next caret
+> move. e2e: 8 tests (incl. focus reveals marker / blur re-tucks it / round-trip text intact).
 > Original plan:
 > Render `> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` / `[!CAUTION]`
 > blockquotes as styled callout boxes — **GitHub-native** (Alerts, 2023) **and** Obsidian-core
