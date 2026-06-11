@@ -1,0 +1,8 @@
+{
+  "package": "echarts",
+  "version": "6.1.0",
+  "fetchedFrom": "https://unpkg.com/echarts@6.1.0/dist/echarts.min.js",
+  "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0",
+  "license": "Apache-2.0",
+  "note": "Vditor bundles ECharts 5.5.1; we vendor a newer build (global UMD exposing window.echarts). build.mjs (syncEcharts) verifies sha256; esbuild-shared.mjs bumps the ?v= cache-buster. ECharts 6 is a MAJOR bump — re-verify render fidelity. Re-pin with: node media-src/scripts/fetch-echarts.mjs <version>."
+}

@@ -27,12 +27,12 @@ export interface ThemeDef {
    */
   fontDefaultPx: number | null
   /**
-   * Mermaid palette id (see `mermaid-palettes.ts`) auto-paired with this theme when
-   * `theme.mermaid` is `auto` — task 86. Only set where a palette obviously maps
-   * (github↔github); the rest are left undefined (→ mermaid's own light/dark) for the
-   * user to pick visually.
+   * Diagram palette id (see `mermaid-palettes.ts`) auto-paired with this content theme —
+   * the SHARED layer-1 mapping reused by every diagram renderer (mermaid, task 86; echarts,
+   * task 90). Each engine has its own translation of the palette DATA into its theme format.
+   * undefined → no pairing (the engine falls back to its own light/dark).
    */
-  mermaid?: string
+  palette?: string
 }
 
 // Order here is the order the `ct-<value>` <link>s are emitted; `auto` is implicit
@@ -44,7 +44,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'light',
     code: 'github',
     fontDefaultPx: 16,
-    mermaid: 'github-light',
+    palette: 'github-light',
   },
   {
     value: 'github-dark',
@@ -52,7 +52,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'github-dark',
     fontDefaultPx: 16,
-    mermaid: 'github-dark',
+    palette: 'github-dark',
   },
   {
     value: 'material-dark',
@@ -60,7 +60,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'atom-one-dark',
     fontDefaultPx: null,
-    mermaid: 'one-dark',
+    palette: 'one-dark',
   },
   {
     value: 'vscode-light-modern',
@@ -68,7 +68,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'light',
     code: 'vs',
     fontDefaultPx: null,
-    mermaid: 'zinc-light',
+    palette: 'zinc-light',
   },
   {
     value: 'vscode-dark-modern',
@@ -76,7 +76,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'vs2015',
     fontDefaultPx: null,
-    mermaid: 'zinc-dark',
+    palette: 'zinc-dark',
   },
 ]
 
@@ -135,13 +135,13 @@ export function autoCodeStyle(
 }
 
 /**
- * The mermaid palette auto-paired with a content theme (task 86), or undefined when the
- * theme has no pairing — then the caller falls back to mermaid's own light/dark. Unlike
- * `autoCodeStyle` there is no binary palette fallback: only github↔github is paired so
- * far; vscode/material are left for the user's visual pick.
+ * The diagram palette auto-paired with a content theme — the SHARED layer-1 mapping for
+ * every diagram renderer (mermaid task 86, echarts task 90). undefined when the content
+ * theme has no pairing (e.g. `auto`/VS Code colours), so the caller falls back to the
+ * engine's own light/dark. Unlike `autoCodeStyle` there's no binary palette fallback here.
  */
-export function autoMermaidTheme(
+export function pairedPalette(
   contentTheme: string | undefined,
 ): string | undefined {
-  return themeDef(contentTheme)?.mermaid
+  return themeDef(contentTheme)?.palette
 }

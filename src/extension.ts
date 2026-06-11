@@ -1488,6 +1488,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       enableFullWidth: c.get<boolean>('editor.fullWidth'),
       codeBlockLineNumbers: c.get<boolean>('editor.codeLineNumbers'),
       mermaidTheme: c.get<string>('theme.mermaid'),
+      echartsTheme: c.get<string>('theme.echarts'),
       showToolbar: c.get<boolean>('editor.toolbar'),
       highlightHeadings: c.get<boolean>('theme.highlightHeadings'),
       showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),

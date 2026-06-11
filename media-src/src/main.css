@@ -130,6 +130,97 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
     var(--vscode-editor-background)
   ) !important;
 }
+/* Vditor decorates IR code with a diagonal hatch `background-image` (vditor/dist/index.css,
+   `.vditor-reset pre > code`). On the content themes' code panel it reads as a fragmented grey
+   texture while editing the raw source — drop it for a clean, flat code surface. Pure cosmetic
+   (background-image only; no layout) so it can't affect editing. */
+.vditor-reset pre > code {
+  background-image: none;
+}
+/* The raw IR code-block SOURCE is `pre > code` WITHOUT `.hljs`, so the content themes' inline-code
+   rule (`code:not(.hljs)`) paints it with the lighter inline-code background (over the `pre`
+   panel) — the "two backgrounds under the text" while editing. The panel bg comes from `pre`; the
+   inner `code` must stay transparent. Pure background-color change; no layout impact. */
+.vditor-reset pre > code:not(.hljs):not(.highlight-chroma) {
+  background-color: transparent;
+}
+/* When a code block is expanded for editing, Vditor reveals the editable source BUT leaves the
+   rendered `.vditor-ir__preview` visible too — so the source panel and the render panel stack (two
+   panels; obvious on a light theme like GitHub where the panel `#f6f8fa` stands out on white).
+   Hide the render while editing → show only the source, like a proper dual-node.
+   SCOPED to REAL code blocks via `:has(> code.hljs)`: mermaid/echarts/math/diagrams share
+   `data-type="code-block"` but their preview holds a `div.language-*`/svg, NOT a `code.hljs`, so
+   they're untouched — the earlier blanket rule (hiding ALL expanded previews) regressed those
+   custom blocks while editing. The render returns when the caret leaves and `--expand` is removed. */
+.vditor-reset
+  .vditor-ir__node--expand
+  > .vditor-ir__preview:has(> code.hljs) {
+  display: none;
+}
+/* While editing (node expanded), the source `pre` must render as a clean block panel. Vditor tags it
+   with `vditor-ir__marker`, so on expand it becomes `display:inline` — and an INLINE element paints
+   its background across line-boxes (incl. the `js` info line above), not as a clean rectangle, so a
+   panel bg bled above/around the code and clashed. Force block. The panel COLOUR comes from the
+   content theme's own `.markdown-body pre` rule — the SAME rule that paints the rendered preview
+   `pre`, so the editing surface matches it automatically (and the `.hljs`-tagged source code, see
+   code-source.ts, gets the code-level styling from the hljs theme exactly like the render). Scoped
+   to `--expand` so the collapsed (0×0/hidden) marker is untouched. */
+.vditor-reset .vditor-ir__node--expand > pre.vditor-ir__marker--pre {
+  display: block;
+}
+/* The editable code SOURCE `<code>` must be block-level so the ` ```lang ` info marker sits on its
+   own line and the code lines stack with their indentation. The GitHub content themes force
+   `.markdown-body pre code { display: inline }` (their rendered-output convention) — which collapses
+   the source: the fence runs into the first code line and indentation is lost. Re-assert block here
+   for the editing surface only (specificity 0,2,2 out-ranks GitHub's 0,1,2). The render's
+   `code.hljs` is a different element and unaffected. */
+.vditor-reset pre.vditor-ir__marker--pre > code:not(.hljs):not(.highlight-chroma) {
+  display: block;
+  /* The GitHub themes set `.markdown-body code { font-size: 85% }` AND `.markdown-body pre { 85% }`;
+     on the editable source the two COMPOUND (≈72% of base) so the code you type is noticeably
+     smaller than the rendered code (which github pins back to 100%). Pin the source to 100% (= its
+     pre, = the rendered code size) so editing matches the render. `!important` is required: the base
+     `.vditor .vditor-reset { font-size: … !important }` rule otherwise wins the cascade here. */
+  font-size: 100% !important;
+  /* Keep the source `<code>` transparent so only the `pre` panel shows. On DARK themes the
+     inline-code rule `.vditor--dark .vditor-reset code:not(.hljs)` (0,4,1) paints it with
+     `--vmarkd-code-bg` — a lighter box hugging the code inside the panel. This selector is (0,4,2),
+     so it out-ranks that and the panel stays a single flat colour (matches the render). */
+  background-color: transparent;
+  /* The rendered `code.hljs` has `padding: 0` (the panel padding lives on the `pre`), but GitHub's
+     inline-code rule `.markdown-body code { padding: .2em .4em }` leaks onto the source `<code>` —
+     so the text shifts ~5px right/down when entering edit. Match the render: no padding on the
+     source code, the `pre` owns the panel inset. */
+  padding: 0;
+}
+/* Vditor animates marker reveal with `transition: all .15s` (index.css) — so the ` ``` ` code-fence
+   markers visibly grow/fade as the block expands/collapses on caret move. Drop it for code blocks:
+   the fence should snap, not animate. */
+.vditor-reset .vditor-ir__node[data-type="code-block"] .vditor-ir__marker {
+  transition: none;
+}
+/* Custom-block renders (mermaid/echarts/math/diagrams) live in a `pre.vditor-ir__preview` whose
+   child is a `<code class="language-…">` — a real code block has a `<code class="hljs">` instead.
+   Content themes (and the auto code-bg rule above) paint EVERY preview `<pre>` with the code-block
+   panel background; for a diagram that's wrong — it should sit on the page background, not a panel.
+   Neutralise it for the known non-code custom languages only (the code block keeps its bg). */
+.vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):has(
+    > :is(
+        .language-mermaid,
+        .language-echarts,
+        .language-flowchart,
+        .language-graphviz,
+        .language-plantuml,
+        .language-mindmap,
+        .language-markmap,
+        .language-abc,
+        .language-smiles,
+        .language-math
+      )
+  ) {
+  background: transparent !important;
+}
 /* Task-list checkboxes are native form controls — default blue check + white
    box, which clashes with a custom theme. Theme the accent and (in dark mode)
    set color-scheme so the browser renders a dark control instead of white. */
@@ -421,10 +512,90 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
   top: 2px;
 }
 
-/* Dark theme: even out the rendered code-block preview's bottom padding so the
-   last line isn't cramped against the block edge (task 05). */
-.vditor--dark .vditor-reset pre.vditor-ir__preview code {
+/* Dark theme: even out the code-block preview's bottom padding so the last line isn't cramped
+   against the block edge (task 05). The editable source `<code>` (tagged `.hljs`, see code-source.ts)
+   gets the theme's full `1em` bottom, so without matching it here it'd be ~2px taller than the
+   render → the panel resized on edit⇄preview toggle. Apply the same bottom to the source. */
+.vditor--dark .vditor-reset pre.vditor-ir__preview code,
+.vditor--dark .vditor-reset pre.vditor-ir__marker--pre > code.hljs {
   padding-bottom: 9.9px;
+}
+
+/* A code-block render must keep a STABLE height from the first paint THROUGH highlight.js, or it
+   jumps. Two moments paint an un-highlighted code preview:
+     1. the host prerender overlay (static Lute IR DOM — no JS runs at all), and
+     2. the live editor in the window after the overlay swaps out but BEFORE highlight.js has
+        async-loaded its script + theme and tagged the rendered code `.hljs`.
+   In both, the visible element is `pre.vditor-ir__preview > code.language-X` WITHOUT `.hljs`, so it
+   misses the hljs box (`display:block; overflow-x:auto; padding:1em` — constant across every hljs
+   theme) that the settled `code.hljs` carries → ~1em shorter → a jump the moment `.hljs` lands. Give
+   the not-yet-highlighted preview code that same box up front (main.css is in the initial HTML and
+   always loaded) so the height never changes; once `.hljs` is added the hljs theme takes over with the
+   identical geometry. `:not(.hljs)` makes the rule self-retiring. EXCLUDE the custom-renderer previews
+   (mermaid/echarts/math/…) — their child STAYS `code.language-…` (never becomes `code.hljs`) and holds
+   an SVG/canvas, so this padding would wrongly inset the diagram; same exclusion list as the
+   custom-block background rule below. Bottom: light keeps the full 1em (= the hljs theme); dark mirrors
+   the task-05 trim (9.9px) so it matches the settled render there too. Covers the overlay automatically
+   (its code is exactly this un-highlighted preview code). */
+.vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
+    :has(
+        > :is(
+            .language-mermaid,
+            .language-echarts,
+            .language-flowchart,
+            .language-graphviz,
+            .language-plantuml,
+            .language-mindmap,
+            .language-markmap,
+            .language-abc,
+            .language-smiles,
+            .language-math
+          )
+      )
+  )
+  > code:not(.hljs):not(.highlight-chroma) {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+}
+.vditor--dark
+  .vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
+    :has(
+        > :is(
+            .language-mermaid,
+            .language-echarts,
+            .language-flowchart,
+            .language-graphviz,
+            .language-plantuml,
+            .language-mindmap,
+            .language-markmap,
+            .language-abc,
+            .language-smiles,
+            .language-math
+          )
+      )
+  )
+  > code:not(.hljs):not(.highlight-chroma) {
+  padding-bottom: 9.9px;
+}
+/* …and the COLOURS must match the settled state too, not just the geometry above. Until
+   highlight.js tags `.hljs`, the content themes' INLINE-code styling leaks onto block code:
+   material-dark's `code:not(.hljs)` green (#98c379) plus the dark `--vmarkd-code-bg` tint
+   (the (0,4,1) rule near the top) painted the prerender overlay's code blocks as a tinted
+   green panel that snapped to atom-one-dark's no-panel look once `.hljs` landed. Block code
+   is not inline code: keep the `code` child transparent (the panel — if any — belongs to the
+   `pre`/the hljs theme) and inherit the prose colour, which is what the settled state sits
+   closest to on every theme (github already behaved exactly this way). The `pre` element
+   bumps specificity to (0,4,2), out-ranking both leaking rules; `:not(.hljs)` self-retires
+   it once highlighting lands. No layout impact, so the diagram-language exclusion above is
+   unnecessary (their pre-render source only gains the correct neutral colours). */
+.vditor-reset
+  pre:is(.vditor-ir__preview, .vditor-wysiwyg__preview)
+  > code:not(.hljs):not(.highlight-chroma) {
+  background-color: transparent;
+  color: inherit;
 }
 
 /* Heading highlight (task 07): themed background on h1–h6 for easier scanning. */
@@ -635,4 +806,64 @@ body.vmarkd-busy * {
 .vditor-tip__close {
   top: 4px;
   right: 8px;
+}
+
+/* Callouts / GitHub Alerts (task 106) — IR dual-node. callouts.ts tags the `[!TYPE]` blockquote
+   `vditor-ir__node` (so Vditor's expandMarker toggles `--expand` on caret) + injects a non-editable
+   `.vditor-ir__preview` render (Lute ignores it, so the source round-trips). Collapsed (caret
+   outside) → show the render, hide the source; expanded (caret inside) → show the raw source. */
+.vditor-reset blockquote[data-callout] {
+  --vmarkd-callout-accent: var(--vscode-textLink-foreground, #4493f8);
+  border-left: 4px solid var(--vmarkd-callout-accent);
+  background: color-mix(in srgb, var(--vmarkd-callout-accent) 8%, transparent);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+.vditor-reset blockquote[data-callout] .vmarkd-callout__title {
+  font-weight: 600;
+  color: var(--vmarkd-callout-accent);
+  margin-bottom: 4px;
+}
+.vditor-reset blockquote[data-callout] .vmarkd-callout__body > :last-child {
+  margin-bottom: 0;
+}
+/* Collapsed (no caret inside): show the injected preview, hide the editable source. */
+.vditor-reset
+  blockquote[data-callout].vditor-ir__node:not(.vditor-ir__node--expand)
+  > :not(.vmarkd-callout__preview) {
+  display: none;
+}
+/* Expanded (caret inside, Vditor added --expand): show the source, hide the preview. */
+.vditor-reset
+  blockquote[data-callout].vditor-ir__node--expand
+  > .vmarkd-callout__preview {
+  display: none;
+}
+.vditor-reset blockquote[data-callout='note'],
+.vditor-reset blockquote[data-callout='info'] {
+  --vmarkd-callout-accent: #4493f8;
+}
+.vditor-reset blockquote[data-callout='tip'],
+.vditor-reset blockquote[data-callout='success'] {
+  --vmarkd-callout-accent: #3fb950;
+}
+.vditor-reset blockquote[data-callout='important'],
+.vditor-reset blockquote[data-callout='question'] {
+  --vmarkd-callout-accent: #ab7df8;
+}
+.vditor-reset blockquote[data-callout='warning'],
+.vditor-reset blockquote[data-callout='todo'] {
+  --vmarkd-callout-accent: #d29922;
+}
+.vditor-reset blockquote[data-callout='caution'],
+.vditor-reset blockquote[data-callout='danger'],
+.vditor-reset blockquote[data-callout='failure'],
+.vditor-reset blockquote[data-callout='bug'] {
+  --vmarkd-callout-accent: #f85149;
+}
+/* Foldable (Obsidian `-`/`+`): collapsed hides the rendered body, keeps the title. */
+.vditor-reset
+  blockquote[data-callout-foldable='closed']
+  .vmarkd-callout__body {
+  display: none;
 }

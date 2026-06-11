@@ -1,8 +1,19 @@
 # Task 89 — Bump bundled ECharts 5.5.1 → 6.1.0
 
-> **Status:** 📋 TODO — **verify render fidelity first** (this is a MAJOR bump). Vditor pins
-> ECharts **5.5.1**; latest is **6.1.0**. Vendor the newer build over Vditor's copy (Lute/
-> Mermaid pattern) so charts get upstream fixes — but ECharts 6 is a major release with
+> **Status:** ✅ done (2026-06-10, branch `feat/echarts-theme`). Vendored **6.1.0** (global UMD,
+> Apache-2.0) over Vditor's 5.5.1: `media-src/vendor/echarts/{echarts.min.js,LICENSE,NOTICE,
+> source.json}` + `scripts/fetch-echarts.mjs` (sha256 + global-build + self-reported-version
+> guards) + `build.mjs syncEcharts()` (verify sha + copy over Vditor's copy + ship LICENSE/NOTICE)
+> + esbuild `fixEchartsVersion` bumping `?v=5.5.1→6.1.0` in **all three** loaders that share the
+> `vditorEchartsScript` id (chartRender, mindmapRender, devtools — else mindmap could pin the
+> stale URL). Tests: `test/backend/echarts-pin.test.ts` (6, sha/version/global-build/Apache-2.0)
+> + e2e `echarts.spec.ts` (chart renders a non-empty `<canvas>`, loaded script is `?v=6.1.0`,
+> `echarts.version==='6.1.0'`). **Fidelity:** the e2e renders a bar chart on 6.1.0 with no errors;
+> default-palette shift is moot because task 90 overrides the palette anyway. Whole-tree lint +
+> typecheck + 595 unit green.
+> Original plan:
+> Vditor pins ECharts **5.5.1**; latest is **6.1.0**. Vendor the newer build over Vditor's copy
+> (Lute/Mermaid pattern) so charts get upstream fixes — but ECharts 6 is a major release with
 > breaking changes, so unlike the Mermaid 11.6→11.15 bump this needs render verification.
 > **Source:** follow-up while planning ECharts theming (task 90); user asked to bump first.
 > **Value / Risk:** 🟡 upstream fixes/perf / **medium** — major version, new default theme +

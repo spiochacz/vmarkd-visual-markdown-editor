@@ -4,7 +4,7 @@ import {
   MERMAID_PALETTE_NAMES,
   paletteToThemeVariables,
 } from '../../src/mermaid-palettes'
-import { autoMermaidTheme } from '../../src/theme-registry'
+import { pairedPalette } from '../../src/theme-registry'
 
 const HEX = /^#[0-9a-f]{6}$/
 
@@ -64,17 +64,17 @@ describe('mermaid palettes', () => {
   })
 })
 
-describe('autoMermaidTheme (content-theme pairing)', () => {
+describe('pairedPalette (content-theme pairing)', () => {
   it('pairs each content theme with its chosen palette', () => {
-    expect(autoMermaidTheme('github-light')).toBe('github-light')
-    expect(autoMermaidTheme('github-dark')).toBe('github-dark')
-    expect(autoMermaidTheme('material-dark')).toBe('one-dark')
-    expect(autoMermaidTheme('vscode-light-modern')).toBe('zinc-light')
-    expect(autoMermaidTheme('vscode-dark-modern')).toBe('zinc-dark')
+    expect(pairedPalette('github-light')).toBe('github-light')
+    expect(pairedPalette('github-dark')).toBe('github-dark')
+    expect(pairedPalette('material-dark')).toBe('one-dark')
+    expect(pairedPalette('vscode-light-modern')).toBe('zinc-light')
+    expect(pairedPalette('vscode-dark-modern')).toBe('zinc-dark')
   })
 
   it('returns undefined for auto / unknown', () => {
-    expect(autoMermaidTheme('auto')).toBeUndefined()
-    expect(autoMermaidTheme(undefined)).toBeUndefined()
+    expect(pairedPalette('auto')).toBeUndefined()
+    expect(pairedPalette(undefined)).toBeUndefined()
   })
 })

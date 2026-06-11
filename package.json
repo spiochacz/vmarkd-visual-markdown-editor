@@ -161,10 +161,11 @@
     },
     "configuration": [
       {
-        "title": "Appearance",
-        "order": 2,
+        "title": "Themes",
+        "order": 1,
         "properties": {
           "vmarkd.theme.content": {
+            "order": 1,
             "type": "string",
             "enum": [
               "auto",
@@ -186,6 +187,7 @@
             "description": "How the rendered markdown looks. \"auto\" follows the VS Code theme's colors (light/dark); the named themes render with their own palette regardless of the VS Code theme. Code-block syntax colors are set separately by \"Syntax Highlight Theme\"."
           },
           "vmarkd.theme.code": {
+            "order": 2,
             "type": "string",
             "enum": [
               "auto",
@@ -270,6 +272,7 @@
             "description": "Syntax-highlight theme for code blocks. \"auto\" follows the VS Code theme; otherwise choose a specific theme."
           },
           "vmarkd.theme.mermaid": {
+            "order": 3,
             "type": "string",
             "enum": [
               "auto",
@@ -318,6 +321,48 @@
             "default": "auto",
             "description": "Color theme for Mermaid diagrams. \"auto\" follows the VS Code theme; otherwise choose a specific theme."
           },
+          "vmarkd.theme.echarts": {
+            "order": 4,
+            "type": "string",
+            "enum": [
+              "auto",
+              "light",
+              "dark",
+              "vintage",
+              "macarons",
+              "infographic",
+              "roma",
+              "shine",
+              "tech-blue",
+              "vintage-dark"
+            ],
+            "enumDescriptions": [
+              "Follow the rendering theme (vmarkd.theme.content) — pairs each content theme with a matching palette (e.g. github-light/dark); when the content theme is \"auto\", follows the VS Code editor's own colors.",
+              "A neutral light theme (white background).",
+              "A neutral dark theme (dark background).",
+              "Vintage — muted, warm retro palette (light background).",
+              "Macarons — soft pastel palette.",
+              "Infographic — bright, high-contrast palette.",
+              "Roma — earthy red/brown palette.",
+              "Shine — vivid saturated palette.",
+              "Tech Blue — cool blue palette.",
+              "Vintage Dark — the vintage palette on a warm dark background."
+            ],
+            "default": "auto",
+            "description": "Color theme for ECharts charts. \"auto\" follows the rendering theme (and the VS Code editor when that is \"auto\"); otherwise choose a neutral light/dark or one of ECharts' built-in gallery themes."
+          },
+          "vmarkd.theme.highlightHeadings": {
+            "order": 5,
+            "type": "boolean",
+            "default": false,
+            "description": "Apply a themed background to headings (h1–h6) for easier scanning."
+          }
+        }
+      },
+      {
+        "title": "Appearance",
+        "order": 2,
+        "properties": {
           "vmarkd.editor.fullWidth": {
             "type": "boolean",
             "default": false,
@@ -327,11 +372,6 @@
             "type": "string",
             "default": "editor",
             "description": "Base font size of the editor content. \"editor\" follows VS Code's editor font size (recommended), \"vditor\" keeps Vditor's larger 16px reading size, or enter a number for an explicit pixel size (e.g. \"15\"). Headings scale proportionally."
-          },
-          "vmarkd.theme.highlightHeadings": {
-            "type": "boolean",
-            "default": false,
-            "description": "Apply a themed background to headings (h1–h6) for easier scanning."
           },
           "vmarkd.editor.headingMarkers": {
             "type": "boolean",

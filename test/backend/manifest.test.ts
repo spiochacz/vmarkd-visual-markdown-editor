@@ -286,20 +286,30 @@ describe('package.json manifest', () => {
     })
   })
 
-  it('groups settings into titled sections, with visual-presence ones under Appearance', () => {
+  it('groups settings into titled sections: theming under Themes (content first), editor presets under Appearance', () => {
     expect(Array.isArray(pkg.contributes.configuration)).toBe(true)
     const titles = pkg.contributes.configuration.map((c: any) => c.title)
     expect(titles).toEqual(
-      expect.arrayContaining(['Appearance', 'Outline', 'Advanced']),
+      expect.arrayContaining(['Themes', 'Appearance', 'Outline', 'Advanced']),
     )
-    const appearance = pkg.contributes.configuration.find(
-      (c: any) => c.title === 'Appearance',
+    const group = (title: string) =>
+      pkg.contributes.configuration.find((c: any) => c.title === title)
+    // All theming lives in its own group, with the content theme FIRST — it drives
+    // every other renderer's palette, so it leads the section.
+    const themes = group('Themes')
+    expect(Object.keys(themes.properties)[0]).toBe('vmarkd.theme.content')
+    expect(Object.keys(themes.properties)).toEqual(
+      expect.arrayContaining([
+        'vmarkd.theme.content',
+        'vmarkd.theme.highlightHeadings',
+      ]),
     )
+    // Appearance holds the editor-presentation toggles (not theming).
+    const appearance = group('Appearance')
     expect(Object.keys(appearance.properties)).toEqual(
       expect.arrayContaining([
-        'vmarkd.theme.highlightHeadings',
-        'vmarkd.editor.headingMarkers',
         'vmarkd.editor.fullWidth',
+        'vmarkd.editor.headingMarkers',
       ]),
     )
   })

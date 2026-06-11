@@ -356,12 +356,56 @@ async function syncMermaid() {
   console.log(`[mermaid] vendored v${source.version} verified + installed`)
 }
 
+// Overwrite Vditor's bundled echarts.min.js (5.5.1) with our pinned, vendored newer build
+// (media-src/vendor/echarts — see tasks/89). ECharts 6 is a MAJOR bump (fidelity verified at
+// pin time). Same load contract: the global UMD build exposing window.echarts. Verifies sha256
+// + ships the Apache-2.0 LICENSE/NOTICE next to the binary (.vscodeignore excludes media-src/).
+async function syncEcharts() {
+  const vendorDir = path.resolve('media-src/vendor/echarts')
+  const targetDir = path.resolve('media/vditor/dist/js/echarts')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[echarts] no vendored pin (media-src/vendor/echarts) — using Vditor default',
+    )
+    return
+  }
+
+  const js = await fs.readFile(path.join(vendorDir, 'echarts.min.js'))
+  const got = createHash('sha256').update(js).digest('hex')
+  if (got !== source.sha256) {
+    throw new Error(
+      `[echarts] vendored echarts.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
+        `Re-pin with: node media-src/scripts/fetch-echarts.mjs <version>`,
+    )
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'echarts.min.js'),
+    path.join(targetDir, 'echarts.min.js'),
+  )
+  for (const f of ['LICENSE', 'NOTICE']) {
+    await fs.copyFile(
+      path.join(vendorDir, f),
+      path.join(targetDir, `echarts.${f}`),
+    )
+  }
+  console.log(`[echarts] vendored v${source.version} verified + installed`)
+}
+
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
 await varifyVditorPalette()
 await syncLute()
 await syncMermaid()
+await syncEcharts()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

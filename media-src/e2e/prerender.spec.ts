@@ -8,7 +8,8 @@ import type { Page } from '@playwright/test'
 const INIT = {
   command: 'update',
   type: 'init',
-  content: '# Hello world\n\nA paragraph.\n',
+  content:
+    '# Hello world\n\nA paragraph.\n\n```js\nconst x = 1\nconsole.log(x)\n```\n',
   cdn: '/vditor',
   options: {
     showToolbar: true,
@@ -97,4 +98,99 @@ test('the real toolbar is cloned into the overlay during the Lute wait', async (
     ),
   ).toHaveCount(1)
   release?.()
+})
+
+// Regression: the overlay's code block must paint at the SAME height as the live
+// editor's settled render, or content below it jumps up at swap. The overlay's code
+// is `pre.vditor-ir__preview > code.language-js` (no `.hljs`, the hljs stylesheet is
+// runtime-only) so without the #vmarkd-prerender main.css rule it'd miss the hljs
+// `padding:1em` box and be ~1em shorter. Hold Lute → measure the overlay code block;
+// release → wait for the live render + highlight.js to settle → measure that → assert
+// they match. (Both are dark here, so the task-05 9.9px bottom trim applies to both.)
+test('overlay code block matches the live render height (no jump on swap)', async ({
+  page,
+}) => {
+  let release: (() => void) | undefined
+  await page.route('**/lute/lute.min.js', async (route) => {
+    await new Promise<void>((r) => {
+      release = r
+    })
+    await route.continue()
+  })
+  await open(page)
+  // Lute is held → the overlay (with its code block) is still up. Measure it.
+  const overlayCode = page
+    .locator('#vmarkd-prerender pre.vditor-ir__preview')
+    .first()
+  await expect(overlayCode).toHaveCount(1)
+  const hOverlay = await overlayCode.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  )
+  release?.()
+  // Let the live editor mount and highlight.js apply the hljs box (padding:1em) to
+  // the rendered code — that stylesheet loading is the height the overlay must match.
+  await page.waitForFunction(
+    () => {
+      const c = document.querySelector(
+        '#app pre.vditor-ir__preview code.hljs',
+      ) as HTMLElement | null
+      return !!c && getComputedStyle(c).paddingTop !== '0px'
+    },
+    undefined,
+    { timeout: 15_000 },
+  )
+  const hLive = await page
+    .locator('#app pre.vditor-ir__preview')
+    .first()
+    .evaluate((el) => el.getBoundingClientRect().height)
+  // Pre-fix gap is ~16px (the missing 1em top padding); the fix brings it to ~0.
+  expect(Math.abs(hOverlay - hLive)).toBeLessThanOrEqual(4)
+})
+
+// Regression: even AFTER the overlay swaps out, the live editor renders code blocks as bare
+// `code.language-X` until highlight.js async-loads its script and tags them `.hljs` — that window
+// is where the code block used to grow ~1em (and content jumped) the moment `.hljs` landed. Hold
+// the highlight.js library so the editor stays in the un-highlighted window, measure the code
+// block, then release and re-measure once `.hljs` + the theme padding apply — the two must match.
+test('live code block holds its height before highlight.js loads (no jump after swap)', async ({
+  page,
+}) => {
+  let release: (() => void) | undefined
+  await page.route('**/highlight.js/highlight.min.js**', async (route) => {
+    await new Promise<void>((r) => {
+      release = r
+    })
+    await route.continue()
+  })
+  await open(page)
+  // Live editor mounted (overlay gone), code rendered but NOT yet highlighted.
+  await page.waitForFunction(
+    () =>
+      !!document.querySelector(
+        '#app pre.vditor-ir__preview > code.language-js',
+      ) && !document.querySelector('#app pre.vditor-ir__preview > code.hljs'),
+    undefined,
+    { timeout: 15_000 },
+  )
+  const liveCode = page.locator('#app pre.vditor-ir__preview').first()
+  const hUnhighlighted = await liveCode.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  )
+  release?.()
+  // highlight.js now tags `.hljs` and the theme's padding:1em box applies.
+  await page.waitForFunction(
+    () => {
+      const c = document.querySelector(
+        '#app pre.vditor-ir__preview code.hljs',
+      ) as HTMLElement | null
+      return !!c && getComputedStyle(c).paddingTop !== '0px'
+    },
+    undefined,
+    { timeout: 15_000 },
+  )
+  const hHighlighted = await liveCode.evaluate(
+    (el) => el.getBoundingClientRect().height,
+  )
+  // No growth across the highlight transition = no jump (pre-fix gap was ~9.5px).
+  expect(Math.abs(hUnhighlighted - hHighlighted)).toBeLessThanOrEqual(4)
 })

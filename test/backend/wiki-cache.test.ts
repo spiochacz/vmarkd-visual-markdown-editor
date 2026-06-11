@@ -247,7 +247,9 @@ describe('invalidateCache — clears a specific root', () => {
   })
 
   it('does not affect caches for other roots', async () => {
-    const c1 = await getOrBuildCache(Uri.file('/ws'))
+    // Build the /ws cache so the invalidateCache('/ws') below has something to drop;
+    // the instance itself isn't asserted here (the /ws/docs cache is what matters).
+    await getOrBuildCache(Uri.file('/ws'))
     const c2 = await getOrBuildCache(Uri.file('/ws/docs'))
     const afterBuild = readDirCount
 

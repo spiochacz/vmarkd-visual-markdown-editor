@@ -1,6 +1,6 @@
 import * as NodePath from 'node:path'
 import * as vscode from 'vscode'
-import { normalizeWikiLookupKey, wikiKeysForRelativePath } from './wiki-core'
+import { wikiKeysForRelativePath } from './wiki-core'
 
 export { normalizeWikiLookupKey } from './wiki-core'
 

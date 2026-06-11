@@ -124,9 +124,9 @@ export const MERMAID_PALETTES: Record<string, MermaidPalette> = {
 export const MERMAID_PALETTE_NAMES: readonly string[] =
   Object.keys(MERMAID_PALETTES)
 
-// --- small hex helpers (no deps) -------------------------------------------
+// --- small hex helpers (no deps) — shared by the per-engine palette translations ---------
 
-function parseHex(h: string): [number, number, number] {
+export function parseHex(h: string): [number, number, number] {
   let s = h.replace('#', '').trim()
   if (s.length === 3)
     s = s
@@ -137,7 +137,7 @@ function parseHex(h: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
-function toHex(r: number, g: number, b: number): string {
+export function toHex(r: number, g: number, b: number): string {
   const c = (v: number) =>
     Math.max(0, Math.min(255, Math.round(v)))
       .toString(16)
@@ -146,19 +146,19 @@ function toHex(r: number, g: number, b: number): string {
 }
 
 /** Blend a→b by t (0..1). */
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   const [ar, ag, ab] = parseHex(a)
   const [br, bg, bb] = parseHex(b)
   return toHex(ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t)
 }
 
 /** Relative luminance (0..1). */
-function luminance(h: string): number {
+export function luminance(h: string): number {
   const [r, g, b] = parseHex(h).map((v) => v / 255)
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
-const lower = (h: string) =>
+export const lower = (h: string) =>
   `#${parseHex(h)
     .map((v) => v.toString(16).padStart(2, '0'))
     .join('')}`

@@ -4,6 +4,41 @@ All notable changes to this extension are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Callouts / GitHub Alerts**: `> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` /
+  `[!CAUTION]` blockquotes render as styled callout boxes with per-type accents and
+  icons — GitHub- and Obsidian-compatible, including foldable callouts
+  (`> [!note]-` / `+`). A collapsed callout shows its rendered preview; placing the
+  caret inside reveals the raw markdown for editing. Display-only and round-trip safe —
+  the saved markdown is untouched.
+- **ECharts chart themes** (`vmarkd.theme.echarts`): `auto` (default) pairs ` ```echarts `
+  charts with the rendering theme's palette (the same pairing mermaid uses), or pick an
+  explicit look — light, dark, the ECharts gallery themes (vintage, macarons,
+  infographic, roma, shine, tech-blue) or vintage-dark. Charts re-theme live when the
+  theme changes.
+
+### Changed
+
+- Bundled **ECharts upgraded 5.5.1 → 6.1.0** (the version Vditor ships is pinned at
+  5.5.1; vMarkd vendors the newer build), picking up upstream chart fixes and renderers.
+- **Editing a code block looks exactly like its render**: the editable source carries
+  the same highlight.js theme styling (font size, padding, background panel) as the
+  rendered block on every theme — no size or colour shift when entering or leaving
+  edit, and no preview flash when clicking inside the block.
+- **Seamless open**: the instant preview hands off to the live editor without a visible
+  jump or colour flash — code blocks hold their height and colours through
+  highlight.js loading, and the rendering theme applies from the very first paint.
+- **Arrow-key navigation between adjacent blocks** (code↔code, quote↔code) no longer
+  scatters blank lines through the document (a Vditor quirk): the in-between paragraph
+  appears when you arrow into the gap — type to keep it, move on and it cleans itself
+  up.
+- Settings: all theme settings now live in a dedicated **Themes** group, with the
+  rendering theme (`vmarkd.theme.content`) first — it drives the code, mermaid and
+  echarts pairings.
+
 ## [1.2.0]
 
 ### Added

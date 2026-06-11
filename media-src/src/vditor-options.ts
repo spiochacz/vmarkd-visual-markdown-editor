@@ -30,13 +30,21 @@ export function buildVditorOptions(msg: any): any {
     msg.options,
   )
   if (msg.theme === 'dark') {
-    opts = deepMerge(opts, {
-      theme: 'dark',
-      preview: { theme: { current: 'dark' } },
-    })
+    opts = deepMerge(opts, { theme: 'dark' })
   }
   opts = deepMerge(opts, msg.options, {
     preview: { math: { inlineDigit: true }, actions: [] },
+  })
+  // The content-theme MODE is AUTHORITATIVE and must be merged AFTER msg.options (same
+  // pattern as hljs below, set for BOTH modes): saveVditorOptions persists the whole
+  // `preview` blob, so a `theme.current` saved in a previous session (e.g. 'light' from
+  // a light-mode session) would otherwise win here. Vditor's constructor (initUI) then
+  // calls setContentTheme with that STALE mode — reloading the content-theme stylesheet
+  // to the WRONG file over the correct one the initial HTML shipped — and after()'s
+  // setTheme reloads it BACK, leaving a ~100 ms window where neither sheet is loaded:
+  // the visible colour flash (text/hr/inline-code/code-panel) on every fresh open.
+  opts = deepMerge(opts, {
+    preview: { theme: { current: msg.theme === 'dark' ? 'dark' : 'light' } },
   })
   // Config-derived hljs options are AUTHORITATIVE: apply them LAST so they override
   // any stale `preview.hljs.*` spread in from msg.options above — the webview's

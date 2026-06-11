@@ -13,7 +13,7 @@ import {
   MERMAID_PALETTES,
   paletteToThemeVariables,
 } from '../../src/mermaid-palettes'
-import { autoMermaidTheme } from '../../src/theme-registry'
+import { pairedPalette } from '../../src/theme-registry'
 
 /** Mermaid's customisable + built-in themes (no palette injection). */
 const BUILTIN_THEMES = ['default', 'dark', 'forest', 'neutral'] as const
@@ -52,7 +52,7 @@ export function resolveMermaidInit(
     }
   }
   // auto / empty / unknown → content-theme pairing, else nothing.
-  const paired = autoMermaidTheme(contentTheme)
+  const paired = pairedPalette(contentTheme)
   if (paired && MERMAID_PALETTES[paired]) {
     return {
       theme: 'base',
