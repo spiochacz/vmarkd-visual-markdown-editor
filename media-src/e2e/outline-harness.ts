@@ -1,6 +1,7 @@
 import '../src/preload'
 import Vditor from 'vditor'
 import { setupOutlineFlash } from '../src/outline'
+import { setupOutlineResize } from '../src/outline-resize'
 
 // Real Vditor (IR) with headings + the outline panel enabled on the right, and
 // the outline-click flash wired up — mirrors how main.ts sets it for tasks
@@ -31,6 +32,10 @@ const editor = new Vditor('app', {
     ;(window as any).vditor = editor
     ;(window as any).vditorTest = editor
     setupOutlineFlash(editor)
+    const oel = (editor as any).vditor?.outline?.element as
+      | HTMLElement
+      | undefined
+    if (oel) setupOutlineResize(oel, 'right', () => {})
     ;(window as any).__ready = true
   },
 })
