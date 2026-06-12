@@ -27,6 +27,7 @@ import { setupOutlineFlash, FLASH_CLASS } from './outline'
 import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
+import { setupPreviewScrollPreserve } from './preview-scroll-preserve'
 import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
 import { preserveCaretAndScroll } from './caret-preserve'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
@@ -389,6 +390,8 @@ function runFinishInit(msg: any): void {
     }
   }
   setupSplitScrollSync()
+  // Preserve scroll position when toggling edit (IR/WYSIWYG) ↔ full Preview overlay.
+  setupPreviewScrollPreserve()
   // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
   // safe in the editable IR and round-trips). Observe the active editor element so styling
   // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
