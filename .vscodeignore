@@ -20,6 +20,8 @@ AGENTS.md
 docs
 tasks
 test-results
+.playwright-cli
+.vscode-test
 tmp
 .nvmrc
 out/**/*.md

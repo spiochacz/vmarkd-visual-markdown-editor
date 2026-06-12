@@ -44,6 +44,11 @@ import { reRenderEcharts } from './echarts-retheme'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import {
+  ensureHljsLoaded,
+  observeWysiwygCodeHighlight,
+  wrapLuteFlatten,
+} from './wysiwyg-code-highlight'
+import {
   observeGapParagraphs,
   observeTrailingParagraph,
   setupTrailingNav,
@@ -102,6 +107,7 @@ let lastInitMsg: any = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
+let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
@@ -393,6 +399,25 @@ function runFinishInit(msg: any): void {
   // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
   disposeCodeSource?.()
   disposeCodeSource = observeCodeSource(activeModeElement(window.vditor))
+  // WYSIWYG live code highlighting: while editing a code block in WYSIWYG, paint live syntax
+  // colours onto the editable source via the CSS Custom Highlight API (zero DOM mutation, so
+  // Lute serialisation/typing stay intact — unlike IR, whose source is monochrome). Bound to the
+  // stable `#app` mount (not activeModeElement): the default mode is IR, and runFinishInit runs
+  // once, so we must keep working after a later switch into WYSIWYG. hljs is eager-loaded here so
+  // highlighting is ready from the start instead of lazily on first render.
+  disposeWysiwygHighlight?.()
+  // Make our hljs token spans invisible to Lute (it reparses the wysiwyg source every keystroke +
+  // on getValue) so the highlighted edit surface still round-trips byte-clean. Idempotent per Lute.
+  wrapLuteFlatten(window.vditor)
+  ensureHljsLoaded(
+    lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
+    // Nudge the highlighter once the script lands, in case a code block is already focused
+    // and idle (no further mutations would otherwise trigger the first paint).
+  ).then(() => document.dispatchEvent(new Event('selectionchange')))
+  disposeWysiwygHighlight = observeWysiwygCodeHighlight(
+    document.getElementById('app'),
+    () => (window as any).hljs,
+  )
   // Trailing-paragraph invariant: a document ending with a block (callout/code/table/…)
   // always offers an empty paragraph below it — without one there is NO caret position
   // after the last block (arrow-down at EOF dropped the selection → caret+view jumped to

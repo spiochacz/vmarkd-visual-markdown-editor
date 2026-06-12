@@ -157,6 +157,22 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   > .vditor-ir__preview:has(> code.hljs) {
   display: none;
 }
+/* WYSIWYG equivalent: clicking into a code block reveals its editable source (`pre.vditor-wysiwyg__pre`,
+   which Vditor flips to inline `display:block`) but leaves the rendered `pre.vditor-wysiwyg__preview`
+   showing too — so you saw TWO stacked sections ("leftover from IR"). Hide the render while editing
+   so it's a single (now syntax-coloured — see wysiwyg-code-highlight.ts) block. Driven by Vditor's
+   OWN inline `display:block` on the source (no class to key off here, unlike IR's `--expand`), so it
+   tracks focus and survives the per-keystroke block rebuild with no JS. SCOPED to real code via
+   `.vditor-wysiwyg__preview:has(> code)`: diagram previews (mermaid/echarts → a `div`/svg, no direct
+   `<code>`) stay visible while their source is edited. The render returns when the caret leaves and
+   Vditor sets the source back to `display:none`. */
+.vditor-reset
+  .vditor-wysiwyg__block:has(
+    > pre.vditor-wysiwyg__pre[style*="display: block"]
+  )
+  > pre.vditor-wysiwyg__preview:has(> code) {
+  display: none;
+}
 /* COLLAPSED code block (caret OUTSIDE) must render with the SAME height as Preview. The IR
    dual-node node wraps its block render (`.vditor-ir__preview`) BETWEEN inline content: the
    node's own `::before`/`::after { content:" " }` pseudos AND the h:0 fence/info `.vditor-ir__marker`

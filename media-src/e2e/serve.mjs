@@ -29,6 +29,10 @@ const built = await esbuild.build({
     'save-flush': path.join(__dirname, 'save-flush-harness.ts'),
     'incremental-md': path.join(__dirname, 'incremental-md-harness.ts'),
     'wysiwyg-input': path.join(__dirname, 'wysiwyg-input-harness.ts'),
+    'wysiwyg-highlight': path.join(
+      __dirname,
+      'wysiwyg-highlight-harness.ts',
+    ),
     tab: path.join(__dirname, 'tab-harness.ts'),
     stream: path.join(__dirname, 'stream-harness.ts'),
     keybugs: path.join(__dirname, 'keybugs-harness.ts'),
@@ -98,6 +102,9 @@ const codeLineNumberHtml = fs.readFileSync(
 )
 const configApplyHtml = fs.readFileSync(
   path.join(__dirname, 'config-apply.html'),
+)
+const wysiwygHighlightHtml = fs.readFileSync(
+  path.join(__dirname, 'wysiwyg-highlight.html'),
 )
 
 const types = {
@@ -227,6 +234,10 @@ const server = http.createServer((req, res) => {
   if (url === '/config-apply.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(configApplyHtml)
+  }
+  if (url === '/wysiwyg-highlight.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(wysiwygHighlightHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')
