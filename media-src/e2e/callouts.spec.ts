@@ -60,10 +60,17 @@ test('captures an explicit title', async ({ page }) => {
   ).toHaveText('Careful')
 })
 
-test('foldable [!tip]- is marked collapsed', async ({ page }) => {
+test("Obsidian's [!tip]- fold suffix is accepted but IGNORED (renders as a normal callout)", async ({
+  page,
+}) => {
   const bq = page.locator('#fold')
   await expect(bq).toHaveAttribute('data-callout', 'tip')
-  await expect(bq).toHaveAttribute('data-callout-foldable', 'closed')
+  // fold-state support was dropped (overkill at this stage): no foldable attribute,
+  // the body stays visible
+  await expect(bq).not.toHaveAttribute('data-callout-foldable', /.*/)
+  await expect(
+    bq.locator('.vmarkd-callout__preview .vmarkd-callout__body'),
+  ).toBeVisible()
 })
 
 test('a normal blockquote is left untouched (no tag, no preview)', async ({

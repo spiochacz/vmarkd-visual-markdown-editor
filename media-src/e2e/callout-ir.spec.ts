@@ -75,3 +75,27 @@ test('the markdown round-trips (Lute ignores the injected preview)', async ({
   // the rendered title text isn't duplicated into the source
   expect(md).not.toContain('vmarkd-callout')
 })
+
+// Size parity: entering a callout must NOT change its box (same line count, no margin
+// asymmetry). The expanded source's last block used to keep the theme's 16px paragraph
+// margin (the preview zeroes its own) and the preview title carried a 4px gap the
+// one-paragraph source has no equivalent of — the callout visibly grew on caret-enter.
+test('the callout keeps its exact size when the caret enters (collapse⇄expand)', async ({
+  page,
+}) => {
+  const height = () =>
+    page.evaluate(
+      () =>
+        Math.round((window as any).__bq().getBoundingClientRect().height * 10) /
+        10,
+    )
+  const collapsed = await height()
+  await page.evaluate(() => (window as any).__caretInside())
+  await page.waitForTimeout(150)
+  const expanded = await height()
+  expect(Math.abs(expanded - collapsed)).toBeLessThanOrEqual(1)
+  // and back out — no drift
+  await page.evaluate(() => (window as any).__caretOutside())
+  await page.waitForTimeout(150)
+  expect(Math.abs((await height()) - collapsed)).toBeLessThanOrEqual(1)
+})
