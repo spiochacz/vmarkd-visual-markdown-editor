@@ -1,0 +1,14 @@
+{
+  "name": "vmarkd-vscode-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Opt-in real-VS-Code webview smoke suite (vscode-test-playwright). Isolated from the root manifest so its beta test-tooling deps (and their dev-only advisories) never reach the shipped extension's audit gate. Not run in CI — see the vmarkd-visual-debugging skill.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.52.0",
+    "vscode-test-playwright": "0.0.1-beta2"
+  }
+}
