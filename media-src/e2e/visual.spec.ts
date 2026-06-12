@@ -59,3 +59,70 @@ test('rendered [!NOTE] callout — accent, icon, title row, body', {
   await expect(note).toHaveAttribute('data-callout', 'note')
   await expect(note).toHaveScreenshot('callout-note.png')
 })
+
+// WYSIWYG live code highlighting (this branch): the EDITABLE source is coloured with
+// real hljs token spans (full fidelity — colour + bold + italic) while editing, like
+// the render. The numeric e2e (wysiwyg-highlight.spec) proves the span DOM + the
+// serialisation; this golden guards the painted PIXELS (token colours, comment
+// italic) the env-stable assertions can't see. caret:hide (Playwright default) keeps
+// the blinking caret out of the shot.
+async function focusWysiwygCode(
+  page: import('@playwright/test').Page,
+  md: string,
+) {
+  await page.goto('/wysiwyg-highlight.html')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.waitForFunction(
+    () => typeof (window as any).hljs?.highlight === 'function',
+    undefined,
+    { timeout: 10000 },
+  )
+  await page.evaluate((value) => (window as any).vditor.setValue(value), md)
+  await page
+    .locator('.vditor-wysiwyg__block[data-type="code-block"]')
+    .first()
+    .click()
+  // spans present AND the hljs theme stylesheet (which paints them) has loaded
+  await page.waitForFunction(
+    () =>
+      (window as any).__sourceTokenClasses().length > 0 &&
+      !!document.getElementById('vditorHljsStyle'),
+    undefined,
+    { timeout: 5000 },
+  )
+  await page.evaluate(() => document.fonts.ready)
+}
+
+test('WYSIWYG code block — live syntax highlighting (colour + comment italic)', {
+  tag: '@visual',
+}, async ({ page }) => {
+  await focusWysiwygCode(
+    page,
+    'intro\n\n```js\nfunction greet(name) {\n  // say hi\n  const msg = `Hello, ${name}!`\n  return msg.toUpperCase()\n}\n```\n\nend\n',
+  )
+  // The editable source pre (the coloured surface) — excludes the hover block-toolbar
+  // that sits above it, so the golden is just the highlighted code.
+  const source = page
+    .locator(
+      '.vditor-wysiwyg__block[data-type="code-block"] pre.vditor-wysiwyg__pre',
+    )
+    .first()
+  await expect(source).toHaveScreenshot('wysiwyg-code-highlighted.png')
+})
+
+// WYSIWYG inline code (this branch): Vditor zeroes inline-code horizontal padding in
+// WYSIWYG only; main.css re-asserts `.4em` so the box matches the render. The numeric
+// e2e checks the computed padding; this golden guards the actual box (breathing room
+// left/right of the glyphs vs the text).
+test('WYSIWYG inline code — horizontal padding box matches the render', {
+  tag: '@visual',
+}, async ({ page }) => {
+  await page.goto('/wysiwyg-highlight.html')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.evaluate(() =>
+    (window as any).vditor.setValue('text `inline code` after\n'),
+  )
+  await page.evaluate(() => document.fonts.ready)
+  const code = page.locator('.vditor-wysiwyg code[data-marker="`"]').first()
+  await expect(code).toHaveScreenshot('wysiwyg-inline-code.png')
+})
