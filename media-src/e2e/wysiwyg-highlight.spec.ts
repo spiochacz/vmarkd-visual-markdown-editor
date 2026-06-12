@@ -270,4 +270,31 @@ test.describe('WYSIWYG live code highlighting', () => {
     expect(md).toContain('```js\nconst a = 1\n```')
     expect(md.match(/```/g)?.length).toBe(2)
   })
+
+  test('inline code keeps its horizontal padding (matches the render, not hugged)', async ({
+    page,
+  }) => {
+    await goto(page)
+    // Vditor's base rule pads inline code `.2em .4em` in every mode (render/IR/Preview), but a
+    // WYSIWYG-only `!important` rule in Vditor zeroes the horizontal half → editing showed the
+    // code hugging the text ("inny margines przed/po tekście"). main.css re-asserts `.4em`.
+    await page.evaluate(() => {
+      ;(window as any).vditor.setValue('text `inline code` more text\n')
+    })
+    const pad = await page.evaluate(() => {
+      const el = document.querySelector(
+        '.vditor-wysiwyg code[data-marker="`"]',
+      ) as HTMLElement
+      const cs = getComputedStyle(el)
+      return {
+        top: parseFloat(cs.paddingTop),
+        left: parseFloat(cs.paddingLeft),
+        right: parseFloat(cs.paddingRight),
+      }
+    })
+    // Horizontal restored, symmetric, and = 2× the vertical (`.4em` vs `.2em`) — the render's ratio.
+    expect(pad.left).toBeGreaterThan(0)
+    expect(pad.left).toBeCloseTo(pad.right, 1)
+    expect(pad.left).toBeCloseTo(pad.top * 2, 0)
+  })
 })

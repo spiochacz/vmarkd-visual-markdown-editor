@@ -203,6 +203,20 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   > pre.vditor-wysiwyg__pre:not([style*="none"]) {
   margin-bottom: 0;
 }
+/* WYSIWYG inline code: restore the horizontal padding. Vditor's base rule
+   `.vditor-reset code:not(.hljs) { padding: .2em .4em }` gives inline code the same `.4em` box
+   in every mode/theme (the render, IR, Preview), but a WYSIWYG-only rule in Vditor's index.css
+   (`.vditor-wysiwyg code[data-marker="\`"] { padding-left/right: 0 !important }`) zeroes the
+   horizontal half — so while WYSIWYG-editing, an inline-code span loses its left/right inset and
+   hugs the text, looking different from the render ("inny margines przed/po tekście"). Re-assert
+   `.4em` (the universal value — vditor base AND the github theme both use it; vertical `.2em` is
+   already kept) so editing matches the render. `.vditor-wysiwyg .vditor-reset` (0,3,1) out-ranks
+   Vditor's (0,2,1) and the `!important` is required to beat its `!important`. em-relative → tracks
+   font-size; theme-independent (every theme inherits the same base `.4em`). */
+.vditor-wysiwyg .vditor-reset code[data-marker="`"] {
+  padding-left: 0.4em !important;
+  padding-right: 0.4em !important;
+}
 /* COLLAPSED code block (caret OUTSIDE) must render with the SAME height as Preview. The IR
    dual-node node wraps its block render (`.vditor-ir__preview`) BETWEEN inline content: the
    node's own `::before`/`::after { content:" " }` pseudos AND the h:0 fence/info `.vditor-ir__marker`
