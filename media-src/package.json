@@ -6,11 +6,14 @@
     "start": "node build.mjs --watch",
     "build": "node build.mjs",
     "test": "echo 'Unit tests are consolidated under vitest — run `npm test` from the repo root.' && exit 1",
-    "test:e2e": "playwright test",
-    "test:e2e:coverage": "E2E_COVERAGE=1 playwright test"
+    "test:e2e": "playwright test --grep-invert @visual",
+    "test:e2e:coverage": "E2E_COVERAGE=1 playwright test --grep-invert @visual",
+    "test:visual": "playwright test --grep @visual",
+    "test:visual:update": "playwright test --grep @visual --update-snapshots"
   },
   "browserslist": "> 0%",
   "devDependencies": {
+    "@playwright/cli": "^0.1.14",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22",
     "monocart-coverage-reports": "^2.12.12"

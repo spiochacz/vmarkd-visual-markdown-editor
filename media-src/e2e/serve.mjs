@@ -7,7 +7,11 @@ import { vditorSourceConfig } from '../esbuild-shared.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const mediaVditor = path.resolve(__dirname, '../../media/vditor')
-const PORT = 9123
+// Default 9123 = the e2e webServer (playwright.config: reuseExistingServer false, so a
+// stray server on 9123 fails `playwright test`). Interactive/visual-debug sessions run a
+// SECOND instance on another port via `npm run harness:serve` (PORT=9124) so tests and a
+// live playwright-cli session never fight over the socket.
+const PORT = Number(process.env.PORT) || 9123
 
 // Two harness bundles: `harness` (table-IR feature) and `behaviors`
 // (message-contract + DOM-util coverage). Built in-memory with inline source

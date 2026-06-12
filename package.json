@@ -561,6 +561,11 @@
   "scripts": {
     "build": "node build.mjs",
     "bench:prerender": "node scripts/bench-prerender.mjs",
+    "harness:serve": "PORT=9124 node media-src/e2e/serve.mjs",
+    "pw:cli": "media-src/node_modules/.bin/playwright-cli",
+    "test:visual": "npm --prefix media-src run test:visual",
+    "test:visual:update": "npm --prefix media-src run test:visual:update",
+    "test:vscode": "npm --prefix test/vscode-e2e test",
     "watch": "node build.mjs watch",
     "start": "node build.mjs watch",
     "test": "vitest run --config test/vitest.config.ts",

@@ -82,6 +82,15 @@ media-src/test-results/
 media-src/playwright-report/
 media-src/.last-run.json
 
+# Visual-debug tooling: playwright-cli session outputs (snapshots/screenshots on disk)
+.playwright-cli/
+media-src/.playwright-cli/
+
+# real-vscode suite: downloaded VS Code builds + run outputs
+.vscode-test/
+test/vscode-e2e/test-results/
+test/vscode-e2e/playwright-report/
+
 # Vitest coverage
 coverage/
 
