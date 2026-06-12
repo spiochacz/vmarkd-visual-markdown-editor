@@ -87,3 +87,38 @@ test('Preview pane centres the same column with no Edit→Preview shift', async 
   expect(Math.abs(m.leftGap - editGap)).toBeLessThan(8)
   expect(Math.abs(m.contentWidth - COLUMN)).toBeLessThan(40)
 })
+
+// Full-width ON: the preview content must FIT its pane. The full-width rule sets the reset
+// to width:100% + 20px side padding; without box-sizing:border-box that padding is ADDED to
+// the 100% → the content is 40px wider than the pane → a phantom horizontal scrollbar.
+test('full-width Preview content fits its pane (no horizontal overflow)', async ({
+  page,
+}) => {
+  await gotoWidth(page)
+  await page.evaluate(() => (window as any).__setFullWidth(true))
+  await page.click('[data-type="preview"]')
+  await page.waitForSelector(PREVIEW, { state: 'visible' })
+  const over = await page.evaluate(() => {
+    const pane = document.querySelector('.vditor-preview') as HTMLElement
+    return { scrollW: pane.scrollWidth, clientW: pane.clientWidth }
+  })
+  // the pane does not scroll horizontally (allow 1px for sub-pixel rounding)
+  expect(over.scrollW - over.clientW).toBeLessThanOrEqual(1)
+})
+
+// Full-width ON: the Preview must keep the SAME left gutter as the editor (35px, the room
+// for the H1–H6 marker column). Otherwise the content shifts left on Edit→Preview — the
+// "gutter space disappears in preview".
+test('full-width Preview keeps the editor left gutter (no Edit→Preview shift)', async ({
+  page,
+}) => {
+  await gotoWidth(page)
+  await page.evaluate(() => (window as any).__setFullWidth(true))
+  const editGap = (await measure(page, IR))!.leftGap
+  await page.click('[data-type="preview"]')
+  await page.waitForSelector(PREVIEW, { state: 'visible' })
+  const m = (await measure(page, PREVIEW))!
+  // content left edge holds across Edit→Preview (the 35px marker gutter is preserved)
+  expect(Math.abs(m.leftGap - editGap)).toBeLessThan(6)
+  expect(m.leftGap).toBeGreaterThan(25) // a real gutter, not collapsed
+})

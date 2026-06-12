@@ -33,13 +33,14 @@ for (let i = 0; i < 80; i++) {
 }
 const value = [...head, ...filler].join('\n')
 
-function setLayout(showHeadingMarkers: boolean) {
-  applyBodyOptions({ enableFullWidth: false, showHeadingMarkers })
+function setLayout(showHeadingMarkers: boolean, enableFullWidth = false) {
+  applyBodyOptions({ enableFullWidth, showHeadingMarkers })
 }
 
 // Start narrow + markers on (the default product state).
 setLayout(true)
 ;(window as any).__setMarkers = (on: boolean) => setLayout(on)
+;(window as any).__setFullWidth = (on: boolean) => setLayout(true, on)
 
 const editor = new Vditor('app', {
   cache: { enable: false },
