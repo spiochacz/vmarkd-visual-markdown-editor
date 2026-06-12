@@ -230,22 +230,20 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    node holds only the block render → its height EQUALS the preview's, with ZERO impact on the
    render's line-height/font (theme-agnostic, never squishes). When the caret ENTERS the block
    `--expand` is set, this rule stops matching, and the source panel + its gaps return (expected,
-   editing needs the room). Scoped to REAL code via `:has(> .vditor-ir__preview > code.hljs)` so
-   mermaid/echarts/math/diagram blocks (same data-type, no `code.hljs`) keep their own geometry. */
+   editing needs the room). Scoped via `:has(> .vditor-ir__preview)` to EVERY collapsed dual-node
+   that carries a block render — real code (`code.hljs`) AND mermaid/echarts/graphviz/math/etc.
+   (`div.language-*`): each kept the same ~58px phantom in IR, so each "jumped" taller than its
+   Preview render on Edit↔Preview. Verified in the real webview that flattening it leaves the
+   diagram/echarts/math render intact (svg/canvas present, height == Preview). (The earlier code-
+   only scope was a hangover from a removed `line-height:0` approach, not a diagram requirement.) */
 .vditor-reset
-  .vditor-ir__node[data-type="code-block"]:not(.vditor-ir__node--expand):has(
-    > .vditor-ir__preview > code.hljs
-  )::before,
+  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::before,
 .vditor-reset
-  .vditor-ir__node[data-type="code-block"]:not(.vditor-ir__node--expand):has(
-    > .vditor-ir__preview > code.hljs
-  )::after {
+  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::after {
   content: none !important;
 }
 .vditor-reset
-  .vditor-ir__node[data-type="code-block"]:not(.vditor-ir__node--expand):has(
-    > .vditor-ir__preview > code.hljs
-  )
+  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)
   > .vditor-ir__marker {
   display: block;
 }

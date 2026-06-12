@@ -123,10 +123,12 @@ test('dark IR code render has symmetric (1em) vertical padding — matches Previ
   expect(pad.bottom).toBe(pad.top)
 })
 
-// The phantom-removal rule is scoped to REAL code (`:has(> .vditor-ir__preview > code.hljs)`).
-// A custom (mermaid) block shares `data-type="code-block"` but has no `code.hljs`, so it must
-// keep its node pseudos untouched — proves the rule doesn't disturb diagram geometry.
-test('phantom-removal rule does NOT touch custom (mermaid) blocks', async ({
+// The phantom-removal rule applies to EVERY collapsed dual-node with a `.vditor-ir__preview`
+// render — real code AND diagram blocks (mermaid/echarts/math). A custom (mermaid) block shares
+// `data-type="code-block"` but has no `code.hljs`; it too must have its node pseudos nulled so
+// its collapsed IR height matches the Preview render (verified in the real webview — diagrams
+// were ~58px taller in IR before this). Flattening leaves the diagram render intact.
+test('phantom-removal rule flattens custom (mermaid) blocks too', async ({
   page,
 }) => {
   const afterContent = await page.evaluate(() => {
@@ -136,6 +138,6 @@ test('phantom-removal rule does NOT touch custom (mermaid) blocks', async ({
     ).find((n) => !!n.querySelector('.vditor-ir__preview .language-mermaid'))!
     return getComputedStyle(node, '::after').content
   })
-  // Vditor's pseudo space is still present on the mermaid node (rule skipped it)
-  expect(afterContent).not.toBe('none')
+  // collapsed → the node's phantom pseudo space is removed (same as real code blocks)
+  expect(afterContent).toBe('none')
 })
