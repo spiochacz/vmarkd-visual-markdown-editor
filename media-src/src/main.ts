@@ -43,7 +43,13 @@ import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
-import { observeGapParagraphs } from './gap-paragraph'
+import {
+  observeGapParagraphs,
+  observeTrailingParagraph,
+  setupTrailingNav,
+} from './gap-paragraph'
+import { setupCaretScroll } from './caret-scroll'
+import { setupCalloutArrowNav } from './callout-nav'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
 import { createIncrementalMd } from './incremental-md'
@@ -96,6 +102,7 @@ let lastInitMsg: any = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
+let disposeTrailing: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -130,6 +137,28 @@ document.addEventListener('selectionchange', trackEditorCaret)
 // blocks (blockquote↔code, code↔code). Wired once; reads the active editor lazily so it
 // covers every re-init. See gap-paragraph.ts.
 observeGapParagraphs(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
+)
+
+// Keep the caret visible during programmatic arrow moves (table-cell up/down sets the
+// selection without scrolling). Wired once; reads the active editor lazily. caret-scroll.ts.
+setupCaretScroll(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
+)
+
+// Arrow nav INTO collapsed callouts (their source is display:none — native caret movement
+// can't enter, skipped them, and at EOF dropped the selection → caret jumped to the top).
+// Wired once; reads the active editor lazily. callout-nav.ts.
+setupCalloutArrowNav(
+  () => (window.vditor ? (activeModeElement(window.vditor) ?? null) : null),
+  () => (window.vditor as any)?.vditor,
+)
+
+// Move the caret INTO the trailing paragraph at end-of-file. The invariant (above) keeps the
+// paragraph present; this actively places the caret there on ArrowDown so the native EOF move
+// can't drop the selection (→ Vditor normalising it to the editor start = the jump-to-top).
+// Wired once; reads the active editor lazily. gap-paragraph.ts.
+setupTrailingNav(() =>
   window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
 )
 
@@ -364,6 +393,12 @@ function runFinishInit(msg: any): void {
   // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
   disposeCodeSource?.()
   disposeCodeSource = observeCodeSource(activeModeElement(window.vditor))
+  // Trailing-paragraph invariant: a document ending with a block (callout/code/table/…)
+  // always offers an empty paragraph below it — without one there is NO caret position
+  // after the last block (arrow-down at EOF dropped the selection → caret+view jumped to
+  // the top). Tag is serializer-invisible; survives IR rebuilds via its own observer.
+  disposeTrailing?.()
+  disposeTrailing = observeTrailingParagraph(activeModeElement(window.vditor))
   reportDocMode()
 }
 

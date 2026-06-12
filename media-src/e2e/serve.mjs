@@ -33,6 +33,7 @@ const built = await esbuild.build({
     echarts: path.join(__dirname, 'echarts-harness.ts'),
     blockbg: path.join(__dirname, 'blockbg-harness.ts'),
     gap: path.join(__dirname, 'gap-harness.ts'),
+    codenav: path.join(__dirname, 'codenav-harness.ts'),
     'callout-ir': path.join(__dirname, 'callout-ir-harness.ts'),
     callouts: path.join(__dirname, 'callouts-harness.ts'),
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
@@ -77,6 +78,7 @@ const mermaidHarnessHtml = fs.readFileSync(path.join(__dirname, 'mermaid.html'))
 const echartsHarnessHtml = fs.readFileSync(path.join(__dirname, 'echarts.html'))
 const blockbgHtml = fs.readFileSync(path.join(__dirname, 'blockbg.html'))
 const gapHtml = fs.readFileSync(path.join(__dirname, 'gap.html'))
+const codenavHtml = fs.readFileSync(path.join(__dirname, 'codenav.html'))
 const calloutIrHtml = fs.readFileSync(path.join(__dirname, 'callout-ir.html'))
 const calloutsHtml = fs.readFileSync(path.join(__dirname, 'callouts.html'))
 const imageConvertHtml = fs.readFileSync(
@@ -185,6 +187,10 @@ const server = http.createServer((req, res) => {
   if (url === '/gap.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(gapHtml)
+  }
+  if (url === '/codenav.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(codenavHtml)
   }
   if (url === '/callout-ir.html') {
     res.setHeader('content-type', 'text/html')

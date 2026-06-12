@@ -191,6 +191,74 @@ export function patchListToggle(code) {
     'item.querySelector("input")?.remove()',
   )
 }
+// Callout arrow navigation. Two defects around our callout dual-node (callouts.ts):
+// 1. The injected `.vmarkd-callout__preview` (contenteditable=false, LAST child) duplicates
+//    the callout's text inside `element.textContent`, so insertAfterBlock's "caret is on the
+//    last line" check (`substr(position.start).indexOf("\n") === -1`) never passes — arrowing
+//    down out of a callout (incl. at end-of-file, where Vditor would splice the trailing
+//    paragraph you type into) silently did nothing. Compare against the EDITABLE text
+//    (preview stripped); the preview is the LAST child so `position.start` itself is sound.
+// 2. insertAfterBlock/insertBeforeBlock splice the in-between paragraph only for TABLE /
+//    `data-type` neighbours; otherwise they do `selectNodeContents(neighbour)` INTO it. Two
+//    problems that fix:
+//    a. adjacent callouts are plain BLOCKQUOTEs, so there was NO way to insert a line between
+//       two callouts → add `data-callout` neighbours to the splice set.
+//    b. our floating table-edit panel (`#fix-table-ir-wrapper`, fix-table-ir.ts) is a
+//       `contenteditable=false` 0×0 box pinned at top:0 appended as the editor's LAST child —
+//       so it is a table's `nextElementSibling`. Vditor's selectNodeContents drops the caret
+//       INTO it and the page scrolls to the top ("jump to top" at end-of-file). Treat any
+//       `contenteditable=false` neighbour as a splice boundary → Vditor inserts a paragraph
+//       between instead of entering the helper. (The gap-paragraph observer reclaims it when
+//       left empty, exactly like the code-block gap.)
+const CALLOUT_TEXT_HELPER = `const vmarkdEditableText = (el: HTMLElement): string => {
+    if (!el.querySelector(":scope > .vmarkd-callout__preview")) {
+        return el.textContent;
+    }
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll(".vmarkd-callout__preview").forEach((p) => p.remove());
+    return clone.textContent;
+};
+`
+const ARROW_DOWN_ANCHOR =
+  'if ((event.key === "ArrowDown" && element.textContent.trimRight().substr(position.start).indexOf("\\n") === -1) ||\n' +
+  '        (event.key === "ArrowRight" && position.start >= element.textContent.trimRight().length)) {'
+const ARROW_AFTER_SPLICE_ANCHOR =
+  '(nextElement && (nextElement.tagName === "TABLE" || nextElement.getAttribute("data-type")))'
+const ARROW_BEFORE_SPLICE_ANCHOR =
+  '(previousElement && (previousElement.tagName === "TABLE" || previousElement.getAttribute("data-type")))'
+const INSERT_AFTER_EXPORT_ANCHOR = 'export const insertAfterBlock = '
+export function patchCalloutArrowNav(code) {
+  for (const anchor of [
+    ARROW_DOWN_ANCHOR,
+    ARROW_AFTER_SPLICE_ANCHOR,
+    ARROW_BEFORE_SPLICE_ANCHOR,
+    INSERT_AFTER_EXPORT_ANCHOR,
+  ]) {
+    if (!code.includes(anchor)) {
+      throw new Error(
+        'fixCalloutArrowNav: anchor not found in vditor fixBrowserBehavior.ts (version drift?)',
+      )
+    }
+  }
+  return code
+    .replace(
+      INSERT_AFTER_EXPORT_ANCHOR,
+      CALLOUT_TEXT_HELPER + INSERT_AFTER_EXPORT_ANCHOR,
+    )
+    .replace(
+      ARROW_DOWN_ANCHOR,
+      'if ((event.key === "ArrowDown" && vmarkdEditableText(element).trimRight().substr(position.start).indexOf("\\n") === -1) ||\n' +
+        '        (event.key === "ArrowRight" && position.start >= vmarkdEditableText(element).trimRight().length)) {',
+    )
+    .replace(
+      ARROW_AFTER_SPLICE_ANCHOR,
+      '(nextElement && (nextElement.tagName === "TABLE" || nextElement.getAttribute("data-type") || nextElement.hasAttribute("data-callout") || nextElement.getAttribute("contenteditable") === "false"))',
+    )
+    .replace(
+      ARROW_BEFORE_SPLICE_ANCHOR,
+      '(previousElement && (previousElement.tagName === "TABLE" || previousElement.getAttribute("data-type") || previousElement.hasAttribute("data-callout") || previousElement.getAttribute("contenteditable") === "false"))',
+    )
+}
 const fixListToggle = {
   name: 'fix-list-toggle',
   setup(build) {
@@ -198,7 +266,11 @@ const fixListToggle = {
       { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]fixBrowserBehavior\.ts$/ },
       async (args) => {
         const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchListToggle(code) }
+        // ONE onLoad per file: chain both fixBrowserBehavior.ts patches here.
+        return {
+          loader: 'ts',
+          contents: patchCalloutArrowNav(patchListToggle(code)),
+        }
       },
     )
   },
