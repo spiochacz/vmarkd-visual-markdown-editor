@@ -345,3 +345,52 @@ test('🔴 #1925: Enter in a list+blockquote escapes to a new list item (ir, kno
   // When fixed it should be a quote continuation (e.g. "  > more quote") and NOT this.
   expect(value).toContain('- more quote')
 })
+
+// caret-scroll (caret-scroll.ts): Vditor's table-cell up/down navigation sets the
+// selection directly (setSelectionFocus) and never scrolls, so arrowing through a tall
+// table walked the caret off-screen while the view stood still (native caret moves
+// scroll for free). The keyup adjuster must keep the caret inside the scroller.
+test('🟢 arrow nav through table cells keeps the caret on screen (auto-scroll) (ir)', async ({
+  page,
+}) => {
+  await goto(page, 'ir')
+  await page.evaluate(async () => {
+    const v = (window as any).vditor
+    const rows = Array.from({ length: 40 }, (_, i) => `| r${i}a | r${i}b |`)
+    v.setValue(`| h1 | h2 |\n| --- | --- |\n${rows.join('\n')}\n`)
+    await new Promise((r) => setTimeout(r, 150))
+    const el = (window as any).__modeEl() as HTMLElement
+    el.focus()
+    const firstCell = el.querySelector('td') as HTMLElement
+    const r = document.createRange()
+    r.selectNodeContents(firstCell)
+    r.collapse(true)
+    const s = window.getSelection()!
+    s.removeAllRanges()
+    s.addRange(r)
+  })
+  const scrollTop = () =>
+    page.evaluate(() => {
+      let e = (window as any).__modeEl() as HTMLElement | null
+      while (e && e !== document.body) {
+        const oy = getComputedStyle(e).overflowY
+        if (
+          (oy === 'auto' || oy === 'scroll' || oy === 'overlay') &&
+          e.scrollHeight > e.clientHeight + 1
+        ) {
+          return e.scrollTop
+        }
+        e = e.parentElement
+      }
+      return (document.scrollingElement as HTMLElement).scrollTop
+    })
+  const before = await scrollTop()
+  // walk far enough down the 40-row table to leave the 500px-high editor viewport
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('ArrowDown')
+    await page.waitForTimeout(25)
+  }
+  const after = await scrollTop()
+  // pre-fix: the view never moved (scrollTop unchanged) while the caret walked off-screen
+  expect(after).toBeGreaterThan(before)
+})
