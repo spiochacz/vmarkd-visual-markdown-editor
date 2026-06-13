@@ -41,6 +41,7 @@ const built = await esbuild.build({
     'split-scroll': path.join(__dirname, 'split-scroll-harness.ts'),
     'code-linenumber': path.join(__dirname, 'code-linenumber-harness.ts'),
     'config-apply': path.join(__dirname, 'config-apply-harness.ts'),
+    marp: path.join(__dirname, 'marp-harness.ts'),
   },
   bundle: true,
   format: 'iife',
@@ -54,6 +55,18 @@ const built = await esbuild.build({
 const bundles = Object.fromEntries(
   built.outputFiles.map((f) => ['/' + path.basename(f.path), f.text])
 )
+
+// The lazy Marp chunk (task 107). A SEPARATE plain-iife bundle (like prod's media/dist/marp.js),
+// served at /marp-chunk.js and loaded on demand by marp-preview.ts via an injected <script>.
+const marpChunk = await esbuild.build({
+  entryPoints: { 'marp-chunk': path.join(__dirname, '../src/marp-entry.ts') },
+  bundle: true,
+  format: 'iife',
+  sourcemap: 'inline',
+  write: false,
+  outdir: __dirname,
+})
+const marpChunkJs = marpChunk.outputFiles[0].text
 const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'))
 const behaviorsHtml = fs.readFileSync(path.join(__dirname, 'behaviors.html'))
 const benchHtml = fs.readFileSync(path.join(__dirname, 'bench.html'))
@@ -93,6 +106,7 @@ const codeLineNumberHtml = fs.readFileSync(
 const configApplyHtml = fs.readFileSync(
   path.join(__dirname, 'config-apply.html'),
 )
+const marpHtml = fs.readFileSync(path.join(__dirname, 'marp.html'))
 
 const types = {
   '.js': 'text/javascript',
@@ -217,6 +231,14 @@ const server = http.createServer((req, res) => {
   if (url === '/config-apply.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(configApplyHtml)
+  }
+  if (url === '/marp.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(marpHtml)
+  }
+  if (url === '/marp-chunk.js') {
+    res.setHeader('content-type', 'text/javascript')
+    return res.end(marpChunkJs)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')
