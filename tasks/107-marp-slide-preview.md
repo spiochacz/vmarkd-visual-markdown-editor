@@ -77,10 +77,14 @@ how the official `@marp-team/marp-vscode` works (it replaces the preview rendere
 
 ## Phase 1 — DONE (2026-06-13)
 
-Implemented: lazy `marp-core` chunk, `marp: true` detection, read-only deck in a collapsible
-right panel + draggable splitter, slide-card overlay (IR/WYSIWYG), caret→slide highlight/scroll,
-click-slide→source nav. See `docs/superpowers/specs/2026-06-12-marp-split-panel-design.md` and
-`docs/superpowers/plans/2026-06-13-marp-presentation-phase1.md`. Phases 2 (export) and 3 (per-slide
+Implemented: lazy `marp-core` chunk, `marp: true` detection, read-only deck rendered into
+Vditor's NATIVE preview surface — the split-view (sv) right pane and the IR/WYSIWYG "Preview"
+button both show the deck (one esbuild seam gates Vditor's preview render). The standalone right
+panel + draggable splitter was removed in the rework. Slide-card overlay (IR/WYSIWYG),
+caret→slide highlight/scroll, click-slide→source nav. See
+`docs/superpowers/specs/2026-06-12-marp-split-panel-design.md`,
+`docs/superpowers/plans/2026-06-13-marp-presentation-phase1.md`, and the rework plan
+`docs/superpowers/plans/2026-06-13-marp-preview-integration.md`. Phases 2 (export) and 3 (per-slide
 WYSIWYG) remain out of scope.
 
 ## Files (Phase 1)
