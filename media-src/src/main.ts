@@ -99,6 +99,8 @@ let disposeCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
 // The active Marp slide panel (task 107); torn down + replaced on re-init.
 let marpPanel: MarpPanel | null = null
+// Trailing-debounce timer for the caret→slide forward sync (task 107).
+let marpSyncTimer: ReturnType<typeof setTimeout> | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -127,11 +129,17 @@ function trackEditorCaret() {
   if (node === editor && sel.anchorOffset === 0 && sel.isCollapsed) return
   lastEditorRange = sel.getRangeAt(0).cloneRange()
 
-  // Marp forward sync: highlight the caret's slide in the deck (task 107). Cheap; only runs when
-  // a deck panel is mounted, so non-deck docs pay nothing.
+  // Marp forward sync (task 107): highlight the caret's slide in the deck. getCursorSourceOffset
+  // does a full DOM→markdown round-trip, so debounce it (highlight is cosmetic; only runs when a
+  // deck panel is mounted, and only after the caret settles).
   if (marpPanel) {
-    const off = getCursorSourceOffset(v)
-    if (off >= 0) marpPanel.highlightForOffset(v.getValue(), off)
+    if (marpSyncTimer) clearTimeout(marpSyncTimer)
+    marpSyncTimer = setTimeout(() => {
+      marpSyncTimer = null
+      if (!marpPanel) return
+      const off = getCursorSourceOffset(window.vditor)
+      if (off >= 0) marpPanel.highlightForOffset(window.vditor.getValue(), off)
+    }, 120)
   }
 }
 document.addEventListener('selectionchange', trackEditorCaret)
