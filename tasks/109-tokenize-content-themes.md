@@ -1,10 +1,24 @@
 # Task 109 — Tokenize content themes: converge github onto the `--vmarkd-*` model, cut `!important`
 
-> **Status:** 🔬 spike in progress (2026-06-13). Branch `refactor/theme-tokenize`.
+> **Status:** 🟡 github-light tokenized + heading-scale restored; cross-mode VERIFIED — palette +
+> treatments consistent across Preview/IR/WYSIWYG (incl. the code-block dual-node edit surface).
+> One pre-existing exception: Vditor zeroes WYSIWYG inline-code h-padding via an `!important` in its
+> `index.css` (verbatim theme has the same quirk — NOT a tokenization regression; a `.4em` re-assert
+> fix already exists on `feat/wysiwyg-highlight`, absent from this branch). github-dark TODO.
 > **Source:** CSS-simplification audit — too much `!important`/cascade-hacking.
-> **Value / Risk:** 🟧 −~40 KB vendored CSS + most theme/glue `!important` gone, ONE theme
-> model / medium — github is the most-used theme; fidelity + regressions are visible.
+> **Value / Risk:** 🟧 −~21 KB per github theme + theme-file `!important` (9→3) + ONE theme model /
+> medium — github is the most-used theme; fidelity + regressions are visible.
 > **Engines:** none (pure CSS + build).
+>
+> **Target (agreed 2026-06-13):** the GitHub *look* (palette + treatments) must be CONSISTENT across
+> all three render surfaces — Preview pane, IR, WYSIWYG. **Spacing differences are ACCEPTED** (Vditor
+> structure; even the verbatim github CSS diverged there — closing pixel spacing would be a separate
+> effort overriding Vditor's block spacing scoped to the preview surface, deliberately out of scope here).
+>
+> **Premise correction (spike-verified):** tokenizing does NOT remove `main.css` `!important` — the
+> github↔Vditor cascade-order war was already migrated to `var(--vmarkd-*)` in task 84/85. The
+> remaining `main.css` `!important` are VS Code-default / IR / layout (not github referees). The win
+> is the −21 KB/theme + model consistency, not a `main.css` purge.
 
 ## Problem (measured 2026-06-13)
 
