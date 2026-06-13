@@ -1,10 +1,11 @@
 # Task 109 — Tokenize content themes: converge github onto the `--vmarkd-*` model, cut `!important`
 
-> **Status:** 🟡 github-light tokenized + heading-scale restored; cross-mode VERIFIED — palette +
-> treatments consistent across Preview/IR/WYSIWYG (incl. the code-block dual-node edit surface).
-> One pre-existing exception: Vditor zeroes WYSIWYG inline-code h-padding via an `!important` in its
-> `index.css` (verbatim theme has the same quirk — NOT a tokenization regression; a `.4em` re-assert
-> fix already exists on `feat/wysiwyg-highlight`, absent from this branch). github-dark TODO.
+> **Status:** ✅ DONE. github-light + github-dark both tokenized (~23 KB → ~2–2.8 KB each), Primer
+> heading scale restored, cross-mode VERIFIED — palette + treatments consistent across
+> Preview/IR/WYSIWYG (incl. the code-block dual-node edit surface), `content-theme.spec` completeness
+> contracts green for both. WYSIWYG inline-code h-padding fixed at the Vditor SOURCE
+> (`build.mjs patchVditorIndexCss`, 0→.4em) and the now-redundant `main.css` `!important` removed.
+> All five content themes now share ONE token model. Architecture recorded in ADR-0003.
 > **Source:** CSS-simplification audit — too much `!important`/cascade-hacking.
 > **Value / Risk:** 🟧 −~21 KB per github theme + theme-file `!important` (9→3) + ONE theme model /
 > medium — github is the most-used theme; fidelity + regressions are visible.
