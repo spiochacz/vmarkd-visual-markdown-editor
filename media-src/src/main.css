@@ -107,6 +107,17 @@ body[data-use-vscode-theme-color="1"] {
     --vscode-textCodeBlock-background,
     rgba(127, 127, 127, 0.18)
   );
+  --vmarkd-link: var(--vscode-textLink-foreground);
+}
+/* Link colour follows the content theme via one token. The rendered <a> is themed by
+   each theme's `.markdown-body a` rule, but Vditor hardcodes the IR edit-surface link
+   span (`.vditor-ir__link`) to its bright `--ir-bracket-color` (#0000ff) + underline —
+   following NO theme. Point it at --vmarkd-link (auto → VS Code's textLink, named themes
+   set their own) and drop the underline so the editor link matches the preview/VS Code.
+   `.vditor-reset .vditor-ir__link` (0,2,0) out-ranks Vditor's `.vditor-ir__link` (0,1,0). */
+.vditor-reset .vditor-ir__link {
+  color: var(--vmarkd-link, var(--vscode-textLink-foreground, #4493f8));
+  text-decoration: none;
 }
 /* These can't flow through a --vmarkd-* var, so they stay explicit overrides:
    - cell borders: the table-border var also feeds Vditor's `tr` border-top, which the
@@ -365,6 +376,13 @@ body[data-use-vscode-theme-color="1"] .vditor-reset input[type="checkbox"] {
     --vscode-checkbox-background,
     var(--vscode-button-background, var(--vscode-focusBorder))
   );
+}
+/* Named themes: accent = the theme's link colour (--vmarkd-link). Without this a named
+   theme's task-list checkbox falls back to the browser default blue (a wrong shade vs
+   the theme). `auto` keeps the VS Code-following rule above. Dark named themes set
+   `color-scheme: dark` on the body, so the native control already renders dark. */
+body.markdown-body .vditor-reset input[type="checkbox"] {
+  accent-color: var(--vmarkd-link);
 }
 body[data-use-vscode-theme-color="1"]
   .vditor.vditor--dark

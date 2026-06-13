@@ -1,0 +1,80 @@
+/*!
+ * VS Code markdown preview — Dark. Reproduces VS Code's BUILT-IN Markdown preview
+ * under the "Dark 2026" default theme (the dark default since VS Code 1.123),
+ * tokenized onto Vditor's content-theme structure (--vmarkd-* model). Source-verified
+ * 2026-06-13 against microsoft/vscode @ 6a44c352 (1.123.0):
+ *   - extensions/markdown-language-features/media/markdown.css (layout + treatments)
+ *   - extensions/theme-defaults/themes/2026-dark.json (token overrides)
+ * Page background = editor.background (#121314), shown THROUGH the transparent webview
+ * body; body text/link/inline-code come from the WEBVIEW SHELL defaults
+ * (--vscode-foreground / -textLink / -textPreformat), not markdown.css — so we set them here.
+ * Pairs with vs2015 hljs.
+ */
+/* color-scheme drives native scrollbars + form controls — without it a dark content
+   theme on a LIGHT VS Code editor shows light scrollbars on dark code blocks. */
+.markdown-body { background-color: #121314; color-scheme: dark; }
+/* body text = editor.foreground (#bbbebf). Also on .vditor-reset (Vditor sets the reset's
+   colour directly via --textarea-text-color, which beats inheritance). */
+.markdown-body,
+.markdown-body .vditor-reset { color: #bbbebf; }
+/* link = textLink.foreground; no underline at rest, underline on hover (Vditor default). */
+.markdown-body a { color: #48a0c7; text-decoration: none; }
+/* h1/h2 bottom border: markdown.css hardcodes rgba(255,255,255,0.18) per .vscode-dark (NOT a token). */
+.markdown-body h1,
+.markdown-body h2 { padding-bottom: 0.3em; border-bottom: 1px solid rgba(255, 255, 255, 0.18); }
+/* heading scale — markdown.css uses h1 2em … h6 0.85em (identical to GitHub); without it
+   Vditor's structural scale leaks through (h1 too small, h3 too big). */
+.markdown-body h1 { font-size: 2em; }
+.markdown-body h2 { font-size: 1.5em; }
+.markdown-body h3 { font-size: 1.25em; }
+.markdown-body h4 { font-size: 1em; }
+.markdown-body h5 { font-size: 0.875em; }
+.markdown-body h6 { font-size: 0.85em; }
+/* inline code = textPreformat.foreground; background via --vmarkd-code-bg below. */
+.markdown-body code:not(.hljs) { color: #8c8c8c; }
+/* blockquote = textBlockQuote (border #2a2b2c, background via --vmarkd-blockquote-bg below).
+   markdown.css uses border-left 5px + radius 2px; text inherits body colour (NOT muted). */
+.markdown-body blockquote {
+  color: #bbbebf;
+  margin: 0 0 16px;
+  padding: 0 16px 0 10px;
+  border-left: 5px solid #2a2b2c;
+  border-radius: 2px;
+}
+/* code block = textCodeBlock.background + widget.border (markdown.css draws a 1px border on pre);
+   keep hljs token colours, override bg + size. */
+.markdown-body .hljs { background-color: #242526 !important; border: 1px solid #2a2b2c; }
+.markdown-body code,
+.markdown-body .hljs { font-size: 1em !important; }
+/* ── VS Code table / hr / code STRUCTURE (1:1 with markdown.css). Scoped to THIS theme
+   file → github/material keep their own look. VS Code tables = horizontal rules only
+   (header-bottom rgba(255,255,255,.69) + between-row top rgba(255,255,255,.18)), NO
+   vertical/outer borders, left-aligned headers, cell padding 5px 10px; hr = 1px line
+   (not a 2px bar); code-block radius 3px; code uses the editor monospace font. ── */
+.markdown-body code,
+.markdown-body .hljs {
+  font-family: var(--vscode-editor-font-family, ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace);
+}
+.markdown-body .hljs { border-radius: 3px; }
+.markdown-body hr { height: 1px; }
+.markdown-body table th,
+.markdown-body table td { padding: 5px 10px; border: 0; }
+.markdown-body table tr { border: 0; background-color: transparent; }
+.markdown-body table th { text-align: left; border-bottom: 1px solid rgba(255, 255, 255, 0.69); }
+.markdown-body table tbody tr + tr td { border-top: 1px solid rgba(255, 255, 255, 0.18); }
+/* Editor-surface vars (task 84/85): the build makes Vditor's content-theme palette +
+   main.css's blockquote/dark-code rules `var(--vmarkd-*, …)`, so we own them by setting
+   variables — keeps IR/WYSIWYG consistent with the Preview rules above. No striping
+   (VS Code doesn't zebra table rows) → stripe == row bg. */
+body.markdown-body {
+  --vmarkd-link: #48a0c7; /* textLink.foreground — also feeds IR link + checkbox accent */
+  --vmarkd-heading-border: rgba(255, 255, 255, 0.18);
+  --vmarkd-hr-bg: rgba(255, 255, 255, 0.18);
+  --vmarkd-blockquote-fg: #bbbebf; /* editor.foreground — VS Code does not mute blockquote text */
+  --vmarkd-blockquote-border: #2a2b2c; /* textBlockQuote.border */
+  --vmarkd-blockquote-bg: #242526; /* textBlockQuote.background */
+  --vmarkd-table-border: rgba(255, 255, 255, 0.18); /* markdown.css .vscode-dark td hairline */
+  --vmarkd-table-row-bg: transparent;
+  --vmarkd-table-stripe: transparent; /* no zebra */
+  --vmarkd-code-bg: #262626; /* textPreformat.background */
+}

@@ -37,6 +37,7 @@
 /* Editor-surface vars (task 84/85): the build makes Vditor's content-theme palette +
    main.css's blockquote rule `var(--vmarkd-*, …)`, so we own them by setting variables. */
 body.markdown-body {
+  --vmarkd-link: #0969da; /* GitHub link — also feeds IR link + checkbox accent */
   --vmarkd-heading-border: #d1d9e0b3;
   --vmarkd-hr-bg: #d1d9e0;
   --vmarkd-blockquote-fg: #59636e; /* GitHub muted */

@@ -20,17 +20,17 @@ describe('codeHljsStyle', () => {
         contentTheme: 'material-dark',
       }),
     ).toBe('atom-one-dark')
-    // vscode-light-modern/dark pair the Visual Studio hljs themes
+    // vscode-light-2026/dark pair the Visual Studio hljs themes
     expect(
       codeHljsStyle('light', {
         codeTheme: 'auto',
-        contentTheme: 'vscode-light-modern',
+        contentTheme: 'vscode-light-2026',
       }),
     ).toBe('vs')
     expect(
       codeHljsStyle('dark', {
         codeTheme: 'auto',
-        contentTheme: 'vscode-dark-modern',
+        contentTheme: 'vscode-dark-2026',
       }),
     ).toBe('vs2015')
     // an explicit codeTheme still wins over the content-theme pairing

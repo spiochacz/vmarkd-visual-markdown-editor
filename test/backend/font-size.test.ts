@@ -41,7 +41,7 @@ describe('resolveFontSizeCss', () => {
 
   it('keeps the editor-font default for non-GitHub themes', () => {
     expect(resolveFontSizeCss('editor', 'auto')).toBe(editorFont)
-    expect(resolveFontSizeCss(undefined, 'vscode-dark-modern')).toBe(editorFont)
+    expect(resolveFontSizeCss(undefined, 'vscode-dark-2026')).toBe(editorFont)
     expect(resolveFontSizeCss('abc', 'material-dark')).toBe(editorFont)
   })
 })

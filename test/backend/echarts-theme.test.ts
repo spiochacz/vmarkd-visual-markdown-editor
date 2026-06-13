@@ -85,12 +85,12 @@ describe('resolveEchartsTheme (setting + content-theme pairing)', () => {
     )
   })
 
-  it('auto pairs VS Code Dark/Light Modern to VS Code chart colours on the Modern background', () => {
-    const dark = resolveEchartsTheme('auto', 'vscode-dark-modern', 'dark')
+  it('auto pairs VS Code Dark/Light 2026 to VS Code chart colours on the 2026 background', () => {
+    const dark = resolveEchartsTheme('auto', 'vscode-dark-2026', 'dark')
     expect(dark.name).toBe(ECHARTS_THEME_NAME)
-    expect((dark.theme as any).backgroundColor).toBe('#1f1f1f') // Dark Modern editor bg
+    expect((dark.theme as any).backgroundColor).toBe('#121314') // Dark 2026 editor bg
     expect((dark.theme as any).color[0]).toBe('#59a4f9') // VS Code charts.blue (dark)
-    const light = resolveEchartsTheme('auto', 'vscode-light-modern', 'light')
+    const light = resolveEchartsTheme('auto', 'vscode-light-2026', 'light')
     expect((light.theme as any).backgroundColor).toBe('#ffffff')
     expect((light.theme as any).color[0]).toBe('#0063d3') // charts.blue (light)
   })

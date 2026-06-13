@@ -37,6 +37,7 @@
    main.css's blockquote/dark-code rules `var(--vmarkd-*, …)`, so we own them by setting
    variables — no `!important`, no `.vditor-reset` specificity tricks. */
 body.markdown-body {
+  --vmarkd-link: #4493f8; /* GitHub link — also feeds IR link + checkbox accent */
   --vmarkd-heading-border: #3d444db3;
   --vmarkd-hr-bg: #3d444d;
   --vmarkd-blockquote-fg: #9198a1; /* GitHub muted */

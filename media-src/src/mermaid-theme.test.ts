@@ -107,7 +107,7 @@ describe('resolveMermaidInit', () => {
     expect(gh?.theme).toBe('base')
     expect(gh?.themeVariables?.background).toBe('#0d1117')
     // vscode/material are paired too (zinc / one-dark)
-    const vs = resolveMermaidInit('auto', 'vscode-dark-modern')
+    const vs = resolveMermaidInit('auto', 'vscode-dark-2026')
     expect(vs?.theme).toBe('base')
     expect(vs?.themeVariables?.background).toBe('#18181b') // zinc-dark
   })

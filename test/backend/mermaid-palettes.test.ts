@@ -69,8 +69,8 @@ describe('pairedPalette (content-theme pairing)', () => {
     expect(pairedPalette('github-light')).toBe('github-light')
     expect(pairedPalette('github-dark')).toBe('github-dark')
     expect(pairedPalette('material-dark')).toBe('one-dark')
-    expect(pairedPalette('vscode-light-modern')).toBe('zinc-light')
-    expect(pairedPalette('vscode-dark-modern')).toBe('zinc-dark')
+    expect(pairedPalette('vscode-light-2026')).toBe('zinc-light')
+    expect(pairedPalette('vscode-dark-2026')).toBe('zinc-dark')
   })
 
   it('returns undefined for auto / unknown', () => {

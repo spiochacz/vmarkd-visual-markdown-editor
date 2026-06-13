@@ -71,7 +71,7 @@ describe('resolveFontSize (task 43)', () => {
     expect(resolveFontSize('nonsense', 'github-light')).toBe('16px')
     expect(resolveFontSize(20, 'github-light')).toBe('20px') // explicit wins
     // non-GitHub themes keep the VS Code editor size default
-    expect(resolveFontSize('editor', 'vscode-dark-modern')).toBe(VSCODE)
+    expect(resolveFontSize('editor', 'vscode-dark-2026')).toBe(VSCODE)
     expect(resolveFontSize(undefined, 'material-dark')).toBe(VSCODE)
   })
 })

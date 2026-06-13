@@ -204,8 +204,8 @@ describe('buildWebviewHtml', () => {
     it('emits the markdown-body class for non-github named themes too (task 82 / A1)', () => {
       for (const ct of [
         'material-dark',
-        'vscode-light-modern',
-        'vscode-dark-modern',
+        'vscode-light-2026',
+        'vscode-dark-2026',
       ]) {
         const html = buildWebviewHtml(
           defaults({ config: { ...defaults().config, contentTheme: ct } }),

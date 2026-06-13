@@ -47,7 +47,7 @@ Built on the [Vditor](https://github.com/Vanessa219/vditor) editor, this plugin 
 
 - **Markdown rendering themes** — `auto` matches your VS Code theme's colours, or pick
   a fixed look regardless of the editor theme: **GitHub** (light / dark), **Material
-  Dark**, or **VS Code Light / Dark Modern**. Code-block highlighting pairs with the
+  Dark**, or **VS Code Light / Dark 2026**. Code-block highlighting pairs with the
   chosen theme automatically.
 - **Code-block syntax themes** — 73 highlight.js styles, or auto-follow your
   light/dark theme.
@@ -108,7 +108,7 @@ See the [changelog](./CHANGELOG.md) for the full list of features and changes.
 - [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) by Sindre Sorhus (MIT) — the GitHub light/dark markdown-rendering themes (`vmarkd.theme.content`), vendored under `media/markdown-themes/` (upstream verbatim, plus a small marked override block re-asserting the inline-code background on the editor surface)
 - [vscode-markdown-style](https://github.com/raycon/vscode-markdown-style) by raycon (MIT) — the Material Dark (One Dark) rendering theme (`vmarkd.theme.content`), adapted under `media/markdown-themes/`
 - [Beautiful Mermaid](https://github.com/lukilabs/beautiful-mermaid) by Craft Docs (MIT) — the 15 Mermaid diagram palettes (`vmarkd.theme.mermaid`); only the colour values are vendored (in `src/mermaid-palettes.ts`, translated to mermaid `themeVariables`), not the renderer
-- [microsoft/vscode](https://github.com/microsoft/vscode) (MIT) — the `vscode-light-modern` / `vscode-dark-modern` rendering themes use the built-in **Light Modern / Dark Modern** palettes ([`extensions/theme-defaults/themes`](https://github.com/microsoft/vscode/tree/main/extensions/theme-defaults/themes)) + the markdown preview layout ([`extensions/markdown-language-features/media/markdown.css`](https://github.com/microsoft/vscode/blob/main/extensions/markdown-language-features/media/markdown.css))
+- [microsoft/vscode](https://github.com/microsoft/vscode) (MIT) — the `vscode-light-2026` / `vscode-dark-2026` rendering themes use the built-in **Light 2026 / Dark 2026** palettes (the VS Code 1.123+ defaults — [`extensions/theme-defaults/themes`](https://github.com/microsoft/vscode/tree/main/extensions/theme-defaults/themes)) + the markdown preview layout ([`extensions/markdown-language-features/media/markdown.css`](https://github.com/microsoft/vscode/blob/main/extensions/markdown-language-features/media/markdown.css))
 
 ## License
 

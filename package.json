@@ -172,16 +172,16 @@
               "github-light",
               "github-dark",
               "material-dark",
-              "vscode-light-modern",
-              "vscode-dark-modern"
+              "vscode-light-2026",
+              "vscode-dark-2026"
             ],
             "enumDescriptions": [
               "Match the VS Code theme's colors, following the active light/dark theme.",
               "Render the markdown like GitHub's light theme, regardless of the VS Code theme.",
               "Render the markdown like GitHub's dark theme, regardless of the VS Code theme.",
               "Material Dark (One Dark) palette, regardless of the VS Code theme.",
-              "VS Code's built-in markdown preview — light, regardless of the VS Code theme.",
-              "VS Code's built-in markdown preview — dark, regardless of the VS Code theme."
+              "VS Code's built-in markdown preview — Light 2026 (the VS Code 1.123+ light default), regardless of the VS Code theme.",
+              "VS Code's built-in markdown preview — Dark 2026 (the VS Code 1.123+ dark default), regardless of the VS Code theme."
             ],
             "default": "auto",
             "description": "How the rendered markdown looks. \"auto\" follows the VS Code theme's colors (light/dark); the named themes render with their own palette regardless of the VS Code theme. Code-block syntax colors are set separately by \"Syntax Highlight Theme\"."
