@@ -1,6 +1,7 @@
 # Task 107 — Marp slide preview (split deck + slide-card editor overlay)
 
-> **Status:** 🔵 planned (2026-06-11). Design from brainstorming session. **Phase 1 only**
+> **Status:** 🟢 Phase 1 DONE (2026-06-13) — see "Phase 1 — DONE" below. Design from brainstorming
+> session. **Phase 1 only**
 > (this file): live read-only Marp deck in a right split panel + per-slide "card" overlay in the
 > IR/WYSIWYG editor. **No export, no PDF/PPTX, no per-slide WYSIWYG editing, no math** — those are
 > Phases 2–3 (sketched at the bottom).
@@ -73,6 +74,14 @@ how the official `@marp-team/marp-vscode` works (it replaces the preview rendere
    mode element** (reuse `activeModeElement(vditor)` + the observer-teardown pattern from
    `callouts.ts` / `code-source.ts`); in **source mode** show raw markdown, no overlay. Known cost:
    reflow on edit/resize, possible minor alignment jitter.
+
+## Phase 1 — DONE (2026-06-13)
+
+Implemented: lazy `marp-core` chunk, `marp: true` detection, read-only deck in a collapsible
+right panel + draggable splitter, slide-card overlay (IR/WYSIWYG), caret→slide highlight/scroll,
+click-slide→source nav. See `docs/superpowers/specs/2026-06-12-marp-split-panel-design.md` and
+`docs/superpowers/plans/2026-06-13-marp-presentation-phase1.md`. Phases 2 (export) and 3 (per-slide
+WYSIWYG) remain out of scope.
 
 ## Files (Phase 1)
 

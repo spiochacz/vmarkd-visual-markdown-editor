@@ -8,6 +8,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Added
 
+- **Marp presentations**: a `marp: true` document renders a live, read-only Marp slide deck in a
+  collapsible right panel with a draggable splitter; per-slide card frames overlay the editor in
+  IR/WYSIWYG; the deck highlights and scrolls to the caret's slide, and clicking a slide jumps the
+  source to it. The Markdown stays the single source of truth.
 - **Callouts / GitHub Alerts**: `> [!NOTE]` / `[!TIP]` / `[!IMPORTANT]` / `[!WARNING]` /
   `[!CAUTION]` blockquotes render as styled callout boxes with per-type accents and
   icons — GitHub- and Obsidian-compatible, including foldable callouts
