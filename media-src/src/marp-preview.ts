@@ -80,3 +80,20 @@ export function injectDeck(
 
   return deck.querySelectorAll('section').length
 }
+
+/**
+ * Render `source` to a self-contained HTML STRING for Vditor's preview surface: the scoped deck
+ * CSS in a `<style>` followed by the `<div class="marpit">…` deck. Written into `.vditor-reset`
+ * via Vditor's `innerHTML`. Marp scopes its theme under `.marpit`, so the `<style>` can't restyle
+ * `.vditor-reset` itself. Returns '' on render error (caller falls back / shows nothing).
+ */
+export function renderMarpPreview(source: string, marp: MarpApi): string {
+  try {
+    const { html, css } = marp.render(source)
+    return `<style class="vmarkd-marp__style">${css}</style>${html}`
+  } catch (err) {
+    return `<div class="vmarkd-marp__error">Marp render failed: ${
+      (err as Error)?.message ?? err
+    }</div>`
+  }
+}

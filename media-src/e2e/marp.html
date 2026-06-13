@@ -6,14 +6,12 @@
     <style>
       /* A .vditor-reset element to prove the deck CSS does not leak onto editor chrome. */
       .vditor-reset { color: rgb(1, 2, 3); }
-      #panel { width: 600px; }
     </style>
   </head>
   <body>
-    <div class="vditor-reset"><h1>editor heading</h1></div>
-    <div id="panel"></div>
-    <div id="mount"></div>
-    <div id="editor"></div>
+    <div class="vditor-preview" style="display:block">
+      <div class="vditor-reset"></div>
+    </div>
     <script src="/marp.js"></script>
   </body>
 </html>

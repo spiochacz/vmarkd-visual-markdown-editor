@@ -43,7 +43,10 @@ import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
-import { mountMarpPanel, type MarpPanel } from './marp-panel'
+import {
+  installMarpPreview,
+  highlightPreviewSlide,
+} from './marp-preview-intercept'
 import { observeSlideOverlay } from './marp-slide-overlay'
 import { observeGapParagraphs } from './gap-paragraph'
 import { setupHistoryKeybind } from './undo-keybind'
@@ -98,8 +101,6 @@ let lastInitMsg: any = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
-// The active Marp slide panel (task 107); torn down + replaced on re-init.
-let marpPanel: MarpPanel | null = null
 // Trailing-debounce timer for the caret→slide forward sync (task 107).
 let marpSyncTimer: ReturnType<typeof setTimeout> | null = null
 // Disposer for the active Marp slide-card overlay (task 107); IR/WYSIWYG only, torn down on re-init.
@@ -132,18 +133,14 @@ function trackEditorCaret() {
   if (node === editor && sel.anchorOffset === 0 && sel.isCollapsed) return
   lastEditorRange = sel.getRangeAt(0).cloneRange()
 
-  // Marp forward sync (task 107): highlight the caret's slide in the deck. getCursorSourceOffset
-  // does a full DOM→markdown round-trip, so debounce it (highlight is cosmetic; only runs when a
-  // deck panel is mounted, and only after the caret settles).
-  if (marpPanel) {
-    if (marpSyncTimer) clearTimeout(marpSyncTimer)
-    marpSyncTimer = setTimeout(() => {
-      marpSyncTimer = null
-      if (!marpPanel) return
-      const off = getCursorSourceOffset(window.vditor)
-      if (off >= 0) marpPanel.highlightForOffset(window.vditor.getValue(), off)
-    }, 120)
-  }
+  // Marp forward sync (task 107): highlight the caret's slide in the preview deck. Debounced —
+  // getCursorSourceOffset does a full DOM→markdown round-trip. Cheap no-op when no deck is shown.
+  if (marpSyncTimer) clearTimeout(marpSyncTimer)
+  marpSyncTimer = setTimeout(() => {
+    marpSyncTimer = null
+    const off = getCursorSourceOffset(window.vditor)
+    if (off >= 0) highlightPreviewSlide(window.vditor.getValue(), off)
+  }, 120)
 }
 document.addEventListener('selectionchange', trackEditorCaret)
 
@@ -385,16 +382,12 @@ function runFinishInit(msg: any): void {
   // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
   disposeCodeSource?.()
   disposeCodeSource = observeCodeSource(activeModeElement(window.vditor))
-  // Marp deck (task 107): mount the read-only slide panel beside the editor when the doc is a
-  // deck. Re-render is driven by the existing debounced edit signal (postEdit), never a new one.
-  marpPanel?.dispose()
-  marpPanel = null
+  // Marp deck (task 107): the deck is rendered into Vditor's native preview surface via the
+  // esbuild gate (installed in initVditor); no standalone panel. The slide-card overlay stays —
+  // it frames slides in the editable IR/WYSIWYG editor, orthogonal to the preview.
   disposeMarpOverlay?.()
   disposeMarpOverlay = null
   if (msg.options?.marp) {
-    const root =
-      activeModeElement(window.vditor)?.closest<HTMLElement>('.vditor') ?? null
-    if (root) marpPanel = mountMarpPanel(root, window.vditor.getValue())
     // Slide-card overlay (task 107): non-editable frames measuring top-level <hr> positions.
     // Only IR/WYSIWYG have an editable block tree with rendered <hr>s — source mode has none.
     const mode = window.vditor.getCurrentMode?.()
@@ -410,6 +403,9 @@ function initVditor(msg) {
   // Marp lazy-chunk URL (task 107): the host passes the webview-resource URI for media/dist/marp.js
   // in the init message; marp-preview.ts reads it off window when it injects the chunk <script>.
   if (msg.marpSrc) (window as any).__vmarkdMarpSrc = msg.marpSrc
+  // Install the preview-render gate (task 107). Cheap + harmless for non-marp docs (returns null
+  // → Vditor's normal Lute render). Idempotent.
+  installMarpPreview()
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
   // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
@@ -544,7 +540,6 @@ function initVditor(msg) {
   const postEdit = () => {
     const content = serializeForHost()
     vscode.postMessage({ command: 'edit', content })
-    marpPanel?.update(content)
     reportDocMode()
     syncUndoDelay()
   }
