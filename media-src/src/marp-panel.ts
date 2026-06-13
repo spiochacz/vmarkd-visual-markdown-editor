@@ -21,9 +21,27 @@ export interface MarpPanel {
   readonly deckEl: HTMLElement
 }
 
+// localStorage access is best-effort: webview storage can be disabled or quota-exceeded, in which
+// case getItem/setItem throw synchronously. Wrap so a throw never leaves drag/teardown half-done.
+function lsGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+function lsSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* storage disabled / quota — persistence is best-effort */
+  }
+}
+
 function readWidth(wrapperWidth: number): number {
-  const saved = Number(localStorage.getItem(WIDTH_KEY))
-  if (saved >= MIN_WIDTH) return Math.min(saved, wrapperWidth * MAX_WIDTH_RATIO)
+  const saved = Number(lsGet(WIDTH_KEY))
+  if (saved >= MIN_WIDTH)
+    return Math.max(MIN_WIDTH, Math.min(saved, wrapperWidth * MAX_WIDTH_RATIO))
   return Math.round(wrapperWidth * DEFAULT_WIDTH)
 }
 
@@ -70,9 +88,9 @@ export function mountMarpPanel(
   const setOpen = (open: boolean) => {
     wrapper.classList.toggle('vmarkd-marp--collapsed', !open)
     toggle.setAttribute('aria-pressed', String(open))
-    localStorage.setItem(OPEN_KEY, open ? '1' : '0')
+    lsSet(OPEN_KEY, open ? '1' : '0')
   }
-  setOpen(localStorage.getItem(OPEN_KEY) !== '0') // open by default
+  setOpen(lsGet(OPEN_KEY) !== '0') // open by default
 
   // Width.
   const applyWidth = (w: number) => {
@@ -110,8 +128,7 @@ export function mountMarpPanel(
     if (!dragging) return
     dragging = false
     document.body.classList.remove('vmarkd-marp__resizing')
-    if (panel.offsetWidth > 0)
-      localStorage.setItem(WIDTH_KEY, String(panel.offsetWidth))
+    if (panel.offsetWidth > 0) lsSet(WIDTH_KEY, String(panel.offsetWidth))
   }
   splitter.addEventListener('mousedown', (e: MouseEvent) => {
     e.preventDefault()
