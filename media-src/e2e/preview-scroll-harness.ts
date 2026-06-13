@@ -35,7 +35,11 @@ function editScroller(): HTMLElement {
   return findScroller(editReset())
 }
 function previewScroller(): HTMLElement {
-  return iv().preview.element as HTMLElement
+  // Resolve the REAL scroller, mirroring editScroller + the impl (ce2d054): since the
+  // task-109 scrollbar fix (19d0708) made `.vditor-preview` overflow:hidden and the inner
+  // `.vditor-reset` the overflow:auto scroller, measuring `.vditor-preview` directly reads
+  // scrollTop 0. findScroller walks up from the preview reset to whichever actually scrolls.
+  return findScroller(iv().preview.previewElement as HTMLElement)
 }
 
 // Index of the heading nearest the viewport centre — a layout-independent way to

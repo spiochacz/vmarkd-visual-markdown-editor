@@ -48,18 +48,22 @@ describe('ensureTrailingParagraph — which last blocks earn a trailing paragrap
     expect(trailingPs(el).length).toBe(1)
   })
 
-  it('a table and a code-block div still get one', () => {
+  it('a table earns a trailing paragraph; a code-block does NOT (excluded from the invariant)', () => {
     const table = editorWith(
       '<table data-block="0"><tr><td>x</td></tr></table>',
     )
     expect(ensureTrailingParagraph(table, null)).toBe(true)
     expect(lastTag(table)).toBe('P')
 
+    // Code blocks are deliberately excluded from the persistent trailing invariant
+    // (endsWithBlock checks `data-type !== 'code-block'`): Vditor's natural splice handles
+    // arrow-down off a code block at EOF, and a forced trailing <p> was the over-correction
+    // that got removed (see the codeblock-nav notes + codenav.spec).
     const code = editorWith(
       '<div data-block="0" data-type="code-block" class="vditor-ir__node"><pre><code>x</code></pre></div>',
     )
-    expect(ensureTrailingParagraph(code, null)).toBe(true)
-    expect(lastTag(code)).toBe('P')
+    expect(ensureTrailingParagraph(code, null)).toBe(false)
+    expect(lastTag(code)).toBe('DIV')
   })
 
   it('a plain paragraph / heading / list at EOF gets NONE (already a text block)', () => {
