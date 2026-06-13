@@ -399,10 +399,38 @@ async function syncEcharts() {
   console.log(`[echarts] vendored v${source.version} verified + installed`)
 }
 
+// Patch Vditor's OWN CSS at the source (we already patch its TS via esbuild; a Vditor fork is on
+// the table). Vditor's index.css zeroes WYSIWYG inline-code horizontal padding with `!important`
+// (`.vditor-wysiwyg code[data-marker="`"] { padding-left:0 !important; padding-right:0 !important }`)
+// — so inline-code pills lose their `.4em` h-padding in WYSIWYG only (IR/Preview keep it) and the
+// text touches the pill edge. A content-theme rule can't beat it (same specificity, Vditor wins on
+// source order). Rewrite the values in place to `.4em` so WYSIWYG matches IR/Preview. Operates on
+// the COPIED file (post-sync); asserted so a Vditor bump that changes this rule fails loudly.
+async function patchVditorIndexCss() {
+  const file = path.resolve('media/vditor/dist/index.css')
+  const anchor =
+    '.vditor-wysiwyg code[data-marker="`"] {\n  padding-left: 0 !important;\n  padding-right: 0 !important;\n}'
+  let css = await fs.readFile(file, 'utf8')
+  if (!css.includes(anchor)) {
+    throw new Error(
+      '[index-css] WYSIWYG inline-code padding rule not found in vditor index.css — Vditor changed; update build.mjs',
+    )
+  }
+  css = css.replace(
+    anchor,
+    '.vditor-wysiwyg code[data-marker="`"] {\n  padding-left: .4em !important;\n  padding-right: .4em !important;\n}',
+  )
+  await fs.writeFile(file, css)
+  console.log(
+    '[index-css] WYSIWYG inline-code h-padding 0 → .4em (matches IR/Preview)',
+  )
+}
+
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
 await varifyVditorPalette()
+await patchVditorIndexCss()
 await syncLute()
 await syncMermaid()
 await syncEcharts()
