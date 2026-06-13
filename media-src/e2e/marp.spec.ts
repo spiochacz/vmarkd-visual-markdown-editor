@@ -45,6 +45,17 @@ test('caret offset highlights the matching slide in the preview', async ({
     DECK.indexOf('# Two'),
   )
   expect(await page.evaluate(() => (window as any).__activeIdx())).toBe(1)
+  // Guard the CSS selector itself (not just the class toggle): main.css is loaded into the
+  // harness, so the active slide's focusBorder outline must actually compute to a real color.
+  // A broken `.vditor-preview … section.vmarkd-marp__active` selector would leave it transparent.
+  const outlineColor = await page.evaluate(() => {
+    const active = document.querySelector(
+      '.vditor-preview .vditor-reset section.vmarkd-marp__active',
+    ) as HTMLElement
+    return getComputedStyle(active).outlineColor
+  })
+  expect(outlineColor).not.toBe('rgba(0, 0, 0, 0)')
+  expect(outlineColor).not.toBe('transparent')
 })
 
 test('clicking a slide reports its source offset', async ({ page }) => {
