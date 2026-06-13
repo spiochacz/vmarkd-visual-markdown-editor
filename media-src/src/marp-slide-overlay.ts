@@ -18,67 +18,79 @@ function topWithin(container: HTMLElement, el: HTMLElement): number {
   )
 }
 
-/** Build/refresh the card rectangles from the editor's top-level <hr> positions. */
-function layout(editor: HTMLElement, overlay: HTMLElement): void {
-  // Top-level <hr>s are the slide breaks. Slides = breaks + 1.
-  const hrs = (Array.from(editor.children) as HTMLElement[]).filter(
-    (el) => el.tagName === 'HR',
-  )
-  const boundaries: number[] = [0]
-  for (const hr of hrs) boundaries.push(topWithin(editor, hr))
-  boundaries.push(editor.scrollHeight)
-
-  // Reconcile card count.
-  const cards = Array.from(
-    overlay.querySelectorAll<HTMLElement>(`.${CARD_CLASS}`),
-  )
-  const wanted = boundaries.length - 1
-  while (cards.length < wanted) {
-    const card = document.createElement('div')
-    card.className = CARD_CLASS
-    const num = document.createElement('span')
-    num.className = 'vmarkd-marp-card__num'
-    card.appendChild(num)
-    overlay.appendChild(card)
-    cards.push(card)
-  }
-  while (cards.length > wanted) {
-    const extra = cards.pop()
-    extra?.remove()
-  }
-
-  cards.forEach((card, i) => {
-    const top = boundaries[i]
-    const height = Math.max(0, boundaries[i + 1] - boundaries[i])
-    card.style.top = `${top}px`
-    card.style.height = `${height}px`
-    const num = card.querySelector('.vmarkd-marp-card__num')
-    if (num) num.textContent = String(i + 1)
-  })
-}
-
 /**
  * Mount the overlay over `editor` (the active IR/WYSIWYG element). Returns a disposer. The
- * overlay is inserted as a sibling inside the editor's offsetParent so absolute positioning lines
- * up with the editor's scroll content.
+ * overlay is appended as the last CHILD of `editor` (which is forced to `position:relative` so it
+ * becomes the offsetParent), so the absolutely-placed cards line up with the editor's scroll
+ * content. The overlay is `contenteditable=false` + `pointer-events:none` and carries no Lute-
+ * serializable nodes, so the editable round-trip is unaffected.
  */
 export function observeSlideOverlay(
   editor: HTMLElement | null | undefined,
 ): () => void {
   if (!editor) return () => {}
-  // Ensure the editor is a positioning context for the absolutely-placed overlay.
-  if (getComputedStyle(editor).position === 'static') {
-    editor.style.position = 'relative'
-  }
+  // Ensure the editor is a positioning context for the absolutely-placed overlay. Remember
+  // whether we changed it so dispose() can fully restore the original inline value.
+  const forcedRelative = getComputedStyle(editor).position === 'static'
+  if (forcedRelative) editor.style.position = 'relative'
+
   const overlay = document.createElement('div')
   overlay.className = OVERLAY_CLASS
   overlay.setAttribute('contenteditable', 'false')
   editor.appendChild(overlay)
 
+  // Signature guard (mirrors callouts.ts): the observer watches the editor subtree, and our own
+  // card writes live INSIDE that subtree — so an unconditional layout() would re-fire the observer
+  // forever (RAF only coalesces it; it never idles). Writing absolute/pointer-events:none cards
+  // never changes the editor's flow, so the <hr> positions are identical on the confirm pass →
+  // the signature matches → we early-return before any DOM write → the loop dies after one pass.
+  let lastSig = ''
+  const layout = () => {
+    // Top-level <hr>s are the slide breaks. Slides = breaks + 1.
+    const hrs = (Array.from(editor.children) as HTMLElement[]).filter(
+      (el) => el.tagName === 'HR',
+    )
+    const boundaries: number[] = [0]
+    for (const hr of hrs) boundaries.push(topWithin(editor, hr))
+    boundaries.push(editor.scrollHeight)
+
+    const sig = boundaries.map((b) => Math.round(b)).join(',')
+    if (sig === lastSig) return // nothing moved → no write → observer doesn't re-fire
+    lastSig = sig
+
+    // Reconcile card count.
+    const cards = Array.from(
+      overlay.querySelectorAll<HTMLElement>(`.${CARD_CLASS}`),
+    )
+    const wanted = boundaries.length - 1
+    while (cards.length < wanted) {
+      const card = document.createElement('div')
+      card.className = CARD_CLASS
+      const num = document.createElement('span')
+      num.className = 'vmarkd-marp-card__num'
+      card.appendChild(num)
+      overlay.appendChild(card)
+      cards.push(card)
+    }
+    while (cards.length > wanted) {
+      const extra = cards.pop()
+      extra?.remove()
+    }
+
+    cards.forEach((card, i) => {
+      const top = boundaries[i]
+      const height = Math.max(0, boundaries[i + 1] - boundaries[i])
+      card.style.top = `${top}px`
+      card.style.height = `${height}px`
+      const num = card.querySelector('.vmarkd-marp-card__num')
+      if (num) num.textContent = String(i + 1)
+    })
+  }
+
   let raf = 0
   const run = () => {
     raf = 0
-    layout(editor, overlay)
+    layout()
   }
   const schedule = () => {
     if (!raf) raf = requestAnimationFrame(run)
@@ -94,5 +106,6 @@ export function observeSlideOverlay(
     ro.disconnect()
     if (raf) cancelAnimationFrame(raf)
     overlay.remove()
+    if (forcedRelative) editor.style.position = ''
   }
 }
