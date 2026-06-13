@@ -1,7 +1,8 @@
 // Marp activation detection (task 107). Marp is document-level: a `marp: true` key in the
 // document's leading YAML frontmatter turns the whole file into a deck. PURE + host-isomorphic
 // — the host (src/extension.ts) reads it to set the initial init flag, and the webview
-// (marp-panel.ts) re-evaluates it on every edit so adding/removing the key toggles the UI live.
+// (marp-preview-intercept.ts) re-evaluates it on every preview render so adding/removing the key
+// toggles the deck live.
 //
 // We do a deliberately small, dependency-free scan (no YAML parser): frontmatter must start at
 // offset 0 with a `---` fence line, end at the next `---`/`...` fence, and contain a top-level
