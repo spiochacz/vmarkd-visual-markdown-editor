@@ -130,8 +130,8 @@ test("loads a bumped Mermaid build (not Vditor's pinned 11.6.0)", async ({
 const PAIRINGS: Array<[string, string, 'dark' | 'light']> = [
   ['github-dark', 'github-dark', 'dark'],
   ['material-dark', 'one-dark', 'dark'],
-  ['vscode-dark-2026', 'zinc-dark', 'dark'],
-  ['vscode-light-2026', 'zinc-light', 'light'],
+  ['vscode-dark-2026', 'vscode-dark-2026', 'dark'],
+  ['vscode-light-2026', 'vscode-light-2026', 'light'],
   ['github-light', 'github-light', 'light'],
 ]
 for (const [content, palette, mode] of PAIRINGS) {

@@ -68,7 +68,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'light',
     code: 'vs',
     fontDefaultPx: null,
-    palette: 'zinc-light',
+    palette: 'vscode-light-2026',
   },
   {
     value: 'vscode-dark-2026',
@@ -76,7 +76,7 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     mode: 'dark',
     code: 'vs2015',
     fontDefaultPx: null,
-    palette: 'zinc-dark',
+    palette: 'vscode-dark-2026',
   },
 ]
 

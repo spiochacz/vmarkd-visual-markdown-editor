@@ -106,10 +106,10 @@ describe('resolveMermaidInit', () => {
     const gh = resolveMermaidInit('auto', 'github-dark')
     expect(gh?.theme).toBe('base')
     expect(gh?.themeVariables?.background).toBe('#0d1117')
-    // vscode/material are paired too (zinc / one-dark)
+    // vscode/material are paired too (vscode-dark-2026 / one-dark)
     const vs = resolveMermaidInit('auto', 'vscode-dark-2026')
     expect(vs?.theme).toBe('base')
-    expect(vs?.themeVariables?.background).toBe('#18181b') // zinc-dark
+    expect(vs?.themeVariables?.background).toBe('#121314') // vscode-dark-2026 page bg
   })
 
   it('auto + unpaired/unknown content theme → null (mermaid keeps its own light/dark)', () => {
