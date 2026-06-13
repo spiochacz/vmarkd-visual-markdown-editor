@@ -107,6 +107,7 @@ let reportDocMode: () => void = () => {}
 let lastInitMsg: any = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
+let disposePreviewCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
 let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
@@ -397,6 +398,19 @@ function runFinishInit(msg: any): void {
   // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
   disposeCallouts?.()
   disposeCallouts = observeCallouts(activeModeElement(window.vditor))
+  // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
+  // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
+  // render). The preview never gets `--expand` (no caret), so it stays "collapsed" → the CSS shows
+  // the injected render + hides the source, identical to a collapsed IR callout (so Edit↔Preview
+  // match in look AND height). The observer re-applies after each preview re-render (fresh innerHTML).
+  disposePreviewCallouts?.()
+  disposePreviewCallouts = observeCallouts(
+    (
+      window.vditor as unknown as {
+        vditor?: { preview?: { previewElement?: HTMLElement } }
+      }
+    ).vditor?.preview?.previewElement,
+  )
   // Code-block edit surface: tag the editable source `<code>` with `.hljs` so the highlight.js
   // theme styles it like the render (size/padding/bg/base colour) — editing matches preview, no
   // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).

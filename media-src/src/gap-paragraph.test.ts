@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cleanupGapParagraphs, ensureTrailingParagraph } from './gap-paragraph'
+import {
+  TRAILING_ACTIVE_CLASS,
+  cleanupGapParagraphs,
+  ensureTrailingParagraph,
+  markTrailingActive,
+} from './gap-paragraph'
 
 const TRAILING = 'data-vmarkd-trailing'
 const ZWSP = '​'
@@ -162,5 +167,34 @@ describe('cleanupGapParagraphs leaves the trailing paragraph alone', () => {
     cleanupGapParagraphs(el, null)
     expect(trailingPs(el).length).toBe(1)
     expect(el.lastElementChild?.hasAttribute(TRAILING)).toBe(true)
+  })
+})
+
+describe('markTrailingActive — reveal the trailing paragraph only with the caret inside', () => {
+  it('adds the active class when the caret is inside the trailing paragraph', () => {
+    const el = editorWith(
+      `<blockquote><p>q</p></blockquote><p ${TRAILING}="">${ZWSP}</p>`,
+    )
+    const tp = el.lastElementChild as HTMLElement
+    markTrailingActive(el, tp.firstChild) // caret in the trailing <p>
+    expect(tp.classList.contains(TRAILING_ACTIVE_CLASS)).toBe(true)
+  })
+
+  it('removes the active class when the caret is elsewhere', () => {
+    const el = editorWith(
+      `<blockquote><p>q</p></blockquote><p ${TRAILING}="" class="${TRAILING_ACTIVE_CLASS}">${ZWSP}</p>`,
+    )
+    const quote = el.firstElementChild as HTMLElement
+    markTrailingActive(el, quote.querySelector('p')!.firstChild) // caret in the quote
+    expect(
+      (el.lastElementChild as HTMLElement).classList.contains(
+        TRAILING_ACTIVE_CLASS,
+      ),
+    ).toBe(false)
+  })
+
+  it('is a no-op when there is no trailing paragraph', () => {
+    const el = editorWith(`<p>only content</p>`)
+    expect(() => markTrailingActive(el, null)).not.toThrow()
   })
 })

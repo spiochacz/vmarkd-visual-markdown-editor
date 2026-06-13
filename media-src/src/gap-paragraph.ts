@@ -72,6 +72,28 @@ export function cleanupGapParagraphs(
 // and a stale tagged paragraph that is no longer last (e.g. blocks appended during
 // streaming) is garbage-collected while still empty.
 const TRAILING_ATTR = 'data-vmarkd-trailing'
+// Marks the trailing paragraph WHILE the caret is inside it. main.css collapses the trailing
+// paragraph to zero height unless it carries this class — so the empty EOF escape paragraph is
+// invisible until you arrow into it, like the transient gap paragraphs between blocks (which are
+// removed when empty). Toggled on selectionchange (`:focus-within` can't see the caret — the
+// contenteditable host is an ancestor, not the <p>).
+export const TRAILING_ACTIVE_CLASS = 'vmarkd-trailing--active'
+
+// Add/remove TRAILING_ACTIVE_CLASS on the trailing paragraph(s) depending on whether the caret is
+// inside. Pure (DOM-only) so it's unit-testable.
+export function markTrailingActive(
+  editor: HTMLElement,
+  caretNode: Node | null,
+): void {
+  for (const p of Array.from(
+    editor.querySelectorAll<HTMLElement>(`:scope > p[${TRAILING_ATTR}]`),
+  )) {
+    p.classList.toggle(
+      TRAILING_ACTIVE_CLASS,
+      !!caretNode && p.contains(caretNode),
+    )
+  }
+}
 
 // Which last-child blocks need a trailing paragraph offered below them. Earlier this was a
 // whitelist (TABLE / [data-type] / callout) — too narrow: the real editor ends documents in
@@ -417,6 +439,8 @@ export function observeGapParagraphs(
       const sel = window.getSelection()
       const caret = sel?.rangeCount ? sel.getRangeAt(0).startContainer : null
       cleanupGapParagraphs(editor, caret)
+      // Reveal the trailing paragraph only while the caret is inside it.
+      markTrailingActive(editor, caret)
     })
   }
   document.addEventListener('selectionchange', onSelectionChange)

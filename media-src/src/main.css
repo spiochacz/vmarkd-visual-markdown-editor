@@ -235,17 +235,58 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    (`div.language-*`): each kept the same ~58px phantom in IR, so each "jumped" taller than its
    Preview render on Edit↔Preview. Verified in the real webview that flattening it leaves the
    diagram/echarts/math render intact (svg/canvas present, height == Preview). (The earlier code-
-   only scope was a hangover from a removed `line-height:0` approach, not a diagram requirement.) */
+   only scope was a hangover from a removed `line-height:0` approach, not a diagram requirement.)
+   Scope to the BLOCK data-types (`code-block` = code + diagrams, `math-block` = `$$…$$`) — NOT a
+   bare `.vditor-ir__node`, which also matches INLINE math (`data-type="math-inline"`, a `$x$` node
+   with its own `.vditor-ir__preview`): `display:block` on an inline node's marker breaks it onto
+   its own line. Block-only keeps inline math flowing in the paragraph. */
 .vditor-reset
-  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::before,
+  .vditor-ir__node:is([data-type="code-block"], [data-type="math-block"]):not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::before,
 .vditor-reset
-  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::after {
+  .vditor-ir__node:is([data-type="code-block"], [data-type="math-block"]):not(.vditor-ir__node--expand):has(> .vditor-ir__preview)::after {
   content: none !important;
 }
 .vditor-reset
-  .vditor-ir__node:not(.vditor-ir__node--expand):has(> .vditor-ir__preview)
+  .vditor-ir__node:is([data-type="code-block"], [data-type="math-block"]):not(.vditor-ir__node--expand):has(> .vditor-ir__preview)
   > .vditor-ir__marker {
   display: block;
+}
+/* Block math top-gap parity. KaTeX gives `.katex-display` `margin: 14px 0`. In the PREVIEW pane
+   that top margin COLLAPSES with the block + the preceding paragraph's bottom margin (normal flow)
+   → the formula sits ~16px below the prior text. In IR the math is wrapped in the injected
+   `.vditor-ir__preview` (contenteditable=false), which blocks that collapse → the 14px is ADDED on
+   top of the 16px gap (formula 30px down, block 14px taller) — it "jumped" vs Preview. Null the
+   display-math TOP margin in the IR math node so the block-level gap (the neighbour's margin, same
+   as Preview's collapsed result) governs; the BOTTOM already matches, so leave it. Only
+   `.katex-display` (display math) → inline `$x$` (`.katex`, data-type=inline-node) is untouched;
+   only the IR `math-block` node → the Preview pane's own math (a plain div) is untouched. */
+.vditor-reset .vditor-ir__node[data-type="math-block"] .katex-display {
+  margin-top: 0;
+}
+/* EOF trailing paragraph (gap-paragraph.ts `data-vmarkd-trailing`): the maintained empty escape
+   paragraph after an atomic last block (table / callout / math / quote) so the caret can land
+   below it. Keep it in the DOM (caret landing + the trailing invariant), but collapse it to ZERO
+   height until the caret is INSIDE it — selectionchange toggles `.vmarkd-trailing--active`
+   (markTrailingActive) — so the empty line shows ONLY when you arrow into it, like the transient
+   gap paragraphs between blocks (which are removed when empty). Once the user types, the tag is
+   stripped (it's real content) → this stops matching → normal paragraph. */
+.vditor-reset
+  > p[data-vmarkd-trailing]:not(.vmarkd-trailing--active) {
+  height: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+/* End-of-file breathing room in the PREVIEW pane, to match IR. The content theme zeroes the last
+   block's bottom margin (`.markdown-body > *:last-child { margin-bottom: 0 !important }`) so the
+   Preview's last block is glued to the bottom edge. In IR that margin is KEPT — the real last child
+   is the (now collapsed) trailing paragraph, so the last CONTENT block isn't `:last-child` and keeps
+   its rhythm. Restore the same gap below the Preview's last block so the document doesn't end flush.
+   `.vditor-preview .vditor-reset` (0,2,0) + the child (0,3,0) out-ranks the theme; `!important` beats
+   its `!important`. 1em ≈ the theme's block margin (github 16px = the measured IR gap). */
+.vditor-preview .vditor-reset > :last-child {
+  margin-bottom: 1em !important;
 }
 /* Edit↔Preview vertical-rhythm parity for the blocks Vditor's `_ir.less` gives tighter,
    IR-specific gaps than the rendered Preview (content theme), so they "jump" on Edit↔Preview:
