@@ -927,12 +927,15 @@ for (const c of [
         'beforeend',
         '<table><thead><tr><th id="x-th">h</th></tr></thead><tbody>' +
           '<tr><td id="x-td1">a</td></tr><tr><td id="x-td2">b</td></tr></tbody></table>' +
-          '<hr id="x-hr"><pre><code class="hljs" id="x-cb">x</code></pre>',
+          '<hr id="x-hr"><pre><code class="hljs" id="x-cb">x</code></pre>' +
+          '<p><code id="x-ic">inline</code></p>',
       )
       const cs = (id: string) => getComputedStyle(document.getElementById(id)!)
       const th = cs('x-th')
       const td1 = cs('x-td1')
       const td2 = cs('x-td2')
+      const cb = cs('x-cb')
+      const ic = cs('x-ic')
       return {
         thAlign: th.textAlign,
         thPad: th.padding,
@@ -941,7 +944,11 @@ for (const c of [
         td1Top: td1.borderTopWidth, // first body row: no top border
         td2Top: `${td2.borderTopWidth} ${td2.borderTopColor}`, // between-row rule
         hrH: cs('x-hr').height,
-        cbRadius: cs('x-cb').borderRadius,
+        cbRadius: cb.borderRadius,
+        cbPad: cb.padding, // VS Code pre = 16px (hljs theme alone gives ~7px)
+        cbOverflowX: cb.overflowX, // long lines scroll, like VS Code
+        icPad: ic.padding, // VS Code shell = 1px 3px (GitHub default = .2em .4em, bigger)
+        icRadius: ic.borderRadius,
       }
     })
     expect(got.thAlign).toBe('left')
@@ -952,5 +959,9 @@ for (const c of [
     expect(got.td2Top).toBe(`1px ${c.tdBorder}`)
     expect(got.hrH).toBe('1px')
     expect(got.cbRadius).toBe('3px')
+    expect(got.cbPad).toBe('16px')
+    expect(got.cbOverflowX).toBe('auto')
+    expect(got.icPad).toBe('1px 3px')
+    expect(got.icRadius).toBe('4px')
   })
 }
