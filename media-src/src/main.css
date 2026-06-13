@@ -942,3 +942,27 @@ body.vmarkd-marp__resizing {
 .vmarkd-marp__deck section.vmarkd-marp__active {
   outline-color: var(--vscode-focusBorder, #007fd4);
 }
+
+/* Marp slide-card overlay (task 107) — non-editable frames over the editor's slide regions. */
+.vmarkd-marp-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.vmarkd-marp-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  border: 1px dashed var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+}
+.vmarkd-marp-card__num {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 11px;
+  opacity: 0.55;
+  color: var(--vscode-descriptionForeground, #888);
+}

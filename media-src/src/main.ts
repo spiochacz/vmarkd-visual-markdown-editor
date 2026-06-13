@@ -44,6 +44,7 @@ import { reRenderEcharts } from './echarts-retheme'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import { mountMarpPanel, type MarpPanel } from './marp-panel'
+import { observeSlideOverlay } from './marp-slide-overlay'
 import { observeGapParagraphs } from './gap-paragraph'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
@@ -101,6 +102,8 @@ let disposeCodeSource: (() => void) | null = null
 let marpPanel: MarpPanel | null = null
 // Trailing-debounce timer for the caret→slide forward sync (task 107).
 let marpSyncTimer: ReturnType<typeof setTimeout> | null = null
+// Disposer for the active Marp slide-card overlay (task 107); IR/WYSIWYG only, torn down on re-init.
+let disposeMarpOverlay: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -386,10 +389,18 @@ function runFinishInit(msg: any): void {
   // deck. Re-render is driven by the existing debounced edit signal (postEdit), never a new one.
   marpPanel?.dispose()
   marpPanel = null
+  disposeMarpOverlay?.()
+  disposeMarpOverlay = null
   if (msg.options?.marp) {
     const root =
       activeModeElement(window.vditor)?.closest<HTMLElement>('.vditor') ?? null
     if (root) marpPanel = mountMarpPanel(root, window.vditor.getValue())
+    // Slide-card overlay (task 107): non-editable frames measuring top-level <hr> positions.
+    // Only IR/WYSIWYG have an editable block tree with rendered <hr>s — source mode has none.
+    const mode = window.vditor.getCurrentMode?.()
+    if (mode === 'ir' || mode === 'wysiwyg') {
+      disposeMarpOverlay = observeSlideOverlay(activeModeElement(window.vditor))
+    }
   }
   reportDocMode()
 }

@@ -5,6 +5,7 @@ import {
   offsetForSlideIndex,
   type MarpPanel,
 } from '../src/marp-panel'
+import { observeSlideOverlay } from '../src/marp-slide-overlay'
 
 ;(window as any).__vmarkdMarpSrc = '/marp-chunk.js'
 
@@ -46,5 +47,37 @@ let mp: MarpPanel | null = null
 ;(window as any).__activeSlideIndex = () => mp?.activeIndex() ?? -1
 ;(window as any).__slideIndexForOffset = (off: number) =>
   slideIndexForOffset(currentSource, off)
+
+const editor = document.getElementById('editor') as HTMLElement
+let disposeOverlay: (() => void) | null = null
+// Build an editable-like element: paragraphs separated by top-level <hr>s. Idempotent — only
+// rebuilds when the editor is empty so a snapshot taken between build and overlay-mount is stable.
+const buildEditor = (hrCount: number) => {
+  if (editor.querySelector('p')) return
+  editor.innerHTML = ''
+  for (let i = 0; i <= hrCount; i++) {
+    const p = document.createElement('p')
+    p.textContent = `slide ${i + 1} content`
+    p.style.height = '80px'
+    editor.appendChild(p)
+    if (i < hrCount) editor.appendChild(document.createElement('hr'))
+  }
+}
+;(window as any).__buildEditor = (hrCount: number) => buildEditor(hrCount)
+;(window as any).__mountOverlay = (hrCount: number) => {
+  buildEditor(hrCount)
+  disposeOverlay?.()
+  disposeOverlay = observeSlideOverlay(editor)
+}
+;(window as any).__editorHtml = () => {
+  // The editable content, EXCLUDING the overlay layer (which is appended last).
+  const clone = editor.cloneNode(true) as HTMLElement
+  clone.querySelector('.vmarkd-marp-overlay')?.remove()
+  return clone.innerHTML
+}
+;(window as any).__editorHrCount = () =>
+  Array.from(editor.children).filter(
+    (el) => (el as HTMLElement).tagName === 'HR',
+  ).length
 
 ;(window as any).__ready = true

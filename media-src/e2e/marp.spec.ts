@@ -86,3 +86,24 @@ test('clicking slide K reports slide K source offset', async ({ page }) => {
   // Two slide-break `---` occur before slide 3's content.
   expect((before.match(/^---$/gm) || []).length).toBeGreaterThanOrEqual(3)
 })
+
+test('overlay draws N cards for N slides in IR/WYSIWYG', async ({ page }) => {
+  await goto(page)
+  // The overlay harness builds an editable element with top-level <hr>s (3 slides = 2 hrs).
+  await page.evaluate(() => (window as any).__mountOverlay(2))
+  await expect(page.locator('#editor .vmarkd-marp-card')).toHaveCount(3)
+})
+
+test('overlay leaves the editable DOM (and its <hr>s) untouched', async ({
+  page,
+}) => {
+  await goto(page)
+  // Build the editable content first, then snapshot it BEFORE the overlay is mounted.
+  await page.evaluate(() => (window as any).__buildEditor(2))
+  const before = await page.evaluate(() => (window as any).__editorHtml())
+  await page.evaluate(() => (window as any).__mountOverlay(2))
+  const editable = await page.evaluate(() => (window as any).__editorHtml())
+  // Cards live in a separate overlay layer, not inside the editable content.
+  expect(editable).toBe(before)
+  expect(await page.evaluate(() => (window as any).__editorHrCount())).toBe(2)
+})
