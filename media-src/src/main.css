@@ -263,16 +263,6 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 .vditor-reset .vditor-ir__node[data-type="math-block"] .katex-display {
   margin-top: 0;
 }
-/* First block flush to the pane top. Vditor gives every heading `margin-top: 24px` and does
-   NOT zero it on the first child, so the doc opens with a 24px leading gap before the first
-   header — and IR vs Preview collapse that margin differently in the real webview, so the
-   header "jumps" down on IR↔Preview toggle. GitHub-markdown-css AND VS Code's markdown.css
-   both zero it (`> *:first-child { margin-top: 0 }` / `h1 { margin-top: 0 }`); our github
-   tokenization (task 109) dropped that upstream rule. Re-assert it for all themes — first
-   block sits at just the pane padding, identical in both panes. */
-.vditor-reset > :first-child {
-  margin-top: 0;
-}
 /* EOF trailing paragraph (gap-paragraph.ts `data-vmarkd-trailing`): the maintained empty escape
    paragraph after an atomic last block (table / callout / math / quote) so the caret can land
    below it. Keep it in the DOM (caret landing + the trailing invariant), but collapse it to ZERO
