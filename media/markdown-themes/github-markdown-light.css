@@ -19,6 +19,15 @@
 .markdown-body a { color: #0969da; text-decoration: none; }
 .markdown-body h1,
 .markdown-body h2 { padding-bottom: 0.3em; border-bottom: 1px solid #d1d9e0b3; }
+/* GitHub Primer heading scale — the verbatim file set this; without it Vditor's
+   structural scale leaks through (h1 too small, h3 too big vs github.com). No
+   competing content-theme size rule, so no !important needed. (task 109) */
+.markdown-body h1 { font-size: 2em; }
+.markdown-body h2 { font-size: 1.5em; }
+.markdown-body h3 { font-size: 1.25em; }
+.markdown-body h4 { font-size: 1em; }
+.markdown-body h5 { font-size: 0.875em; }
+.markdown-body h6 { font-size: 0.85em; }
 /* inline code colour (text inherits GitHub's base); background via --vmarkd-code-bg below. */
 .markdown-body code:not(.hljs) { color: #1f2328; }
 /* code block = GitHub's grey panel; keep hljs token colours, override bg + size */
