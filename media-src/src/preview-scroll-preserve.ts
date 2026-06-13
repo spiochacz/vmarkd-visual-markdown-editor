@@ -79,6 +79,16 @@ function previewReset(): HTMLElement | null {
   )
 }
 
+// The element that actually SCROLLS the preview. NOT `vditor.preview.element`
+// (`.vditor-preview`): in the real VS Code webview that wrapper is `overflow:hidden` and the inner
+// `.vditor-reset` is the scroll container (`overflow:auto`); in the test harness it's the wrapper.
+// `findScroller` resolves whichever it is (walk up from the reset to the first scrollable ancestor,
+// returning the reset itself when IT scrolls). Using the wrong element silently no-ops scrollTop.
+function previewScroller(): HTMLElement | null {
+  const reset = previewReset()
+  return reset ? findScroller(reset) : null
+}
+
 function blockChildren(root: HTMLElement | null): HTMLElement[] {
   if (!root) return []
   return Array.from(root.children) as HTMLElement[]
@@ -149,33 +159,45 @@ function targetFor(
 // Hold `scroller` at the computed target for `ms`, recomputing each frame as the
 // content settles (debounced preview render + async diagrams). Bails on the first
 // genuine user scroll (wheel / touch / key) so we never fight the user.
-function pin(scroller: HTMLElement, compute: () => number | null, ms: number) {
+// `getScroller` is resolved LAZILY each frame: when entering Preview the scroll container may not
+// exist/be scrollable yet (the render is debounced + diagrams grow async, and findScroller can't
+// pick the real overflow:auto element until it overflows) — so we re-resolve until it's ready.
+function pin(
+  getScroller: () => HTMLElement | null,
+  compute: () => number | null,
+  ms: number,
+) {
   pinning = true
   let bailed = false
   let lastWritten = Number.NaN
   const bail = () => {
     bailed = true
   }
-  // A 'scroll' whose position isn't the value WE just wrote means the user moved it
-  // (incl. a scrollbar drag, which fires no wheel/key) → release immediately so we
-  // never fight them.
+  // User input → release (never fight the user). A 'scroll' whose position isn't the value WE just
+  // wrote means the user moved it (incl. a scrollbar drag, which fires no wheel/key). Listen on
+  // document (capture) since the scroller element isn't known up front / can change.
   const onScroll = () => {
+    const sc = getScroller()
     if (
+      sc &&
       !Number.isNaN(lastWritten) &&
-      Math.abs(scroller.scrollTop - lastWritten) > 2
+      Math.abs(sc.scrollTop - lastWritten) > 2
     )
       bailed = true
   }
-  scroller.addEventListener('wheel', bail, { passive: true })
-  scroller.addEventListener('touchmove', bail, { passive: true })
-  scroller.addEventListener('keydown', bail, true)
-  scroller.addEventListener('scroll', onScroll, { passive: true })
+  document.addEventListener('wheel', bail, { passive: true, capture: true })
+  document.addEventListener('touchmove', bail, { passive: true, capture: true })
+  document.addEventListener('keydown', bail, true)
+  document.addEventListener('scroll', onScroll, {
+    passive: true,
+    capture: true,
+  })
   const cleanup = () => {
     pinning = false
-    scroller.removeEventListener('wheel', bail)
-    scroller.removeEventListener('touchmove', bail)
-    scroller.removeEventListener('keydown', bail, true)
-    scroller.removeEventListener('scroll', onScroll)
+    document.removeEventListener('wheel', bail, { capture: true } as never)
+    document.removeEventListener('touchmove', bail, { capture: true } as never)
+    document.removeEventListener('keydown', bail, true)
+    document.removeEventListener('scroll', onScroll, { capture: true } as never)
   }
   // Frame budget instead of wall-clock (no Date.now needed; ~60fps → ms/16 frames).
   // We recompute every frame so the target tracks the preview growing as its async
@@ -186,8 +208,9 @@ function pin(scroller: HTMLElement, compute: () => number | null, ms: number) {
       cleanup()
       return
     }
-    const t = compute()
-    if (t !== null) {
+    const scroller = getScroller()
+    const t = scroller ? compute() : null
+    if (scroller && t !== null) {
       scroller.scrollTop = t
       lastWritten = scroller.scrollTop
     }
@@ -204,7 +227,8 @@ function captureVisibleAnchor() {
   const pv = previewEl()
   if (pv && pv.style.display === 'block') {
     const reset = previewReset()
-    if (reset) previewAnchor = snapshot(pv, reset)
+    const scroller = previewScroller()
+    if (reset && scroller) previewAnchor = snapshot(scroller, reset)
     return
   }
   const edit = editReset()
@@ -212,20 +236,25 @@ function captureVisibleAnchor() {
 }
 
 function onEnterPreview() {
-  const pv = previewEl()
-  if (!pv) return
-  // Pin the preview to the edit position while its (debounced + diagram-async)
-  // render settles; recompute live each frame from the stored edit anchor.
-  pin(pv, () => targetFor(editAnchor, pv, previewReset()), PREVIEW_PIN_MS)
+  // Pin the preview to the edit position while its (debounced + diagram-async) render settles;
+  // re-resolve the scroller + recompute the target live each frame from the stored edit anchor.
+  pin(
+    previewScroller,
+    () => targetFor(editAnchor, previewScroller(), previewReset()),
+    PREVIEW_PIN_MS,
+  )
 }
 
 function onLeavePreview() {
   const edit = editReset()
   if (!edit) return
-  const scroller = findScroller(edit)
   // The edit pane is already laid out (just un-hidden); a short pin absorbs any
   // re-layout settle. Map from the last preview anchor.
-  pin(scroller, () => targetFor(previewAnchor, scroller, edit), EDIT_PIN_MS)
+  pin(
+    () => findScroller(edit),
+    () => targetFor(previewAnchor, findScroller(edit), edit),
+    EDIT_PIN_MS,
+  )
 }
 
 export function setupPreviewScrollPreserve() {
