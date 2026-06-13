@@ -16,6 +16,7 @@
     "monocart-coverage-reports": "^2.12.12"
   },
   "dependencies": {
+    "@marp-team/marp-core": "^4.3.0",
     "esbuild": "^0.28.0",
     "vditor": "^3.11.2"
   }

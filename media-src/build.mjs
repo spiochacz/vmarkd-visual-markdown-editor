@@ -9,7 +9,7 @@ import { vditorSourceConfig } from './esbuild-shared.mjs'
 const watch = process.argv.includes('--watch')
 
 /** @type {import('esbuild').BuildOptions} */
-const options = {
+const mainOptions = {
   entryPoints: ['./src/main.ts'],
   bundle: true,
   outfile: '../media/dist/main.js',
@@ -19,15 +19,30 @@ const options = {
   ...vditorSourceConfig,
 }
 
+// The lazy Marp chunk (task 107). A SEPARATE bundle (not a code-split of main.js) so main.js
+// stays a plain iife and the chunk is loaded on demand via an injected <script> (marp-preview.ts).
+// marp-core is bundled in here; it does NOT need the Vditor-source treatment.
+/** @type {import('esbuild').BuildOptions} */
+const marpOptions = {
+  entryPoints: ['./src/marp-entry.ts'],
+  bundle: true,
+  outfile: '../media/dist/marp.js',
+  format: 'iife',
+  sourcemap: true,
+  minify: !watch,
+  logLevel: 'info',
+}
+
 rmSync(new URL('../media/dist', import.meta.url), {
   recursive: true,
   force: true,
 })
 
 if (watch) {
-  const ctx = await esbuild.context(options)
-  await ctx.watch()
+  const mainCtx = await esbuild.context(mainOptions)
+  const marpCtx = await esbuild.context(marpOptions)
+  await Promise.all([mainCtx.watch(), marpCtx.watch()])
   console.log('[build.mjs] watching…')
 } else {
-  await esbuild.build(options)
+  await Promise.all([esbuild.build(mainOptions), esbuild.build(marpOptions)])
 }
