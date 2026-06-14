@@ -74,6 +74,11 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
       decorated: decorated.length,
       border: first ? getComputedStyle(first).borderLeftColor : 'NONE',
       borderWidth: first ? getComputedStyle(first).borderLeftWidth : 'NONE',
+      // The IR dual-node preview must NOT be injected in WYSIWYG (no expandMarker there → it would
+      // duplicate the callout content + add a stray scroll container). Colour classes only.
+      injectedPreviews: (root || document).querySelectorAll(
+        'blockquote[data-callout] > .vditor-ir__preview',
+      ).length,
     }
   })
 
@@ -86,4 +91,6 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
   expect(wy.border).not.toBe('NONE')
   expect(wy.border).not.toBe('rgb(0, 0, 0)')
   expect(wy.borderWidth).not.toBe('0px')
+  // …with NO injected IR dual-node preview in WYSIWYG (would duplicate content + add a 2nd scroll).
+  expect(wy.injectedPreviews).toBe(0)
 })
