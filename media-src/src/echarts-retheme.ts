@@ -75,20 +75,23 @@ export function reRenderEcharts(
     }
   }
 
-  // mindmap (also an ECharts instance — a `tree`) has the SAME stale-on-flip problem. Unlike
-  // charts there's no plain-JSON source to re-`setOption` (Vditor builds the tree config in
-  // mindmapRender), so re-theme by preserving the LIVE instance's option: read getOption(),
-  // dispose, re-init with the new theme name, re-apply. Since mindmapRender no longer hardcodes
-  // colours (fixMindmapTheme), the option carries no explicit palette → the new theme drives the
-  // colours; data + geometry are preserved. getInstanceByDom returns null for the editable source
-  // `<code class="language-mindmap">`, so only the rendered div is re-themed.
-  const mmNodes = Array.from(
-    editorEl.querySelectorAll<HTMLElement>('.language-mindmap'),
-  )
-  // ECharts' `tree` ignores the registered theme's palette, so the node/label/line colours are
-  // set explicitly from the resolved theme (window.__vmarkdMindmapStyle, mirrors the mindmapRender
-  // patch). The preserved option carries the OLD colours, so re-apply the CURRENT style on top.
-  const mmStyle = win.__vmarkdMindmapStyle as
+  // mindmap (also an ECharts instance — a `tree`) has the SAME stale-on-flip problem, but it
+  // CANNOT be re-themed by preserving the live instance's option:
+  //   1. In the IR/WYSIWYG preview pane the rendered `.language-mindmap` node carries a canvas but
+  //      NO retrievable echarts instance (getInstanceByDom returns null — the painted node is a
+  //      detached snapshot, not the live-bound element), so a "find the instance" path silently
+  //      skips it and the mindmap never re-themes (the reported "background doesn't follow the
+  //      theme" bug). The chart path works precisely because it RECONSTRUCTS from source.
+  //   2. getOption().backgroundColor carries the OLD theme's background, so re-`setOption`ing it
+  //      would re-pin the stale background even when an instance exists.
+  // So reconstruct the mindmap exactly like the chart: read the tree JSON from `data-code` (what
+  // Vditor's mindmapRender itself parses — `decodeURIComponent` → JSON), dispose + clear any
+  // orphaned canvas, re-init with the new theme NAME (which drives the backgroundColor), and apply
+  // the explicit tree colours from the resolved theme. This mirrors mindmapRender's option (geometry
+  // kept verbatim); ECharts' `tree` ignores the registered theme's categorical palette, so node/
+  // label/line colours come from window.__vmarkdMindmapStyle (installed by echarts-apply.ts), with
+  // the same GitHub-light fallback as the mindmapRender patch.
+  const mmStyle = (win.__vmarkdMindmapStyle as
     | {
         node: string
         label: string
@@ -96,39 +99,68 @@ export function reRenderEcharts(
         labelBorder: string
         line: string
       }
-    | undefined
+    | undefined) ?? {
+    node: '#4285f4',
+    label: '#586069',
+    labelBg: '#f6f8fa',
+    labelBorder: '#d1d5da',
+    line: '#d1d5da',
+  }
+  // Scope to RENDERED mindmaps only — those inside a preview pane. The editable source
+  // `<code class="language-mindmap">` (in `.vditor-ir__marker--pre` / `.vditor-wysiwyg__pre`)
+  // also carries a `data-code`, so a bare `.language-mindmap` sweep would render a chart INTO the
+  // editing surface (Vditor's own mindmapRender guards the same parents). Preview-scoping excludes it.
+  const mmNodes = Array.from(
+    editorEl.querySelectorAll<HTMLElement>(
+      '.vditor-ir__preview .language-mindmap, .vditor-wysiwyg__preview .language-mindmap, .vditor-preview .language-mindmap',
+    ),
+  )
   for (const live of mmNodes) {
-    const inst = ec.getInstanceByDom?.(live)
-    if (!inst) continue
-    let opt: any
+    const code = live.getAttribute('data-code')
+    if (!code) continue
+    let data: unknown
     try {
-      opt = inst.getOption()
+      data = JSON.parse(decodeURIComponent(code))
     } catch {
       continue
-    }
-    if (mmStyle && Array.isArray(opt?.series)) {
-      for (const s of opt.series) {
-        if (!s || s.type !== 'tree') continue
-        s.itemStyle = { ...(s.itemStyle || {}), color: mmStyle.node }
-        s.label = {
-          ...(s.label || {}),
-          color: mmStyle.label,
-          backgroundColor: mmStyle.labelBg,
-          borderColor: mmStyle.labelBorder,
-        }
-        s.lineStyle = { ...(s.lineStyle || {}), color: mmStyle.line }
-      }
     }
     const w = live.clientWidth
     const h = live.clientHeight
     try {
-      inst.dispose()
+      ec.getInstanceByDom?.(live)?.dispose()
+      live.innerHTML = '' // drop any orphaned snapshot canvas before re-init
       const ni = ec.init(
         live,
         name,
         w > 0 && h > 0 ? { width: w, height: h } : undefined,
       )
-      ni.setOption(opt)
+      ni.setOption({
+        series: [
+          {
+            type: 'tree',
+            data: [data],
+            initialTreeDepth: -1,
+            roam: true,
+            symbol: (_v: number, params: { data?: { children?: unknown } }) =>
+              params?.data?.children ? 'circle' : 'path://',
+            itemStyle: { borderWidth: 0, color: mmStyle.node },
+            label: {
+              backgroundColor: mmStyle.labelBg,
+              borderColor: mmStyle.labelBorder,
+              borderRadius: 5,
+              borderWidth: 0.5,
+              color: mmStyle.label,
+              lineHeight: 20,
+              offset: [-5, 0],
+              padding: [0, 5],
+              position: 'insideRight',
+            },
+            lineStyle: { color: mmStyle.line, width: 1 },
+          },
+        ],
+        tooltip: { trigger: 'item', triggerOn: 'mousemove' },
+      })
+      live.setAttribute('data-processed', 'true')
     } catch {
       /* defensive: a single mindmap must not break the theme-change handler */
     }

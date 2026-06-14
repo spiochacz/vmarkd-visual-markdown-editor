@@ -136,9 +136,6 @@ for (const { mode, theme, lightBlue } of [
       const tree = opt?.series?.find((s: any) => s?.type === 'tree')
       return (tree?.itemStyle?.color as string) || 'NO-COLOR'
     })
-    // eslint-disable-next-line no-console
-    console.log(`[${mode}] chart=${chart} mindmapNode=${mindColor}`)
-
     const LIGHT = '0,96,224' // #0063d3 = rgb(0,99,211) bucketed to nearest 32
     const DARK = '96,160,256' // #59a4f9 = rgb(89,164,249) bucketed
     if (lightBlue) {
@@ -150,3 +147,89 @@ for (const { mode, theme, lightBlue } of [
     }
   })
 }
+
+// Live theme flip (no reopen): the chart + mindmap BACKGROUND must follow the new content theme.
+// Regression for the "background doesn't follow light/dark" bug — reRenderEcharts re-themes the
+// IR-pane chart by reconstructing from source (always worked), but the mindmap path used to require
+// a live echarts instance via getInstanceByDom (null on the snapshot IR-pane node) and preserved
+// getOption().backgroundColor, so the mindmap's background stayed stale. The fix reconstructs the
+// mindmap from `data-code` like the chart and lets the registered theme drive the background.
+// Asserts on the painted canvas CORNER pixel (the background the user actually sees), in the IR
+// preview pane (the default editing surface), and that no chart is rendered into the editable source.
+test('chart + mindmap background follows a live light->dark flip', async ({
+  workbox,
+  evaluateInVSCode,
+}) => {
+  await evaluateInVSCode(
+    async (vscode, args) => {
+      const [uri] = args as [string]
+      await vscode.workspace
+        .getConfiguration('vmarkd')
+        .update('theme.content', 'vscode-light-2026', true)
+      await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        vscode.Uri.file(uri),
+        'vmarkd.editor',
+      )
+    },
+    [FIXTURE] as [string],
+  )
+  const frame = webviewFrame(workbox)
+  await frame
+    .locator('.vditor-ir__node[data-type="code-block"]')
+    .first()
+    .waitFor({ timeout: 45_000 })
+  // Stay in IR mode (default) — sample the IR preview panes (what reRenderEcharts targets).
+  await frame
+    .locator('.vditor-ir__preview .language-echarts canvas')
+    .first()
+    .waitFor({ timeout: 30_000 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 3000)))
+
+  // Live flip to dark via config change (extension -> webview configChanged -> reRenderEcharts).
+  await evaluateInVSCode(async (vscode) => {
+    await vscode.workspace
+      .getConfiguration('vmarkd')
+      .update('theme.content', 'vscode-dark-2026', true)
+  })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 4000)))
+
+  const after = await frame.locator('body').evaluate(() => {
+    const w = window as unknown as {
+      echarts?: { getInstanceByDom?: (el: Element) => unknown }
+    }
+    const corner = (sel: string) => {
+      const el = document.querySelector(sel)
+      const canvas = el?.querySelector('canvas') as HTMLCanvasElement | null
+      const ctx = canvas?.getContext('2d')
+      if (!ctx) return 'NO-CANVAS'
+      const d = ctx.getImageData(2, 2, 1, 1).data
+      return `${d[0]},${d[1]},${d[2]}`
+    }
+    // Count rendered mindmaps that landed in an EDITABLE source surface (regression guard).
+    const srcRendered = Array.from(
+      document.querySelectorAll('.language-mindmap'),
+    ).filter(
+      (el) =>
+        !el.closest(
+          '.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview',
+        ) && w.echarts?.getInstanceByDom?.(el),
+    ).length
+    return {
+      chart: corner('.vditor-ir__preview .language-echarts'),
+      mind: corner('.vditor-ir__preview .language-mindmap'),
+      srcRendered,
+    }
+  })
+
+  // #121314 (Dark 2026 editor.background) = rgb(18,19,20). After the flip both backgrounds match it.
+  expect(after.chart).toBe('18,19,20')
+  expect(after.mind).toBe('18,19,20')
+  // Never render a chart into the editable source `.language-mindmap`.
+  expect(after.srcRendered).toBe(0)
+})
