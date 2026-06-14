@@ -15,6 +15,7 @@ import {
   patchIrBlurExpand,
   patchSetContentTheme,
   patchCalloutArrowNav,
+  patchMarkmapStatic,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -53,6 +54,9 @@ const editorCommonEventSource = read(
 )
 const setContentThemeSource = read(
   '../../media-src/node_modules/vditor/src/ts/ui/setContentTheme.ts',
+)
+const markmapSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/markmapRender.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -206,6 +210,36 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
     expect(() => patchListToggle('// unrelated source')).toThrow(
       /fixListToggle/,
     )
+  })
+})
+
+describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
+  it('Vditor ships the interactive create + plain setData (no options)', () => {
+    expect(markmapSource).toContain('Markmap.create(svg, null)')
+    expect(markmapSource).toContain('mm.setData(root, frontmatterOptions)')
+  })
+
+  it('disables zoom/pan at create AND forces duration:0 into setData (wins over deriveOptions default → no init animation)', () => {
+    const patched = patchMarkmapStatic(markmapSource)
+    expect(patched).toContain(
+      'Markmap.create(svg, { zoom: false, pan: false, duration: 0 })',
+    )
+    // duration:0 must be the LAST merge so it beats frontmatterOptions (deriveOptions default).
+    expect(patched).toContain(
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
+    )
+    expect(patched).not.toContain('Markmap.create(svg, null)')
+    expect(patched).not.toContain('mm.setData(root, frontmatterOptions)')
+  })
+
+  it('throws (fails the build loudly) if a markmap anchor is gone — version-bump guard', () => {
+    expect(() => patchMarkmapStatic('// unrelated source')).toThrow(
+      /fixMarkmapStatic/,
+    )
+    // create present but setData drifted → still throws
+    expect(() =>
+      patchMarkmapStatic('Markmap.create(svg, null); // no setData'),
+    ).toThrow(/fixMarkmapStatic/)
   })
 })
 

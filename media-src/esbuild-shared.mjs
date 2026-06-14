@@ -593,6 +593,42 @@ export function patchSetContentTheme(code) {
     'new URL(vditorContentTheme.getAttribute("href"), document.baseURI).href !== new URL(cssPath, document.baseURI).href',
   )
 }
+
+// markmap renders an INTERACTIVE, ANIMATED SVG: markmap-view attaches d3-zoom (a non-passive
+// `wheel` handler that preventDefaults and zooms the map → scrolling the document with the pointer
+// over a markmap zooms the mindmap instead of scrolling the page, "sticks/jumps at the markmap"),
+// and it animates the tree on init with a d3 transition (`duration`, default 500ms). Vditor calls
+// `Markmap.create(svg, null)` (markmapRender.ts) with no options. Pass
+// `{ zoom: false, pan: false, duration: 0 }` so the SVG still renders + `fit()`s but no longer
+// captures wheel/drag AND paints instantly (no init animation) — a static fitted mindmap. Anchored
+// single-line rewrite; throws on drift.
+const MARKMAP_CREATE_ANCHOR = 'Markmap.create(svg, null)'
+// setData(root, frontmatterOptions) re-applies options AFTER create (frontmatterOptions =
+// deriveOptions(frontmatter), which carries a non-zero default duration), so a create-only
+// duration:0 is overwritten and the zoom-to-fit still animates (verified: the root <g> transform
+// interpolates over ~4 frames). Force duration:0 as the LAST merge into setData's options so it
+// wins — markmap's `transition()` helper skips the d3 transition entirely when duration <= 0,
+// making both the node render and the subsequent fit() instant.
+const MARKMAP_SETDATA_ANCHOR = 'mm.setData(root, frontmatterOptions)'
+export function patchMarkmapStatic(code) {
+  if (
+    !code.includes(MARKMAP_CREATE_ANCHOR) ||
+    !code.includes(MARKMAP_SETDATA_ANCHOR)
+  ) {
+    throw new Error(
+      'fixMarkmapStatic: create/setData anchor not found in vditor markmapRender.ts (version drift?)',
+    )
+  }
+  return code
+    .replace(
+      MARKMAP_CREATE_ANCHOR,
+      'Markmap.create(svg, { zoom: false, pan: false, duration: 0 })',
+    )
+    .replace(
+      MARKMAP_SETDATA_ANCHOR,
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
+    )
+}
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
 // bundle time, mapping the file's filter to the transform(s) applied to its contents. Each
 // transform is an anchor-asserted `patchXxx` defined above (tests import those directly); the
@@ -656,6 +692,10 @@ const VDITOR_TS_PATCHES = [
       mermaidPin?.version
         ? patchMermaidVersion(code, mermaidPin.version)
         : code,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]markmapRender\.ts$/,
+    transform: patchMarkmapStatic,
   },
   {
     // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only
