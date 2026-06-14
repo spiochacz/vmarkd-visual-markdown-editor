@@ -400,10 +400,15 @@ function runFinishInit(msg: any): void {
   // Preserve scroll position when toggling edit (IR/WYSIWYG) ↔ full Preview overlay.
   setupPreviewScrollPreserve()
   // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
-  // safe in the editable IR and round-trips). Observe the active editor element so styling
-  // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
+  // safe in the editable IR/WYSIWYG and round-trips). Bind to the STABLE `#app` mount, NOT
+  // activeModeElement: runFinishInit runs once, but the user can be in (or switch to) WYSIWYG, and
+  // toggling the full Preview overlay can make Vditor re-render/replace a mode's editor element — a
+  // mode-specific observer then dies and callouts stop re-colouring on return (reported: WYSIWYG →
+  // Preview → WYSIWYG drops the colours). #app survives every mode switch / element rebuild and
+  // covers IR + WYSIWYG; applyCallouts is rAF-debounced + idempotent, so the wider scope is cheap.
+  // (Same rationale as the WYSIWYG code-highlight observer below.)
   disposeCallouts?.()
-  disposeCallouts = observeCallouts(activeModeElement(window.vditor))
+  disposeCallouts = observeCallouts(document.getElementById('app'))
   // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
   // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
   // render). The preview never gets `--expand` (no caret), so it stays "collapsed" → the CSS shows
