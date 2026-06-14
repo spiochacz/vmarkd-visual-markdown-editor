@@ -47,6 +47,7 @@ import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
+import { observeEchartsFit } from './echarts-fit'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import {
@@ -116,6 +117,7 @@ let disposePreviewCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
 let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
+let disposeEchartsFit: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -449,6 +451,12 @@ function runFinishInit(msg: any): void {
   // Ctrl-to-interact gate for the zooming diagrams (markmap + ECharts mindmap): plain wheel scrolls
   // the page, Ctrl+wheel zooms, Ctrl+drag pans. Document-level + idempotent.
   installDiagramZoomGate()
+  // Keep ECharts charts/mindmaps filling their container: echarts.init measures once + never
+  // resizes, so in the Preview overlay the chart renders ~15px short (scrollbar settles after the
+  // measure) and never tracks a window resize. A ResizeObserver on each container resizes the
+  // instance to fill it. Bound to the stable #app mount (covers IR + the Preview pane's rebuilds).
+  disposeEchartsFit?.()
+  disposeEchartsFit = observeEchartsFit(window, document.getElementById('app'))
   reportDocMode()
 }
 

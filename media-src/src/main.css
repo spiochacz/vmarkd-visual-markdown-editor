@@ -873,15 +873,20 @@ body[data-full-width="1"][data-heading-markers="0"] .vditor-preview .vditor-rese
   height: 100% !important;
 }
 /* Narrow-width (data-full-width="0") centering: cap the content column at 800px via symmetric
-   padding. Full-width's own padding (0 20px / 35px gutter) lives in the data-full-width="1" rule
-   above; this is the narrow counterpart — padding/width only (overflow handled above). */
+   padding. The horizontal padding MUST match the editor's narrow rule above
+   (`.vditor-ir/.vditor-wysiwyg pre.vditor-reset`), which uses `max(35px, (100%-800)/2)` — i.e. it
+   keeps a 35px GUTTER floor even when the pane is narrower than 800px. Preview previously used
+   `max(0px, …)` (no floor), so below 800px its content column was ~70px WIDER than the editor's
+   (no gutter) → toggling Edit→Preview reflowed everything wider, and responsive renders (echarts)
+   visibly grew. Mirroring the 35px floor keeps the gutter so the content width — text AND charts —
+   is identical edit↔preview. Vertical padding stays 10px (preview-only); overflow handled above. */
 body[data-full-width="0"] .vditor-content:not(:has(.vditor-sv)) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview > .vditor-reset {
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 10px max(0px, calc((100% - 800px) / 2)) !important;
+  padding: 10px max(35px, calc((100% - 800px) / 2)) !important;
   box-sizing: border-box !important;
 }
 
