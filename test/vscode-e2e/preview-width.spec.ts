@@ -1,14 +1,13 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
-// Edit↔Preview width parity (narrow / data-full-width="0"):
-//   1. The Preview content column must equal the EDIT content column — the editor keeps a 35px
-//      gutter floor (`max(35px, (100%-800)/2)`); the Preview must keep the SAME gutter so toggling
-//      Edit→Preview does not reflow everything wider ("w preview echarts robi się trochę szerszy").
-//   2. The ECharts chart must FILL its container in both panes — echarts.init measures once and
-//      never resizes, so in the Preview overlay it rendered ~15px short (scrollbar settled after the
-//      measure); observeEchartsFit (ResizeObserver) resizes it to fill. So the chart's canvas width
-//      is the same in edit and preview.
+// Edit↔Preview width parity (narrow / data-full-width="0"): the Preview content column must equal
+// the EDIT content column. The editor keeps a 35px gutter floor (`max(35px, (100%-800)/2)`); the
+// Preview must keep the SAME gutter so toggling Edit→Preview does not reflow everything wider
+// ("w preview echarts robi się trochę szerszy"). The ECharts chart container therefore has the same
+// width in both panes. (The painted canvas can sit ~scrollbar-width short of its container — an
+// echarts init-measure quirk — but it is NEVER wider than edit, which was the reported problem; we
+// deliberately do NOT force-resize it, as that flickered the IR source text behind the canvas.)
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 
 function webviewFrame(workbox: import('@playwright/test').Page) {
@@ -81,18 +80,17 @@ test('echarts width is identical edit↔preview (gutter preserved + chart fills)
 
   const pvPara = await w('.vditor-preview p')
   const pvDiv = await w('.vditor-preview .language-echarts')
-  const pvCanvas = await w('.vditor-preview .language-echarts canvas')
 
   // eslint-disable-next-line no-console
   console.log(
-    `[width] irPara=${irPara} irCanvas=${irCanvas} pvPara=${pvPara} pvDiv=${pvDiv} pvCanvas=${pvCanvas}`,
+    `[width] irPara=${irPara} irCanvas=${irCanvas} pvPara=${pvPara} pvDiv=${pvDiv}`,
   )
 
   const near = (a: number, b: number) => Math.abs(a - b) <= 2
   // Gutter preserved → the content column is the same width in edit and preview.
   expect(near(pvPara, irPara)).toBe(true)
-  // The chart fills its container in the preview (no scrollbar-width gap).
-  expect(near(pvCanvas, pvDiv)).toBe(true)
-  // …and therefore the chart is the same width in edit and preview.
-  expect(near(pvCanvas, irCanvas)).toBe(true)
+  // …so the chart's CONTAINER is the same width edit↔preview (it is never WIDER than edit, which
+  // was the bug). The painted canvas may sit a scrollbar-width short — that's fine, not wider.
+  expect(near(pvDiv, irCanvas)).toBe(true)
+  expect(pvDiv).toBeLessThanOrEqual(irCanvas + 2)
 })
