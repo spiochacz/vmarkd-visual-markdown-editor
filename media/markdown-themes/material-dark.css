@@ -50,6 +50,7 @@
    `.vditor-reset` specificity tricks. hr is background-based in Vditor; table rows
    default to Vditor's off-canvas dark. */
 body.markdown-body {
+  --vmarkd-link: #61afef; /* One Dark accent — also feeds IR link + checkbox accent */
   --vmarkd-code-bg: rgba(171, 178, 191, 0.1); /* One Dark inline-code bg */
   --vmarkd-hr-bg: #3b4048;
   --vmarkd-table-row-bg: transparent; /* canvas shows through */

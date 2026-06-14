@@ -7,7 +7,11 @@ import { vditorSourceConfig } from '../esbuild-shared.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const mediaVditor = path.resolve(__dirname, '../../media/vditor')
-const PORT = 9123
+// Default 9123 = the e2e webServer (playwright.config: reuseExistingServer false, so a
+// stray server on 9123 fails `playwright test`). Interactive/visual-debug sessions run a
+// SECOND instance on another port via `npm run harness:serve` (PORT=9124) so tests and a
+// live playwright-cli session never fight over the socket.
+const PORT = Number(process.env.PORT) || 9123
 
 // Two harness bundles: `harness` (table-IR feature) and `behaviors`
 // (message-contract + DOM-util coverage). Built in-memory with inline source
@@ -25,6 +29,10 @@ const built = await esbuild.build({
     'save-flush': path.join(__dirname, 'save-flush-harness.ts'),
     'incremental-md': path.join(__dirname, 'incremental-md-harness.ts'),
     'wysiwyg-input': path.join(__dirname, 'wysiwyg-input-harness.ts'),
+    'wysiwyg-highlight': path.join(
+      __dirname,
+      'wysiwyg-highlight-harness.ts',
+    ),
     tab: path.join(__dirname, 'tab-harness.ts'),
     stream: path.join(__dirname, 'stream-harness.ts'),
     keybugs: path.join(__dirname, 'keybugs-harness.ts'),
@@ -33,12 +41,14 @@ const built = await esbuild.build({
     echarts: path.join(__dirname, 'echarts-harness.ts'),
     blockbg: path.join(__dirname, 'blockbg-harness.ts'),
     gap: path.join(__dirname, 'gap-harness.ts'),
+    codenav: path.join(__dirname, 'codenav-harness.ts'),
     'callout-ir': path.join(__dirname, 'callout-ir-harness.ts'),
     callouts: path.join(__dirname, 'callouts-harness.ts'),
     'image-convert': path.join(__dirname, 'image-convert-harness.ts'),
     width: path.join(__dirname, 'width-harness.ts'),
     wiki: path.join(__dirname, 'wiki-harness.ts'),
     'split-scroll': path.join(__dirname, 'split-scroll-harness.ts'),
+    'preview-scroll': path.join(__dirname, 'preview-scroll-harness.ts'),
     'code-linenumber': path.join(__dirname, 'code-linenumber-harness.ts'),
     'config-apply': path.join(__dirname, 'config-apply-harness.ts'),
   },
@@ -77,6 +87,7 @@ const mermaidHarnessHtml = fs.readFileSync(path.join(__dirname, 'mermaid.html'))
 const echartsHarnessHtml = fs.readFileSync(path.join(__dirname, 'echarts.html'))
 const blockbgHtml = fs.readFileSync(path.join(__dirname, 'blockbg.html'))
 const gapHtml = fs.readFileSync(path.join(__dirname, 'gap.html'))
+const codenavHtml = fs.readFileSync(path.join(__dirname, 'codenav.html'))
 const calloutIrHtml = fs.readFileSync(path.join(__dirname, 'callout-ir.html'))
 const calloutsHtml = fs.readFileSync(path.join(__dirname, 'callouts.html'))
 const imageConvertHtml = fs.readFileSync(
@@ -87,11 +98,17 @@ const wikiHtml = fs.readFileSync(path.join(__dirname, 'wiki.html'))
 const splitScrollHtml = fs.readFileSync(
   path.join(__dirname, 'split-scroll.html'),
 )
+const previewScrollHtml = fs.readFileSync(
+  path.join(__dirname, 'preview-scroll.html'),
+)
 const codeLineNumberHtml = fs.readFileSync(
   path.join(__dirname, 'code-linenumber.html'),
 )
 const configApplyHtml = fs.readFileSync(
   path.join(__dirname, 'config-apply.html'),
+)
+const wysiwygHighlightHtml = fs.readFileSync(
+  path.join(__dirname, 'wysiwyg-highlight.html'),
 )
 
 const types = {
@@ -186,6 +203,10 @@ const server = http.createServer((req, res) => {
     res.setHeader('content-type', 'text/html')
     return res.end(gapHtml)
   }
+  if (url === '/codenav.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(codenavHtml)
+  }
   if (url === '/callout-ir.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(calloutIrHtml)
@@ -210,6 +231,10 @@ const server = http.createServer((req, res) => {
     res.setHeader('content-type', 'text/html')
     return res.end(splitScrollHtml)
   }
+  if (url === '/preview-scroll.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(previewScrollHtml)
+  }
   if (url === '/code-linenumber.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(codeLineNumberHtml)
@@ -217,6 +242,10 @@ const server = http.createServer((req, res) => {
   if (url === '/config-apply.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(configApplyHtml)
+  }
+  if (url === '/wysiwyg-highlight.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(wysiwygHighlightHtml)
   }
   if (bundles[url]) {
     res.setHeader('content-type', 'text/javascript')

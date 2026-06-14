@@ -82,7 +82,8 @@ Mirrors mermaid's 3 layers but with ECharts gotchas:
     bg = transparent; gallery themes omit `backgroundColor`). So ALWAYS register a theme OBJECT
     with an explicit `backgroundColor` (back-fill `#ffffff` for gallery themes).
   - One esbuild **onLoad runs per file** — so the `?v=5.5.1`→`6.1.0` version bump AND the theme-init
-    rewrite for `chartRender.ts` must live in ONE plugin (`fixEcharts`), not two.
+    rewrite for `chartRender.ts` must live in ONE registry transform (the echarts `VDITOR_TS_PATCHES`
+    entry chains `patchEchartsVersion` then `patchEchartsThemeInit`), not two onLoads.
   - VS Code dark themes share VS Code's DEFAULT chart palette (most themes don't customize
     `--vscode-charts-*`); accepted = charts use the editor's own chart colors.
 
@@ -90,7 +91,8 @@ Mirrors mermaid's 3 layers but with ECharts gotchas:
 
 - **Vditor hardcodes asset cache-busters.** `mermaidRender.ts` loads `mermaid.min.js?v=11.6.0`,
   `chartRender.ts` loads `echarts.min.js?v=5.5.1`. If you vendor a newer asset, ALSO bump the
-  `?v=` via an esbuild patch (`media-src/esbuild-shared.mjs`, see `fixMermaidVersion`), else a
+  `?v=` via an esbuild patch (`media-src/esbuild-shared.mjs`, see `patchMermaidVersion` in the
+  `VDITOR_TS_PATCHES` registry), else a
   cached webview serves the old bytes across an extension update.
 - **Overriding a Vditor-bundled asset = overwrite AFTER sync.** `build.mjs` `syncVditorAssets()`
   copies Vditor's whole `dist/` into `media/`. To pin your own (lute, mermaid) you overwrite
@@ -154,12 +156,31 @@ render's theming, so editing a block can look completely different from its rend
   inline-code with `--vmarkd-code-bg`; it also hit the source code → a lighter box inside the panel
   (github-dark only; light themes lack `.vditor--dark`). Override needs ≥(0,4,2):
   `.vditor-reset pre.vditor-ir__marker--pre > code:not(.hljs):not(.highlight-chroma)`.
-- **Panel-resize on toggle.** task-05's `.vditor--dark … pre.vditor-ir__preview code{padding-bottom:9.9px}`
-  trims ONLY the rendered code's bottom on dark; the `.hljs` source kept full 1em → ~2px taller on
-  edit. Add the source selector to that same rule.
+- **Code-block BOTTOM padding = hljs `1em`, no dark trim.** task-05 once trimmed the IR rendered
+  code's bottom to a fixed `padding-bottom:9.9px` on `.vditor--dark` (for first-paint parity). That
+  trim hit `.vditor-ir__preview` but NOT the standalone Preview pane (`.vditor-preview`), which kept
+  the hljs `1em` → on dark the IR render sat ~4px shorter at the bottom than the same block in Preview
+  (font-size dependent: `1em` scales, `9.9px` didn't). REMOVED both dark trims (settled + un-highlighted
+  first-paint) so render + `.hljs` source + first-paint box all use `1em` bottom on every theme —
+  still mutually equal (no first-paint jump, no expand resize) AND matching the Preview pane. **Don't
+  re-add a dark bottom trim.** Guard: blockbg.spec.ts "dark IR code render has symmetric (1em) vertical
+  padding" (`paddingBottom===paddingTop` after `.vditor--dark` + atom-one-dark).
+- **Collapsed code block must equal Preview height — kill the node's phantom line boxes.** The IR
+  dual-node wraps its block render BETWEEN inline content: the node's own `::before`/`::after
+  {content:" "}` pseudos + the h:0 fence/info `.vditor-ir__marker` spans. Each inline run forms an
+  anonymous line box = the node's line-height STRUT (~2 lines ≈ 40px phantom above+below) → collapsed
+  block ~40px taller than Preview, "jumps" on Edit↔Preview / caret enter-leave. CAN'T fix via the
+  node's line-height (unitless → inherits into `code.hljs` → squishes the render; a forced value
+  mismatches themes that set their own code line-height). FIX (collapsed only, `:not(--expand)`):
+  `content:none` on the pseudos + `display:block` on the markers (they're h:0 + overflow:hidden →
+  invisible, stay in flow → no scroll-jump) → node holds only the block render, height == Preview,
+  ZERO impact on the render's line-height/font (theme-agnostic). Scoped `:has(> .vditor-ir__preview >
+  code.hljs)` so diagrams keep their geometry. Guard: blockbg.spec.ts "collapsed code block has no
+  phantom height". When `--expand` is set the rule stops matching → source panel + gaps return (the
+  user wants the editing room then).
 - **`blurEvent` collapses `--expand` on EVERY blur** (Vditor `util/editorCommonEvent.ts`). A click in
   the webview = transient blur→refocus → the render flashed mid-click. Fix = esbuild patch
-  `fixIrBlurExpand`: wrap the `expandElement.classList.remove(...)` in `requestAnimationFrame` + a
+  `patchIrBlurExpand`: wrap the `expandElement.classList.remove(...)` in `requestAnimationFrame` + a
   `document.activeElement` recheck (skip collapse if focus returned; genuine blur still collapses a
   frame later).
 - **META-GOTCHA: these edit-surface bugs reproduce ONLY in the real VS Code webview**, not the
@@ -187,8 +208,10 @@ render's theming, so editing a block can look completely different from its rend
   `media-src/src/callouts.ts` (callout dual-node), the edit-surface CSS in `media-src/src/main.css`
   (search `vditor-ir__marker--pre`, `--expand`).
 - Build/patches: `build.mjs` (`syncVditorAssets`, `syncLute`, `syncMermaid`, `syncEcharts`,
-  `varifyVditorPalette`), `media-src/esbuild-shared.mjs` (vditor source patches incl. `fixMermaidVersion`,
-  `fixEcharts`, `fixIrBlurExpand`). Patch unit tests: `test/backend/vditor-source-patches.test.ts`.
+  `varifyVditorPalette`, `patchVditorIndexCss` — index.css is patched HERE only, not bundled; ADR-0004),
+  `media-src/esbuild-shared.mjs` (vditor TS source patches: the `VDITOR_TS_PATCHES` registry +
+  `vditorSourcePatches` engine; e.g. `patchMermaidVersion`, `patchEchartsThemeInit`, `patchIrBlurExpand`).
+  Patch unit tests: `test/backend/vditor-source-patches.test.ts`.
 - CSP: `src/html-builder.ts`. Vendored assets: `media-src/vendor/<engine>/` (+ `source.json` sha guard).
 - Related tasks: 82/84/85 (content themes + registry), 86 (mermaid palettes), 87 (PlantUML/TeaVM),
   89 (ECharts bump 6.1.0), 90 (ECharts theming), 106 (callouts dual-node).

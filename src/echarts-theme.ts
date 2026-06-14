@@ -224,8 +224,8 @@ const VINTAGE_SERIES =
 // ECharts-specific `auto` pairings to a BAKED palette (background/foreground + series). The
 // chart background uses the CONTENT THEME's page background so the chart blends with the rendered
 // page (not a contrasting block). Mermaid keeps its shared palette pairing — this is ECharts-only.
-//   - VS Code Dark/Light Modern → VS Code's own chart colours (`charts.*` registry defaults,
-//     resolved from editorError/Info/Warning + green/purple) on the Modern editor background.
+//   - VS Code Dark/Light 2026 → VS Code's own chart colours (`charts.*` registry defaults,
+//     resolved from editorError/Info/Warning + green/purple) on the 2026 editor background.
 //   - material-dark → the warm vintage series on the material-dark (one-dark) page background.
 const ECHARTS_CONTENT_PALETTE: Record<string, EditorPalette> = {
   'material-dark': {
@@ -234,16 +234,16 @@ const ECHARTS_CONTENT_PALETTE: Record<string, EditorPalette> = {
     accent: '#d7ab82',
     series: VINTAGE_SERIES,
   },
-  'vscode-dark-modern': {
-    bg: '#1f1f1f',
-    fg: '#cccccc',
+  'vscode-dark-2026': {
+    bg: '#121314', // Dark 2026 editor.background — chart blends with the page
+    fg: '#bbbebf',
     accent: '#59a4f9',
     // VS Code chart colours (dark): blue/green/yellow/red/purple.
     series: ['#59a4f9', '#89d185', '#cca700', '#f14c4c', '#b180d7'],
   },
-  'vscode-light-modern': {
+  'vscode-light-2026': {
     bg: '#ffffff',
-    fg: '#3b3b3b',
+    fg: '#202020',
     accent: '#0063d3',
     // VS Code chart colours (light).
     series: ['#0063d3', '#388a34', '#bf8803', '#e51400', '#652d90'],

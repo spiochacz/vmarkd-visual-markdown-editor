@@ -17,7 +17,7 @@
 
 // Diagram/custom blocks share `data-type="code-block"` but render to an SVG/diagram, not `.hljs`
 // code — leave their source alone (it isn't syntax-highlighted code).
-const CUSTOM_LANGS = new Set([
+export const CUSTOM_LANGS = new Set([
   'mermaid',
   'echarts',
   'flowchart',

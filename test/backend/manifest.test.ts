@@ -157,8 +157,8 @@ describe('package.json manifest', () => {
         'github-light',
         'github-dark',
         'material-dark',
-        'vscode-light-modern',
-        'vscode-dark-modern',
+        'vscode-light-2026',
+        'vscode-dark-2026',
       ],
     })
     expect(props['vmarkd.editor.fullWidth']).toMatchObject({

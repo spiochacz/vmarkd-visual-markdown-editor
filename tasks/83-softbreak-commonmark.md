@@ -1,14 +1,59 @@
 # Task: Soft line breaks like CommonMark (flow wrapped lines)
 
-> **Status:** 📋 TODO (planned, needs research).
+> **Status:** 🟢 planned — **research DONE, design APPROVED (2026-06-13), ready to implement.**
+> The open questions below (Lute knob, round-trip, scope) are now RESOLVED — see
+> **"Resolved (2026-06-13)"**. The "Investigate" section is kept for context.
 > **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
 > preview render to vMarkd's render of the same file (task 82 theme work). A
 > paragraph (or blockquote) that is soft-wrapped across several source lines shows
 > as **separate lines** in vMarkd, but **flows into one wrapped paragraph** on
-> GitHub / in VS Code's preview.
-> **Value / Risk:** 🟡 fidelity-to-CommonMark / **medium** — touches the
-> markdown render + round-trip (serialization back to disk) and all editor modes.
-> **Engines:** Lute (bundled) — likely a Lute option.
+> GitHub / in VS Code's preview. Re-confirmed 2026-06-13 (VS Code 1.123 preview parity work).
+> **Value / Risk:** 🟢 fidelity-to-CommonMark / **low (as scoped)** — preview-only +
+> default-off setting makes it a single Vditor source-patch with no round-trip impact.
+> **Engines:** Lute (bundled) — `SetSoftBreak2HardBreak`.
+
+## Resolved (2026-06-13)
+
+**Root cause (verified):** Lute exposes `SetSoftBreak2HardBreak`, default **`true`** (soft `\n` →
+hard `<br>`). Vditor's `setLute.ts` calls ~18 Lute setters but **never** calls this one, so the
+default wins → vMarkd emits `<br>`. The vendored `media/vditor/dist/js/lute/lute.min.js` DOES
+expose `SetSoftBreak2HardBreak`. Vditor is the outlier — both VS Code (markdown-it/CommonMark) and
+GitHub.com reflow soft-wrapped prose.
+
+**Scope = PREVIEW ONLY (investigate option (a), confirmed safe).** `previewRender.ts → md2html()`
+builds its **own** Lute (`const lute = setLute({…})` + `lute.Md2HTML()`) and renders **exactly** the
+preview surfaces (SPLIT right pane + IR/WYSIWYG "Preview" button overlay `.vditor-preview`). The
+edit surfaces (IR/WYSIWYG/SV) use **separate** Lute instances → patching only `md2html` flips reflow
+in the preview while **editing keeps line-break preservation**. This makes the round-trip risk
+(Investigate #2) **moot by construction**: the editor serializer is never touched, so on-disk
+wrapping is unchanged. Host-side prerender (`src/lute-host.ts`) renders the **editor** first paint,
+not the preview → leave it (consistent with "edit preserves breaks").
+
+**Decisions (approved by user):**
+- **Setting:** `vmarkd.preview.reflowLineBreaks` (boolean). `true` → reflow like VS Code/GitHub
+  (`SetSoftBreak2HardBreak(false)`); `false` → keep `<br>` (current).
+- **Default:** `false` (no behaviour change for existing docs; opt-in to parity).
+- **Surface:** preview only (scope a) **+** a setting (scope c). NOT the live IR editing surface (b).
+
+**Concrete approach (mechanism = `window.__vmarkd*` flag + esbuild source-patch — mirrors existing
+patches; per ADR-0003 "behaviour, not CSS" → esbuild TS patch):**
+1. `package.json` — add `vmarkd.preview.reflowLineBreaks` (boolean, default `false`) to the
+   "Appearance" group; description notes "Preview surface only — editing keeps manual line breaks".
+2. `src/extension.ts` — `collectConfigOptions()` (~line 1485) add
+   `reflowLineBreaks: c.get<boolean>('preview.reflowLineBreaks')` (flows to webview via init +
+   `config-changed`).
+3. `media-src/esbuild-shared.mjs` — new `fixPreviewSoftBreak` (anchor-asserted, registered in
+   `vditorSourceConfig.plugins`): in `previewRender.ts`, anchor on the unique `lute.SetHeadingID(true);`
+   inside `md2html` and insert before it `lute.SetSoftBreak2HardBreak(!(window).__vmarkdReflowPreview);`
+   (flag unset/false → `true` = current behaviour → no default regression).
+4. `media-src/src/main.ts` — set `(window as any).__vmarkdReflowPreview = !!options.reflowLineBreaks`
+   at init and in `handleConfigChanged`; best-effort live re-render of an open preview
+   (`const iv=(window.vditor as any)?.vditor; if (iv?.preview?.element && iv.preview.element.style.display!=='none') iv.preview.render(iv)`).
+   Consider an `applyReflowSetting(options)` helper in `live-config.ts` (parallel to
+   `applyBodyOptions`/`applyLinkOpenSetting`). Editor lutes untouched.
+5. Tests: e2e `softbreak.spec.ts` (preview path: flag on → no `<br>`; off → `<br>`; AND edit surface
+   still `<br>` regardless — proves preview-only); backend `vditor-source-patches.test.ts`
+   (patch injects `SetSoftBreak2HardBreak` + throws on missing anchor).
 
 ## Problem
 CommonMark treats consecutive non-blank lines inside one paragraph as a **soft

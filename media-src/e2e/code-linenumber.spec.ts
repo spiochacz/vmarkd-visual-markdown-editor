@@ -65,6 +65,38 @@ test.describe('codeLineNumbers setting governs the gutter (IR mode)', () => {
     ).toBe(true)
     await expect(gutters(page)).toHaveCount(1)
   })
+
+  // Regression for the IR edit-surface SHIFT (this branch): with line numbers on, the
+  // RENDER reserves a 4em gutter for the digits, but the editable SOURCE did not — so
+  // the code you type sat ~4em left of the same code rendered, "jumping" on caret
+  // enter/leave. main.css now gives the source `code` the same 4em gutter
+  // (`.vditor-ir__node:has(> pre.vditor-ir__preview > code.vditor-linenumber) >
+  // pre.vditor-ir__marker--pre > code { padding-left: 4em }`). Assert the gutter is
+  // reserved on the source when on, and absent when off — ratio to font-size, so it's
+  // stable across machine fonts (4em → ratio ≈ 4).
+  function sourcePadRatio(page: Page) {
+    return page.evaluate(() => {
+      const code = document.querySelector(
+        '.vditor-ir__node[data-type="code-block"] pre.vditor-ir__marker--pre > code',
+      ) as HTMLElement
+      const cs = getComputedStyle(code)
+      return parseFloat(cs.paddingLeft) / parseFloat(cs.fontSize)
+    })
+  }
+
+  test('line numbers ON reserve a 4em gutter on the editable source (aligns with the render)', async ({
+    page,
+  }) => {
+    await goto(page, '?mode=ir&setting=1')
+    expect(await sourcePadRatio(page)).toBeCloseTo(4, 0)
+  })
+
+  test('line numbers OFF leave the editable source with no gutter', async ({
+    page,
+  }) => {
+    await goto(page, '?mode=ir&setting=0')
+    expect(await sourcePadRatio(page)).toBeLessThan(1)
+  })
 })
 
 test.describe('codeLineNumbers setting governs the gutter (WYSIWYG mode)', () => {
@@ -121,15 +153,15 @@ test.describe('codeTheme setting governs the highlight style', () => {
 
 // Task 82: an `auto` codeTheme pairs with the markdown content theme so the code
 // block colours match the surrounding palette (codeHljsStyle): material-dark →
-// atom-one-dark, vscode-dark-modern → vs2015, vscode-light-modern → vs. Asserted at
+// atom-one-dark, vscode-dark-2026 → vs2015, vscode-light-2026 → vs. Asserted at
 // the option level AND the installed hljs stylesheet (the end of "code theme applied").
 test.describe('an auto codeTheme follows the content theme (task 82)', () => {
   const cases: Array<[string, string]> = [
     ['github-light', 'github'],
     ['github-dark', 'github-dark'],
     ['material-dark', 'atom-one-dark'],
-    ['vscode-dark-modern', 'vs2015'],
-    ['vscode-light-modern', 'vs'],
+    ['vscode-dark-2026', 'vs2015'],
+    ['vscode-light-2026', 'vs'],
   ]
   for (const [contentTheme, expected] of cases) {
     test(`${contentTheme} → ${expected}`, async ({ page }) => {

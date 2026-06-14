@@ -154,8 +154,19 @@ covers the webview side.
 | **Unit / backend** | vitest | `test/backend/*.test.ts`, `media-src/src/*.test.ts` | Extension host logic + pure webview helpers |
 | **E2e** | Playwright (chromium) | `media-src/e2e/*.spec.ts` | Webview behaviour in a real browser with Vditor |
 
-The two are **disjoint** — different runners, different layers, separate coverage
-reports. Neither instruments the other.
+The first two are the **gate** (run in CI), and are **disjoint** — different runners,
+different layers, separate coverage reports. Neither instruments the other.
+
+Two extra **visual-debugging** layers (NOT in the CI gate — see the `vmarkd-visual-debugging`
+skill) catch the perceptual "a few px / repro only in the real editor" bugs:
+
+| Layer | Runner | Command | What it covers |
+|---|---|---|---|
+| **Golden screenshots** | Playwright (`@visual` tag) | `npm run test:visual` | Element-scoped pixel baselines (`media-src/e2e/visual.spec.ts`); a local pre-flight, excluded from `test:e2e` (`--grep-invert @visual`) because goldens only hold in a consistent environment |
+| **Real-vscode** | `vscode-test-playwright` | `npm run test:vscode` | Geometry/computed-styles in a real VS Code webview (`test/vscode-e2e/`); the harness↔real parity smoke for VS-Code-default-CSS / custom-editor-pipeline bugs |
+
+For interactive measure-and-screenshot debugging on the harnesses, `playwright-cli`
+(`npm run harness:serve` + `npm run pw:cli`). All three are documented in the skill.
 
 > **Every new piece of functionality must ship with both layers** — a unit test
 > for the host/pure-logic side and an e2e test for the webview behaviour — and you

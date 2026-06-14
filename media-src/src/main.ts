@@ -16,7 +16,11 @@ import { setVditorTheme } from './vditor-theme'
 import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
 import { convertForUpload } from './image-convert'
-import 'vditor/dist/index.css'
+// Vditor's index.css is NOT bundled here. The host links the COPIED media/vditor/dist/index.css
+// (html-builder.ts) — the same single copy the harness and HTML-export load — so build.mjs
+// patchVditorIndexCss() (run post-sync) is the SOLE patch site for it. Bundling it (the old
+// `import 'vditor/dist/index.css'`) pulled the UNPATCHED node_modules copy into media/dist/main.css
+// → editor and harness drifted (the WYSIWYG inline-code 0-padding trap, ADR-0004). One copy = no drift.
 import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'
@@ -27,6 +31,7 @@ import { setupOutlineFlash, FLASH_CLASS } from './outline'
 import { setupOutlineResize } from './outline-resize'
 import { setupToolbarDismiss } from './toolbar-dismiss'
 import { setupSplitScrollSync } from './split-scroll-sync'
+import { setupPreviewScrollPreserve } from './preview-scroll-preserve'
 import { findScroller, guardToolbarScroll } from './toolbar-scroll-guard'
 import { preserveCaretAndScroll } from './caret-preserve'
 import { streamRenderIR, STREAM_MIN_CHARS } from './stream-render'
@@ -43,7 +48,18 @@ import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
-import { observeGapParagraphs } from './gap-paragraph'
+import {
+  ensureHljsLoaded,
+  observeWysiwygCodeHighlight,
+  wrapLuteFlatten,
+} from './wysiwyg-code-highlight'
+import {
+  observeGapParagraphs,
+  observeTrailingParagraph,
+  setupTrailingNav,
+} from './gap-paragraph'
+import { setupCaretScroll } from './caret-scroll'
+import { setupCalloutArrowNav } from './callout-nav'
 import { setupHistoryKeybind } from './undo-keybind'
 import { createPendingEdit } from './pending-edit'
 import { createIncrementalMd } from './incremental-md'
@@ -95,7 +111,10 @@ let reportDocMode: () => void = () => {}
 let lastInitMsg: any = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
+let disposePreviewCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
+let disposeWysiwygHighlight: (() => void) | null = null
+let disposeTrailing: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -130,6 +149,28 @@ document.addEventListener('selectionchange', trackEditorCaret)
 // blocks (blockquote↔code, code↔code). Wired once; reads the active editor lazily so it
 // covers every re-init. See gap-paragraph.ts.
 observeGapParagraphs(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
+)
+
+// Keep the caret visible during programmatic arrow moves (table-cell up/down sets the
+// selection without scrolling). Wired once; reads the active editor lazily. caret-scroll.ts.
+setupCaretScroll(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
+)
+
+// Arrow nav INTO collapsed callouts (their source is display:none — native caret movement
+// can't enter, skipped them, and at EOF dropped the selection → caret jumped to the top).
+// Wired once; reads the active editor lazily. callout-nav.ts.
+setupCalloutArrowNav(
+  () => (window.vditor ? (activeModeElement(window.vditor) ?? null) : null),
+  () => (window.vditor as any)?.vditor,
+)
+
+// Move the caret INTO the trailing paragraph at end-of-file. The invariant (above) keeps the
+// paragraph present; this actively places the caret there on ArrowDown so the native EOF move
+// can't drop the selection (→ Vditor normalising it to the editor start = the jump-to-top).
+// Wired once; reads the active editor lazily. gap-paragraph.ts.
+setupTrailingNav(() =>
   window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
 )
 
@@ -354,16 +395,56 @@ function runFinishInit(msg: any): void {
     }
   }
   setupSplitScrollSync()
+  // Preserve scroll position when toggling edit (IR/WYSIWYG) ↔ full Preview overlay.
+  setupPreviewScrollPreserve()
   // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
   // safe in the editable IR and round-trips). Observe the active editor element so styling
   // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
   disposeCallouts?.()
   disposeCallouts = observeCallouts(activeModeElement(window.vditor))
+  // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
+  // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
+  // render). The preview never gets `--expand` (no caret), so it stays "collapsed" → the CSS shows
+  // the injected render + hides the source, identical to a collapsed IR callout (so Edit↔Preview
+  // match in look AND height). The observer re-applies after each preview re-render (fresh innerHTML).
+  disposePreviewCallouts?.()
+  disposePreviewCallouts = observeCallouts(
+    (
+      window.vditor as unknown as {
+        vditor?: { preview?: { previewElement?: HTMLElement } }
+      }
+    ).vditor?.preview?.previewElement,
+  )
   // Code-block edit surface: tag the editable source `<code>` with `.hljs` so the highlight.js
   // theme styles it like the render (size/padding/bg/base colour) — editing matches preview, no
   // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
   disposeCodeSource?.()
   disposeCodeSource = observeCodeSource(activeModeElement(window.vditor))
+  // WYSIWYG live code highlighting: while editing a code block in WYSIWYG, paint live syntax
+  // colours onto the editable source via the CSS Custom Highlight API (zero DOM mutation, so
+  // Lute serialisation/typing stay intact — unlike IR, whose source is monochrome). Bound to the
+  // stable `#app` mount (not activeModeElement): the default mode is IR, and runFinishInit runs
+  // once, so we must keep working after a later switch into WYSIWYG. hljs is eager-loaded here so
+  // highlighting is ready from the start instead of lazily on first render.
+  disposeWysiwygHighlight?.()
+  // Make our hljs token spans invisible to Lute (it reparses the wysiwyg source every keystroke +
+  // on getValue) so the highlighted edit surface still round-trips byte-clean. Idempotent per Lute.
+  wrapLuteFlatten(window.vditor)
+  ensureHljsLoaded(
+    lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
+    // Nudge the highlighter once the script lands, in case a code block is already focused
+    // and idle (no further mutations would otherwise trigger the first paint).
+  ).then(() => document.dispatchEvent(new Event('selectionchange')))
+  disposeWysiwygHighlight = observeWysiwygCodeHighlight(
+    document.getElementById('app'),
+    () => (window as any).hljs,
+  )
+  // Trailing-paragraph invariant: a document ending with a block (callout/code/table/…)
+  // always offers an empty paragraph below it — without one there is NO caret position
+  // after the last block (arrow-down at EOF dropped the selection → caret+view jumped to
+  // the top). Tag is serializer-invisible; survives IR rebuilds via its own observer.
+  disposeTrailing?.()
+  disposeTrailing = observeTrailingParagraph(activeModeElement(window.vditor))
   reportDocMode()
 }
 

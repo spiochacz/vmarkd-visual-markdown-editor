@@ -25,6 +25,22 @@ export interface MermaidPalette {
 }
 
 export const MERMAID_PALETTES: Record<string, MermaidPalette> = {
+  // VS Code "2026" default themes — tuned to match the vscode-{light,dark}-2026 content
+  // themes (page bg = editor.background, line/accent = textLink, fg = editor.foreground).
+  // node fill resolves from mix(bg, fg) to the theme's code/blockquote surface. Paired in
+  // the registry so `auto` matches the editor; also selectable directly in the gallery.
+  'vscode-light-2026': {
+    bg: '#ffffff',
+    fg: '#202020',
+    line: '#0069cc',
+    accent: '#0069cc',
+  },
+  'vscode-dark-2026': {
+    bg: '#121314',
+    fg: '#bbbebf',
+    line: '#48a0c7',
+    accent: '#48a0c7',
+  },
   'zinc-light': { bg: '#FFFFFF', fg: '#27272A' },
   'zinc-dark': { bg: '#18181B', fg: '#FAFAFA' },
   'tokyo-night': {

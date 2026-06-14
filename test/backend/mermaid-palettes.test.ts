@@ -9,8 +9,8 @@ import { pairedPalette } from '../../src/theme-registry'
 const HEX = /^#[0-9a-f]{6}$/
 
 describe('mermaid palettes', () => {
-  it('vendors all 15 Beautiful Mermaid palettes', () => {
-    expect(MERMAID_PALETTE_NAMES).toHaveLength(15)
+  it('vendors all 15 Beautiful Mermaid palettes + the 2 VS Code 2026 palettes', () => {
+    expect(MERMAID_PALETTE_NAMES).toHaveLength(17)
     for (const id of [
       'github-light',
       'github-dark',
@@ -69,8 +69,8 @@ describe('pairedPalette (content-theme pairing)', () => {
     expect(pairedPalette('github-light')).toBe('github-light')
     expect(pairedPalette('github-dark')).toBe('github-dark')
     expect(pairedPalette('material-dark')).toBe('one-dark')
-    expect(pairedPalette('vscode-light-modern')).toBe('zinc-light')
-    expect(pairedPalette('vscode-dark-modern')).toBe('zinc-dark')
+    expect(pairedPalette('vscode-light-2026')).toBe('vscode-light-2026')
+    expect(pairedPalette('vscode-dark-2026')).toBe('vscode-dark-2026')
   })
 
   it('returns undefined for auto / unknown', () => {

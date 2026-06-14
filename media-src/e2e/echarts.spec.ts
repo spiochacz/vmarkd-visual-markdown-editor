@@ -100,14 +100,14 @@ test('auto pairs material-dark to vintage colours on the page background', async
   expect(colors[0]).toBe('#d87c7c') // vintage palette
 })
 
-test('auto pairs VS Code Dark Modern to VS Code chart colours', async ({
+test('auto pairs VS Code Dark 2026 to VS Code chart colours', async ({
   page,
 }) => {
   await page.evaluate(() =>
-    (window as any).__applyTheme('vscode-dark-modern', 'dark', 'auto'),
+    (window as any).__applyTheme('vscode-dark-2026', 'dark', 'auto'),
   )
   await page.waitForFunction(
-    () => (window as any).__bg() === '#1f1f1f',
+    () => (window as any).__bg() === '#121314',
     undefined,
     { timeout: 10000 },
   )

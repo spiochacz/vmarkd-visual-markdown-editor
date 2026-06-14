@@ -110,3 +110,32 @@ test('showHeadingMarkers toggle hides the gutter markers and tightens the gutter
   // the now-empty left gutter is tightened
   expect(parseFloat(result.padOff)).toBeLessThan(parseFloat(result.padOn))
 })
+
+// The drag-resize handle must track the outline's visibility. Vditor's Outline.toggle()
+// only flips the panel's inline display; with the outline OFF the handle would otherwise
+// hang at the editor's right edge (visible grip for a hidden panel) and its straddle margins
+// poked a few px past the viewport → a phantom horizontal scrollbar. outline-resize.ts mirrors
+// the outline's display onto the handle.
+test('the resize handle is hidden when the outline is toggled off, shown when on', async ({
+  page,
+}) => {
+  await gotoOutline(page)
+  const handle = page.locator('.outline-resize-handle')
+  await expect(handle).toHaveCount(1)
+  // outline starts enabled → handle visible
+  await expect(handle).toBeVisible()
+
+  // toggle the outline OFF through Vditor's own path (sets display:none on the panel)
+  await page.evaluate(() => {
+    const v = (window as any).vditor.vditor
+    v.outline.toggle(v, false)
+  })
+  await expect(handle).toBeHidden() // MutationObserver mirrored display:none
+
+  // and back ON
+  await page.evaluate(() => {
+    const v = (window as any).vditor.vditor
+    v.outline.toggle(v, true)
+  })
+  await expect(handle).toBeVisible()
+})

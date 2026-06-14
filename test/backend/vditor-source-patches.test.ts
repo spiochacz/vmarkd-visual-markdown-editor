@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import {
   patchIrLinkClick,
   patchWysiwygLinkClick,
+  patchWysiwygCodeClickCaret,
   patchListToggle,
   patchOutlineCurrent,
   patchMathRender,
@@ -13,6 +14,7 @@ import {
   patchPreviewCopyTip,
   patchIrBlurExpand,
   patchSetContentTheme,
+  patchCalloutArrowNav,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -110,6 +112,78 @@ describe('patchWysiwygLinkClick (task 62)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchWysiwygLinkClick('// unrelated source')).toThrow(
       /fixWysiwygLinkClick/,
+    )
+  })
+})
+
+describe('patchWysiwygCodeClickCaret (click lands caret at the clicked line)', () => {
+  const CLICK_ANCHOR =
+    'if (previewElement) {\n                showCode(previewElement, vditor);\n            }'
+
+  it('the shipped Vditor WYSIWYG source collapses the caret to the block start (pre-patch)', () => {
+    expect(wysiwygSource).toContain(CLICK_ANCHOR)
+  })
+
+  it('injects a caretRangeFromPoint reposition after showCode in the click handler', () => {
+    const patched = patchWysiwygCodeClickCaret(wysiwygSource)
+    expect(patched).toContain('caretRangeFromPoint')
+    expect(patched).toContain('data-type") === "code-block"')
+    // still calls showCode (we reposition AFTER it, falling back to its start)
+    expect(patched).toContain('showCode(previewElement, vditor);')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchWysiwygCodeClickCaret('// unrelated source')).toThrow(
+      /fixWysiwygCodeClickCaret/,
+    )
+  })
+})
+
+describe('patchCalloutArrowNav (callout dual-node arrow navigation)', () => {
+  it('the shipped Vditor source checks last-line against raw textContent and splices only TABLE/data-type (pre-patch)', () => {
+    expect(fixBrowserSource).toContain(
+      'element.textContent.trimRight().substr(position.start).indexOf("\\n") === -1',
+    )
+    expect(fixBrowserSource).toContain(
+      '(nextElement && (nextElement.tagName === "TABLE" || nextElement.getAttribute("data-type")))',
+    )
+    expect(fixBrowserSource).toContain(
+      '(previousElement && (previousElement.tagName === "TABLE" || previousElement.getAttribute("data-type")))',
+    )
+  })
+
+  it('compares the EDITABLE text (callout preview stripped) and splices for data-callout neighbours', () => {
+    const patched = patchCalloutArrowNav(fixBrowserSource)
+    // last-line / at-end checks use the preview-stripped text
+    expect(patched).toContain(
+      'vmarkdEditableText(element).trimRight().substr(position.start).indexOf("\\n") === -1',
+    )
+    expect(patched).toContain(
+      'position.start >= vmarkdEditableText(element).trimRight().length',
+    )
+    // the helper is injected before insertAfterBlock
+    expect(patched).toContain('const vmarkdEditableText = ')
+    // both splice sets gain data-callout; TABLE/data-type behaviour preserved
+    expect(patched).toContain(
+      'nextElement.getAttribute("data-type") || nextElement.hasAttribute("data-callout")',
+    )
+    expect(patched).toContain(
+      'previousElement.getAttribute("data-type") || previousElement.hasAttribute("data-callout")',
+    )
+    // …and a contenteditable=false neighbour (our #fix-table-ir-wrapper panel) is a splice
+    // boundary too — Vditor inserts a paragraph instead of dropping the caret into the panel
+    // (which is pinned at top:0 → the end-of-file "jump to top").
+    expect(patched).toContain(
+      'nextElement.getAttribute("contenteditable") === "false"',
+    )
+    expect(patched).toContain(
+      'previousElement.getAttribute("contenteditable") === "false"',
+    )
+  })
+
+  it('throws (fails the build loudly) if any anchor is gone — version-bump guard', () => {
+    expect(() => patchCalloutArrowNav('// unrelated source')).toThrow(
+      /fixCalloutArrowNav/,
     )
   })
 })

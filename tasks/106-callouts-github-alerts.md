@@ -2,16 +2,17 @@
 
 > **Status:** 🟢 done (2026-06-10, branch `feat/callouts`). `callouts.ts` (`matchCallout` pure +
 > `applyCallouts` **attribute-only** + `observeCallouts` MutationObserver) restyles `[!TYPE]`
-> blockquotes → callout box (CSS in main.css, 5 GitHub + Obsidian types, per-type accents,
-> foldable `-`/`+` marked). **Attribute-only**: sets `data-callout` / `data-callout-title` /
+> blockquotes → callout box (CSS in main.css, 5 GitHub + Obsidian types, per-type accents).
+> Obsidian's foldable `-`/`+` suffix is ACCEPTED but IGNORED (fold-state support was built,
+> then DROPPED as overkill at this stage — the suffix renders as a normal callout). **Attribute-only**: sets `data-callout` / `data-callout-title` /
 > classes and NOTHING else — no DOM/text mutation, so it's safe in the **editable IR** (caret +
 > round-trip safe) and works in both edit and preview. CSS draws the title via
 > `::before { content: attr(data-callout-title) }`; the raw `[!NOTE]` marker stays in the source.
 > Wired into `runFinishInit` (`observeCallouts(activeModeElement(vditor))`, one disposer torn down
 > + replaced on re-init). Unit (6, matchCallout) + e2e (7, `callouts.spec.ts`: type/title-attr/
-> ::before-title/explicit-title/foldable/plain-untouched/editable-styled-text-intact/styled). All
-> green; lint + typecheck + build clean; installed locally. **Deferred (phase 2):** foldable
-> click-to-toggle JS (CSS marks open/closed only), codicon icons in the title (CSS hook
+> ::before-title/explicit-title/fold-suffix-ignored/plain-untouched/editable-styled-text-intact/styled). All
+> green; lint + typecheck + build clean; installed locally. **Deferred (phase 2):** foldable open/closed states
+> (built, then removed as overkill — re-add with click-to-toggle JS if requested), codicon icons in the title (CSS hook
 > `--vmarkd-callout-icon` is in place).
 >
 > **Rework note (the v1→done fix):** v1 transformed the DOM (stripped marker, injected a

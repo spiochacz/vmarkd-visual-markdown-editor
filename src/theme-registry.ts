@@ -63,20 +63,20 @@ export const CONTENT_THEMES: readonly ThemeDef[] = [
     palette: 'one-dark',
   },
   {
-    value: 'vscode-light-modern',
-    file: 'media/markdown-themes/vscode-light-modern.css',
+    value: 'vscode-light-2026',
+    file: 'media/markdown-themes/vscode-light-2026.css',
     mode: 'light',
     code: 'vs',
     fontDefaultPx: null,
-    palette: 'zinc-light',
+    palette: 'vscode-light-2026',
   },
   {
-    value: 'vscode-dark-modern',
-    file: 'media/markdown-themes/vscode-dark-modern.css',
+    value: 'vscode-dark-2026',
+    file: 'media/markdown-themes/vscode-dark-2026.css',
     mode: 'dark',
     code: 'vs2015',
     fontDefaultPx: null,
-    palette: 'zinc-dark',
+    palette: 'vscode-dark-2026',
   },
 ]
 

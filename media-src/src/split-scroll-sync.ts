@@ -17,6 +17,8 @@
 // write lands AFTER Vditor's synchronous proportional write and wins. A single
 // capture-phase listener on document survives mode switches without rebinding.
 
+import { alignByHeadings } from './heading-align'
+
 const PREVIEW_SEL = '.vditor-preview'
 const RESET_SEL = '.vditor-reset'
 const HEADING_RE = /^#{1,6}\s/
@@ -30,10 +32,6 @@ function topWithin(container: HTMLElement, el: HTMLElement): number {
     container.getBoundingClientRect().top +
     container.scrollTop
   )
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return v < lo ? lo : v > hi ? hi : v
 }
 
 function syncSourceToPreview(source: HTMLElement) {
@@ -51,44 +49,13 @@ function syncSourceToPreview(source: HTMLElement) {
   const pvHeads = (Array.from(reset.children) as HTMLElement[]).filter((el) =>
     /^H[1-6]$/.test(el.tagName),
   )
-  // Mismatch → leave Vditor's proportional value untouched (never worse).
-  if (!srcHeads.length || srcHeads.length !== pvHeads.length) return
 
   const srcTops = srcHeads.map((el) => topWithin(source, el))
   const pvTops = pvHeads.map((el) => topWithin(preview, el))
-  const centre = source.scrollTop + source.clientHeight / 2
-
-  // Locate the segment [i, i+1) of source headings bracketing the centre, with
-  // virtual anchors at the very top (0↔0) and bottom (full height↔full height).
-  let target: number
-  if (centre <= srcTops[0]) {
-    const frac = srcTops[0] > 0 ? centre / srcTops[0] : 0
-    target = frac * pvTops[0]
-  } else {
-    let i = srcTops.length - 1
-    for (let k = 0; k < srcTops.length - 1; k++) {
-      if (centre < srcTops[k + 1]) {
-        i = k
-        break
-      }
-    }
-    if (i === srcTops.length - 1) {
-      // Past the last heading: interpolate to the end of content.
-      const srcSpan = source.scrollHeight - srcTops[i]
-      const pvSpan = preview.scrollHeight - pvTops[i]
-      const frac = srcSpan > 0 ? (centre - srcTops[i]) / srcSpan : 0
-      target = pvTops[i] + frac * pvSpan
-    } else {
-      const frac = (centre - srcTops[i]) / (srcTops[i + 1] - srcTops[i])
-      target = pvTops[i] + frac * (pvTops[i + 1] - pvTops[i])
-    }
-  }
-
-  preview.scrollTop = clamp(
-    target - preview.clientHeight / 2,
-    0,
-    preview.scrollHeight - preview.clientHeight,
-  )
+  // Mismatch → alignByHeadings returns null → leave Vditor's proportional value
+  // untouched (never worse).
+  const target = alignByHeadings(source, srcTops, preview, pvTops)
+  if (target !== null) preview.scrollTop = target
 }
 
 export function setupSplitScrollSync() {

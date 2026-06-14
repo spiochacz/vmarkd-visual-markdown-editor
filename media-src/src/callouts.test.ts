@@ -3,10 +3,7 @@ import { matchCallout } from './callouts'
 
 describe('matchCallout', () => {
   it('matches GitHub alert types (case-insensitive)', () => {
-    expect(matchCallout('[!NOTE]')).toMatchObject({
-      type: 'note',
-      foldable: false,
-    })
+    expect(matchCallout('[!NOTE]')).toMatchObject({ type: 'note' })
     expect(matchCallout('[!Tip]')).toMatchObject({ type: 'tip' })
     expect(matchCallout('[!WARNING]')?.type).toBe('warning')
   })
@@ -19,16 +16,13 @@ describe('matchCallout', () => {
     expect(matchCallout('[!note]')?.title).toBe('')
   })
 
-  it('parses Obsidian foldable suffixes', () => {
-    expect(matchCallout('[!note]-')).toMatchObject({
-      foldable: true,
-      open: false,
-    })
+  it("accepts Obsidian's foldable suffixes but ignores them (fold support dropped)", () => {
+    expect(matchCallout('[!note]-')).toMatchObject({ type: 'note', title: '' })
     expect(matchCallout('[!note]+ Title')).toMatchObject({
-      foldable: true,
-      open: true,
+      type: 'note',
       title: 'Title',
     })
+    expect(matchCallout('[!note]-')).not.toHaveProperty('foldable')
   })
 
   it('accepts unknown types (rendered with a neutral style)', () => {

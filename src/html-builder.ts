@@ -152,7 +152,12 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
   } = params
 
   const jsFiles = ['media/dist/main.js'].map(toUri)
-  const cssFiles = ['media/dist/main.css'].map(toUri)
+  // Vditor's index.css is loaded as its OWN <link> (not bundled into main.css) so the editor
+  // uses the SAME single, build.mjs-patched media/ copy the harness + export load — no
+  // bundled-vs-copied drift (ADR-0004). MUST precede main.css so our bundle still wins ties.
+  const cssFiles = ['media/vditor/dist/index.css', 'media/dist/main.css'].map(
+    toUri,
+  )
   const iconScript = toUri('media/vditor-icons.js')
   const i18nScript = toUri(`media/vditor/dist/js/i18n/${i18nLang}.js`)
 

@@ -29,6 +29,22 @@ export function setupOutlineResize(
     outlineEl.insertAdjacentElement('afterend', handle)
   }
 
+  // The outline element ALWAYS exists — Vditor's `Outline.toggle()` only flips its inline
+  // `display` (block/none). So the handle must track the outline's visibility: with the
+  // outline OFF (display:none) it goes out of flow and the handle becomes the last in-flow
+  // child at the editor's right edge, where its straddle margins poke a few px past the
+  // viewport (a phantom horizontal scrollbar) — and a resize grip for a hidden panel is wrong
+  // anyway. Mirror the outline's display, live (the toolbar toggle flips the inline style).
+  const syncHandleVisibility = () => {
+    handle.style.display =
+      getComputedStyle(outlineEl).display === 'none' ? 'none' : ''
+  }
+  syncHandleVisibility()
+  new MutationObserver(syncHandleVisibility).observe(outlineEl, {
+    attributes: true,
+    attributeFilter: ['style', 'class'],
+  })
+
   let dragging = false
   let startX = 0
   let startW = 0

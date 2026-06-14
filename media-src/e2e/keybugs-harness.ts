@@ -4,6 +4,7 @@
 // helpers, then drives real keystrokes with Playwright and reads getValue() back.
 import Vditor from 'vditor/src/index'
 import { preserveCaretAndScroll } from '../src/caret-preserve'
+import { setupCaretScroll } from '../src/caret-scroll'
 
 const params = new URLSearchParams(location.search)
 const mode = (params.get('mode') as 'ir' | 'wysiwyg' | 'sv') || 'wysiwyg'
@@ -29,6 +30,11 @@ const editor = new Vditor('app', {
     // main.ts external-update path, exposed so the spec can drive it around setValue.
     ;(window as any).__preserveCaretAndScroll = (fn: () => void) =>
       preserveCaretAndScroll(editor, fn)
+    // Production wiring under test: keep the caret visible during programmatic arrow
+    // moves (table cells) — main.ts wires the same.
+    setupCaretScroll(
+      () => (editor as any).vditor?.[editor.getCurrentMode()]?.element ?? null,
+    )
     ;(window as any).__ready = true
   },
 })
