@@ -263,16 +263,6 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 .vditor-reset .vditor-ir__node[data-type="math-block"] .katex-display {
   margin-top: 0;
 }
-/* WYSIWYG inline-code h-padding. Vditor zeroes it (`code[data-marker] { padding:0 !important }`);
-   our build-time index.css patch fixes that, BUT Vditor's index.css is served from the webview's
-   asset cache with no cache-buster, so the patch can arrive STALE — WYSIWYG inline code then loses
-   its h-padding in the real editor (0px) while IR/Preview (theme file, loaded fresh) keep it →
-   visible mismatch. main.css IS loaded fresh, so OWN it here: (0,3,1)+!important beats Vditor's
-   (0,2,1). Token-driven: vscode-2026 → 3px, others → .4em (their IR/Preview value). */
-.vditor-wysiwyg code[data-marker="`"]:not(.hljs) {
-  padding-left: var(--vmarkd-code-px, 0.4em) !important;
-  padding-right: var(--vmarkd-code-px, 0.4em) !important;
-}
 /* EOF trailing paragraph (gap-paragraph.ts `data-vmarkd-trailing`): the maintained empty escape
    paragraph after an atomic last block (table / callout / math / quote) so the caret can land
    below it. Keep it in the DOM (caret landing + the trailing invariant), but collapse it to ZERO

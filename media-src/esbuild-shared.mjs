@@ -796,6 +796,39 @@ const fixSetContentTheme = {
   },
 }
 
+// fixIndexCssWysiwygPad: `main.ts` does `import 'vditor/dist/index.css'`, so esbuild BUNDLES
+// Vditor's index.css (from node_modules — UNPATCHED) into `media/dist/main.css`, which is what
+// the real editor loads. build.mjs `patchVditorIndexCss` only rewrites the COPIED `media/vditor/
+// dist/index.css` (used by the harness + the HTML-export feature), so its WYSIWYG inline-code
+// h-padding fix never reached the editor → WYSIWYG inline code showed Vditor's `0 !important`.
+// Patch the rule HERE, at bundle time, so the editor's main.css carries it. Token-driven:
+// `var(--vmarkd-code-px, .4em)` → vscode-2026 3px, others .4em. Anchored (throws on Vditor drift).
+const INDEXCSS_WYS_PAD_ANCHOR =
+  '.vditor-wysiwyg code[data-marker="`"] {\n  padding-left: 0 !important;\n  padding-right: 0 !important;\n}'
+const fixIndexCssWysiwygPad = {
+  name: 'fix-indexcss-wysiwyg-pad',
+  setup(build) {
+    build.onLoad(
+      { filter: /vditor[/\\]dist[/\\]index\.css$/ },
+      async (args) => {
+        const css = await readFile(args.path, 'utf8')
+        if (!css.includes(INDEXCSS_WYS_PAD_ANCHOR)) {
+          throw new Error(
+            'fixIndexCssWysiwygPad: WYSIWYG inline-code padding rule not found in vditor index.css — Vditor changed; update esbuild-shared.mjs',
+          )
+        }
+        return {
+          loader: 'css',
+          contents: css.replace(
+            INDEXCSS_WYS_PAD_ANCHOR,
+            '.vditor-wysiwyg code[data-marker="`"] {\n  padding-left: var(--vmarkd-code-px, .4em) !important;\n  padding-right: var(--vmarkd-code-px, .4em) !important;\n}',
+          ),
+        }
+      },
+    )
+  },
+}
+
 export const vditorSourceConfig = {
   define: {
     VDITOR_VERSION: JSON.stringify(vditorVersion),
@@ -822,5 +855,6 @@ export const vditorSourceConfig = {
     fixMermaidVersion,
     fixEcharts,
     fixSetContentTheme,
+    fixIndexCssWysiwygPad,
   ],
 }
