@@ -82,7 +82,8 @@ Mirrors mermaid's 3 layers but with ECharts gotchas:
     bg = transparent; gallery themes omit `backgroundColor`). So ALWAYS register a theme OBJECT
     with an explicit `backgroundColor` (back-fill `#ffffff` for gallery themes).
   - One esbuild **onLoad runs per file** — so the `?v=5.5.1`→`6.1.0` version bump AND the theme-init
-    rewrite for `chartRender.ts` must live in ONE plugin (`fixEcharts`), not two.
+    rewrite for `chartRender.ts` must live in ONE registry transform (the echarts `VDITOR_TS_PATCHES`
+    entry chains `patchEchartsVersion` then `patchEchartsThemeInit`), not two onLoads.
   - VS Code dark themes share VS Code's DEFAULT chart palette (most themes don't customize
     `--vscode-charts-*`); accepted = charts use the editor's own chart colors.
 
@@ -90,7 +91,8 @@ Mirrors mermaid's 3 layers but with ECharts gotchas:
 
 - **Vditor hardcodes asset cache-busters.** `mermaidRender.ts` loads `mermaid.min.js?v=11.6.0`,
   `chartRender.ts` loads `echarts.min.js?v=5.5.1`. If you vendor a newer asset, ALSO bump the
-  `?v=` via an esbuild patch (`media-src/esbuild-shared.mjs`, see `fixMermaidVersion`), else a
+  `?v=` via an esbuild patch (`media-src/esbuild-shared.mjs`, see `patchMermaidVersion` in the
+  `VDITOR_TS_PATCHES` registry), else a
   cached webview serves the old bytes across an extension update.
 - **Overriding a Vditor-bundled asset = overwrite AFTER sync.** `build.mjs` `syncVditorAssets()`
   copies Vditor's whole `dist/` into `media/`. To pin your own (lute, mermaid) you overwrite
@@ -178,7 +180,7 @@ render's theming, so editing a block can look completely different from its rend
   user wants the editing room then).
 - **`blurEvent` collapses `--expand` on EVERY blur** (Vditor `util/editorCommonEvent.ts`). A click in
   the webview = transient blur→refocus → the render flashed mid-click. Fix = esbuild patch
-  `fixIrBlurExpand`: wrap the `expandElement.classList.remove(...)` in `requestAnimationFrame` + a
+  `patchIrBlurExpand`: wrap the `expandElement.classList.remove(...)` in `requestAnimationFrame` + a
   `document.activeElement` recheck (skip collapse if focus returned; genuine blur still collapses a
   frame later).
 - **META-GOTCHA: these edit-surface bugs reproduce ONLY in the real VS Code webview**, not the
@@ -206,8 +208,10 @@ render's theming, so editing a block can look completely different from its rend
   `media-src/src/callouts.ts` (callout dual-node), the edit-surface CSS in `media-src/src/main.css`
   (search `vditor-ir__marker--pre`, `--expand`).
 - Build/patches: `build.mjs` (`syncVditorAssets`, `syncLute`, `syncMermaid`, `syncEcharts`,
-  `varifyVditorPalette`), `media-src/esbuild-shared.mjs` (vditor source patches incl. `fixMermaidVersion`,
-  `fixEcharts`, `fixIrBlurExpand`). Patch unit tests: `test/backend/vditor-source-patches.test.ts`.
+  `varifyVditorPalette`, `patchVditorIndexCss` — index.css is patched HERE only, not bundled; ADR-0004),
+  `media-src/esbuild-shared.mjs` (vditor TS source patches: the `VDITOR_TS_PATCHES` registry +
+  `vditorSourcePatches` engine; e.g. `patchMermaidVersion`, `patchEchartsThemeInit`, `patchIrBlurExpand`).
+  Patch unit tests: `test/backend/vditor-source-patches.test.ts`.
 - CSP: `src/html-builder.ts`. Vendored assets: `media-src/vendor/<engine>/` (+ `source.json` sha guard).
 - Related tasks: 82/84/85 (content themes + registry), 86 (mermaid palettes), 87 (PlantUML/TeaVM),
   89 (ECharts bump 6.1.0), 90 (ECharts theming), 106 (callouts dual-node).
