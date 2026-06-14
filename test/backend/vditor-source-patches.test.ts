@@ -225,12 +225,19 @@ describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
     expect(mindmapSource).toContain('color: "#d1d5da"')
   })
 
-  it('strips the hardcoded series colours so the registered theme drives them', () => {
+  it('drives the tree node/label/line colours from the resolved theme (window.__vmarkdMindmapStyle)', () => {
     const patched = patchMindmapThemeColors(mindmapSource)
-    expect(patched).not.toContain('#4285f4')
-    expect(patched).not.toContain('#f6f8fa')
-    expect(patched).not.toContain('#586069')
-    expect(patched).not.toContain('#d1d5da')
+    // ECharts' `tree` ignores the registered theme palette, so the colours are set EXPLICITLY
+    // from the resolved theme each render — not stripped (stripping left the nodes default grey).
+    expect(patched).toContain('window.__vmarkdMindmapStyle.node')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.label')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.labelBg')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.labelBorder')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.line')
+    // Vditor's GitHub-light colours survive only as the no-resolver fallback (bare harness).
+    expect(patched).toContain(
+      'window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.node : "#4285f4"',
+    )
     // geometry is kept
     expect(patched).toContain('borderRadius: 5')
     expect(patched).toContain('position: "insideRight"')

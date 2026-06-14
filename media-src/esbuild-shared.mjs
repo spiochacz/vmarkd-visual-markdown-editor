@@ -573,10 +573,14 @@ export function patchEchartsThemeInit(code) {
 // mindmapRender (an ECharts `tree`) hardcodes GitHub-LIGHT colours into its setOption — node
 // `#4285f4`, label bg `#f6f8fa` / border `#d1d5da` / text `#586069`, line `#d1d5da` — so it ignores
 // the content theme (wrong on dark). chartRender already follows the theme via the resolver
-// (patchEchartsThemeInit, applied to mindmapRender too in fixEcharts). Strip the hardcoded series
-// colours so the SAME registered theme drives them: nodes → palette, labels → theme textStyle
-// colour, lines → theme line colour, on the theme's background. Geometry (radius/padding/offset/
-// width) is kept. Anchored on the exact colour block; throws on Vditor drift.
+// (patchEchartsThemeInit, applied to mindmapRender too in fixEcharts). For a `tree` series, though,
+// ECharts does NOT apply the registered theme's categorical `color` palette to node symbols (unlike
+// bar/line), so merely stripping these hardcoded colours left the nodes ECharts-default GREY — the
+// mindmap still ignored the content theme. So we instead DRIVE the colours from the resolved theme
+// at render time via `window.__vmarkdMindmapStyle` (installed by echarts-apply.ts): node → series
+// colour 0, label text → theme foreground, label surface/border + line → theme tooltip surface/line.
+// Falls back to Vditor's GitHub-light defaults when the resolver isn't installed (bare harness).
+// Geometry (radius/padding/offset/width) is kept. Anchored on the exact colour block; throws on drift.
 const MINDMAP_COLORS_ANCHOR = `itemStyle: {
                                     borderWidth: 0,
                                     color: "#4285f4",
@@ -606,15 +610,21 @@ export function patchMindmapThemeColors(code) {
     MINDMAP_COLORS_ANCHOR,
     `itemStyle: {
                                     borderWidth: 0,
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.node : "#4285f4"),
                                 },
                                 label: {
+                                    backgroundColor: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.labelBg : "#f6f8fa"),
+                                    borderColor: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.labelBorder : "#d1d5da"),
                                     borderRadius: 5,
+                                    borderWidth: 0.5,
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.label : "#586069"),
                                     lineHeight: 20,
                                     offset: [-5, 0],
                                     padding: [0, 5],
                                     position: "insideRight",
                                 },
                                 lineStyle: {
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.line : "#d1d5da"),
                                     width: 1,
                                 },`,
   )

@@ -85,14 +85,39 @@ export function reRenderEcharts(
   const mmNodes = Array.from(
     editorEl.querySelectorAll<HTMLElement>('.language-mindmap'),
   )
+  // ECharts' `tree` ignores the registered theme's palette, so the node/label/line colours are
+  // set explicitly from the resolved theme (window.__vmarkdMindmapStyle, mirrors the mindmapRender
+  // patch). The preserved option carries the OLD colours, so re-apply the CURRENT style on top.
+  const mmStyle = win.__vmarkdMindmapStyle as
+    | {
+        node: string
+        label: string
+        labelBg: string
+        labelBorder: string
+        line: string
+      }
+    | undefined
   for (const live of mmNodes) {
     const inst = ec.getInstanceByDom?.(live)
     if (!inst) continue
-    let opt: unknown
+    let opt: any
     try {
       opt = inst.getOption()
     } catch {
       continue
+    }
+    if (mmStyle && Array.isArray(opt?.series)) {
+      for (const s of opt.series) {
+        if (!s || s.type !== 'tree') continue
+        s.itemStyle = { ...(s.itemStyle || {}), color: mmStyle.node }
+        s.label = {
+          ...(s.label || {}),
+          color: mmStyle.label,
+          backgroundColor: mmStyle.labelBg,
+          borderColor: mmStyle.labelBorder,
+        }
+        s.lineStyle = { ...(s.lineStyle || {}), color: mmStyle.line }
+      }
     }
     const w = live.clientWidth
     const h = live.clientHeight

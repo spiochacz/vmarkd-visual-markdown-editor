@@ -55,12 +55,44 @@ export function readVscodePalette(win: any): EditorPalette | undefined {
   return pal
 }
 
+/**
+ * Explicit node/label/line colours for the mindmap `tree` series. ECharts' `tree` does NOT apply
+ * the theme's categorical `color` palette to its node symbols (unlike bar/line series), so stripping
+ * Vditor's hardcoded GitHub-light colours (fixMindmapTheme) leaves the nodes ECharts-default GREY —
+ * the mindmap ignored the content theme. We therefore drive the tree's colours explicitly from the
+ * resolved theme object: node = series colour 0, label text = theme foreground, label surface +
+ * border + line = the theme's tooltip surface/line. The patched mindmapRender reads this each render.
+ */
+function mindmapStyleFromTheme(
+  theme: Record<string, unknown> | null | undefined,
+): Record<string, string> | null {
+  if (!theme) return null
+  const color = (theme.color as string[] | undefined)?.[0]
+  const fg = (theme.textStyle as { color?: string } | undefined)?.color
+  const tooltip = theme.tooltip as
+    | { backgroundColor?: string; borderColor?: string }
+    | undefined
+  const node = color || fg
+  if (!node) return null
+  const line = tooltip?.borderColor || fg || node
+  return {
+    node,
+    label: fg || node,
+    labelBg: tooltip?.backgroundColor || 'transparent',
+    labelBorder: line,
+    line,
+  }
+}
+
 export function applyEchartsTheme(
   win: any,
   spec: EchartsThemeSpec | null | undefined,
 ): void {
   win.__vmarkdEchartsTheme = spec?.name ?? null
   win.__vmarkdEchartsThemeObj = spec?.theme ?? null
+  // Explicit tree-series colours for the mindmap (read by the patched mindmapRender + the
+  // re-theme path), since ECharts' `tree` ignores the theme's categorical palette.
+  win.__vmarkdMindmapStyle = mindmapStyleFromTheme(spec?.theme)
   // Installed once; reads the (mutable) window fields each call so a live theme change is
   // picked up by the next render without re-installing.
   if (!win.__vmarkdEchartsResolve) {
