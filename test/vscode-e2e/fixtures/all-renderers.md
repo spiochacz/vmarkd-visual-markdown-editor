@@ -79,10 +79,14 @@ sequenceDiagram
 
 ---
 
-## 5. Mindmap (ECharts tree) — wejście to URL-encoded JSON
+## 5. Mindmap (ECharts tree) — wejście to markdown outline (lista)
 
 ```mindmap
-%7B%22name%22%3A%22vMarkd%22%2C%22children%22%3A%5B%7B%22name%22%3A%22Renderery%22%2C%22children%22%3A%5B%7B%22name%22%3A%22mermaid%22%7D%2C%7B%22name%22%3A%22math%22%7D%5D%7D%2C%7B%22name%22%3A%22Motywy%22%7D%5D%7D
+- vMarkd
+  - Renderery
+    - mermaid
+    - math
+  - Motywy
 ```
 
 ---
