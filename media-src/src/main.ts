@@ -47,6 +47,7 @@ import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
+import { installEchartsResize } from './echarts-fit'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import {
@@ -449,6 +450,10 @@ function runFinishInit(msg: any): void {
   // Ctrl-to-interact gate for the zooming diagrams (markmap + ECharts mindmap): plain wheel scrolls
   // the page, Ctrl+wheel zooms, Ctrl+drag pans. Document-level + idempotent.
   installDiagramZoomGate()
+  // Make ECharts charts/mindmaps responsive to a window/pane resize (echarts installs no resize
+  // handler → the chart stays anchored left while the container grows). window-resize ONLY, so it
+  // never fires on a mode switch (which would flicker the IR source behind the canvas). Idempotent.
+  installEchartsResize(window)
   reportDocMode()
 }
 
