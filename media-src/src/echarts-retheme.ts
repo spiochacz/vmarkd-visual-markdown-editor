@@ -74,4 +74,38 @@ export function reRenderEcharts(
       /* defensive: never let a re-theme throw into the theme-change handler */
     }
   }
+
+  // mindmap (also an ECharts instance — a `tree`) has the SAME stale-on-flip problem. Unlike
+  // charts there's no plain-JSON source to re-`setOption` (Vditor builds the tree config in
+  // mindmapRender), so re-theme by preserving the LIVE instance's option: read getOption(),
+  // dispose, re-init with the new theme name, re-apply. Since mindmapRender no longer hardcodes
+  // colours (fixMindmapTheme), the option carries no explicit palette → the new theme drives the
+  // colours; data + geometry are preserved. getInstanceByDom returns null for the editable source
+  // `<code class="language-mindmap">`, so only the rendered div is re-themed.
+  const mmNodes = Array.from(
+    editorEl.querySelectorAll<HTMLElement>('.language-mindmap'),
+  )
+  for (const live of mmNodes) {
+    const inst = ec.getInstanceByDom?.(live)
+    if (!inst) continue
+    let opt: unknown
+    try {
+      opt = inst.getOption()
+    } catch {
+      continue
+    }
+    const w = live.clientWidth
+    const h = live.clientHeight
+    try {
+      inst.dispose()
+      const ni = ec.init(
+        live,
+        name,
+        w > 0 && h > 0 ? { width: w, height: h } : undefined,
+      )
+      ni.setOption(opt)
+    } catch {
+      /* defensive: a single mindmap must not break the theme-change handler */
+    }
+  }
 }

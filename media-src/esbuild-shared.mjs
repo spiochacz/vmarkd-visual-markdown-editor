@@ -570,6 +570,56 @@ export function patchEchartsThemeInit(code) {
   )
 }
 
+// mindmapRender (an ECharts `tree`) hardcodes GitHub-LIGHT colours into its setOption — node
+// `#4285f4`, label bg `#f6f8fa` / border `#d1d5da` / text `#586069`, line `#d1d5da` — so it ignores
+// the content theme (wrong on dark). chartRender already follows the theme via the resolver
+// (patchEchartsThemeInit, applied to mindmapRender too in fixEcharts). Strip the hardcoded series
+// colours so the SAME registered theme drives them: nodes → palette, labels → theme textStyle
+// colour, lines → theme line colour, on the theme's background. Geometry (radius/padding/offset/
+// width) is kept. Anchored on the exact colour block; throws on Vditor drift.
+const MINDMAP_COLORS_ANCHOR = `itemStyle: {
+                                    borderWidth: 0,
+                                    color: "#4285f4",
+                                },
+                                label: {
+                                    backgroundColor: "#f6f8fa",
+                                    borderColor: "#d1d5da",
+                                    borderRadius: 5,
+                                    borderWidth: 0.5,
+                                    color: "#586069",
+                                    lineHeight: 20,
+                                    offset: [-5, 0],
+                                    padding: [0, 5],
+                                    position: "insideRight",
+                                },
+                                lineStyle: {
+                                    color: "#d1d5da",
+                                    width: 1,
+                                },`
+export function patchMindmapThemeColors(code) {
+  if (!code.includes(MINDMAP_COLORS_ANCHOR)) {
+    throw new Error(
+      'fixMindmapTheme: itemStyle/label/lineStyle colour block not found in vditor mindmapRender.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    MINDMAP_COLORS_ANCHOR,
+    `itemStyle: {
+                                    borderWidth: 0,
+                                },
+                                label: {
+                                    borderRadius: 5,
+                                    lineHeight: 20,
+                                    offset: [-5, 0],
+                                    padding: [0, 5],
+                                    position: "insideRight",
+                                },
+                                lineStyle: {
+                                    width: 1,
+                                },`,
+  )
+}
+
 // setContentTheme content-theme flicker. Vditor's `setContentTheme` (ui/setContentTheme.ts)
 // reloads the `#vditorContentTheme` stylesheet whenever `getAttribute("href") !== cssPath`
 // — it does `link.remove(); addStyle(cssPath)`, an ASYNC re-fetch. On init the instant-paint
@@ -704,7 +754,10 @@ const VDITOR_TS_PATCHES = [
       let out = echartsPin?.version
         ? patchEchartsVersion(code, echartsPin.version)
         : code
-      if (/[/\\]chartRender\.ts$/.test(path)) out = patchEchartsThemeInit(out)
+      if (/[/\\](chartRender|mindmapRender)\.ts$/.test(path))
+        out = patchEchartsThemeInit(out)
+      if (/[/\\]mindmapRender\.ts$/.test(path))
+        out = patchMindmapThemeColors(out)
       return out
     },
   },

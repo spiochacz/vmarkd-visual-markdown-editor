@@ -16,6 +16,7 @@ import {
   patchSetContentTheme,
   patchCalloutArrowNav,
   patchMarkmapStatic,
+  patchMindmapThemeColors,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -57,6 +58,9 @@ const setContentThemeSource = read(
 )
 const markmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/markmapRender.ts',
+)
+const mindmapSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/mindmapRender.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -209,6 +213,33 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchListToggle('// unrelated source')).toThrow(
       /fixListToggle/,
+    )
+  })
+})
+
+describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
+  it('Vditor ships hardcoded GitHub-light colours in the tree setOption', () => {
+    expect(mindmapSource).toContain('color: "#4285f4"')
+    expect(mindmapSource).toContain('backgroundColor: "#f6f8fa"')
+    expect(mindmapSource).toContain('color: "#586069"')
+    expect(mindmapSource).toContain('color: "#d1d5da"')
+  })
+
+  it('strips the hardcoded series colours so the registered theme drives them', () => {
+    const patched = patchMindmapThemeColors(mindmapSource)
+    expect(patched).not.toContain('#4285f4')
+    expect(patched).not.toContain('#f6f8fa')
+    expect(patched).not.toContain('#586069')
+    expect(patched).not.toContain('#d1d5da')
+    // geometry is kept
+    expect(patched).toContain('borderRadius: 5')
+    expect(patched).toContain('position: "insideRight"')
+    expect(patched).toContain('width: 1')
+  })
+
+  it('throws (fails the build loudly) if the colour block is gone — version-bump guard', () => {
+    expect(() => patchMindmapThemeColors('// unrelated source')).toThrow(
+      /fixMindmapTheme/,
     )
   })
 })
