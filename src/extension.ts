@@ -26,7 +26,11 @@ import {
   invalidateCache,
 } from './wiki-cache'
 import { buildWebviewHtml, sanitizeCss } from './html-builder'
-import { resolveFontSize, themeDef } from './theme-registry'
+import {
+  resolveContentTheme,
+  resolveFontSize,
+  themeDef,
+} from './theme-registry'
 
 const KeyVditorOptions = 'vmarkd.options'
 const KeyOutlineWidth = 'vmarkd.outlineWidth'
@@ -127,9 +131,9 @@ function currentThemeKind(): 'dark' | 'light' {
 // toolbar/chrome stays VS Code-coloured regardless (its CSS vars are mode-independent
 // in main.css). `auto` follows the VS Code theme.
 function effectiveThemeKind(): 'dark' | 'light' {
-  const ct = vscode.workspace
-    .getConfiguration('vmarkd')
-    .get<string>('theme.content')
+  const ct = resolveContentTheme(
+    vscode.workspace.getConfiguration('vmarkd').get<string>('theme.content'),
+  )
   // A named theme pins its own mode (registry); `auto`/unknown follows VS Code.
   return themeDef(ct)?.mode ?? currentThemeKind()
 }
@@ -1481,7 +1485,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     // Rendering theme (task 82): `auto` keeps the VS Code-colour look (the old
     // useVscodeColors=true path); github-light/github-dark force a GitHub palette
     // via the vendored github-markdown-css <link>, so `auto` ⇔ useVscodeThemeColor.
-    const contentTheme = c.get<string>('theme.content') || 'auto'
+    const contentTheme = resolveContentTheme(c.get<string>('theme.content'))
     return {
       contentTheme,
       useVscodeThemeColor: contentTheme === 'auto',
@@ -1569,6 +1573,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           ? 'sv'
           : 'ir'
 
+    const contentTheme = resolveContentTheme(cfg.get<string>('theme.content'))
     return buildWebviewHtml({
       toUri,
       baseHref,
@@ -1577,15 +1582,14 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       theme,
       config: {
         showToolbar: cfg.get<boolean>('editor.toolbar') !== false,
-        contentTheme: cfg.get<string>('theme.content') || 'auto',
-        useVscodeThemeColor:
-          (cfg.get<string>('theme.content') || 'auto') === 'auto',
+        contentTheme,
+        useVscodeThemeColor: contentTheme === 'auto',
         enableFullWidth: cfg.get<boolean>('editor.fullWidth') === true,
         highlightHeadings: cfg.get<boolean>('theme.highlightHeadings') === true,
         showHeadingMarkers: cfg.get<boolean>('editor.headingMarkers') !== false,
         fontSize: resolveFontSizeCss(
           cfg.get<string>('editor.fontSize'),
-          cfg.get<string>('theme.content') || 'auto',
+          contentTheme,
         ),
         instantPreview: cfg.get<boolean>('advanced.instantPreview') !== false,
         allowRemoteImages:
