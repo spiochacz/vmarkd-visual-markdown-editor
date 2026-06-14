@@ -88,23 +88,11 @@ export const stubUnusedVditorButtons = {
 // from source (task 20) re-exposes it. Rewrite that single import to a *default*
 // import, which esbuild resolves to the CJS function-with-statics — so both
 // `new DiffMatchPatch()` and `DiffMatchPatch.patch_obj`/static access work.
-const fixDmpInterop = {
-  name: 'fix-diff-match-patch-interop',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]undo[/\\]index\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return {
-          loader: 'ts',
-          contents: code.replace(
-            /import \* as DiffMatchPatch from "diff-match-patch";/,
-            'import DiffMatchPatch from "diff-match-patch";',
-          ),
-        }
-      },
-    )
-  },
+export function patchDmpInterop(code) {
+  return code.replace(
+    /import \* as DiffMatchPatch from "diff-match-patch";/,
+    'import DiffMatchPatch from "diff-match-patch";',
+  )
 }
 
 // Task 62 — link-click UX, gated on our runtime policy. Vditor's IR and WYSIWYG
@@ -149,18 +137,6 @@ export function patchWysiwygLinkClick(code) {
   )
 }
 
-const fixIrLinkClick = {
-  name: 'fix-ir-link-click',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]index\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchIrLinkClick(code) }
-      },
-    )
-  },
-}
 // Clicking a rendered WYSIWYG code block opens its source but Vditor's `showCode` collapses the
 // caret to the block START (`first=true` → `range.collapse(true)`), so clicking a specific line
 // jumps to the top. Land the caret at the CLICKED position instead. We capture the clicked character
@@ -216,23 +192,6 @@ export function patchWysiwygCodeClickCaret(code) {
                 }
             }`
   return code.replace(WYSIWYG_CODE_CLICK_ANCHOR, replacement)
-}
-
-const fixWysiwygLinkClick = {
-  name: 'fix-wysiwyg-link-click',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]wysiwyg[/\\]index\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        // One onLoad per file → chain both wysiwyg/index.ts patches here.
-        return {
-          loader: 'ts',
-          contents: patchWysiwygCodeClickCaret(patchWysiwygLinkClick(code)),
-        }
-      },
-    )
-  },
 }
 
 // Task 56 — listToggle null-deref crash. In fixBrowserBehavior.ts `listToggle`,
@@ -320,24 +279,7 @@ export function patchCalloutArrowNav(code) {
       '(previousElement && (previousElement.tagName === "TABLE" || previousElement.getAttribute("data-type") || previousElement.hasAttribute("data-callout") || previousElement.getAttribute("contenteditable") === "false"))',
     )
 }
-const fixListToggle = {
-  name: 'fix-list-toggle',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]fixBrowserBehavior\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        // ONE onLoad per file: chain both fixBrowserBehavior.ts patches here.
-        return {
-          loader: 'ts',
-          contents: patchCalloutArrowNav(patchListToggle(code)),
-        }
-      },
-    )
-  },
-}
-
-// fixOutlineCurrent: Vditor's Outline toolbar item marks itself "current" (the
+// patchOutlineCurrent: Vditor's Outline toolbar item marks itself "current" (the
 // accent/blue active highlight) with `if (vditor.options.outline)` — but
 // options.outline is an OBJECT ({enable, position}), always truthy, so the button
 // is highlighted on init even when the outline panel is closed (enable:false). The
@@ -356,20 +298,7 @@ export function patchOutlineCurrent(code) {
     'if (vditor.options.outline.enable) {',
   )
 }
-const fixOutlineCurrent = {
-  name: 'fix-outline-current',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Outline\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchOutlineCurrent(code) }
-      },
-    )
-  },
-}
-
-// fixIrBlurExpand: Vditor's blurEvent (editorCommonEvent.ts) removes `vditor-ir__node--expand`
+// patchIrBlurExpand: Vditor's blurEvent (editorCommonEvent.ts) removes `vditor-ir__node--expand`
 // from the edited node on EVERY blur. In the VS Code webview a click inside the editor causes a
 // transient blur→refocus, so --expand is dropped mid-click → our CSS stops hiding the rendered
 // `.vditor-ir__preview` → the syntax-highlighted render flashes until mouseup re-expands it (very
@@ -391,19 +320,6 @@ export function patchIrBlurExpand(code) {
       'expandElement.classList.remove("vditor-ir__node--expand"); } });',
   )
 }
-const fixIrBlurExpand = {
-  name: 'fix-ir-blur-expand',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]editorCommonEvent\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchIrBlurExpand(code) }
-      },
-    )
-  },
-}
-
 // Task 57 — KaTeX error resilience. Vditor's `katex.renderToString` (mathRender.ts)
 // passes no `throwOnError`/`strict`, so one malformed formula can throw and break
 // the render instead of showing KaTeX's inline red error. Inject the resilient
@@ -421,19 +337,6 @@ export function patchMathRender(code) {
     `${MATH_ANCHOR}\n                            strict: false,\n                            throwOnError: false,`,
   )
 }
-const fixMathRender = {
-  name: 'fix-math-render',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mathRender\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchMathRender(code) }
-      },
-    )
-  },
-}
-
 // preview/index.ts shows a hardcoded Chinese toast on Ctrl+C in preview mode
 // (`vditor.tip.show(`已复制到剪切板`)` — NOT routed through VditorI18n), so an
 // English-locale user copying from the preview sees "已复制到剪切板". vMarkd only ever
@@ -448,19 +351,6 @@ export function patchPreviewCopyTip(code) {
   }
   return code.replaceAll(COPY_TIP_ANCHOR, 'Copied to clipboard')
 }
-const fixPreviewCopyTip = {
-  name: 'fix-preview-copy-tip',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]preview[/\\]index\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchPreviewCopyTip(code) }
-      },
-    )
-  },
-}
-
 // Task 63 (paste) — content-based code-block detection on paste. Vditor's
 // `processPasteCode` (util/processCode.ts) forced pasted content into a code block
 // from IDE-source MARKERS (VS Code monospace font, any single <pre>, Xcode `p1`,
@@ -525,19 +415,6 @@ export function patchProcessCode(code) {
     `${looksLikeCodeContentSrc}\n${PC_FN_ANCHOR}`,
   )
 }
-const fixProcessCode = {
-  name: 'fix-process-code',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]util[/\\]processCode\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchProcessCode(code) }
-      },
-    )
-  },
-}
-
 // Perf (task 68 C2-takeover): IR reserializes the whole document to markdown on
 // every input — `ir/process.ts` computes `getMarkdown(vditor)` (super-linear Lute)
 // and hands it to `options.input(text)`. That's the only consumer on the hot path
@@ -563,19 +440,6 @@ export function patchIrInputSerialize(code) {
     '        const text = (vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : "";'
   return code.slice(0, start) + replacement + code.slice(end)
 }
-const fixIrInputSerialize = {
-  name: 'fix-ir-input-serialize',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]process\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchIrInputSerialize(code) }
-      },
-    )
-  },
-}
-
 // About Vditor dialog. Vditor hard-codes it in Chinese (toolbar/Info.ts) — NOT an
 // i18n string, so English is only possible by rewriting the tip.show() HTML at build
 // time. The TOP half is Vditor's ORIGINAL About content, translated verbatim (tagline,
@@ -656,19 +520,6 @@ export function patchInfoDialog(code, pin) {
     code.slice(e)
   )
 }
-const fixInfoDialog = {
-  name: 'fix-info-dialog',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Info\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchInfoDialog(code, lutePin) }
-      },
-    )
-  },
-}
-
 // Task 86 — we vendor a newer Mermaid than Vditor bundles (syncMermaid). Vditor's
 // mermaidRender.ts loads `…/mermaid.min.js?v=11.6.0`; the `?v=` is a cache-buster, so
 // bump it to the vendored version or a stale webview could serve the old bytes across
@@ -682,24 +533,6 @@ export function patchMermaidVersion(code, version) {
   }
   return code.replace(MERMAID_VER_ANCHOR, `mermaid.min.js?v=${version}`)
 }
-const fixMermaidVersion = {
-  name: 'fix-mermaid-version',
-  setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mermaidRender\.ts$/ },
-      async (args) => {
-        const code = await readFile(args.path, 'utf8')
-        return {
-          loader: 'ts',
-          contents: mermaidPin?.version
-            ? patchMermaidVersion(code, mermaidPin.version)
-            : code,
-        }
-      },
-    )
-  },
-}
-
 // Task 89 — we vendor a newer ECharts than Vditor bundles (syncEcharts). Three vditor modules
 // load `…/echarts.min.js?v=5.5.1` under the SAME script id (`vditorEchartsScript`): chartRender
 // (charts), mindmapRender (mind maps), devtools. addScript dedupes by id, so whichever loads
@@ -737,29 +570,6 @@ export function patchEchartsThemeInit(code) {
   )
 }
 
-// One plugin for ECharts: esbuild runs only the FIRST matching onLoad per file, so the `?v=`
-// bump (all 3 echarts loaders) and the theme-init rewrite (chartRender only) must share it.
-const fixEcharts = {
-  name: 'fix-echarts',
-  setup(build) {
-    build.onLoad(
-      {
-        filter:
-          /vditor[/\\]src[/\\]ts[/\\](markdown[/\\](chartRender|mindmapRender)|devtools[/\\]index)\.ts$/,
-      },
-      async (args) => {
-        let code = await readFile(args.path, 'utf8')
-        if (echartsPin?.version)
-          code = patchEchartsVersion(code, echartsPin.version)
-        if (/[/\\]chartRender\.ts$/.test(args.path)) {
-          code = patchEchartsThemeInit(code)
-        }
-        return { loader: 'ts', contents: code }
-      },
-    )
-  },
-}
-
 // setContentTheme content-theme flicker. Vditor's `setContentTheme` (ui/setContentTheme.ts)
 // reloads the `#vditorContentTheme` stylesheet whenever `getAttribute("href") !== cssPath`
 // — it does `link.remove(); addStyle(cssPath)`, an ASYNC re-fetch. On init the instant-paint
@@ -783,23 +593,101 @@ export function patchSetContentTheme(code) {
     'new URL(vditorContentTheme.getAttribute("href"), document.baseURI).href !== new URL(cssPath, document.baseURI).href',
   )
 }
-const fixSetContentTheme = {
-  name: 'fix-set-content-theme',
+// Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
+// bundle time, mapping the file's filter to the transform(s) applied to its contents. Each
+// transform is an anchor-asserted `patchXxx` defined above (tests import those directly); the
+// assert throws a NAMED error on a Vditor version bump so a drift fails the build loudly. A file
+// touched by more than one patch chains them in ONE transform (esbuild runs only the FIRST
+// matching onLoad per file). `pin`/`path`-dependent cases (mermaid/echarts version, info dialog)
+// close over the relevant value here. CSS is NOT in this list: index.css is no longer bundled —
+// the host links the build.mjs-patched media/ copy directly (html-builder.ts), so all index.css
+// rewrites live in build.mjs patchVditorIndexCss(), the single copy every surface loads (ADR-0004).
+const VDITOR_TS_PATCHES = [
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]undo[/\\]index\.ts$/,
+    transform: patchDmpInterop,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]index\.ts$/,
+    transform: patchIrLinkClick,
+  },
+  {
+    // chain both wysiwyg/index.ts patches (link-click gate + clicked-line caret)
+    file: /vditor[/\\]src[/\\]ts[/\\]wysiwyg[/\\]index\.ts$/,
+    transform: (code) =>
+      patchWysiwygCodeClickCaret(patchWysiwygLinkClick(code)),
+  },
+  {
+    // chain both fixBrowserBehavior.ts patches (list-toggle null-deref + callout arrow-nav)
+    file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]fixBrowserBehavior\.ts$/,
+    transform: (code) => patchCalloutArrowNav(patchListToggle(code)),
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Outline\.ts$/,
+    transform: patchOutlineCurrent,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]editorCommonEvent\.ts$/,
+    transform: patchIrBlurExpand,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mathRender\.ts$/,
+    transform: patchMathRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]preview[/\\]index\.ts$/,
+    transform: patchPreviewCopyTip,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]processCode\.ts$/,
+    transform: patchProcessCode,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]process\.ts$/,
+    transform: patchIrInputSerialize,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Info\.ts$/,
+    transform: (code) => patchInfoDialog(code, lutePin),
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mermaidRender\.ts$/,
+    transform: (code) =>
+      mermaidPin?.version
+        ? patchMermaidVersion(code, mermaidPin.version)
+        : code,
+  },
+  {
+    // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only
+    file: /vditor[/\\]src[/\\]ts[/\\](markdown[/\\](chartRender|mindmapRender)|devtools[/\\]index)\.ts$/,
+    transform: (code, path) => {
+      let out = echartsPin?.version
+        ? patchEchartsVersion(code, echartsPin.version)
+        : code
+      if (/[/\\]chartRender\.ts$/.test(path)) out = patchEchartsThemeInit(out)
+      return out
+    },
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]ui[/\\]setContentTheme\.ts$/,
+    transform: patchSetContentTheme,
+  },
+]
+
+// Generic engine: ONE esbuild plugin that applies every registry entry via an onLoad per file.
+// esbuild runs the first onLoad whose filter matches a file; each entry targets a DISTINCT file,
+// so registration order is irrelevant. Replaces the ~14 near-identical per-patch plugin objects.
+const vditorSourcePatches = {
+  name: 'vditor-source-patches',
   setup(build) {
-    build.onLoad(
-      { filter: /vditor[/\\]src[/\\]ts[/\\]ui[/\\]setContentTheme\.ts$/ },
-      async (args) => {
+    for (const { file, transform } of VDITOR_TS_PATCHES) {
+      build.onLoad({ filter: file }, async (args) => {
         const code = await readFile(args.path, 'utf8')
-        return { loader: 'ts', contents: patchSetContentTheme(code) }
-      },
-    )
+        return { loader: 'ts', contents: transform(code, args.path) }
+      })
+    }
   },
 }
-
-// NOTE — index.css is no longer bundled (main.ts dropped `import 'vditor/dist/index.css'`); the
-// host links the build.mjs-patched media/ copy directly (html-builder.ts), so there is no
-// bundle-time CSS patch here anymore. All Vditor index.css rewrites live in build.mjs
-// patchVditorIndexCss(), which is the single copy every surface loads (ADR-0004).
 
 export const vditorSourceConfig = {
   define: {
@@ -811,21 +699,7 @@ export const vditorSourceConfig = {
   },
   tsconfigRaw: { compilerOptions: { useDefineForClassFields: false } },
   loader: { '.less': 'empty' },
-  plugins: [
-    stubUnusedVditorButtons,
-    fixDmpInterop,
-    fixIrLinkClick,
-    fixWysiwygLinkClick,
-    fixListToggle,
-    fixOutlineCurrent,
-    fixIrBlurExpand,
-    fixMathRender,
-    fixPreviewCopyTip,
-    fixProcessCode,
-    fixIrInputSerialize,
-    fixInfoDialog,
-    fixMermaidVersion,
-    fixEcharts,
-    fixSetContentTheme,
-  ],
+  // stubUnusedVditorButtons uses onResolve (not onLoad) so it stays standalone; every onLoad
+  // source patch is applied by the single registry-driven engine.
+  plugins: [stubUnusedVditorButtons, vditorSourcePatches],
 }
