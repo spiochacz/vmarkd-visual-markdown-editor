@@ -253,20 +253,22 @@ describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
 
 describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
   it('Vditor ships the interactive create + plain setData (no options)', () => {
-    expect(markmapSource).toContain('Markmap.create(svg, null)')
+    expect(markmapSource).toContain('const mm = Markmap.create(svg, null);')
     expect(markmapSource).toContain('mm.setData(root, frontmatterOptions)')
   })
 
-  it('disables zoom/pan at create AND forces duration:0 into setData (wins over deriveOptions default → no init animation)', () => {
+  it('overrides the d3-zoom filter to Ctrl-gate, keeps duration:0 at create AND forces duration:0 into setData (no init animation)', () => {
     const patched = patchMarkmapStatic(markmapSource)
+    // Instant render (no init animation) + Ctrl-to-interact filter override on the d3-zoom behavior.
     expect(patched).toContain(
-      'Markmap.create(svg, { zoom: false, pan: false, duration: 0 })',
+      'const mm = Markmap.create(svg, { duration: 0 });',
     )
+    expect(patched).toContain('mm.zoom.filter((e) => e.ctrlKey && !e.button)')
     // duration:0 must be the LAST merge so it beats frontmatterOptions (deriveOptions default).
     expect(patched).toContain(
       'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
     )
-    expect(patched).not.toContain('Markmap.create(svg, null)')
+    expect(patched).not.toContain('const mm = Markmap.create(svg, null);')
     expect(patched).not.toContain('mm.setData(root, frontmatterOptions)')
   })
 
@@ -276,7 +278,7 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
     )
     // create present but setData drifted → still throws
     expect(() =>
-      patchMarkmapStatic('Markmap.create(svg, null); // no setData'),
+      patchMarkmapStatic('const mm = Markmap.create(svg, null); // no setData'),
     ).toThrow(/fixMarkmapStatic/)
   })
 })

@@ -46,6 +46,7 @@ import { reRenderMermaid } from './mermaid-retheme'
 import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
+import { installDiagramZoomGate } from './diagram-zoom-gate'
 import { observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import {
@@ -445,6 +446,9 @@ function runFinishInit(msg: any): void {
   // the top). Tag is serializer-invisible; survives IR rebuilds via its own observer.
   disposeTrailing?.()
   disposeTrailing = observeTrailingParagraph(activeModeElement(window.vditor))
+  // Ctrl-to-interact gate for the zooming diagrams (markmap + ECharts mindmap): plain wheel scrolls
+  // the page, Ctrl+wheel zooms, Ctrl+drag pans. Document-level + idempotent.
+  installDiagramZoomGate()
   reportDocMode()
 }
 
