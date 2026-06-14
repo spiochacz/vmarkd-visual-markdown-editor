@@ -16,7 +16,11 @@ import { setVditorTheme } from './vditor-theme'
 import Vditor from 'vditor/src/index'
 import { formatTimestamp } from './format-timestamp'
 import { convertForUpload } from './image-convert'
-import 'vditor/dist/index.css'
+// Vditor's index.css is NOT bundled here. The host links the COPIED media/vditor/dist/index.css
+// (html-builder.ts) — the same single copy the harness and HTML-export load — so build.mjs
+// patchVditorIndexCss() (run post-sync) is the SOLE patch site for it. Bundling it (the old
+// `import 'vditor/dist/index.css'`) pulled the UNPATCHED node_modules copy into media/dist/main.css
+// → editor and harness drifted (the WYSIWYG inline-code 0-padding trap, ADR-0004). One copy = no drift.
 import { lang } from './lang'
 import { createToolbar } from './toolbar'
 import { fixTableIr } from './fix-table-ir'

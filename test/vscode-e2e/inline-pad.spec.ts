@@ -1,12 +1,12 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
-// REAL-webview guard: inline-code h-padding must MATCH between IR and WYSIWYG. The harness
-// can't catch this — Vditor's index.css (which zeroes WYSIWYG inline-code h-padding, then our
-// build patch restores it) is served from the webview's asset cache with NO cache-buster, so
-// the patch can arrive stale → WYSIWYG inline code drops to 0px h-padding in the REAL editor
-// while IR (theme file, loaded fresh) keeps it. The fix owns the WYSIWYG padding in main.css
-// (loaded fresh): this proves IR == WYSIWYG in the actual VS Code webview.
+// REAL-webview guard: inline-code h-padding must MATCH between IR and WYSIWYG. Vditor's
+// index.css zeroes WYSIWYG inline-code h-padding (`0 !important`); build.mjs patchVditorIndexCss
+// rewrites it to `var(--vmarkd-code-px, .4em)`. The editor now loads that SINGLE patched
+// media/vditor/dist/index.css via a <link> (not a bundled-from-node_modules copy — ADR-0004),
+// the same copy the harness loads, so editor and harness can't drift. This proves IR == WYSIWYG
+// in the actual VS Code webview — the surface a bundled-vs-copied mismatch used to break silently.
 const FIXTURE = path.join(__dirname, 'fixtures', 'inline.md')
 
 function webviewFrame(workbox: import('@playwright/test').Page) {
