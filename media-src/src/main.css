@@ -9,6 +9,12 @@ body,
 #app {
   height: 100%;
   width: 100%;
+  /* The iframe viewport must NOT scroll — the single scroller is Vditor's bounded
+     `.vditor-reset` (overflow:auto, height:100% of the pane). Without this clamp, a transient
+     height/focus shift (e.g. caret in the last line + scroll) briefly pushes a descendant past the
+     iframe height and a SECOND (viewport) scrollbar appears beside the editor's own. Clamp the
+     mount so only the inner editor/preview pane can ever scroll. */
+  overflow: hidden;
 }
 /* Toolbar/resize CHROME always follows VS Code — independent of the content
    rendering theme (task 82). So the Vditor toolbar ("bar") stays VS Code-native
