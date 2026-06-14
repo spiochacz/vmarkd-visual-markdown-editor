@@ -19,9 +19,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   explicit look — light, dark, the ECharts gallery themes (vintage, macarons,
   infographic, roma, shine, tech-blue) or vintage-dark. Charts re-theme live when the
   theme changes.
+- **VS Code mermaid palettes**: `vmarkd.theme.mermaid` adds `vscode-light-2026` and
+  `vscode-dark-2026`, and `auto` pairs them with the matching VS Code 2026 rendering
+  theme — so ` ```mermaid ` diagrams match VS Code's own colours.
+- **Live code highlighting while editing (WYSIWYG)**: code inside a fenced block is
+  syntax-coloured as you type in WYSIWYG mode — full colour, bold and italic from the
+  highlight.js theme — instead of plain monospace text.
+- **Scroll position preserved across Edit ⇄ Preview**: switching between the editor
+  (IR/WYSIWYG) and the full Preview keeps your place in the document, in both directions
+  — anchored on the nearest block, so you no longer land mid-section or at the top.
 
 ### Changed
 
+- **VS Code rendering themes are now "2026"**: the `vmarkd.theme.content` values
+  `vscode-light-modern` / `vscode-dark-modern` become `vscode-light-2026` /
+  `vscode-dark-2026`, retargeted to VS Code 1.123's default "Light/Dark 2026" palette so
+  the rendered Markdown mirrors VS Code's own preview (background, text, links, inline
+  code, blockquotes, tables, horizontal rules). Update the setting if you pinned the old
+  value.
 - Bundled **ECharts upgraded 5.5.1 → 6.1.0** (the version Vditor ships is pinned at
   5.5.1; vMarkd vendors the newer build), picking up upstream chart fixes and renderers.
 - **Editing a code block looks exactly like its render**: the editable source carries
