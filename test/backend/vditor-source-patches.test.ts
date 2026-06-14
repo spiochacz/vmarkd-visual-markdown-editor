@@ -16,6 +16,7 @@ import {
   patchSetContentTheme,
   patchCalloutArrowNav,
   patchMarkmapStatic,
+  patchGraphvizRender,
   patchMindmapThemeColors,
 } from '../../media-src/esbuild-shared.mjs'
 
@@ -58,6 +59,9 @@ const setContentThemeSource = read(
 )
 const markmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/markmapRender.ts',
+)
+const graphvizSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/graphvizRender.ts',
 )
 const mindmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mindmapRender.ts',
@@ -280,6 +284,32 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
     expect(() =>
       patchMarkmapStatic('const mm = Markmap.create(svg, null); // no setData'),
     ).toThrow(/fixMarkmapStatic/)
+  })
+})
+
+describe('patchGraphvizRender (render fix + theme)', () => {
+  it('the shipped Vditor source builds the worker via blob importScripts (pre-patch)', () => {
+    expect(graphvizSource).toContain('const worker = new Worker(blobUrl);')
+    expect(graphvizSource).toContain('importScripts(')
+  })
+
+  it('fetches the script + builds the worker from inlined code, and themes the SVG', () => {
+    const patched = patchGraphvizRender(graphvizSource)
+    // Render fix: fetch the script TEXT, no more importScripts-in-a-blob-worker.
+    expect(patched).toContain('fetch(vmarkdGvizSrc).then((r) => r.text())')
+    expect(patched).not.toContain('importScripts(')
+    // Theme: recolour baked black → currentColor, and remove the white background polygon.
+    expect(patched).toContain(
+      '.replace(/(fill|stroke)="(#000000|black)"/g, \'$1="currentColor"\')',
+    )
+    expect(patched).toContain('e.querySelectorAll("svg polygon").forEach(')
+    expect(patched).toContain('p.remove()')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchGraphvizRender('// unrelated source')).toThrow(
+      /fixGraphvizRender/,
+    )
   })
 })
 

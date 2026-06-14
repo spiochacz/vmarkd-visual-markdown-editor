@@ -694,6 +694,60 @@ export function patchMarkmapStatic(code) {
       'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
     )
 }
+// graphvizRender renders via Viz.js in a Web Worker, but it builds that worker from a `blob:` URL
+// whose body is `importScripts('<full.render.js>')` — and that URL is the cross-origin
+// `https://*.vscode-cdn.net/...` webview resource. In the VS Code webview that cross-origin
+// importScripts from an opaque-origin blob worker silently HANGS: the render promise never settles,
+// `data-processed` was already set, so the block is stuck showing its raw DOT source ("źle
+// renderuje"). Fix part 1: fetch the script TEXT (connect-src allows the resource origin) and build
+// the worker from INLINED code (a same-origin blob) — no cross-origin importScripts.
+// Fix part 2 (theme — "złe tło"): graphviz bakes a white background polygon (fill="#ffffff"
+// stroke="transparent") and #000000 foreground (text/edges/node borders/arrowheads). Make the bg
+// transparent so the page shows through, and recolour #000000/black → currentColor so it follows the
+// content theme's foreground (the `.vditor-reset` colour), KaTeX-style — correct on light AND dark,
+// in the full Preview overlay AND the IR/WYSIWYG preview render. Anchored on the exact try body.
+const GRAPHVIZ_RENDER_ANCHOR = `                const blob = new Blob([\`importScripts('\${(document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js")}');\`],
+                    { type: "application/javascript" });
+                const url = window.URL || window.webkitURL;
+                const blobUrl = url.createObjectURL(blob);
+                const worker = new Worker(blobUrl);
+                new Viz({ worker })
+                    .renderSVGElement(code).then((result: HTMLElement) => {
+                        e.innerHTML = result.outerHTML;
+                    }).catch((error) => {
+                        e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                        e.className = "vditor-reset--error";
+                    });`
+const GRAPHVIZ_RENDER_REPLACEMENT = `                const vmarkdGvizSrc = (document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js");
+                fetch(vmarkdGvizSrc).then((r) => r.text()).then((vmarkdWorkerSrc: string) => {
+                    const worker = new Worker((window.URL || window.webkitURL).createObjectURL(new Blob([vmarkdWorkerSrc], { type: "application/javascript" })));
+                    new Viz({ worker })
+                        .renderSVGElement(code).then((result: HTMLElement) => {
+                            e.innerHTML = result.outerHTML
+                                .replace(/(fill|stroke)="(#000000|black)"/g, '$1="currentColor"');
+                            e.querySelectorAll("svg polygon").forEach((p) => {
+                                const st = p.getAttribute("stroke");
+                                if (st === "transparent" || st === "none") { p.remove(); }
+                            });
+                        }).catch((error) => {
+                            e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                            e.className = "vditor-reset--error";
+                        });
+                }).catch((error) => {
+                    e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                    e.className = "vditor-reset--error";
+                });`
+export function patchGraphvizRender(code) {
+  if (!code.includes(GRAPHVIZ_RENDER_ANCHOR)) {
+    throw new Error(
+      'fixGraphvizRender: blob-worker/render anchor not found in vditor graphvizRender.ts (version drift?)',
+    )
+  }
+  // Replacement passed as a FUNCTION so its inner regex `$1` is taken verbatim (a string
+  // replacement would treat `$1` as a backreference token).
+  return code.replace(GRAPHVIZ_RENDER_ANCHOR, () => GRAPHVIZ_RENDER_REPLACEMENT)
+}
+
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
 // bundle time, mapping the file's filter to the transform(s) applied to its contents. Each
 // transform is an anchor-asserted `patchXxx` defined above (tests import those directly); the
@@ -761,6 +815,10 @@ const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]markmapRender\.ts$/,
     transform: patchMarkmapStatic,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]graphvizRender\.ts$/,
+    transform: patchGraphvizRender,
   },
   {
     // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only
