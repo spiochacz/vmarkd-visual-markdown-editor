@@ -10,18 +10,18 @@
 // flickered the IR diagram's editable source text behind the canvas ("tekst w tle"). A window
 // resize redraws the canvas in place with the source still hidden, so there is no flicker.
 //
-// Debounce strategy: a per-frame throttle (rAF) keeps it smooth DURING a live drag, AND a trailing
-// timeout fires once events stop — the latter is load-bearing. A discrete resize (e.g. collapsing
-// the sidebar) animates the pane over a moment; an rAF-only pass would resize to the INTERMEDIATE
-// width and then never correct (no further resize event arrives after the layout settles), leaving
-// the chart at the wrong size. The trailing pass re-fits to the SETTLED width.
+// Debounce strategy: a TRAILING timeout (re-armed on every resize event), so we fit once the burst
+// of resize events settles — to the SETTLED container width, not an intermediate one mid-animation
+// (e.g. collapsing the sidebar). We deliberately use setTimeout, NOT requestAnimationFrame: rAF is
+// throttled/paused when the webview is backgrounded, which made the fit unreliable; a timer still
+// fires. A short delay keeps a live window drag feeling responsive.
 
 type EchartsInstance = { resize?: () => void }
 type EchartsGlobal = {
   getInstanceByDom?: (el: Element) => EchartsInstance | null | undefined
 }
 
-const TRAILING_MS = 200
+const TRAILING_MS = 120
 
 let installed = false
 
@@ -38,6 +38,11 @@ export function installEchartsResize(
         '.language-echarts, .language-mindmap',
       ),
     )) {
+      // Skip HIDDEN containers (clientWidth 0 — e.g. the IR pane while the full Preview overlay is
+      // shown). Resizing a chart to a 0×0 container collapses it to nothing, and since no resize
+      // event fires when it's shown again, it would stay blank — "po przełączeniu z preview na
+      // edycję echarts się nie pojawia". Skipping keeps its last good size until it's visible again.
+      if (el.clientWidth === 0 || el.clientHeight === 0) continue
       const inst = ec.getInstanceByDom(el)
       try {
         inst?.resize?.()
@@ -46,15 +51,8 @@ export function installEchartsResize(
       }
     }
   }
-  let raf = 0
   let trailing = 0
   const onResize = () => {
-    if (!raf) {
-      raf = win.requestAnimationFrame(() => {
-        raf = 0
-        fit()
-      })
-    }
     win.clearTimeout(trailing)
     trailing = win.setTimeout(fit, TRAILING_MS)
   }
