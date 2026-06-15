@@ -374,6 +374,39 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   ) {
   background: transparent !important;
 }
+/* Diagram render WIDTH — fill the content column (like echarts/mindmap/markmap already do), with a
+   height cap so a tall-narrow diagram is bounded instead of blowing up to `width × aspect`. The
+   drawing keeps its aspect ratio — the SVG's `preserveAspectRatio` letterboxes it inside the box, so
+   nothing distorts (a too-tall one centres with side whitespace at the cap). abc has NO viewBox
+   (can't be upscaled without clipping the coordinate space) so it only shrinks to fit (rule below).
+   NOTE: mermaid + graphviz are deliberately EXCLUDED (user: "za duże" at full width) — left at their
+   intrinsic size. echarts/mindmap (canvas) + markmap already size to the container. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-flowchart, .language-plantuml, .language-smiles)
+  > svg {
+  width: 100%;
+  height: auto;
+  max-width: 100% !important;
+  max-height: 480px;
+}
+/* abc + graphviz: shrink-to-fit (responsive DOWN with a narrowing window) but NOT upscaled — graphviz
+   keeps its intrinsic size when there's room (user: full-width was "za duże") yet must not overflow /
+   clip when the column gets narrower than it. `height:auto` keeps the aspect as it shrinks. (abc has
+   no viewBox so this is a replaced-element shrink; graphviz has a viewBox so the drawing scales.) */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-abc, .language-graphviz)
+  > svg {
+  max-width: 100%;
+  height: auto;
+  max-height: 480px;
+}
+/* ECharts/mindmap canvases resize via JS (echarts-fit.ts) on window-resize, but cap them with CSS
+   too so they never overflow the column in the frame before the (debounced) resize fires. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-echarts, .language-mindmap)
+  > canvas {
+  max-width: 100%;
+}
 /* Task-list checkboxes are native form controls — default blue check + white
    box, which clashes with a custom theme. Theme the accent and (in dark mode)
    set color-scheme so the browser renders a dark control instead of white. */

@@ -45,11 +45,14 @@ import { applyMermaidTheme, resolveMermaidInit } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
 import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
-import { reRenderEcharts } from './echarts-retheme'
+import { observeMindmaps, reRenderEcharts } from './echarts-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
 import { installEchartsResize } from './echarts-fit'
 import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
+import { observeSmiles } from './smiles-render'
+import { installMarkmapResize } from './markmap-fit'
+import { observeAbc } from './abc-fit'
 import {
   ensureHljsLoaded,
   observeWysiwygCodeHighlight,
@@ -117,6 +120,9 @@ let disposePreviewCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
 let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
+let disposeSmiles: (() => void) | null = null
+let disposeAbc: (() => void) | null = null
+let disposeMindmap: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -459,6 +465,34 @@ function runFinishInit(msg: any): void {
   // handler → the chart stays anchored left while the container grows). window-resize ONLY, so it
   // never fires on a mode switch (which would flicker the IR source behind the canvas). Idempotent.
   installEchartsResize(window)
+  // SMILES diagrams: Lute flattens the `<code>`-wrapped smiles preview's SVG to text on the WYSIWYG
+  // DOM round-trip at a DIRECT open (mermaid's `<div>` survives) and `data-processed` sticks, so the
+  // diagram vanishes. Re-draw it from the intact source. Bound to stable `#app` (covers IR+WYSIWYG,
+  // survives mode switches); idempotent (skips previews that already hold an svg).
+  disposeSmiles?.()
+  disposeSmiles = observeSmiles(
+    document.getElementById('app'),
+    () =>
+      (
+        window.vditor as unknown as {
+          vditor?: { options?: { theme?: string } }
+        }
+      )?.vditor?.options?.theme === 'dark',
+  )
+  // markmap fits its tree to the container only at create time and clips (doesn't shrink) when the
+  // column is later resized. Re-fit every visible markmap on a (debounced) window resize — same
+  // window-resize-only strategy as installEchartsResize (no mode-switch 0-collapse). Idempotent.
+  installMarkmapResize(window)
+  // abc (music notation) renders an svg with no viewBox → it clips (doesn't scale) when the column
+  // narrows, and is even clipped at the default width. Add a viewBox from its width/height attrs so
+  // the main.css max-width:100% scales it. Bound to #app; idempotent (skips svgs that have a viewBox).
+  disposeAbc?.()
+  disposeAbc = observeAbc(document.getElementById('app'))
+  // mindmap (ECharts tree) renders into a tall stock canvas → big empty vertical gaps around a short
+  // wide tree. Re-fit it to its content height (≈ leaf count) on render. Idempotent (width+height+
+  // theme signature). Window-resize re-fit is handled by installEchartsResize → reconstructMindmaps.
+  disposeMindmap?.()
+  disposeMindmap = observeMindmaps(window, document.getElementById('app'))
   reportDocMode()
 }
 

@@ -13,7 +13,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   icons — GitHub- and Obsidian-compatible (Obsidian's `> [!note]-`/`+` fold suffix is
   accepted and rendered as a normal callout). When the caret is outside, the callout
   shows its rendered preview; placing the caret inside reveals the raw markdown for
-  editing. Display-only and round-trip safe — the saved markdown is untouched.
+  editing. Display-only and round-trip safe — the saved markdown is untouched. In WYSIWYG
+  mode the callout shows a styled title, and you pick its type — plus an optional custom
+  title — from a dropdown in the block's native popover, the way you set a code block's
+  language.
 - **ECharts chart themes** (`vmarkd.theme.echarts`): `auto` (default) pairs ` ```echarts `
   charts with the rendering theme's palette (the same pairing mermaid uses), or pick an
   explicit look — light, dark, the ECharts gallery themes (vintage, macarons,
@@ -31,6 +34,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Changed
 
+- **Diagrams adapt to the editor width**: mermaid, ECharts charts, mindmaps, markmap,
+  Graphviz, abc music notation and SMILES chemical structures scale to fit the rendering
+  column — in the editor (IR/WYSIWYG) and the full Preview — and shrink as you narrow the
+  window, instead of overflowing the column or staying a fixed size. Wide-by-nature
+  diagrams (mermaid, Graphviz) keep their natural size when there's room rather than being
+  stretched. Mindmaps size to their content (no large empty margins around a small tree),
+  and ECharts charts render without the entry animation. SMILES structures also render in
+  WYSIWYG mode (not just the Preview/IR surfaces).
 - **VS Code rendering themes are now "2026"**: the `vmarkd.theme.content` values
   `vscode-light-modern` / `vscode-dark-modern` become `vscode-light-2026` /
   `vscode-dark-2026`, retargeted to VS Code 1.123's default "Light/Dark 2026" palette so

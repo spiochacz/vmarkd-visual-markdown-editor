@@ -18,6 +18,7 @@ import {
   patchMarkmapStatic,
   patchGraphvizRender,
   patchMindmapThemeColors,
+  patchEchartsThemeInit,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -56,6 +57,9 @@ const editorCommonEventSource = read(
 )
 const setContentThemeSource = read(
   '../../media-src/node_modules/vditor/src/ts/ui/setContentTheme.ts',
+)
+const chartSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/chartRender.ts',
 )
 const markmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/markmapRender.ts',
@@ -221,6 +225,18 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
   })
 })
 
+describe('patchEchartsThemeInit (chart theme + no entry animation)', () => {
+  it('routes init through the theme resolver and forces animation:false on the chart setOption', () => {
+    const patched = patchEchartsThemeInit(chartSource)
+    expect(patched).toContain('window.__vmarkdEchartsResolve')
+    // chart entry animation disabled ("przy włączaniu") — forced over the user option
+    expect(patched).toContain(
+      '.setOption(Object.assign({}, option, { animation: false }))',
+    )
+    expect(patched).not.toContain('.setOption(option)')
+  })
+})
+
 describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
   it('Vditor ships hardcoded GitHub-light colours in the tree setOption', () => {
     expect(mindmapSource).toContain('color: "#4285f4"')
@@ -268,6 +284,8 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
       'const mm = Markmap.create(svg, { duration: 0 });',
     )
     expect(patched).toContain('mm.zoom.filter((e) => e.ctrlKey && !e.button)')
+    // stash the instance on its svg so markmap-fit.ts can re-fit it on resize
+    expect(patched).toContain('svg.__vmarkdMm = mm')
     // duration:0 must be the LAST merge so it beats frontmatterOptions (deriveOptions default).
     expect(patched).toContain(
       'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',

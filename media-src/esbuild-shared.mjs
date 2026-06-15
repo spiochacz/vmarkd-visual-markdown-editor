@@ -564,9 +564,19 @@ export function patchEchartsThemeInit(code) {
       'fixEcharts: `echarts.init(e, theme === "dark" ? "dark" : undefined)` anchor not found in vditor chartRender.ts (version drift?)',
     )
   }
-  return code.replace(
-    ECHARTS_INIT_ANCHOR,
-    'echarts.init(e, window.__vmarkdEchartsResolve ? window.__vmarkdEchartsResolve(echarts) : (theme === "dark" ? "dark" : undefined))',
+  return (
+    code
+      .replace(
+        ECHARTS_INIT_ANCHOR,
+        'echarts.init(e, window.__vmarkdEchartsResolve ? window.__vmarkdEchartsResolve(echarts) : (theme === "dark" ? "dark" : undefined))',
+      )
+      // Disable the chart entry animation ("przy włączaniu") — force `animation:false` over the user
+      // option. Matches ONLY chartRender's `.setOption(option)` (mindmapRender uses an object literal
+      // `.setOption({…})`), so the mindmap keeps its animation. No-op if the anchor is absent.
+      .replace(
+        '.setOption(option)',
+        '.setOption(Object.assign({}, option, { animation: false }))',
+      )
   )
 }
 
@@ -626,7 +636,9 @@ export function patchMindmapThemeColors(code) {
                                 lineStyle: {
                                     color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.line : "#d1d5da"),
                                     width: 1,
-                                },`,
+                                },
+                                top: 14,
+                                bottom: 14,`,
   )
 }
 
@@ -687,7 +699,10 @@ export function patchMarkmapStatic(code) {
     .replace(
       MARKMAP_CREATE_ANCHOR,
       'const mm = Markmap.create(svg, { duration: 0 });' +
-        ' try { mm.zoom.filter((e) => e.ctrlKey && !e.button); } catch (_e) {}',
+        ' try { mm.zoom.filter((e) => e.ctrlKey && !e.button); } catch (_e) {}' +
+        // Expose the instance on its svg so markmap-fit.ts can re-fit it when the column is resized
+        // (markmap doesn\'t auto-refit; the svg shrinks but content clips). See markmap-fit.ts.
+        ' try { svg.__vmarkdMm = mm; } catch (_e) {}',
     )
     .replace(
       MARKMAP_SETDATA_ANCHOR,

@@ -63,7 +63,10 @@ export function reRenderEcharts(
             name,
             w > 0 && h > 0 ? { width: w, height: h } : undefined,
           )
-          inst.setOption(option)
+          // animation:false → no entry animation on a theme re-render (matches chartRender's patch).
+          inst.setOption(
+            Object.assign({}, option as object, { animation: false }),
+          )
           live.setAttribute('data-processed', 'true')
         },
         () => {
@@ -75,22 +78,75 @@ export function reRenderEcharts(
     }
   }
 
-  // mindmap (also an ECharts instance — a `tree`) has the SAME stale-on-flip problem, but it
-  // CANNOT be re-themed by preserving the live instance's option:
-  //   1. In the IR/WYSIWYG preview pane the rendered `.language-mindmap` node carries a canvas but
-  //      NO retrievable echarts instance (getInstanceByDom returns null — the painted node is a
-  //      detached snapshot, not the live-bound element), so a "find the instance" path silently
-  //      skips it and the mindmap never re-themes (the reported "background doesn't follow the
-  //      theme" bug). The chart path works precisely because it RECONSTRUCTS from source.
-  //   2. getOption().backgroundColor carries the OLD theme's background, so re-`setOption`ing it
-  //      would re-pin the stale background even when an instance exists.
-  // So reconstruct the mindmap exactly like the chart: read the tree JSON from `data-code` (what
-  // Vditor's mindmapRender itself parses — `decodeURIComponent` → JSON), dispose + clear any
-  // orphaned canvas, re-init with the new theme NAME (which drives the backgroundColor), and apply
-  // the explicit tree colours from the resolved theme. This mirrors mindmapRender's option (geometry
-  // kept verbatim); ECharts' `tree` ignores the registered theme's categorical palette, so node/
-  // label/line colours come from window.__vmarkdMindmapStyle (installed by echarts-apply.ts), with
-  // the same GitHub-light fallback as the mindmapRender patch.
+  reconstructMindmaps(win, editorEl, name, true) // theme changed → force rebuild
+}
+
+/**
+ * Re-fit mindmaps to their content height as they render/rebuild (covers the INITIAL render, which
+ * Vditor draws at a tall stock canvas → big vertical gaps). rAF-debounced; idempotent via the
+ * per-element width+height+theme signature, so our own re-init doesn't loop. Returns a disposer.
+ */
+export function observeMindmaps(
+  win: any,
+  appEl: HTMLElement | null | undefined,
+): () => void {
+  if (!appEl) return () => {}
+  let raf = 0
+  const run = () => {
+    raf = 0
+    const ec = win.echarts
+    const name = ec && win.__vmarkdEchartsResolve?.(ec)
+    reconstructMindmaps(win, appEl, name)
+  }
+  const obs = new MutationObserver(() => {
+    if (!raf) raf = requestAnimationFrame(run)
+  })
+  obs.observe(appEl, { childList: true, subtree: true })
+  if (!raf) raf = requestAnimationFrame(run)
+  return () => {
+    obs.disconnect()
+    if (raf) cancelAnimationFrame(raf)
+  }
+}
+
+// mindmap (also an ECharts instance — a `tree`) CANNOT be resized/re-themed via a live instance:
+//   1. In the IR/WYSIWYG preview pane the rendered `.language-mindmap` node carries a canvas but
+//      NO retrievable echarts instance (getInstanceByDom returns null — the painted node is a
+//      detached snapshot, not the live-bound element), so `getInstanceByDom(el).resize()` (the chart
+//      path) is a no-op → it neither re-themes NOR resizes ("background doesn't follow the theme",
+//      and "nie zmniejsza się przy zwężaniu okna"). The chart path works because it RECONSTRUCTS.
+//   2. getOption().backgroundColor carries the OLD theme's background, so re-`setOption`ing it
+//      would re-pin the stale background even when an instance exists.
+// So reconstruct the mindmap from source: read the tree JSON from `data-code` (what Vditor's
+// mindmapRender itself parses — `decodeURIComponent` → JSON), dispose + clear any orphaned canvas,
+// re-init with the theme NAME (drives backgroundColor) AT THE CURRENT CONTAINER SIZE (so it follows
+// a window resize), and apply explicit tree colours (ECharts' `tree` ignores the categorical palette)
+// from window.__vmarkdMindmapStyle (installed by echarts-apply.ts), with the mindmapRender fallback.
+// Shared by the theme-change path (reRenderEcharts) AND the window-resize handler (echarts-fit.ts).
+/** Count leaf nodes of an ECharts-tree data object (nodes with no children). */
+function countLeaves(node: unknown): number {
+  const kids = (node as { children?: unknown[] } | null)?.children
+  if (!Array.isArray(kids) || kids.length === 0) return 1
+  let n = 0
+  for (const k of kids) n += countLeaves(k)
+  return n
+}
+
+/** Height to give a mindmap canvas: tall enough to spread its leaves (~one row each) without the
+ *  big empty top/bottom gaps a fixed/over-tall canvas leaves around a short wide tree. */
+function mindmapHeight(data: unknown): number {
+  const h = countLeaves(data) * 56 + 48
+  return Math.max(140, Math.min(900, h))
+}
+
+export function reconstructMindmaps(
+  win: any,
+  root: ParentNode,
+  name: string | undefined,
+  force = false,
+): void {
+  const ec = win.echarts
+  if (!ec || typeof ec.init !== 'function') return
   const mmStyle = (win.__vmarkdMindmapStyle as
     | {
         node: string
@@ -111,29 +167,37 @@ export function reRenderEcharts(
   // also carries a `data-code`, so a bare `.language-mindmap` sweep would render a chart INTO the
   // editing surface (Vditor's own mindmapRender guards the same parents). Preview-scoping excludes it.
   const mmNodes = Array.from(
-    editorEl.querySelectorAll<HTMLElement>(
+    root.querySelectorAll<HTMLElement>(
       '.vditor-ir__preview .language-mindmap, .vditor-wysiwyg__preview .language-mindmap, .vditor-preview .language-mindmap',
     ),
   )
   for (const live of mmNodes) {
     const code = live.getAttribute('data-code')
     if (!code) continue
+    const w = live.clientWidth
+    // Skip HIDDEN containers (e.g. the IR pane while the full Preview overlay is shown). Re-initing
+    // into a 0-width box renders an empty chart, and on resize no event fires when it's shown again,
+    // so it would stay blank (cf. echarts-fit's hidden-skip).
+    if (w === 0) continue
     let data: unknown
     try {
       data = JSON.parse(decodeURIComponent(code))
     } catch {
       continue
     }
-    const w = live.clientWidth
-    const h = live.clientHeight
+    // Height = content height (≈ one row per leaf), NOT the stock ~420px canvas, which left big
+    // empty gaps above/below a short wide tree. Width follows the column (responsive).
+    const h = mindmapHeight(data)
+    // Idempotency: skip if already built at this width+height+theme (so our own innerHTML rewrite
+    // doesn't re-trigger the observer into a loop). `force` (theme change) always rebuilds.
+    const sig = `${w}x${h}|${name ?? ''}`
+    if (!force && live.dataset.vmMindmap === sig) continue
     try {
       ec.getInstanceByDom?.(live)?.dispose()
       live.innerHTML = '' // drop any orphaned snapshot canvas before re-init
-      const ni = ec.init(
-        live,
-        name,
-        w > 0 && h > 0 ? { width: w, height: h } : undefined,
-      )
+      live.style.height = `${h}px` // shrink the container so there's no leftover vertical gap
+      live.dataset.vmMindmap = sig
+      const ni = ec.init(live, name, { width: w, height: h })
       ni.setOption({
         series: [
           {
@@ -156,13 +220,17 @@ export function reRenderEcharts(
               position: 'insideRight',
             },
             lineStyle: { color: mmStyle.line, width: 1 },
+            // Tighten the tree's vertical layout box (ECharts tree defaults top/bottom to 12% →
+            // big empty gaps above/below the diagram). Keep left/right default for label room.
+            top: 14,
+            bottom: 14,
           },
         ],
         tooltip: { trigger: 'item', triggerOn: 'mousemove' },
       })
       live.setAttribute('data-processed', 'true')
     } catch {
-      /* defensive: a single mindmap must not break the theme-change handler */
+      /* defensive: a single mindmap must not break the caller */
     }
   }
 }
