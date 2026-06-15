@@ -196,10 +196,16 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    inline style at all (after the per-keystroke `input()` rebuild drops it, while CSS keeps it block).
    So we must match "source NOT hidden" = `:not([style*="none"])` (covers null AND block, ignoring
    spacing); the earlier `[style*="display: block"]` missed the post-rebuild null → the preview
-   reappeared and a "second block" stacked below while typing. SCOPED to real code via
-   `.vditor-wysiwyg__preview:has(> code)`: diagram previews (mermaid/echarts → a `div`/svg, no direct
-   `<code>`) stay visible while their source is edited. The render returns when the caret leaves and
-   Vditor sets the source back to `display:none`. */
+   reappeared and a "second block" stacked below while typing.
+
+   IMPORTANT — `:has(> code)` is DELIBERATE and applies ONLY to code blocks: their preview holds a
+   `<code class="hljs">`. DIAGRAM previews (mermaid/echarts/mindmap/markmap/… render as a
+   `div.language-X`/svg, no direct `> code`) are INTENTIONALLY EXCLUDED so the rendered diagram STAYS
+   VISIBLE while you edit its source — you want to see the diagram next to the code you're typing.
+   Yes, that makes a diagram's edit area taller (short source pre + full render stacked below); that
+   is the accepted trade-off. Do NOT widen this selector to `[class*="language-"]`/diagrams to shrink
+   the edit field — it kills the live preview (the user explicitly wants the preview kept). The render
+   returns for code blocks when the caret leaves and Vditor sets the source back to `display:none`. */
 .vditor-reset
   .vditor-wysiwyg__block:has(
     > pre.vditor-wysiwyg__pre:not([style*="none"])
@@ -214,11 +220,27 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    while editing the first. Zeroing it restores the normal inter-block gap. Same "source visible"
    condition as the hide rule (`:not([style*="none"])` — matches the shown source whether it has
    inline `display: block` or no inline style after a rebuild). The non-edited block keeps Vditor's
-   value (source pre is `display:none` → excluded). */
+   value (source pre is `display:none` → excluded). Same `:has(> code)` code-block-only scope as the
+   hide rule above — diagram blocks keep their (still-visible) preview, so there is no hidden render
+   to compensate for and their source pre keeps Vditor's default margin. Do NOT widen to diagrams. */
 .vditor-reset
   .vditor-wysiwyg__block:has(> pre.vditor-wysiwyg__preview > code)
   > pre.vditor-wysiwyg__pre:not([style*="none"]) {
   margin-bottom: 0;
+}
+/* The EDITABLE SOURCE of an echarts/mindmap block must size to its TEXT, not the 420px RENDER box.
+   Vditor's index.css sizes the render with `.vditor-reset .language-echarts, .language-mindmap {
+   height:420px; overflow:hidden }` — but the editable `<code>` carries the SAME `language-*` class,
+   so it inherits the 420px too. Vditor normally cancels that with `.vditor-wysiwyg__block
+   pre:first-child code { height:auto }` — but that only fires when the SOURCE pre is the block's
+   FIRST child. For a diagram the block is ordered [preview, source], so the source pre is NOT
+   first-child → the cancel misses and the edit field stays 420px tall (text at top, huge empty below
+   — "pole z kodem za wysokie"). Re-assert height:auto position-independently. Safe: the RENDER is a
+   `div.language-*` (not `> code`), so `pre > code.language-*` only ever matches the editable source,
+   never the render. Covers WYSIWYG (`vditor-wysiwyg__pre`) and IR (`vditor-ir__marker--pre`). */
+.vditor-reset pre > code:is(.language-echarts, .language-mindmap) {
+  height: auto !important;
+  overflow: visible;
 }
 /* WYSIWYG inline-code horizontal padding is fixed at the Vditor SOURCE (build.mjs
    `patchVditorIndexCss` rewrites Vditor's `.vditor-wysiwyg code[data-marker="\`"]` padding 0 → .4em),

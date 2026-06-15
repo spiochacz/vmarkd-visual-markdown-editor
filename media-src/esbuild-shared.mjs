@@ -698,7 +698,11 @@ export function patchMarkmapStatic(code) {
   return code
     .replace(
       MARKMAP_CREATE_ANCHOR,
-      'const mm = Markmap.create(svg, { duration: 0 });' +
+      // fitRatio:0.88 (default .95) — markmap fits content to the svg then clips overflow, but it
+      // slightly UNDER-measures the bottom of the tree (label descenders / node markers), so the
+      // default 2.5%-per-side margin let the lowest branch clip at the bottom ("obcina trochę
+      // wykres"). 0.88 = 6% per side, absorbing the under-measure. Re-asserted in setData below.
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });' +
         ' try { mm.zoom.filter((e) => e.ctrlKey && !e.button); } catch (_e) {}' +
         // Expose the instance on its svg so markmap-fit.ts can re-fit it when the column is resized
         // (markmap doesn\'t auto-refit; the svg shrinks but content clips). See markmap-fit.ts.
@@ -706,7 +710,9 @@ export function patchMarkmapStatic(code) {
     )
     .replace(
       MARKMAP_SETDATA_ANCHOR,
-      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
+      // setData re-derives options from frontmatter (default fitRatio .95, duration), which would
+      // overwrite our create-time values — re-assert both as the LAST merge so they stick.
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
     )
 }
 // graphvizRender renders via Viz.js in a Web Worker, but it builds that worker from a `blob:` URL

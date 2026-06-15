@@ -12,8 +12,13 @@
 // moment in WYSIWYG (mid-render) → it blew the content up; a real re-fit is robust.
 //
 // window 'resize' ONLY (never a ResizeObserver/MutationObserver): a mode switch doesn't resize the
-// window, so this never fires during that DOM churn; trailing setTimeout (not rAF, which is throttled
-// when the webview is backgrounded), to the SETTLED width. Same rationale as echarts-fit.ts.
+// window, so this never fires during that DOM churn. We run `mm.fit()` on TWO cadences off that one
+// event so the tree TRACKS the drag instead of snapping once at the end ("skalowały się skokowo"):
+//   • LIVE — per requestAnimationFrame: re-fit every frame while dragging. rAF is fine here because a
+//     live resize means the window is foregrounded, so it is not throttled. `mm.fit()` is instant
+//     (duration:0 from the patch) so a per-frame re-fit is cheap.
+//   • SETTLE — trailing setTimeout: a final fit to the settled width, and it still fires if the window
+//     went to the background mid-drag (when rAF would have been paused). Same rationale as echarts-fit.
 
 type Markmap = { fit?: () => unknown }
 const TRAILING_MS = 120
@@ -39,8 +44,14 @@ export function installMarkmapResize(win: Window): void {
       }
     }
   }
+  let rafId = 0
+  const fitLive = () => {
+    rafId = 0
+    fit()
+  }
   let trailing = 0
   win.addEventListener('resize', () => {
+    if (!rafId) rafId = win.requestAnimationFrame(fitLive)
     win.clearTimeout(trailing)
     trailing = win.setTimeout(fit, TRAILING_MS)
   })

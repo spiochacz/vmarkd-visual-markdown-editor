@@ -199,6 +199,13 @@ export function reconstructMindmaps(
       live.dataset.vmMindmap = sig
       const ni = ec.init(live, name, { width: w, height: h })
       ni.setOption({
+        // Kill the ENTRY/grow animation only (reconstructMindmaps runs on every window resize + theme
+        // change → without this the tree re-animated its whole layout each resize, "nadal mindmap
+        // animuje przy zmianie rozmiaru"). Use animationDuration:0, NOT animation:false: turning the
+        // whole animation OFF breaks the ECharts `tree` layout/collapse pipeline (nodes don't position,
+        // ctrl-click collapse doesn't re-render — "mindmap popsuty"). Duration 0 keeps the pipeline
+        // (instant) and leaves animationDurationUpdate (the collapse transition) working.
+        animationDuration: 0,
         series: [
           {
             type: 'tree',

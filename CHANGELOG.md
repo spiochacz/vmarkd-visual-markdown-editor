@@ -37,11 +37,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **Diagrams adapt to the editor width**: mermaid, ECharts charts, mindmaps, markmap,
   Graphviz, abc music notation and SMILES chemical structures scale to fit the rendering
   column — in the editor (IR/WYSIWYG) and the full Preview — and shrink as you narrow the
-  window, instead of overflowing the column or staying a fixed size. Wide-by-nature
+  window, instead of overflowing the column or staying a fixed size. markmap tracks the
+  window smoothly as you drag, rather than snapping once you stop. Wide-by-nature
   diagrams (mermaid, Graphviz) keep their natural size when there's room rather than being
   stretched. Mindmaps size to their content (no large empty margins around a small tree),
-  and ECharts charts render without the entry animation. SMILES structures also render in
-  WYSIWYG mode (not just the Preview/IR surfaces).
+  and both ECharts charts and mindmaps render without an entry animation. Editing a chart
+  or mindmap's source shows an edit field sized to the code, not to the diagram's render
+  box. SMILES structures also render in WYSIWYG mode (not just the Preview/IR surfaces).
 - **VS Code rendering themes are now "2026"**: the `vmarkd.theme.content` values
   `vscode-light-modern` / `vscode-dark-modern` become `vscode-light-2026` /
   `vscode-dark-2026`, retargeted to VS Code 1.123's default "Light/Dark 2026" palette so

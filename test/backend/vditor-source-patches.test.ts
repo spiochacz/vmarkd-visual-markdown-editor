@@ -280,15 +280,16 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
   it('overrides the d3-zoom filter to Ctrl-gate, keeps duration:0 at create AND forces duration:0 into setData (no init animation)', () => {
     const patched = patchMarkmapStatic(markmapSource)
     // Instant render (no init animation) + Ctrl-to-interact filter override on the d3-zoom behavior.
+    // fitRatio:0.88 gives more margin so the tree's bottom branch doesn't clip ("obcina trochę wykres").
     expect(patched).toContain(
-      'const mm = Markmap.create(svg, { duration: 0 });',
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });',
     )
     expect(patched).toContain('mm.zoom.filter((e) => e.ctrlKey && !e.button)')
     // stash the instance on its svg so markmap-fit.ts can re-fit it on resize
     expect(patched).toContain('svg.__vmarkdMm = mm')
-    // duration:0 must be the LAST merge so it beats frontmatterOptions (deriveOptions default).
+    // duration:0 + fitRatio must be the LAST merge so they beat frontmatterOptions (deriveOptions default).
     expect(patched).toContain(
-      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0 }))',
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
     )
     expect(patched).not.toContain('const mm = Markmap.create(svg, null);')
     expect(patched).not.toContain('mm.setData(root, frontmatterOptions)')
