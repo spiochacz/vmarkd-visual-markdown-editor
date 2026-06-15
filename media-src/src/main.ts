@@ -48,7 +48,7 @@ import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { reRenderEcharts } from './echarts-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
 import { installEchartsResize } from './echarts-fit'
-import { observeCallouts } from './callouts'
+import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import {
   ensureHljsLoaded,
@@ -742,7 +742,10 @@ function initVditor(msg) {
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
     // the wysiwyg toolbar; without it the editor throws on init and never
     // finishes (window.vditor stays undefined, table panel never mounts).
-    customWysiwygToolbar: () => {},
+    // We use it to add a callout TYPE picker to the blockquote popover (the
+    // floating ∧ ∨ 🗑 panel) — like a code block's language field.
+    customWysiwygToolbar: (type: string, popover: HTMLElement) =>
+      calloutWysiwygToolbar(type, popover),
     after() {
       const wikiEnabled = Boolean(msg.wiki?.enabled)
       // Non-visual helpers that need the full editor DOM. Factored out so the

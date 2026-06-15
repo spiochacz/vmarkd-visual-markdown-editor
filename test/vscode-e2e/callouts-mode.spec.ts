@@ -70,6 +70,9 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
       (root || document).querySelectorAll('blockquote[data-callout]'),
     )
     const first = decorated[0] as HTMLElement | undefined
+    const marker = (root || document).querySelector(
+      'blockquote[data-callout] .vmarkd-callout__marker',
+    ) as HTMLElement | null
     return {
       decorated: decorated.length,
       border: first ? getComputedStyle(first).borderLeftColor : 'NONE',
@@ -79,6 +82,12 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
       injectedPreviews: (root || document).querySelectorAll(
         'blockquote[data-callout] > .vditor-ir__preview',
       ).length,
+      // WYSIWYG callouts show a non-editable title label (the type picker lives in Vditor's block
+      // popover; the raw `[!TYPE]` marker is hidden, kept in the source for round-trip)…
+      titles: (root || document).querySelectorAll(
+        'blockquote[data-callout] > .vmarkd-callout__title',
+      ).length,
+      markerHidden: marker ? getComputedStyle(marker).display === 'none' : null,
     }
   })
 
@@ -93,4 +102,7 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
   expect(wy.borderWidth).not.toBe('0px')
   // …with NO injected IR dual-node preview in WYSIWYG (would duplicate content + add a 2nd scroll).
   expect(wy.injectedPreviews).toBe(0)
+  // …each WYSIWYG callout shows a non-editable title label, and the raw `[!TYPE]` marker is hidden.
+  expect(wy.titles).toBeGreaterThan(0)
+  expect(wy.markerHidden).toBe(true)
 })

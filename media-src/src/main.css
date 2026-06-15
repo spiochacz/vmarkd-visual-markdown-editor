@@ -1052,3 +1052,31 @@ body.vmarkd-busy * {
   --vmarkd-callout-accent: #f85149;
 }
 
+/* WYSIWYG callouts (task: native popover type-picker). WYSIWYG has no expandMarker, so instead of
+   the IR dual-node the callout stays editable: the raw `[!TYPE]` marker line is hidden (kept in the
+   source so it round-trips), a non-editable title label is shown at the top, and the TYPE is picked
+   from Vditor's own block popover (see calloutWysiwygToolbar). callouts.ts wraps the marker in
+   `.vmarkd-callout__marker` and injects `.vmarkd-callout__title`. */
+.vditor-reset blockquote[data-callout] .vmarkd-callout__marker {
+  display: none;
+}
+/* The WYSIWYG title label is a direct child of the blockquote (the IR title lives inside the
+   `.vmarkd-callout__preview`); give it a small gap above the editable body. */
+.vditor-wysiwyg
+  .vditor-reset
+  blockquote[data-callout]
+  > .vmarkd-callout__title {
+  margin-bottom: 4px;
+  user-select: none;
+  cursor: default;
+}
+/* The callout type <select> + title <input> we append to Vditor's block popover (`.vditor-panel`).
+   Both carry `.vditor-input` for the native field look (like the code block's language field). */
+.vditor-panel select.vmarkd-callout__type {
+  font-weight: 600;
+  cursor: pointer;
+}
+.vditor-panel input.vmarkd-callout__title-input {
+  margin-left: 4px;
+}
+
