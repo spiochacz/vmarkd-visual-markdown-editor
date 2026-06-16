@@ -178,3 +178,70 @@ test('a resize while in Preview does not blank the hidden IR chart', async ({
   // The IR chart survived (was NOT collapsed to 0 by the in-preview resize).
   expect(end).toBeGreaterThan(0)
 })
+
+// Direct width-tracking contract (narrow AND widen). Regression for the "stuck too-wide chart": the
+// rendered chart's echarts instance is ORPHANED (getInstanceByDom → null), so `instance.resize()` was
+// a silent no-op and the canvas never re-fit. The fix RECONSTRUCTS from source at the current width
+// (echarts-fit.ts ResizeObserver → reconstructCharts). Before the fix the canvas stayed at its init
+// width while the container shrank → this fails; after, it tracks both ways.
+test('echarts canvas tracks the container on narrow and widen (viewport)', async ({
+  workbox,
+  evaluateInVSCode,
+}) => {
+  await evaluateInVSCode(
+    async (vscode, args) => {
+      const [uri] = args as [string]
+      await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        vscode.Uri.file(uri),
+        'vmarkd.editor',
+      )
+    },
+    [FIXTURE] as [string],
+  )
+  const frame = webviewFrame(workbox)
+  await frame
+    .locator('.vditor-ir__preview .language-echarts canvas')
+    .first()
+    .waitFor({ timeout: 45_000 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 3500)))
+
+  const measure = () =>
+    frame.locator('body').evaluate(() => {
+      const el = document.querySelector(
+        '.vditor-ir__preview .language-echarts',
+      ) as HTMLElement | null
+      const cv = el?.querySelector('canvas') as HTMLCanvasElement | null
+      return {
+        container: el ? Math.round(el.getBoundingClientRect().width) : -1,
+        canvas: cv ? Math.round(cv.getBoundingClientRect().width) : -1,
+      }
+    })
+  const fits = (m: { container: number; canvas: number }) =>
+    m.canvas > 0 && Math.abs(m.canvas - m.container) <= 4
+
+  expect(fits(await measure())).toBe(true)
+
+  await workbox.setViewportSize({ width: 700, height: 950 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 1600)))
+  const narrow = await measure()
+  // eslint-disable-next-line no-console
+  console.log(`[narrow] ${JSON.stringify(narrow)}`)
+  expect(narrow.container).toBeLessThan(300)
+  expect(fits(narrow)).toBe(true)
+
+  await workbox.setViewportSize({ width: 1400, height: 950 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 1600)))
+  const wide = await measure()
+  // eslint-disable-next-line no-console
+  console.log(`[wide] ${JSON.stringify(wide)}`)
+  expect(wide.container).toBeGreaterThan(narrow.container)
+  expect(fits(wide)).toBe(true)
+})

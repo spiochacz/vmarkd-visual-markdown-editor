@@ -1,27 +1,29 @@
-// ECharts charts/mindmaps are init'd at the container width ONCE and echarts installs NO resize
-// handler, so when the VS Code window / editor pane is resized the chart keeps its old pixel width:
-// it stays anchored left while the container grows to the right ("lewa nie zmienia, prawa rozciąga
-// się w prawo"). Add the standard responsive handler: on window 'resize', resize every echarts
-// instance to fill its container.
+// ECharts charts + mindmaps are sized to the container width ONCE at init and echarts installs no
+// resize handler, so they don't track later width changes — the editor's reading column settling
+// AFTER init (instant-paint→live swap / iframe layout / scrollbar), or a window/pane resize. Two
+// symptoms: "czasami pierwszy render za szeroki" (the column settled narrower than the init width)
+// and charts not shrinking with the window.
 //
-// IMPORTANT: listen ONLY to `window` resize — NOT a MutationObserver/ResizeObserver. A mode switch
-// (Preview→IR/WYSIWYG) does not change the window size, so this never fires during that DOM churn.
-// An earlier ResizeObserver-based "fit" DID fire on the switch, and resize() during the churn
-// flickered the IR diagram's editable source text behind the canvas ("tekst w tle"). A window
-// resize redraws the canvas in place with the source still hidden, so there is no flicker.
+// CRITICAL — we do NOT use `instance.resize()`. The chart Vditor renders has an ORPHANED instance:
+// `getInstanceByDom(el)` returns null (Vditor re-creates the preview element after init, leaving a
+// dead `_echarts_instance_` attr), so `resize()` is a silent no-op — which is why the previous
+// window-resize + deferred-timer (`[150,450,1000,2000]`) approach never actually resized anything.
+// Instead we RECONSTRUCT from the source JSON at the current container width (reconstructCharts /
+// reconstructMindmaps in echarts-retheme.ts) — proven in the real editor to fix a stuck canvas.
 //
-// Debounce strategy: a TRAILING timeout (re-armed on every resize event), so we fit once the burst
-// of resize events settles — to the SETTLED container width, not an intermediate one mid-animation
-// (e.g. collapsing the sidebar). We deliberately use setTimeout, NOT requestAnimationFrame: rAF is
-// throttled/paused when the webview is backgrounded, which made the fit unreliable; a timer still
-// fires. A short delay keeps a live window drag feeling responsive.
+// Trigger = a ResizeObserver on each chart/mindmap container (the only thing that fires exactly when
+// the reading column settles — a width change is a LAYOUT change, not a DOM mutation, so the old
+// timers guessed and a MutationObserver can't see it). rAF-coalesced. The reconstruct* are dedupe-
+// guarded (skip when the canvas already fits its container, skip hidden 0-width), so a mode switch
+// (width unchanged / pane hidden) does NOT reconstruct → no "tekst w tle" flicker (the trap that
+// killed the earlier ResizeObserver-that-called-resize()). A window 'resize' listener (trailing
+// debounce) is kept as a belt-and-suspenders path (also dedupe-guarded, so it's a no-op when nothing
+// changed). mindmap INITIAL render is still handled by observeMindmaps (a MutationObserver — it fires
+// on the DOM mutation when Vditor first draws the canvas).
 
-import { reconstructMindmaps } from './echarts-retheme'
+import { reconstructCharts, reconstructMindmaps } from './echarts-retheme'
 
-type EchartsInstance = { resize?: () => void }
-type EchartsGlobal = {
-  getInstanceByDom?: (el: Element) => EchartsInstance | null | undefined
-}
+type EchartsGlobal = { getInstanceByDom?: (el: Element) => unknown }
 
 const TRAILING_MS = 120
 
@@ -35,41 +37,51 @@ export function installEchartsResize(
 ): void {
   if (installed) return
   installed = true
+
+  // Re-fit every chart + mindmap to its container by reconstructing from source. Both reconstruct*
+  // skip elements whose canvas already fits (dedupe) and hidden 0-width containers, so calling this
+  // redundantly (window resize AND ResizeObserver) is cheap.
   const fit = () => {
     const ec = win.echarts
-    if (!ec?.getInstanceByDom) return
-    // Charts have a live, retrievable instance → cheap resize() (re-reads the container + redraws).
-    for (const el of Array.from(
-      win.document.querySelectorAll<HTMLElement>('.language-echarts'),
-    )) {
-      // Skip HIDDEN containers (clientWidth 0 — e.g. the IR pane while the full Preview overlay is
-      // shown). Resizing a chart to a 0×0 container collapses it to nothing, and since no resize
-      // event fires when it's shown again, it would stay blank — "po przełączeniu z preview na
-      // edycję echarts się nie pojawia". Skipping keeps its last good size until it's visible again.
-      if (el.clientWidth === 0 || el.clientHeight === 0) continue
-      try {
-        ec.getInstanceByDom(el)?.resize?.()
-      } catch {
-        /* a single chart must never throw into the resize handler */
-      }
-    }
-    // Mindmaps are a snapshot canvas with NO retrievable instance → resize() is a no-op. Rebuild
-    // them from `data-code` at the new container size instead (reconstructMindmaps skips hidden).
-    const name = win.__vmarkdEchartsResolve?.(ec)
-    reconstructMindmaps(win, win.document, name)
+    if (!ec) return
+    reconstructCharts(win, win.document)
+    reconstructMindmaps(win, win.document, win.__vmarkdEchartsResolve?.(ec))
   }
+
+  // Window resize — trailing debounce (settled width, not an intermediate one mid-drag). setTimeout
+  // not rAF (rAF is paused when the webview is backgrounded; a timer still fires).
   let trailing = 0
-  const onResize = () => {
+  win.addEventListener('resize', () => {
     win.clearTimeout(trailing)
     trailing = win.setTimeout(fit, TRAILING_MS)
+  })
+
+  // ResizeObserver on the diagram containers → catches the first-render column settle (and pane
+  // resizes) exactly when the width changes. rAF-coalesced so a burst of container resizes fits once.
+  if (typeof win.ResizeObserver !== 'function') return
+  let raf = 0
+  const onResize = () => {
+    if (!raf)
+      raf = win.requestAnimationFrame(() => {
+        raf = 0
+        fit()
+      })
   }
-  win.addEventListener('resize', onResize)
-  // FIRST-RENDER race: echarts sizes its canvas to the container's clientWidth at init() and never
-  // re-fits itself. When init() (after the async script load) runs BEFORE the editor's reading-column
-  // width settles (instant-paint→live swap / iframe layout), the canvas captures a too-wide size and,
-  // since no window 'resize' fires afterward, stays wide ("czasami pierwszy render za szeroki"). Re-fit
-  // a few times over the first ~2s to catch the settle. Safe: this runs during quiet init, NOT during
-  // a mode-switch transition (the churn that made an unconditional ResizeObserver flicker), and with
-  // animation:false a resize() of an already-correct chart is a cheap no-op.
-  for (const d of [150, 450, 1000, 2000]) win.setTimeout(fit, d)
+  const ro = new win.ResizeObserver(onResize)
+  const SEL =
+    '.vditor-ir__preview .language-echarts, .vditor-wysiwyg__preview .language-echarts, .vditor-ir__preview .language-mindmap, .vditor-wysiwyg__preview .language-mindmap'
+  // (Re)observe diagram containers as Vditor (re)builds them. ResizeObserver.observe is idempotent
+  // for an already-observed element, so re-scanning on every mutation is safe.
+  const reobserve = () => {
+    for (const el of Array.from(
+      win.document.querySelectorAll<HTMLElement>(SEL),
+    ))
+      ro.observe(el)
+  }
+  const app = win.document.getElementById('app') || win.document.body
+  new win.MutationObserver(reobserve).observe(app, {
+    childList: true,
+    subtree: true,
+  })
+  reobserve()
 }
