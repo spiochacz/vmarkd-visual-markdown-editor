@@ -28,6 +28,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **Flowchart diagrams follow the theme**: ` ```flowchart ` (flowchart.js) diagrams draw
   in the rendering theme's text colour with transparent boxes — instead of fixed black,
   which was invisible on dark themes — and re-draw when you switch themes.
+- **HTML comments visible in the editor**: `<!-- … -->` blocks show their content as
+  muted italic text in IR, WYSIWYG and the full Preview — so you can see comments
+  without clicking into them. Placing the caret inside reveals the raw markdown for
+  editing, without a code-panel background.
 - **Live code highlighting while editing (WYSIWYG)**: code inside a fenced block is
   syntax-coloured as you type in WYSIWYG mode — full colour, bold and italic from the
   highlight.js theme — instead of plain monospace text.
