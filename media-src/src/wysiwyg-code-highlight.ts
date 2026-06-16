@@ -200,7 +200,7 @@ function applyCaretOffsets(
  * The wysiwyg code SOURCE element the caret is currently in, or null. We highlight only the focused
  * block (others have their source hidden — Vditor shows their rendered preview).
  */
-function focusedCodeSource(root: ParentNode): HTMLElement | null {
+function _focusedCodeSource(root: ParentNode): HTMLElement | null {
   const sel = ((root as Element).ownerDocument ?? document).getSelection?.()
   const anchor = sel?.anchorNode
   if (!anchor || !root.contains(anchor)) return null

@@ -90,7 +90,7 @@ function topLevelBlock(editor: HTMLElement, node: Node): HTMLElement | null {
     node.nodeType === Node.ELEMENT_NODE
       ? (node as HTMLElement)
       : node.parentElement
-  while (el && el.parentElement && el.parentElement !== editor) {
+  while (el?.parentElement && el.parentElement !== editor) {
     el = el.parentElement
   }
   return el && el.parentElement === editor ? el : null
@@ -181,7 +181,7 @@ export function setupCalloutArrowNav(
     if (!s) return
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     const editor = getEditor()
-    if (!editor || !editor.isConnected) return
+    if (!editor?.isConnected) return
     const { block, down } = s
     const sibling = down
       ? block.nextElementSibling

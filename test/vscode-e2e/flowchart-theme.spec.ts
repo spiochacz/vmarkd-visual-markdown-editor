@@ -71,7 +71,7 @@ test('flowchart follows the content theme foreground (open + live flip)', async 
 
   const dark = await measure()
   // eslint-disable-next-line no-console
-  console.log('[github-dark] ' + JSON.stringify(dark))
+  console.log(`[github-dark] ${JSON.stringify(dark)}`)
   // NOT baked black, and matches the (light) themed foreground; box interior transparent.
   expect(dark.rectStroke).not.toBe('#000000')
   expect(dark.rectStroke).toBe(toHex(dark.fg))
@@ -89,7 +89,7 @@ test('flowchart follows the content theme foreground (open + live flip)', async 
     .evaluate(() => new Promise((r) => setTimeout(r, 2500)))
   const light = await measure()
   // eslint-disable-next-line no-console
-  console.log('[github-light] ' + JSON.stringify(light))
+  console.log(`[github-light] ${JSON.stringify(light)}`)
   expect(light.rectStroke).toBe(toHex(light.fg))
   // the foreground actually changed (dark theme fg was light, light theme fg is dark)
   expect(light.rectStroke).not.toBe(dark.rectStroke)

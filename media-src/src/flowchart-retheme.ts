@@ -10,7 +10,9 @@
 // via previewRender on its own.
 
 type FlowchartGlobal = {
-  parse?: (text: string) => { drawSVG: (el: HTMLElement, opts?: object) => void }
+  parse?: (text: string) => {
+    drawSVG: (el: HTMLElement, opts?: object) => void
+  }
 }
 
 export function reRenderFlowchart(

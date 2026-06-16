@@ -66,7 +66,7 @@ test('echarts charts: no entry animation + canvas fits its container on first re
     return { widthDeltas }
   })
   // eslint-disable-next-line no-console
-  console.log('[echarts] ' + JSON.stringify(r))
+  console.log(`[echarts] ${JSON.stringify(r)}`)
   // The chart canvas matches its container width on first render (the deferred re-fits corrected any
   // too-wide init captured before the column settled). (animation:false is locked by the
   // patchEchartsThemeInit unit test — the rendered preview is a snapshot with no queryable instance.)

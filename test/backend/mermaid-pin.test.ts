@@ -50,11 +50,11 @@ describe('Mermaid license compliance (MIT)', () => {
     const shipped = fileURLToPath(
       new URL('../../media/vditor/dist/js/mermaid/', import.meta.url),
     )
-    if (!existsSync(shipped + 'mermaid.min.js')) return // pre-build: nothing to check
-    expect(existsSync(shipped + 'mermaid.LICENSE')).toBe(true)
-    expect(existsSync(shipped + 'mermaid.NOTICE')).toBe(true)
+    if (!existsSync(`${shipped}mermaid.min.js`)) return // pre-build: nothing to check
+    expect(existsSync(`${shipped}mermaid.LICENSE`)).toBe(true)
+    expect(existsSync(`${shipped}mermaid.NOTICE`)).toBe(true)
     const got = createHash('sha256')
-      .update(readFileSync(shipped + 'mermaid.min.js'))
+      .update(readFileSync(`${shipped}mermaid.min.js`))
       .digest('hex')
     expect(got).toBe(source.sha256)
   })

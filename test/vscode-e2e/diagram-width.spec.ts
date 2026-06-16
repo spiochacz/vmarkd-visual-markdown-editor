@@ -75,7 +75,7 @@ test('SVG diagrams fill the column width (capped height); abc no longer overflow
     }
   })
   // eslint-disable-next-line no-console
-  console.log('[diagram-width] ' + JSON.stringify(m))
+  console.log(`[diagram-width] ${JSON.stringify(m)}`)
 
   // flowchart fills the width and is height-capped (≤480).
   expect(m.flowchart).not.toBeNull()
@@ -115,7 +115,7 @@ test('SVG diagrams fill the column width (capped height); abc no longer overflow
     }
   })
   // eslint-disable-next-line no-console
-  console.log('[diagram-width narrow] ' + JSON.stringify(narrow))
+  console.log(`[diagram-width narrow] ${JSON.stringify(narrow)}`)
   // every diagram fits the (now narrow) column — none overflow/clip.
   expect(narrow.graphviz ?? 9999).toBeLessThanOrEqual(narrow.col + 1)
   expect(narrow.echarts ?? 9999).toBeLessThanOrEqual(narrow.col + 1)

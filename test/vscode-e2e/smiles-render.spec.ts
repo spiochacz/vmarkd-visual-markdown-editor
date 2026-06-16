@@ -108,7 +108,7 @@ test('smiles renders on a direct WYSIWYG open (not flattened to style-text)', as
     }
   })
   // eslint-disable-next-line no-console
-  console.log('[probe DIRECT] ' + JSON.stringify(info))
+  console.log(`[probe DIRECT] ${JSON.stringify(info)}`)
   expect(info.directWysiwyg).toBe(true)
   // The fix: smiles renders as an SVG on direct WYSIWYG open (not flattened to its style-text).
   expect(info.smSvgPresent).toBe(true)

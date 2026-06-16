@@ -12,7 +12,9 @@
 const COMMENT_CLOSED = /^<!--([\s\S]*?)-->$/
 const COMMENT_OPEN = /^<!--([\s\S]*)$/
 
-function extractComment(source: string): { text: string; closed: boolean } | null {
+function extractComment(
+  source: string,
+): { text: string; closed: boolean } | null {
   const s = source.trim()
   const mc = COMMENT_CLOSED.exec(s)
   if (mc) return { text: mc[1].trim(), closed: true }
@@ -72,7 +74,11 @@ export function revealPreviewComments(
   )
   const comments: Comment[] = []
   let node: Comment | null
-  while ((node = walker.nextNode() as Comment | null)) comments.push(node)
+  while (true) {
+    node = walker.nextNode() as Comment | null
+    if (!node) break
+    comments.push(node)
+  }
   for (const c of comments) {
     const text = (c.textContent ?? '').trim()
     const el = root.ownerDocument.createElement('div')

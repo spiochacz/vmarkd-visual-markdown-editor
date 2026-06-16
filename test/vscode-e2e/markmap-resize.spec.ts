@@ -49,14 +49,14 @@ test('markmap content shrinks with the window in IR and WYSIWYG', async ({
 
   const irWide = await info('.vditor-ir__preview')
   // eslint-disable-next-line no-console
-  console.log('[IR wide] ' + JSON.stringify(irWide))
+  console.log(`[IR wide] ${JSON.stringify(irWide)}`)
   await workbox.setViewportSize({ width: 700, height: 900 })
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 1200)))
   const irNarrow = await info('.vditor-ir__preview')
   // eslint-disable-next-line no-console
-  console.log('[IR narrow] ' + JSON.stringify(irNarrow))
+  console.log(`[IR narrow] ${JSON.stringify(irNarrow)}`)
   // IR: the svg shrank, and the content re-fit INSIDE it (didn't stay clipped at its old size).
   expect(irWide.contentW ?? 0).toBeGreaterThan(300)
   expect(irNarrow.svgW ?? 999).toBeLessThan(300)
@@ -86,14 +86,14 @@ test('markmap content shrinks with the window in IR and WYSIWYG', async ({
     .evaluate(() => new Promise((r) => setTimeout(r, 3500)))
   const wyWide = await info('.vditor-wysiwyg__preview')
   // eslint-disable-next-line no-console
-  console.log('[WY wide] ' + JSON.stringify(wyWide))
+  console.log(`[WY wide] ${JSON.stringify(wyWide)}`)
   await workbox.setViewportSize({ width: 700, height: 900 })
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 1200)))
   const wyNarrow = await info('.vditor-wysiwyg__preview')
   // eslint-disable-next-line no-console
-  console.log('[WY narrow] ' + JSON.stringify(wyNarrow))
+  console.log(`[WY narrow] ${JSON.stringify(wyNarrow)}`)
   // WYSIWYG: same — content fits the (now narrow) svg, not clipped/overflowing at its old size.
   expect(wyNarrow.svgW ?? 999).toBeLessThan(300)
   expect(wyNarrow.contentW ?? 999).toBeLessThanOrEqual((wyNarrow.svgW ?? 0) + 8)

@@ -72,7 +72,7 @@ test('mindmap height fits content, abc capped at natural size, Preview pane scal
     }
   })
   // eslint-disable-next-line no-console
-  console.log('[sizing] ' + JSON.stringify(m))
+  console.log(`[sizing] ${JSON.stringify(m)}`)
   // mindmap (3-leaf fixture → ~216px) must be short, NOT the ~420 stock canvas (no big gaps).
   expect(m.mmH ?? 999).toBeLessThan(320)
   // abc renders at its natural size (~455) — NOT upscaled to fill the column (would be ~col), NOT
@@ -103,9 +103,7 @@ test('mindmap height fits content, abc capped at natural size, Preview pane scal
   const pAbc = await pw('abc')
   const pGv = await pw('graphviz')
   // eslint-disable-next-line no-console
-  console.log(
-    '[preview] abc=' + JSON.stringify(pAbc) + ' gv=' + JSON.stringify(pGv),
-  )
+  console.log(`[preview] abc=${JSON.stringify(pAbc)} gv=${JSON.stringify(pGv)}`)
   // the CSS now applies in the Preview pane (was max-width:none before the scoping fix)
   expect(pAbc.maxW).toBe('100%')
   expect(pGv.maxW).toBe('100%')
@@ -125,7 +123,7 @@ test('mindmap height fits content, abc capped at natural size, Preview pane scal
     return { col, abc: w('abc'), graphviz: w('graphviz') }
   })
   // eslint-disable-next-line no-console
-  console.log('[preview narrow] ' + JSON.stringify(narrow))
+  console.log(`[preview narrow] ${JSON.stringify(narrow)}`)
   expect(narrow.abc ?? 9999).toBeLessThanOrEqual((narrow.col ?? 0) + 1)
   expect(narrow.graphviz ?? 9999).toBeLessThanOrEqual((narrow.col ?? 0) + 1)
 })
