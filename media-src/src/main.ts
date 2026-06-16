@@ -52,6 +52,7 @@ import { installEchartsResize } from './echarts-fit'
 import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import { observeSmiles, repairSmiles } from './smiles-render'
+import { observeHtmlComments, observePreviewComments } from './html-comment'
 import { installMarkmapResize } from './markmap-fit'
 import { observeAbc } from './abc-fit'
 import {
@@ -122,6 +123,8 @@ let disposeCodeSource: (() => void) | null = null
 let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
 let disposeSmiles: (() => void) | null = null
+let disposeHtmlComments: (() => void) | null = null
+let disposePreviewHtmlComments: (() => void) | null = null
 let disposeAbc: (() => void) | null = null
 let disposeMindmap: (() => void) | null = null
 
@@ -423,6 +426,19 @@ function runFinishInit(msg: any): void {
   // match in look AND height). The observer re-applies after each preview re-render (fresh innerHTML).
   disposePreviewCallouts?.()
   disposePreviewCallouts = observeCallouts(
+    (
+      window.vditor as unknown as {
+        vditor?: { preview?: { previewElement?: HTMLElement } }
+      }
+    ).vditor?.preview?.previewElement,
+  )
+  // HTML comments (`<!-- ... -->`): the browser-invisible preview is replaced with visible
+  // styled text (html-comment.ts). Bound to #app (same rationale as callouts — survives mode
+  // switches). Preview pane gets its own walker (Comment nodes, not data-type wrappers).
+  disposeHtmlComments?.()
+  disposeHtmlComments = observeHtmlComments(document.getElementById('app'))
+  disposePreviewHtmlComments?.()
+  disposePreviewHtmlComments = observePreviewComments(
     (
       window.vditor as unknown as {
         vditor?: { preview?: { previewElement?: HTMLElement } }

@@ -1161,3 +1161,34 @@ body.vmarkd-busy * {
   margin-left: 4px;
 }
 
+/* ── HTML comment previews ───────────────────────────────────────────────────────
+   `<!-- ... -->` is a `data-type="html-block"` dual-node whose browser-invisible preview we
+   replace with visible text (html-comment.ts). Muted + italic so it reads as metadata, not
+   content. In the full Preview pane, Comment DOM nodes are swapped for `.vmarkd-comment` divs. */
+.vmarkd-comment {
+  color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
+  font-style: italic;
+  white-space: pre-wrap;
+}
+/* The preview `<pre>` inherits a code font + padding from the html-block defaults; strip it so
+   the comment text sits flush like a paragraph, not inside a code panel. */
+.vditor-ir__preview:has(> .vmarkd-comment),
+.vditor-wysiwyg__preview:has(> .vmarkd-comment) {
+  font-family: inherit;
+  padding: 0;
+  margin: 0.5em 0;
+  background: transparent !important;
+}
+/* Expanded (caret inside): hide the preview, show only the editable source — like code-blocks.
+   Strip the source panel background so the comment edits inline, not inside a code box. */
+.vditor-reset
+  .vditor-ir__node--expand[data-type="html-block"]
+  > .vditor-ir__preview {
+  display: none;
+}
+.vditor-reset
+  .vditor-ir__node--expand[data-type="html-block"]
+  > .vditor-ir__marker--pre {
+  background: transparent !important;
+}
+

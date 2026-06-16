@@ -106,7 +106,7 @@ sequenceDiagram
 
 ---
 
-## 7. flowchart.js — bez motywu (zaszyty czarny)
+## 7. flowchart.js — śledzi motyw treści
 
 ```flowchart
 st=>start: Start
@@ -179,7 +179,7 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 | smiles | ◑ | binarne dark/light |
 | markmap | ❌ | zaszyte |
 | graphviz | ❌ | zaszyte |
-| flowchart | ❌ | zaszyte |
+| flowchart | ✅ | foreground z motywu treści |
 | abc | ❌ | zaszyte |
 | plantuml | ❌ | zdalny obraz |
 
@@ -224,3 +224,23 @@ Foldowalne (Obsidian `-`/`+`):
 Zwykły blockquote (NIE callout — nie powinien dostać pudełka):
 
 > To jest normalny cytat, bez markera `[!TYPE]`.
+
+---
+
+## 14. Komentarze HTML — widoczne w edytorze
+
+<!-- Ten komentarz powinien być widoczny jako wyciszony tekst w IR, WYSIWYG i Preview. -->
+
+<!-- TODO: dodać testy e2e dla nowych rendererów -->
+
+<!--
+Komentarz wieloliniowy:
+- linia pierwsza
+- linia druga
+-->
+
+Zwykły HTML block (NIE komentarz — powinien renderować się normalnie):
+
+<div style="padding:8px; border:1px solid currentColor; border-radius:4px">
+To jest zwykły blok HTML, nie komentarz.
+</div>
