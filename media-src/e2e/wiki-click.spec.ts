@@ -169,7 +169,7 @@ test.describe('Delete/Backspace removes wiki chips', () => {
     const placed = await page.evaluate(() => {
       const c = document.querySelector('[data-wiki-target="Home"]')!
       const next = c.nextSibling
-      if (!next || next.nodeType !== 3) return false
+      if (next?.nodeType !== 3) return false
       if (!(next.textContent ?? '').startsWith('\u200B')) return false
       const range = document.createRange()
       range.setStart(next, 1) // just past the ZWSP

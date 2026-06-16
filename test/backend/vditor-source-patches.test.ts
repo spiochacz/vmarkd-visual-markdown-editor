@@ -15,6 +15,11 @@ import {
   patchIrBlurExpand,
   patchSetContentTheme,
   patchCalloutArrowNav,
+  patchMarkmapStatic,
+  patchGraphvizRender,
+  patchFlowchartTheme,
+  patchMindmapThemeColors,
+  patchEchartsThemeInit,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -53,6 +58,21 @@ const editorCommonEventSource = read(
 )
 const setContentThemeSource = read(
   '../../media-src/node_modules/vditor/src/ts/ui/setContentTheme.ts',
+)
+const chartSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/chartRender.ts',
+)
+const markmapSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/markmapRender.ts',
+)
+const graphvizSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/graphvizRender.ts',
+)
+const flowchartSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/flowchartRender.ts',
+)
+const mindmapSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/mindmapRender.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -205,6 +225,141 @@ describe('patchListToggle (task 56 — null-deref crash fix)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchListToggle('// unrelated source')).toThrow(
       /fixListToggle/,
+    )
+  })
+})
+
+describe('patchEchartsThemeInit (chart theme + no entry animation)', () => {
+  it('routes init through the theme resolver and forces animation:false on the chart setOption', () => {
+    const patched = patchEchartsThemeInit(chartSource)
+    expect(patched).toContain('window.__vmarkdEchartsResolve')
+    // chart entry animation disabled ("przy włączaniu") — forced over the user option
+    expect(patched).toContain(
+      '.setOption(Object.assign({}, option, { animation: false }))',
+    )
+    expect(patched).not.toContain('.setOption(option)')
+  })
+})
+
+describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
+  it('Vditor ships hardcoded GitHub-light colours in the tree setOption', () => {
+    expect(mindmapSource).toContain('color: "#4285f4"')
+    expect(mindmapSource).toContain('backgroundColor: "#f6f8fa"')
+    expect(mindmapSource).toContain('color: "#586069"')
+    expect(mindmapSource).toContain('color: "#d1d5da"')
+  })
+
+  it('drives the tree node/label/line colours from the resolved theme (window.__vmarkdMindmapStyle)', () => {
+    const patched = patchMindmapThemeColors(mindmapSource)
+    // ECharts' `tree` ignores the registered theme palette, so the colours are set EXPLICITLY
+    // from the resolved theme each render — not stripped (stripping left the nodes default grey).
+    expect(patched).toContain('window.__vmarkdMindmapStyle.node')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.label')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.labelBg')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.labelBorder')
+    expect(patched).toContain('window.__vmarkdMindmapStyle.line')
+    // Vditor's GitHub-light colours survive only as the no-resolver fallback (bare harness).
+    expect(patched).toContain(
+      'window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.node : "#4285f4"',
+    )
+    // geometry is kept
+    expect(patched).toContain('borderRadius: 5')
+    expect(patched).toContain('position: "insideRight"')
+    expect(patched).toContain('width: 1')
+    // We do NOT touch the entry animation here (ECharts tree gates entry + collapse on one flag —
+    // animation:false breaks collapse; animationDuration:0 doesn't suppress entry). So no anim patch.
+    expect(patched).not.toContain('animation: false')
+  })
+
+  it('throws (fails the build loudly) if the colour block is gone — version-bump guard', () => {
+    expect(() => patchMindmapThemeColors('// unrelated source')).toThrow(
+      /fixMindmapTheme/,
+    )
+  })
+})
+
+describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
+  it('Vditor ships the interactive create + plain setData (no options)', () => {
+    expect(markmapSource).toContain('const mm = Markmap.create(svg, null);')
+    expect(markmapSource).toContain('mm.setData(root, frontmatterOptions)')
+  })
+
+  it('overrides the d3-zoom filter to Ctrl-gate, keeps duration:0 at create AND forces duration:0 into setData (no init animation)', () => {
+    const patched = patchMarkmapStatic(markmapSource)
+    // Instant render (no init animation) + Ctrl-to-interact filter override on the d3-zoom behavior.
+    // fitRatio:0.88 gives more margin so the tree's bottom branch doesn't clip ("obcina trochę wykres").
+    expect(patched).toContain(
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });',
+    )
+    expect(patched).toContain('mm.zoom.filter((e) => e.ctrlKey && !e.button)')
+    // stash the instance on its svg so markmap-fit.ts can re-fit it on resize
+    expect(patched).toContain('svg.__vmarkdMm = mm')
+    // duration:0 + fitRatio must be the LAST merge so they beat frontmatterOptions (deriveOptions default).
+    expect(patched).toContain(
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
+    )
+    expect(patched).not.toContain('const mm = Markmap.create(svg, null);')
+    expect(patched).not.toContain('mm.setData(root, frontmatterOptions)')
+  })
+
+  it('throws (fails the build loudly) if a markmap anchor is gone — version-bump guard', () => {
+    expect(() => patchMarkmapStatic('// unrelated source')).toThrow(
+      /fixMarkmapStatic/,
+    )
+    // create present but setData drifted → still throws
+    expect(() =>
+      patchMarkmapStatic('const mm = Markmap.create(svg, null); // no setData'),
+    ).toThrow(/fixMarkmapStatic/)
+  })
+})
+
+describe('patchGraphvizRender (render fix + theme)', () => {
+  it('the shipped Vditor source builds the worker via blob importScripts (pre-patch)', () => {
+    expect(graphvizSource).toContain('const worker = new Worker(blobUrl);')
+    expect(graphvizSource).toContain('importScripts(')
+  })
+
+  it('fetches the script + builds the worker from inlined code, and themes the SVG', () => {
+    const patched = patchGraphvizRender(graphvizSource)
+    // Render fix: fetch the script TEXT, no more importScripts-in-a-blob-worker.
+    expect(patched).toContain('fetch(vmarkdGvizSrc).then((r) => r.text())')
+    expect(patched).not.toContain('importScripts(')
+    // Theme: recolour baked black → currentColor, and remove the white background polygon.
+    expect(patched).toContain(
+      '.replace(/(fill|stroke)="(#000000|black)"/g, \'$1="currentColor"\')',
+    )
+    expect(patched).toContain('e.querySelectorAll("svg polygon").forEach(')
+    expect(patched).toContain('p.remove()')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchGraphvizRender('// unrelated source')).toThrow(
+      /fixGraphvizRender/,
+    )
+  })
+})
+
+describe('patchFlowchartTheme (task 91 — pair flowchart.js with the content theme)', () => {
+  it('the shipped Vditor source draws with NO style options (pre-patch, baked black)', () => {
+    expect(flowchartSource).toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('passes themed colours (foreground + fill:none) to drawSVG', () => {
+    const patched = patchFlowchartTheme(flowchartSource)
+    // line/element/font colours come from the themed foreground (getComputedStyle(item).color).
+    expect(patched).toContain('getComputedStyle(item).color')
+    expect(patched).toContain('"line-color": vmFcColor')
+    expect(patched).toContain('"element-color": vmFcColor')
+    expect(patched).toContain('"font-color": vmFcColor')
+    // box interiors transparent (NOT "transparent" — Raphael renders that black; "none" works).
+    expect(patched).toContain('"fill": "none"')
+    // the bare (baked-black) call is gone
+    expect(patched).not.toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('throws (fails the build loudly) if the drawSVG anchor is gone — version-bump guard', () => {
+    expect(() => patchFlowchartTheme('// unrelated source')).toThrow(
+      /fixFlowchartTheme/,
     )
   })
 })

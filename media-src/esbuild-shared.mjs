@@ -564,9 +564,86 @@ export function patchEchartsThemeInit(code) {
       'fixEcharts: `echarts.init(e, theme === "dark" ? "dark" : undefined)` anchor not found in vditor chartRender.ts (version drift?)',
     )
   }
+  return (
+    code
+      .replace(
+        ECHARTS_INIT_ANCHOR,
+        'echarts.init(e, window.__vmarkdEchartsResolve ? window.__vmarkdEchartsResolve(echarts) : (theme === "dark" ? "dark" : undefined))',
+      )
+      // Disable the chart entry animation ("przy włączaniu") — force `animation:false` over the user
+      // option. Matches ONLY chartRender's `.setOption(option)` (mindmapRender uses an object literal
+      // `.setOption({…})`), so the mindmap keeps its animation. No-op if the anchor is absent.
+      .replace(
+        '.setOption(option)',
+        '.setOption(Object.assign({}, option, { animation: false }))',
+      )
+  )
+}
+
+// mindmapRender (an ECharts `tree`) hardcodes GitHub-LIGHT colours into its setOption — node
+// `#4285f4`, label bg `#f6f8fa` / border `#d1d5da` / text `#586069`, line `#d1d5da` — so it ignores
+// the content theme (wrong on dark). chartRender already follows the theme via the resolver
+// (patchEchartsThemeInit, applied to mindmapRender too in fixEcharts). For a `tree` series, though,
+// ECharts does NOT apply the registered theme's categorical `color` palette to node symbols (unlike
+// bar/line), so merely stripping these hardcoded colours left the nodes ECharts-default GREY — the
+// mindmap still ignored the content theme. So we instead DRIVE the colours from the resolved theme
+// at render time via `window.__vmarkdMindmapStyle` (installed by echarts-apply.ts): node → series
+// colour 0, label text → theme foreground, label surface/border + line → theme tooltip surface/line.
+// Falls back to Vditor's GitHub-light defaults when the resolver isn't installed (bare harness).
+// Geometry (radius/padding/offset/width) is kept. Anchored on the exact colour block; throws on drift.
+const MINDMAP_COLORS_ANCHOR = `itemStyle: {
+                                    borderWidth: 0,
+                                    color: "#4285f4",
+                                },
+                                label: {
+                                    backgroundColor: "#f6f8fa",
+                                    borderColor: "#d1d5da",
+                                    borderRadius: 5,
+                                    borderWidth: 0.5,
+                                    color: "#586069",
+                                    lineHeight: 20,
+                                    offset: [-5, 0],
+                                    padding: [0, 5],
+                                    position: "insideRight",
+                                },
+                                lineStyle: {
+                                    color: "#d1d5da",
+                                    width: 1,
+                                },`
+// NOTE: we intentionally do NOT patch the mindmap's entry "grow" animation here. ECharts `tree`
+// gates the entry animation AND the click-collapse re-render on the same `animation` flag, so the
+// only thing that stops the entry grow (`animation: false`) also breaks collapse (tangled re-render,
+// user-confirmed), and `animationDuration: 0` doesn't suppress the entry anyway. So the brief grow is
+// accepted; this patch only re-themes the colours + tightens the vertical layout box.
+export function patchMindmapThemeColors(code) {
+  if (!code.includes(MINDMAP_COLORS_ANCHOR)) {
+    throw new Error(
+      'fixMindmapTheme: itemStyle/label/lineStyle colour block not found in vditor mindmapRender.ts (version drift?)',
+    )
+  }
   return code.replace(
-    ECHARTS_INIT_ANCHOR,
-    'echarts.init(e, window.__vmarkdEchartsResolve ? window.__vmarkdEchartsResolve(echarts) : (theme === "dark" ? "dark" : undefined))',
+    MINDMAP_COLORS_ANCHOR,
+    `itemStyle: {
+                                    borderWidth: 0,
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.node : "#4285f4"),
+                                },
+                                label: {
+                                    backgroundColor: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.labelBg : "#f6f8fa"),
+                                    borderColor: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.labelBorder : "#d1d5da"),
+                                    borderRadius: 5,
+                                    borderWidth: 0.5,
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.label : "#586069"),
+                                    lineHeight: 20,
+                                    offset: [-5, 0],
+                                    padding: [0, 5],
+                                    position: "insideRight",
+                                },
+                                lineStyle: {
+                                    color: (window.__vmarkdMindmapStyle ? window.__vmarkdMindmapStyle.line : "#d1d5da"),
+                                    width: 1,
+                                },
+                                top: 14,
+                                bottom: 14,`,
   )
 }
 
@@ -593,6 +670,132 @@ export function patchSetContentTheme(code) {
     'new URL(vditorContentTheme.getAttribute("href"), document.baseURI).href !== new URL(cssPath, document.baseURI).href',
   )
 }
+
+// markmap renders an INTERACTIVE, ANIMATED SVG: markmap-view attaches d3-zoom (a non-passive
+// `wheel` handler that preventDefaults and zooms the map → scrolling the document with the pointer
+// over a markmap zooms the mindmap instead of scrolling the page, "przechwytuje kursor"), and it
+// animates the tree on init with a d3 transition (`duration`, default 500ms). Vditor calls
+// `Markmap.create(svg, null)`. Two rewrites:
+//   1. CREATE: pass `{ duration: 0 }` (instant render + fit, no init animation) and override
+//      d3-zoom's filter to `e => e.ctrlKey && !e.button` — the Ctrl-to-interact model the user
+//      asked for. d3-zoom checks the filter at the TOP of every gesture handler and returns early
+//      (BEFORE preventDefault) when it rejects, so a plain wheel scrolls the PAGE and a plain click
+//      still works, while Ctrl+wheel zooms and Ctrl+drag pans. NB: simply disabling zoom (the old
+//      `{ zoom:false }`) left the wheel handler bound — it still preventDefaulted, "capturing" the
+//      scroll without scrolling OR zooming; the filter is the correct gate. (ECharts mindmaps have
+//      no such filter → gated in the DOM by diagram-zoom-gate.ts instead.)
+//   2. SETDATA: force duration:0 as the LAST merge so the zoom-to-fit is instant too (setData
+//      re-applies deriveOptions(frontmatter), which carries a non-zero default duration that would
+//      otherwise re-animate the fit). markmap's `transition()` skips the d3 transition when
+//      duration <= 0.
+// Anchored single-line rewrites; throw on drift.
+const MARKMAP_CREATE_ANCHOR = 'const mm = Markmap.create(svg, null);'
+const MARKMAP_SETDATA_ANCHOR = 'mm.setData(root, frontmatterOptions)'
+export function patchMarkmapStatic(code) {
+  if (
+    !code.includes(MARKMAP_CREATE_ANCHOR) ||
+    !code.includes(MARKMAP_SETDATA_ANCHOR)
+  ) {
+    throw new Error(
+      'fixMarkmapStatic: create/setData anchor not found in vditor markmapRender.ts (version drift?)',
+    )
+  }
+  return code
+    .replace(
+      MARKMAP_CREATE_ANCHOR,
+      // fitRatio:0.88 (default .95) — markmap fits content to the svg then clips overflow, but it
+      // slightly UNDER-measures the bottom of the tree (label descenders / node markers), so the
+      // default 2.5%-per-side margin let the lowest branch clip at the bottom ("obcina trochę
+      // wykres"). 0.88 = 6% per side, absorbing the under-measure. Re-asserted in setData below.
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });' +
+        ' try { mm.zoom.filter((e) => e.ctrlKey && !e.button); } catch (_e) {}' +
+        // Expose the instance on its svg so markmap-fit.ts can re-fit it when the column is resized
+        // (markmap doesn\'t auto-refit; the svg shrinks but content clips). See markmap-fit.ts.
+        ' try { svg.__vmarkdMm = mm; } catch (_e) {}',
+    )
+    .replace(
+      MARKMAP_SETDATA_ANCHOR,
+      // setData re-derives options from frontmatter (default fitRatio .95, duration), which would
+      // overwrite our create-time values — re-assert both as the LAST merge so they stick.
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
+    )
+}
+// graphvizRender renders via Viz.js in a Web Worker, but it builds that worker from a `blob:` URL
+// whose body is `importScripts('<full.render.js>')` — and that URL is the cross-origin
+// `https://*.vscode-cdn.net/...` webview resource. In the VS Code webview that cross-origin
+// importScripts from an opaque-origin blob worker silently HANGS: the render promise never settles,
+// `data-processed` was already set, so the block is stuck showing its raw DOT source ("źle
+// renderuje"). Fix part 1: fetch the script TEXT (connect-src allows the resource origin) and build
+// the worker from INLINED code (a same-origin blob) — no cross-origin importScripts.
+// Fix part 2 (theme — "złe tło"): graphviz bakes a white background polygon (fill="#ffffff"
+// stroke="transparent") and #000000 foreground (text/edges/node borders/arrowheads). Make the bg
+// transparent so the page shows through, and recolour #000000/black → currentColor so it follows the
+// content theme's foreground (the `.vditor-reset` colour), KaTeX-style — correct on light AND dark,
+// in the full Preview overlay AND the IR/WYSIWYG preview render. Anchored on the exact try body.
+const GRAPHVIZ_RENDER_ANCHOR = `                const blob = new Blob([\`importScripts('\${(document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js")}');\`],
+                    { type: "application/javascript" });
+                const url = window.URL || window.webkitURL;
+                const blobUrl = url.createObjectURL(blob);
+                const worker = new Worker(blobUrl);
+                new Viz({ worker })
+                    .renderSVGElement(code).then((result: HTMLElement) => {
+                        e.innerHTML = result.outerHTML;
+                    }).catch((error) => {
+                        e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                        e.className = "vditor-reset--error";
+                    });`
+const GRAPHVIZ_RENDER_REPLACEMENT = `                const vmarkdGvizSrc = (document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js");
+                fetch(vmarkdGvizSrc).then((r) => r.text()).then((vmarkdWorkerSrc: string) => {
+                    const worker = new Worker((window.URL || window.webkitURL).createObjectURL(new Blob([vmarkdWorkerSrc], { type: "application/javascript" })));
+                    new Viz({ worker })
+                        .renderSVGElement(code).then((result: HTMLElement) => {
+                            e.innerHTML = result.outerHTML
+                                .replace(/(fill|stroke)="(#000000|black)"/g, '$1="currentColor"');
+                            e.querySelectorAll("svg polygon").forEach((p) => {
+                                const st = p.getAttribute("stroke");
+                                if (st === "transparent" || st === "none") { p.remove(); }
+                            });
+                        }).catch((error) => {
+                            e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                            e.className = "vditor-reset--error";
+                        });
+                }).catch((error) => {
+                    e.innerHTML = \`graphviz render error: <br>\${error}\`;
+                    e.className = "vditor-reset--error";
+                });`
+export function patchGraphvizRender(code) {
+  if (!code.includes(GRAPHVIZ_RENDER_ANCHOR)) {
+    throw new Error(
+      'fixGraphvizRender: blob-worker/render anchor not found in vditor graphvizRender.ts (version drift?)',
+    )
+  }
+  // Replacement passed as a FUNCTION so its inner regex `$1` is taken verbatim (a string
+  // replacement would treat `$1` as a backreference token).
+  return code.replace(GRAPHVIZ_RENDER_ANCHOR, () => GRAPHVIZ_RENDER_REPLACEMENT)
+}
+
+// flowchartRender (flowchart.js) bakes #000 lines/borders/text + #fff box fill and ignores the
+// content theme → black-on-dark is invisible (task 91). flowchart.js DOES take a style-options
+// object as drawSVG's 2nd arg, so pair it with the theme: drive line/element/font colours from the
+// THEMED foreground (`getComputedStyle(item).color` — an rgb() string, which flowchart.js's Raphael
+// parses fine) and `fill:"none"` so box interiors are transparent (the page background shows
+// through, like graphviz). Verified in the real editor: `currentColor` does NOT work (Raphael
+// normalises it to a garbage #6688cc — unlike graphviz's CSS path) and `fill:"transparent"` renders
+// BLACK; an explicit colour + `"none"` are the working values. Anchored on the bare drawSVG call.
+const FLOWCHART_DRAW_ANCHOR = 'flowchartObj.drawSVG(item);'
+export function patchFlowchartTheme(code) {
+  if (!code.includes(FLOWCHART_DRAW_ANCHOR)) {
+    throw new Error(
+      'fixFlowchartTheme: drawSVG anchor not found in vditor flowchartRender.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    FLOWCHART_DRAW_ANCHOR,
+    'var vmFcColor = (typeof getComputedStyle === "function" && getComputedStyle(item).color) || "#000";\n' +
+      '            flowchartObj.drawSVG(item, { "line-color": vmFcColor, "element-color": vmFcColor, "font-color": vmFcColor, "fill": "none" });',
+  )
+}
+
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
 // bundle time, mapping the file's filter to the transform(s) applied to its contents. Each
 // transform is an anchor-asserted `patchXxx` defined above (tests import those directly); the
@@ -658,13 +861,28 @@ const VDITOR_TS_PATCHES = [
         : code,
   },
   {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]markmapRender\.ts$/,
+    transform: patchMarkmapStatic,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]graphvizRender\.ts$/,
+    transform: patchGraphvizRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]flowchartRender\.ts$/,
+    transform: patchFlowchartTheme,
+  },
+  {
     // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only
     file: /vditor[/\\]src[/\\]ts[/\\](markdown[/\\](chartRender|mindmapRender)|devtools[/\\]index)\.ts$/,
     transform: (code, path) => {
       let out = echartsPin?.version
         ? patchEchartsVersion(code, echartsPin.version)
         : code
-      if (/[/\\]chartRender\.ts$/.test(path)) out = patchEchartsThemeInit(out)
+      if (/[/\\](chartRender|mindmapRender)\.ts$/.test(path))
+        out = patchEchartsThemeInit(out)
+      if (/[/\\]mindmapRender\.ts$/.test(path))
+        out = patchMindmapThemeColors(out)
       return out
     },
   },

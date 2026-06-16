@@ -45,9 +45,16 @@ import { applyMermaidTheme, resolveMermaidInit } from './mermaid-theme'
 import { reRenderMermaid } from './mermaid-retheme'
 import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
-import { reRenderEcharts } from './echarts-retheme'
-import { observeCallouts } from './callouts'
+import { observeMindmaps, reRenderEcharts } from './echarts-retheme'
+import { reRenderFlowchart } from './flowchart-retheme'
+import { installDiagramZoomGate } from './diagram-zoom-gate'
+import { installEchartsResize } from './echarts-fit'
+import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
+import { observeSmiles, repairSmiles } from './smiles-render'
+import { observeHtmlComments, observePreviewComments } from './html-comment'
+import { installMarkmapResize } from './markmap-fit'
+import { observeAbc } from './abc-fit'
 import {
   ensureHljsLoaded,
   observeWysiwygCodeHighlight,
@@ -115,6 +122,11 @@ let disposePreviewCallouts: (() => void) | null = null
 let disposeCodeSource: (() => void) | null = null
 let disposeWysiwygHighlight: (() => void) | null = null
 let disposeTrailing: (() => void) | null = null
+let disposeSmiles: (() => void) | null = null
+let disposeHtmlComments: (() => void) | null = null
+let disposePreviewHtmlComments: (() => void) | null = null
+let disposeAbc: (() => void) | null = null
+let disposeMindmap: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
 // the host's wiki-update message. Because the custom renderer captures the Set
@@ -398,10 +410,15 @@ function runFinishInit(msg: any): void {
   // Preserve scroll position when toggling edit (IR/WYSIWYG) ↔ full Preview overlay.
   setupPreviewScrollPreserve()
   // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
-  // safe in the editable IR and round-trips). Observe the active editor element so styling
-  // survives the IR DOM rebuilds Vditor does on every edit. One observer at a time.
+  // safe in the editable IR/WYSIWYG and round-trips). Bind to the STABLE `#app` mount, NOT
+  // activeModeElement: runFinishInit runs once, but the user can be in (or switch to) WYSIWYG, and
+  // toggling the full Preview overlay can make Vditor re-render/replace a mode's editor element — a
+  // mode-specific observer then dies and callouts stop re-colouring on return (reported: WYSIWYG →
+  // Preview → WYSIWYG drops the colours). #app survives every mode switch / element rebuild and
+  // covers IR + WYSIWYG; applyCallouts is rAF-debounced + idempotent, so the wider scope is cheap.
+  // (Same rationale as the WYSIWYG code-highlight observer below.)
   disposeCallouts?.()
-  disposeCallouts = observeCallouts(activeModeElement(window.vditor))
+  disposeCallouts = observeCallouts(document.getElementById('app'))
   // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
   // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
   // render). The preview never gets `--expand` (no caret), so it stays "collapsed" → the CSS shows
@@ -409,6 +426,19 @@ function runFinishInit(msg: any): void {
   // match in look AND height). The observer re-applies after each preview re-render (fresh innerHTML).
   disposePreviewCallouts?.()
   disposePreviewCallouts = observeCallouts(
+    (
+      window.vditor as unknown as {
+        vditor?: { preview?: { previewElement?: HTMLElement } }
+      }
+    ).vditor?.preview?.previewElement,
+  )
+  // HTML comments (`<!-- ... -->`): the browser-invisible preview is replaced with visible
+  // styled text (html-comment.ts). Bound to #app (same rationale as callouts — survives mode
+  // switches). Preview pane gets its own walker (Comment nodes, not data-type wrappers).
+  disposeHtmlComments?.()
+  disposeHtmlComments = observeHtmlComments(document.getElementById('app'))
+  disposePreviewHtmlComments?.()
+  disposePreviewHtmlComments = observePreviewComments(
     (
       window.vditor as unknown as {
         vditor?: { preview?: { previewElement?: HTMLElement } }
@@ -445,6 +475,33 @@ function runFinishInit(msg: any): void {
   // the top). Tag is serializer-invisible; survives IR rebuilds via its own observer.
   disposeTrailing?.()
   disposeTrailing = observeTrailingParagraph(activeModeElement(window.vditor))
+  // Ctrl-to-interact gate for the zooming diagrams (markmap + ECharts mindmap): plain wheel scrolls
+  // the page, Ctrl+wheel zooms, Ctrl+drag pans. Document-level + idempotent.
+  installDiagramZoomGate()
+  // Make ECharts charts/mindmaps responsive to a window/pane resize (echarts installs no resize
+  // handler → the chart stays anchored left while the container grows). window-resize ONLY, so it
+  // never fires on a mode switch (which would flicker the IR source behind the canvas). Idempotent.
+  installEchartsResize(window)
+  // SMILES diagrams: Lute flattens the `<code>`-wrapped smiles preview's SVG to text on the WYSIWYG
+  // DOM round-trip at a DIRECT open (mermaid's `<div>` survives) and `data-processed` sticks, so the
+  // diagram vanishes. Re-draw it from the intact source. Bound to stable `#app` (covers IR+WYSIWYG,
+  // survives mode switches); idempotent (skips previews that already hold an svg).
+  disposeSmiles?.()
+  disposeSmiles = observeSmiles(document.getElementById('app'))
+  // markmap fits its tree to the container only at create time and clips (doesn't shrink) when the
+  // column is later resized. Re-fit every visible markmap on a (debounced) window resize — same
+  // window-resize-only strategy as installEchartsResize (no mode-switch 0-collapse). Idempotent.
+  installMarkmapResize(window)
+  // abc (music notation) renders an svg with no viewBox → it clips (doesn't scale) when the column
+  // narrows, and is even clipped at the default width. Add a viewBox from its width/height attrs so
+  // the main.css max-width:100% scales it. Bound to #app; idempotent (skips svgs that have a viewBox).
+  disposeAbc?.()
+  disposeAbc = observeAbc(document.getElementById('app'))
+  // mindmap (ECharts tree) renders into a tall stock canvas → big empty vertical gaps around a short
+  // wide tree. Re-fit it to its content height (≈ leaf count) on render. Idempotent (width+height+
+  // theme signature). Window-resize re-fit is handled by installEchartsResize → reconstructMindmaps.
+  disposeMindmap?.()
+  disposeMindmap = observeMindmaps(window, document.getElementById('app'))
   reportDocMode()
 }
 
@@ -728,7 +785,10 @@ function initVditor(msg) {
     // Vditor 3.11.x calls this optional hook unconditionally while rendering
     // the wysiwyg toolbar; without it the editor throws on init and never
     // finishes (window.vditor stays undefined, table panel never mounts).
-    customWysiwygToolbar: () => {},
+    // We use it to add a callout TYPE picker to the blockquote popover (the
+    // floating ∧ ∨ 🗑 panel) — like a code block's language field.
+    customWysiwygToolbar: (type: string, popover: HTMLElement) =>
+      calloutWysiwygToolbar(type, popover),
     after() {
       const wikiEnabled = Boolean(msg.wiki?.enabled)
       // Non-visual helpers that need the full editor DOM. Factored out so the
@@ -964,6 +1024,50 @@ function handleSetTheme(msg: any) {
     ),
   )
   reRenderEcharts(window, el, theme)
+  // flowchart.js bakes its colours (no currentColor) → re-render in the new theme's foreground
+  // (deferred so it reads the SETTLED colour after the content-theme <link> applies).
+  reThemeFlowchart()
+  // SMILES picks its palette from the page BACKGROUND luminance (bgIsDark), not the editor mode —
+  // and a theme flip changes that background via CSS WITHOUT mutating the #app subtree, so
+  // observeSmiles' MutationObserver never fires. Re-run repairSmiles explicitly. (No-op when the
+  // background's darkness didn't change — it's idempotent per bg darkness.)
+  reThemeSmiles()
+}
+
+/** Re-evaluate every smiles preview's palette after a theme flip. The new background CSS (and the
+ *  content-theme `<link>`) settles asynchronously and outside #app, so schedule a few passes across
+ *  the settle; repairSmiles is idempotent per bg-darkness, so the redundant calls are cheap no-ops. */
+function reThemeSmiles(): void {
+  const app = document.getElementById('app')
+  if (!app) return
+  requestAnimationFrame(() => repairSmiles(app))
+  window.setTimeout(() => repairSmiles(app), 200)
+  window.setTimeout(() => repairSmiles(app), 600)
+}
+
+/** Re-render flowcharts in the new theme's foreground after a flip. flowchart.js reads the colour
+ *  from `getComputedStyle(el).color` at draw time, but the content-theme `<link>` applies
+ *  asynchronously and can settle LATE (>600ms) — a fixed-delay re-render bakes a stale colour. So
+ *  POLL the foreground for ~2s and re-render only when it actually CHANGES (cheap: at most a couple
+ *  of re-renders — once now, once when the new stylesheet's colour finally lands). reRenderFlowchart
+ *  re-parses from source; with no flowchart in the doc it's a no-op. */
+function reThemeFlowchart(): void {
+  let lastFg = ''
+  let ticks = 0
+  const tick = () => {
+    ticks++
+    const editorEl = activeModeElement(window.vditor) ?? undefined
+    const probe = editorEl?.querySelector(
+      '.vditor-ir__preview .language-flowchart, .vditor-wysiwyg__preview .language-flowchart',
+    ) as HTMLElement | null
+    const fg = probe ? getComputedStyle(probe).color : ''
+    if (fg && fg !== lastFg) {
+      lastFg = fg
+      reRenderFlowchart(window, editorEl)
+    }
+    if (ticks < 14) window.setTimeout(tick, 150) // watch for a late content-theme settle (~2s)
+  }
+  requestAnimationFrame(tick)
 }
 
 function handleConfigChanged(msg: any) {
@@ -1055,6 +1159,12 @@ function handleConfigChanged(msg: any) {
     )
     reRenderEcharts(window, activeModeElement(window.vditor) ?? undefined, mode)
   }
+  // SMILES follows the page background luminance — a content-theme switch flips that background, so
+  // re-theme it too (same reason as handleSetTheme: the bg change doesn't mutate #app).
+  if (contentThemeChanged) reThemeSmiles()
+  // flowchart.js bakes its foreground colour → re-render on a content-theme switch (deferred so it
+  // reads the SETTLED foreground after the content-theme <link> applies).
+  if (contentThemeChanged) reThemeFlowchart()
 }
 
 function handleReloadCss(msg: any) {

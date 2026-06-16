@@ -62,7 +62,7 @@ async function waitForHint(page: Page) {
 async function hintIsHidden(page: Page) {
   return page.evaluate(() => {
     const el = document.querySelector('.vditor-hint') as HTMLElement | null
-    return !el || el.style.display !== 'block'
+    return el?.style.display !== 'block'
   })
 }
 

@@ -50,11 +50,11 @@ describe('ECharts license compliance (Apache-2.0)', () => {
     const shipped = fileURLToPath(
       new URL('../../media/vditor/dist/js/echarts/', import.meta.url),
     )
-    if (!existsSync(shipped + 'echarts.min.js')) return // pre-build: nothing to check
-    expect(existsSync(shipped + 'echarts.LICENSE')).toBe(true)
-    expect(existsSync(shipped + 'echarts.NOTICE')).toBe(true)
+    if (!existsSync(`${shipped}echarts.min.js`)) return // pre-build: nothing to check
+    expect(existsSync(`${shipped}echarts.LICENSE`)).toBe(true)
+    expect(existsSync(`${shipped}echarts.NOTICE`)).toBe(true)
     const got = createHash('sha256')
-      .update(readFileSync(shipped + 'echarts.min.js'))
+      .update(readFileSync(`${shipped}echarts.min.js`))
       .digest('hex')
     expect(got).toBe(source.sha256)
   })

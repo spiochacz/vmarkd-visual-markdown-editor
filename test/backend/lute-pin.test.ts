@@ -58,11 +58,11 @@ describe('Lute license compliance (Mulan PSL v2 §4)', () => {
     const shipped = fileURLToPath(
       new URL('../../media/vditor/dist/js/lute/', import.meta.url),
     )
-    if (!existsSync(shipped + 'lute.min.js')) return // pre-build: nothing to check
-    expect(existsSync(shipped + 'lute.LICENSE')).toBe(true)
-    expect(existsSync(shipped + 'lute.NOTICE')).toBe(true)
+    if (!existsSync(`${shipped}lute.min.js`)) return // pre-build: nothing to check
+    expect(existsSync(`${shipped}lute.LICENSE`)).toBe(true)
+    expect(existsSync(`${shipped}lute.NOTICE`)).toBe(true)
     const got = createHash('sha256')
-      .update(readFileSync(shipped + 'lute.min.js'))
+      .update(readFileSync(`${shipped}lute.min.js`))
       .digest('hex')
     expect(got).toBe(source.sha256)
   })

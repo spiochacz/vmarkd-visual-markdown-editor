@@ -99,6 +99,28 @@ export function isNamedTheme(value: string | undefined): boolean {
   return !!value && value !== 'auto' && BY_VALUE.has(value)
 }
 
+/**
+ * Old → new `theme.content` migrations. The `vscode-*-modern` themes were renamed to
+ * `vscode-*-2026` (the VS Code 1.123+ default palette). VS Code keeps a stale settings.json value
+ * even after it leaves the manifest enum, so we map it at read time.
+ */
+const RENAMED_CONTENT_THEMES: Record<string, string> = {
+  'vscode-light-modern': 'vscode-light-2026',
+  'vscode-dark-modern': 'vscode-dark-2026',
+}
+
+/**
+ * Normalise a raw `theme.content` value to a currently-valid one: empty/unset → `auto`; a renamed
+ * old theme → its new name; any OTHER unknown (non-`auto`, non-registered) value → `auto`. Without
+ * this, a stale value (e.g. an old `vscode-dark-modern`, or a typo) lands in a broken in-between —
+ * the body gets `markdown-body` (value !== 'auto') but no theme stylesheet matches AND the
+ * VS Code-colour `auto` path is off → an unstyled render. Read EVERY `theme.content` through this.
+ */
+export function resolveContentTheme(value: string | undefined): string {
+  const migrated = (value && RENAMED_CONTENT_THEMES[value]) || value || 'auto'
+  return migrated === 'auto' || isNamedTheme(migrated) ? migrated : 'auto'
+}
+
 const EDITOR_FONT_SIZE = 'var(--vscode-editor-font-size, 14px)'
 
 /**

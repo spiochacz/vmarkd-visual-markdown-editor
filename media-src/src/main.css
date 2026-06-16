@@ -9,6 +9,12 @@ body,
 #app {
   height: 100%;
   width: 100%;
+  /* The iframe viewport must NOT scroll — the single scroller is Vditor's bounded
+     `.vditor-reset` (overflow:auto, height:100% of the pane). Without this clamp, a transient
+     height/focus shift (e.g. caret in the last line + scroll) briefly pushes a descendant past the
+     iframe height and a SECOND (viewport) scrollbar appears beside the editor's own. Clamp the
+     mount so only the inner editor/preview pane can ever scroll. */
+  overflow: hidden;
 }
 /* Toolbar/resize CHROME always follows VS Code — independent of the content
    rendering theme (task 82). So the Vditor toolbar ("bar") stays VS Code-native
@@ -190,10 +196,16 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    inline style at all (after the per-keystroke `input()` rebuild drops it, while CSS keeps it block).
    So we must match "source NOT hidden" = `:not([style*="none"])` (covers null AND block, ignoring
    spacing); the earlier `[style*="display: block"]` missed the post-rebuild null → the preview
-   reappeared and a "second block" stacked below while typing. SCOPED to real code via
-   `.vditor-wysiwyg__preview:has(> code)`: diagram previews (mermaid/echarts → a `div`/svg, no direct
-   `<code>`) stay visible while their source is edited. The render returns when the caret leaves and
-   Vditor sets the source back to `display:none`. */
+   reappeared and a "second block" stacked below while typing.
+
+   IMPORTANT — `:has(> code)` is DELIBERATE and applies ONLY to code blocks: their preview holds a
+   `<code class="hljs">`. DIAGRAM previews (mermaid/echarts/mindmap/markmap/… render as a
+   `div.language-X`/svg, no direct `> code`) are INTENTIONALLY EXCLUDED so the rendered diagram STAYS
+   VISIBLE while you edit its source — you want to see the diagram next to the code you're typing.
+   Yes, that makes a diagram's edit area taller (short source pre + full render stacked below); that
+   is the accepted trade-off. Do NOT widen this selector to `[class*="language-"]`/diagrams to shrink
+   the edit field — it kills the live preview (the user explicitly wants the preview kept). The render
+   returns for code blocks when the caret leaves and Vditor sets the source back to `display:none`. */
 .vditor-reset
   .vditor-wysiwyg__block:has(
     > pre.vditor-wysiwyg__pre:not([style*="none"])
@@ -208,11 +220,27 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    while editing the first. Zeroing it restores the normal inter-block gap. Same "source visible"
    condition as the hide rule (`:not([style*="none"])` — matches the shown source whether it has
    inline `display: block` or no inline style after a rebuild). The non-edited block keeps Vditor's
-   value (source pre is `display:none` → excluded). */
+   value (source pre is `display:none` → excluded). Same `:has(> code)` code-block-only scope as the
+   hide rule above — diagram blocks keep their (still-visible) preview, so there is no hidden render
+   to compensate for and their source pre keeps Vditor's default margin. Do NOT widen to diagrams. */
 .vditor-reset
   .vditor-wysiwyg__block:has(> pre.vditor-wysiwyg__preview > code)
   > pre.vditor-wysiwyg__pre:not([style*="none"]) {
   margin-bottom: 0;
+}
+/* The EDITABLE SOURCE of an echarts/mindmap block must size to its TEXT, not the 420px RENDER box.
+   Vditor's index.css sizes the render with `.vditor-reset .language-echarts, .language-mindmap {
+   height:420px; overflow:hidden }` — but the editable `<code>` carries the SAME `language-*` class,
+   so it inherits the 420px too. Vditor normally cancels that with `.vditor-wysiwyg__block
+   pre:first-child code { height:auto }` — but that only fires when the SOURCE pre is the block's
+   FIRST child. For a diagram the block is ordered [preview, source], so the source pre is NOT
+   first-child → the cancel misses and the edit field stays 420px tall (text at top, huge empty below
+   — "pole z kodem za wysokie"). Re-assert height:auto position-independently. Safe: the RENDER is a
+   `div.language-*` (not `> code`), so `pre > code.language-*` only ever matches the editable source,
+   never the render. Covers WYSIWYG (`vditor-wysiwyg__pre`) and IR (`vditor-ir__marker--pre`). */
+.vditor-reset pre > code:is(.language-echarts, .language-mindmap) {
+  height: auto !important;
+  overflow: visible;
 }
 /* WYSIWYG inline-code horizontal padding is fixed at the Vditor SOURCE (build.mjs
    `patchVditorIndexCss` rewrites Vditor's `.vditor-wysiwyg code[data-marker="\`"]` padding 0 → .4em),
@@ -367,6 +395,65 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
       )
   ) {
   background: transparent !important;
+}
+/* SMILES is the one diagram Lute wraps in a `<code class="language-smiles">` (the others are `<div>`),
+   so it ALSO inherits the inline-code panel: a gray `--vmarkd-code-bg` box with padding + 3px radius
+   around the molecule (visible on dark — "smiles nie bierze tła z motywu"; the SVG + the preview pre
+   are already transparent, the box is this `<code>`). Strip it so the molecule sits on the page
+   background like the `<div>` diagrams. `background:transparent !important` beats the dark inline-code
+   rule `.vditor--dark .vditor-reset code:not(.hljs)` (0,4,2); padding/radius come from lower-specificity
+   inline-code rules → this (0,4,1) wins them. Listed with the other diagram langs for symmetry/future
+   safety, though only smiles is `<code>`-wrapped today. */
+.vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  > code:is(
+    .language-mermaid,
+    .language-echarts,
+    .language-flowchart,
+    .language-graphviz,
+    .language-plantuml,
+    .language-mindmap,
+    .language-markmap,
+    .language-abc,
+    .language-smiles,
+    .language-math
+  ) {
+  background: transparent !important;
+  padding: 0;
+  border-radius: 0;
+}
+/* Diagram render WIDTH — fill the content column (like echarts/mindmap/markmap already do), with a
+   height cap so a tall-narrow diagram is bounded instead of blowing up to `width × aspect`. The
+   drawing keeps its aspect ratio — the SVG's `preserveAspectRatio` letterboxes it inside the box, so
+   nothing distorts (a too-tall one centres with side whitespace at the cap). abc has NO viewBox
+   (can't be upscaled without clipping the coordinate space) so it only shrinks to fit (rule below).
+   NOTE: mermaid + graphviz are deliberately EXCLUDED (user: "za duże" at full width) — left at their
+   intrinsic size. echarts/mindmap (canvas) + markmap already size to the container. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-flowchart, .language-plantuml, .language-smiles)
+  > svg {
+  width: 100%;
+  height: auto;
+  max-width: 100% !important;
+  max-height: 480px;
+}
+/* abc + graphviz: shrink-to-fit (responsive DOWN with a narrowing window) but NOT upscaled — graphviz
+   keeps its intrinsic size when there's room (user: full-width was "za duże") yet must not overflow /
+   clip when the column gets narrower than it. `height:auto` keeps the aspect as it shrinks. (abc has
+   no viewBox so this is a replaced-element shrink; graphviz has a viewBox so the drawing scales.) */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-abc, .language-graphviz)
+  > svg {
+  max-width: 100%;
+  height: auto;
+  max-height: 480px;
+}
+/* ECharts/mindmap canvases resize via JS (echarts-fit.ts) on window-resize, but cap them with CSS
+   too so they never overflow the column in the frame before the (debounced) resize fires. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-echarts, .language-mindmap)
+  > canvas {
+  max-width: 100%;
 }
 /* Task-list checkboxes are native form controls — default blue check + white
    box, which clashes with a custom theme. Theme the accent and (in dark mode)
@@ -873,15 +960,20 @@ body[data-full-width="1"][data-heading-markers="0"] .vditor-preview .vditor-rese
   height: 100% !important;
 }
 /* Narrow-width (data-full-width="0") centering: cap the content column at 800px via symmetric
-   padding. Full-width's own padding (0 20px / 35px gutter) lives in the data-full-width="1" rule
-   above; this is the narrow counterpart — padding/width only (overflow handled above). */
+   padding. The horizontal padding MUST match the editor's narrow rule above
+   (`.vditor-ir/.vditor-wysiwyg pre.vditor-reset`), which uses `max(35px, (100%-800)/2)` — i.e. it
+   keeps a 35px GUTTER floor even when the pane is narrower than 800px. Preview previously used
+   `max(0px, …)` (no floor), so below 800px its content column was ~70px WIDER than the editor's
+   (no gutter) → toggling Edit→Preview reflowed everything wider, and responsive renders (echarts)
+   visibly grew. Mirroring the 35px floor keeps the gutter so the content width — text AND charts —
+   is identical edit↔preview. Vertical padding stays 10px (preview-only); overflow handled above. */
 body[data-full-width="0"] .vditor-content:not(:has(.vditor-sv)) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview > .vditor-reset {
   max-width: none !important;
   width: 100% !important;
   margin: 0 !important;
-  padding: 10px max(0px, calc((100% - 800px) / 2)) !important;
+  padding: 10px max(35px, calc((100% - 800px) / 2)) !important;
   box-sizing: border-box !important;
 }
 
@@ -1039,5 +1131,64 @@ body.vmarkd-busy * {
 .vditor-reset blockquote[data-callout='failure'],
 .vditor-reset blockquote[data-callout='bug'] {
   --vmarkd-callout-accent: #f85149;
+}
+
+/* WYSIWYG callouts (task: native popover type-picker). WYSIWYG has no expandMarker, so instead of
+   the IR dual-node the callout stays editable: the raw `[!TYPE]` marker line is hidden (kept in the
+   source so it round-trips), a non-editable title label is shown at the top, and the TYPE is picked
+   from Vditor's own block popover (see calloutWysiwygToolbar). callouts.ts wraps the marker in
+   `.vmarkd-callout__marker` and injects `.vmarkd-callout__title`. */
+.vditor-reset blockquote[data-callout] .vmarkd-callout__marker {
+  display: none;
+}
+/* The WYSIWYG title label is a direct child of the blockquote (the IR title lives inside the
+   `.vmarkd-callout__preview`); give it a small gap above the editable body. */
+.vditor-wysiwyg
+  .vditor-reset
+  blockquote[data-callout]
+  > .vmarkd-callout__title {
+  margin-bottom: 4px;
+  user-select: none;
+  cursor: default;
+}
+/* The callout type <select> + title <input> we append to Vditor's block popover (`.vditor-panel`).
+   Both carry `.vditor-input` for the native field look (like the code block's language field). */
+.vditor-panel select.vmarkd-callout__type {
+  font-weight: 600;
+  cursor: pointer;
+}
+.vditor-panel input.vmarkd-callout__title-input {
+  margin-left: 4px;
+}
+
+/* ── HTML comment previews ───────────────────────────────────────────────────────
+   `<!-- ... -->` is a `data-type="html-block"` dual-node whose browser-invisible preview we
+   replace with visible text (html-comment.ts). Muted + italic so it reads as metadata, not
+   content. In the full Preview pane, Comment DOM nodes are swapped for `.vmarkd-comment` divs. */
+.vmarkd-comment {
+  color: var(--vscode-editorLineNumber-foreground, rgba(128, 128, 128, 0.6));
+  font-style: italic;
+  white-space: pre-wrap;
+}
+/* The preview `<pre>` inherits a code font + padding from the html-block defaults; strip it so
+   the comment text sits flush like a paragraph, not inside a code panel. */
+.vditor-ir__preview:has(> .vmarkd-comment),
+.vditor-wysiwyg__preview:has(> .vmarkd-comment) {
+  font-family: inherit;
+  padding: 0;
+  margin: 0.5em 0;
+  background: transparent !important;
+}
+/* Expanded (caret inside): hide the preview, show only the editable source — like code-blocks.
+   Strip the source panel background so the comment edits inline, not inside a code box. */
+.vditor-reset
+  .vditor-ir__node--expand[data-type="html-block"]
+  > .vditor-ir__preview {
+  display: none;
+}
+.vditor-reset
+  .vditor-ir__node--expand[data-type="html-block"]
+  > .vditor-ir__marker--pre {
+  background: transparent !important;
 }
 
