@@ -36,25 +36,57 @@ function smilesFor(code: HTMLElement): string {
   return /[{}]|font:/.test(own) ? '' : own
 }
 
-/** Re-draw every smiles preview inside `root` that has no `<svg>` (un-rendered or flattened). */
-export function repairSmiles(root: ParentNode, dark: boolean): void {
+/** Is the EFFECTIVE background behind `el` dark? smiles-drawer's palette must contrast the page the
+ *  molecule actually sits on — and that page is the CONTENT theme's background, NOT the VS Code editor
+ *  mode (a light content theme under a dark VS Code paints a white page, where the `dark` palette's
+ *  white skeleton vanishes — "za jasny na białym tle"). Walk up to the first opaque background and
+ *  judge it by luminance, so the molecule always contrasts whatever is actually behind it. */
+function bgIsDark(el: HTMLElement): boolean {
+  let node: Element | null = el
+  while (node) {
+    const m = getComputedStyle(node).backgroundColor.match(/rgba?\(([^)]+)\)/)
+    if (m) {
+      const [r, g, b, a] = m[1].split(',').map((s) => Number.parseFloat(s))
+      if (a === undefined || a > 0)
+        return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5
+    }
+    node = node.parentElement
+  }
+  return false // nothing opaque found → assume light (the webview default)
+}
+
+/**
+ * (Re)draw every smiles preview inside `root` so it (a) has an SVG and (b) is themed for the page it
+ * sits on. Redraws when: the preview has NO svg (un-rendered/flattened), the svg is Vditor's own (not
+ * ours — Vditor themes by editor mode, which can mismatch the content-theme background), or the page
+ * darkness changed since we last drew it (live theme flip). Idempotent once ours matches the bg, so
+ * the observer doesn't loop.
+ */
+export function repairSmiles(root: ParentNode): void {
   const Drawer = (window as unknown as { SmiDrawer?: typeof SmiDrawer })
     .SmiDrawer
   if (typeof Drawer !== 'function') return // smiles-drawer not loaded yet; a later mutation retries
-  const broken = Array.from(
-    root.querySelectorAll<HTMLElement>(PREVIEW_SEL),
-  ).filter((code) => !code.querySelector('svg'))
-  if (broken.length === 0) return
   let seq = 0
-  for (const code of broken) {
+  for (const code of Array.from(
+    root.querySelectorAll<HTMLElement>(PREVIEW_SEL),
+  )) {
+    const dark = bgIsDark(code)
+    const svg = code.querySelector('svg')
+    // Skip only if WE drew it (id prefix) AND for the current page darkness — otherwise re-theme.
+    if (
+      svg?.id.startsWith('vmsmiles-') &&
+      code.dataset.vmsmilesDark === `${dark}`
+    )
+      continue
     const smiles = smilesFor(code)
     if (!smiles) continue
     const id = `vmsmiles-${Date.now().toString(36)}-${seq++}`
     code.innerHTML = `<svg id="${id}"></svg>`
     // Mark processed so Vditor's own SMILESRender won't fight us (it also keys off data-processed).
     code.setAttribute('data-processed', 'true')
+    code.dataset.vmsmilesDark = `${dark}`
     try {
-      new Drawer({}, {}).draw(smiles, `#${id}`, dark ? 'dark' : undefined)
+      new Drawer({}, {}).draw(smiles, `#${id}`, dark ? 'dark' : 'light')
     } catch {
       // smiles-drawer throws on a malformed string — leave the (empty) svg, don't crash the editor
     }
@@ -62,19 +94,19 @@ export function repairSmiles(root: ParentNode, dark: boolean): void {
 }
 
 /**
- * Keep smiles previews rendered as the editor rebuilds/round-trips its DOM. rAF-debounced; idempotent
- * (skips previews that already hold an `<svg>`), so our own re-draws don't re-trigger it into a loop.
- * `isDark` is read live so a theme flip re-draws with the right palette. Returns a disposer.
+ * Keep smiles previews rendered (and correctly themed) as the editor rebuilds/round-trips its DOM.
+ * rAF-debounced; idempotent once a preview holds OUR svg themed for its current background, so our
+ * re-draws don't re-trigger it into a loop. Page darkness is read per-preview (bgIsDark) so a theme
+ * flip re-draws with the right palette automatically. Returns a disposer.
  */
 export function observeSmiles(
   appEl: HTMLElement | null | undefined,
-  isDark: () => boolean,
 ): () => void {
   if (!appEl) return () => {}
   let raf = 0
   const run = () => {
     raf = 0
-    repairSmiles(appEl, isDark())
+    repairSmiles(appEl)
   }
   const schedule = () => {
     if (!raf) raf = requestAnimationFrame(run)

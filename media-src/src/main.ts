@@ -46,11 +46,12 @@ import { reRenderMermaid } from './mermaid-retheme'
 import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { observeMindmaps, reRenderEcharts } from './echarts-retheme'
+import { reRenderFlowchart } from './flowchart-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
 import { installEchartsResize } from './echarts-fit'
 import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
-import { observeSmiles } from './smiles-render'
+import { observeSmiles, repairSmiles } from './smiles-render'
 import { installMarkmapResize } from './markmap-fit'
 import { observeAbc } from './abc-fit'
 import {
@@ -470,15 +471,7 @@ function runFinishInit(msg: any): void {
   // diagram vanishes. Re-draw it from the intact source. Bound to stable `#app` (covers IR+WYSIWYG,
   // survives mode switches); idempotent (skips previews that already hold an svg).
   disposeSmiles?.()
-  disposeSmiles = observeSmiles(
-    document.getElementById('app'),
-    () =>
-      (
-        window.vditor as unknown as {
-          vditor?: { options?: { theme?: string } }
-        }
-      )?.vditor?.options?.theme === 'dark',
-  )
+  disposeSmiles = observeSmiles(document.getElementById('app'))
   // markmap fits its tree to the container only at create time and clips (doesn't shrink) when the
   // column is later resized. Re-fit every visible markmap on a (debounced) window resize — same
   // window-resize-only strategy as installEchartsResize (no mode-switch 0-collapse). Idempotent.
@@ -1015,6 +1008,50 @@ function handleSetTheme(msg: any) {
     ),
   )
   reRenderEcharts(window, el, theme)
+  // flowchart.js bakes its colours (no currentColor) → re-render in the new theme's foreground
+  // (deferred so it reads the SETTLED colour after the content-theme <link> applies).
+  reThemeFlowchart()
+  // SMILES picks its palette from the page BACKGROUND luminance (bgIsDark), not the editor mode —
+  // and a theme flip changes that background via CSS WITHOUT mutating the #app subtree, so
+  // observeSmiles' MutationObserver never fires. Re-run repairSmiles explicitly. (No-op when the
+  // background's darkness didn't change — it's idempotent per bg darkness.)
+  reThemeSmiles()
+}
+
+/** Re-evaluate every smiles preview's palette after a theme flip. The new background CSS (and the
+ *  content-theme `<link>`) settles asynchronously and outside #app, so schedule a few passes across
+ *  the settle; repairSmiles is idempotent per bg-darkness, so the redundant calls are cheap no-ops. */
+function reThemeSmiles(): void {
+  const app = document.getElementById('app')
+  if (!app) return
+  requestAnimationFrame(() => repairSmiles(app))
+  window.setTimeout(() => repairSmiles(app), 200)
+  window.setTimeout(() => repairSmiles(app), 600)
+}
+
+/** Re-render flowcharts in the new theme's foreground after a flip. flowchart.js reads the colour
+ *  from `getComputedStyle(el).color` at draw time, but the content-theme `<link>` applies
+ *  asynchronously and can settle LATE (>600ms) — a fixed-delay re-render bakes a stale colour. So
+ *  POLL the foreground for ~2s and re-render only when it actually CHANGES (cheap: at most a couple
+ *  of re-renders — once now, once when the new stylesheet's colour finally lands). reRenderFlowchart
+ *  re-parses from source; with no flowchart in the doc it's a no-op. */
+function reThemeFlowchart(): void {
+  let lastFg = ''
+  let ticks = 0
+  const tick = () => {
+    ticks++
+    const editorEl = activeModeElement(window.vditor) ?? undefined
+    const probe = editorEl?.querySelector(
+      '.vditor-ir__preview .language-flowchart, .vditor-wysiwyg__preview .language-flowchart',
+    ) as HTMLElement | null
+    const fg = probe ? getComputedStyle(probe).color : ''
+    if (fg && fg !== lastFg) {
+      lastFg = fg
+      reRenderFlowchart(window, editorEl)
+    }
+    if (ticks < 14) window.setTimeout(tick, 150) // watch for a late content-theme settle (~2s)
+  }
+  requestAnimationFrame(tick)
 }
 
 function handleConfigChanged(msg: any) {
@@ -1106,6 +1143,12 @@ function handleConfigChanged(msg: any) {
     )
     reRenderEcharts(window, activeModeElement(window.vditor) ?? undefined, mode)
   }
+  // SMILES follows the page background luminance — a content-theme switch flips that background, so
+  // re-theme it too (same reason as handleSetTheme: the bg change doesn't mutate #app).
+  if (contentThemeChanged) reThemeSmiles()
+  // flowchart.js bakes its foreground colour → re-render on a content-theme switch (deferred so it
+  // reads the SETTLED foreground after the content-theme <link> applies).
+  if (contentThemeChanged) reThemeFlowchart()
 }
 
 function handleReloadCss(msg: any) {

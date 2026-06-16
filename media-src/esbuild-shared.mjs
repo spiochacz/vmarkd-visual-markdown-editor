@@ -610,6 +610,11 @@ const MINDMAP_COLORS_ANCHOR = `itemStyle: {
                                     color: "#d1d5da",
                                     width: 1,
                                 },`
+// NOTE: we intentionally do NOT patch the mindmap's entry "grow" animation here. ECharts `tree`
+// gates the entry animation AND the click-collapse re-render on the same `animation` flag, so the
+// only thing that stops the entry grow (`animation: false`) also breaks collapse (tangled re-render,
+// user-confirmed), and `animationDuration: 0` doesn't suppress the entry anyway. So the brief grow is
+// accepted; this patch only re-themes the colours + tightens the vertical layout box.
 export function patchMindmapThemeColors(code) {
   if (!code.includes(MINDMAP_COLORS_ANCHOR)) {
     throw new Error(
@@ -769,6 +774,28 @@ export function patchGraphvizRender(code) {
   return code.replace(GRAPHVIZ_RENDER_ANCHOR, () => GRAPHVIZ_RENDER_REPLACEMENT)
 }
 
+// flowchartRender (flowchart.js) bakes #000 lines/borders/text + #fff box fill and ignores the
+// content theme → black-on-dark is invisible (task 91). flowchart.js DOES take a style-options
+// object as drawSVG's 2nd arg, so pair it with the theme: drive line/element/font colours from the
+// THEMED foreground (`getComputedStyle(item).color` — an rgb() string, which flowchart.js's Raphael
+// parses fine) and `fill:"none"` so box interiors are transparent (the page background shows
+// through, like graphviz). Verified in the real editor: `currentColor` does NOT work (Raphael
+// normalises it to a garbage #6688cc — unlike graphviz's CSS path) and `fill:"transparent"` renders
+// BLACK; an explicit colour + `"none"` are the working values. Anchored on the bare drawSVG call.
+const FLOWCHART_DRAW_ANCHOR = 'flowchartObj.drawSVG(item);'
+export function patchFlowchartTheme(code) {
+  if (!code.includes(FLOWCHART_DRAW_ANCHOR)) {
+    throw new Error(
+      'fixFlowchartTheme: drawSVG anchor not found in vditor flowchartRender.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    FLOWCHART_DRAW_ANCHOR,
+    'var vmFcColor = (typeof getComputedStyle === "function" && getComputedStyle(item).color) || "#000";\n' +
+      '            flowchartObj.drawSVG(item, { "line-color": vmFcColor, "element-color": vmFcColor, "font-color": vmFcColor, "fill": "none" });',
+  )
+}
+
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
 // bundle time, mapping the file's filter to the transform(s) applied to its contents. Each
 // transform is an anchor-asserted `patchXxx` defined above (tests import those directly); the
@@ -840,6 +867,10 @@ const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]graphvizRender\.ts$/,
     transform: patchGraphvizRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]flowchartRender\.ts$/,
+    transform: patchFlowchartTheme,
   },
   {
     // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only

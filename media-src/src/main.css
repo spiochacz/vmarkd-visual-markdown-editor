@@ -396,6 +396,32 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   ) {
   background: transparent !important;
 }
+/* SMILES is the one diagram Lute wraps in a `<code class="language-smiles">` (the others are `<div>`),
+   so it ALSO inherits the inline-code panel: a gray `--vmarkd-code-bg` box with padding + 3px radius
+   around the molecule (visible on dark — "smiles nie bierze tła z motywu"; the SVG + the preview pre
+   are already transparent, the box is this `<code>`). Strip it so the molecule sits on the page
+   background like the `<div>` diagrams. `background:transparent !important` beats the dark inline-code
+   rule `.vditor--dark .vditor-reset code:not(.hljs)` (0,4,2); padding/radius come from lower-specificity
+   inline-code rules → this (0,4,1) wins them. Listed with the other diagram langs for symmetry/future
+   safety, though only smiles is `<code>`-wrapped today. */
+.vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  > code:is(
+    .language-mermaid,
+    .language-echarts,
+    .language-flowchart,
+    .language-graphviz,
+    .language-plantuml,
+    .language-mindmap,
+    .language-markmap,
+    .language-abc,
+    .language-smiles,
+    .language-math
+  ) {
+  background: transparent !important;
+  padding: 0;
+  border-radius: 0;
+}
 /* Diagram render WIDTH — fill the content column (like echarts/mindmap/markmap already do), with a
    height cap so a tall-narrow diagram is bounded instead of blowing up to `width × aspect`. The
    drawing keeps its aspect ratio — the SVG's `preserveAspectRatio` letterboxes it inside the box, so

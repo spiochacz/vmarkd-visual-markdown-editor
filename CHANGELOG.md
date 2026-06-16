@@ -25,6 +25,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **VS Code mermaid palettes**: `vmarkd.theme.mermaid` adds `vscode-light-2026` and
   `vscode-dark-2026`, and `auto` pairs them with the matching VS Code 2026 rendering
   theme — so ` ```mermaid ` diagrams match VS Code's own colours.
+- **Flowchart diagrams follow the theme**: ` ```flowchart ` (flowchart.js) diagrams draw
+  in the rendering theme's text colour with transparent boxes — instead of fixed black,
+  which was invisible on dark themes — and re-draw when you switch themes.
 - **Live code highlighting while editing (WYSIWYG)**: code inside a fenced block is
   syntax-coloured as you type in WYSIWYG mode — full colour, bold and italic from the
   highlight.js theme — instead of plain monospace text.
@@ -43,7 +46,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   stretched. Mindmaps size to their content (no large empty margins around a small tree),
   and both ECharts charts and mindmaps render without an entry animation. Editing a chart
   or mindmap's source shows an edit field sized to the code, not to the diagram's render
-  box. SMILES structures also render in WYSIWYG mode (not just the Preview/IR surfaces).
+  box. SMILES structures also render in WYSIWYG mode (not just the Preview/IR surfaces),
+  sit directly on the page background, and follow the theme — the molecule is drawn in a
+  light or dark palette to match the rendered background and re-draws when you switch
+  themes.
 - **VS Code rendering themes are now "2026"**: the `vmarkd.theme.content` values
   `vscode-light-modern` / `vscode-dark-modern` become `vscode-light-2026` /
   `vscode-dark-2026`, retargeted to VS Code 1.123's default "Light/Dark 2026" palette so

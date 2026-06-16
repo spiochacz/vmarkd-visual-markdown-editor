@@ -33,7 +33,7 @@ theming mechanism — that's the #1 source of mistakes.
 | `mindmap` | ECharts tree | `init(el, theme)` + hardcoded colors | ◑ partial (some colors baked) |
 | `smiles` | smiles-drawer | `draw(code, id, 'dark'\|undefined)` | ◑ binary dark/light |
 | `markmap` | markmap | none | ❌ baked palette |
-| `flowchart` | flowchart.js | none | ❌ baked (black) |
+| `flowchart` | flowchart.js | `drawSVG(el, {line/element/font-color, fill})` | ✅ foreground-paired (task 91) |
 | `graphviz` | Viz.js | none (DOT defaults) | ❌ baked |
 | `abc` | abc.js | none | ❌ baked (black) |
 | `plantuml` | plantuml-encoder | remote `<object>` | ⛔ **blocked by CSP `object-src 'none'`** (task 87 = TeaVM offline) |
@@ -42,6 +42,18 @@ theming mechanism — that's the #1 source of mistakes.
 `previewRender.ts` threads `mergedOptions.mode` (the editor dark/light) to the renderers
 that accept a theme arg (`chartRender`, `mindmapRender`, `SMILESRender`, `mermaidRender`).
 The rest get nothing.
+
+**flowchart (task 91) — foreground-paired, NOT currentColor.** flowchart.js takes a style-options
+object as `drawSVG(el, {…})`'s 2nd arg (`line-color`/`element-color`/`font-color`/`fill`/…). Vditor
+called `drawSVG(item)` bare → baked black. Pairing model is #3 but with two HARD gotchas (verified by
+real-editor probe, don't relearn): its Raphael color parser turns **`currentColor` into a garbage
+`#6688cc`** (so the KaTeX/graphviz currentColor trick does NOT work here) and **`fill:"transparent"`
+renders BLACK** — so pass an EXPLICIT colour (the themed foreground from `getComputedStyle(item).color`,
+an rgb() string Raphael parses fine) for line/element/font + `fill:"none"` for transparent boxes. One
+foreground suffices (monochrome line-art — no palette mapping needed). esbuild `patchFlowchartTheme`
+rewrites the bare call; `flowchart-retheme.ts` `reRenderFlowchart` re-renders on a live flip, scheduled
+by `reThemeFlowchart` (main.ts) which POLLS until the foreground settles (the content-theme `<link>`
+applies LATE — a fixed-delay re-render bakes a stale colour).
 
 ## How mermaid theming actually works — THREE distinct layers (don't conflate them)
 

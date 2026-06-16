@@ -43,7 +43,7 @@ describe('repairSmiles', () => {
   it('re-draws a flattened preview from the editable source SMILES', () => {
     const { drawn } = stubDrawer()
     const root = brokenWysiwygBlock('CN1C=NC2=C1C(=O)N(C(=O)N2C)C')
-    repairSmiles(root, false)
+    repairSmiles(root)
     expect(drawn).toHaveLength(1)
     expect(drawn[0].code).toBe('CN1C=NC2=C1C(=O)N(C(=O)N2C)C') // source, NOT the style-text
     expect(
@@ -51,23 +51,47 @@ describe('repairSmiles', () => {
     ).not.toBeNull()
   })
 
-  it('passes the dark theme through', () => {
+  it('themes by the effective background: light page → light, dark page → dark', () => {
     const { drawn } = stubDrawer()
-    repairSmiles(brokenWysiwygBlock('CCO'), true)
-    expect(drawn[0].theme).toBe('dark')
+    // No opaque background anywhere → defaults to light.
+    repairSmiles(brokenWysiwygBlock('CCO'))
+    expect(drawn[0].theme).toBe('light')
+    // A dark background behind the molecule → dark palette (so it contrasts the page).
+    const darkRoot = brokenWysiwygBlock('CCO')
+    darkRoot.style.backgroundColor = 'rgb(0, 0, 0)'
+    repairSmiles(darkRoot)
+    expect(drawn[1].theme).toBe('dark')
   })
 
-  it('skips a preview that already holds an svg (idempotent — no loop)', () => {
+  it('skips a preview WE already drew for the current background (idempotent — no loop)', () => {
     const { drawn } = stubDrawer()
-    const root = document.createElement('div')
-    root.innerHTML = `<pre class="vditor-wysiwyg__preview"><code class="language-smiles"><svg></svg></code></pre>`
-    repairSmiles(root, false)
+    const root = brokenWysiwygBlock('CCO')
+    const code = root.querySelector(
+      '.vditor-wysiwyg__preview > code.language-smiles',
+    ) as HTMLElement
+    // Simulate our own prior draw: our svg id prefix + the matching (light) darkness flag.
+    code.innerHTML = '<svg id="vmsmiles-prev"></svg>'
+    code.dataset.vmsmilesDark = 'false'
+    repairSmiles(root)
     expect(drawn).toHaveLength(0)
+  })
+
+  it("re-themes a preview that Vditor drew (svg isn't ours) to match the background", () => {
+    const { drawn } = stubDrawer()
+    const root = brokenWysiwygBlock('CCO')
+    const code = root.querySelector(
+      '.vditor-wysiwyg__preview > code.language-smiles',
+    ) as HTMLElement
+    // Vditor's own render: an svg WITHOUT our id prefix → we redraw it from source, themed for the bg.
+    code.innerHTML = '<svg id="vditor-rendered"></svg>'
+    repairSmiles(root)
+    expect(drawn).toHaveLength(1)
+    expect(drawn[0].code).toBe('CCO')
   })
 
   it('is a no-op when smiles-drawer has not loaded yet (no throw)', () => {
     const root = brokenWysiwygBlock('CCO')
-    expect(() => repairSmiles(root, false)).not.toThrow()
+    expect(() => repairSmiles(root)).not.toThrow()
     expect(
       root.querySelector('.vditor-wysiwyg__preview > code.language-smiles svg'),
     ).toBeNull()
@@ -78,7 +102,7 @@ describe('repairSmiles', () => {
     const root = document.createElement('div')
     // a preview with flattened style-text and NO source sibling → nothing safe to draw
     root.innerHTML = `<pre class="vditor-ir__preview"><code class="language-smiles">.element { font: 11pt Arial; }</code></pre>`
-    repairSmiles(root, false)
+    repairSmiles(root)
     expect(drawn).toHaveLength(0)
   })
 })

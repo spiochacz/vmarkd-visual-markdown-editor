@@ -17,6 +17,7 @@ import {
   patchCalloutArrowNav,
   patchMarkmapStatic,
   patchGraphvizRender,
+  patchFlowchartTheme,
   patchMindmapThemeColors,
   patchEchartsThemeInit,
 } from '../../media-src/esbuild-shared.mjs'
@@ -66,6 +67,9 @@ const markmapSource = read(
 )
 const graphvizSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/graphvizRender.ts',
+)
+const flowchartSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/flowchartRender.ts',
 )
 const mindmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mindmapRender.ts',
@@ -262,6 +266,9 @@ describe('patchMindmapThemeColors (mindmap follows the content theme)', () => {
     expect(patched).toContain('borderRadius: 5')
     expect(patched).toContain('position: "insideRight"')
     expect(patched).toContain('width: 1')
+    // We do NOT touch the entry animation here (ECharts tree gates entry + collapse on one flag —
+    // animation:false breaks collapse; animationDuration:0 doesn't suppress entry). So no anim patch.
+    expect(patched).not.toContain('animation: false')
   })
 
   it('throws (fails the build loudly) if the colour block is gone — version-bump guard', () => {
@@ -328,6 +335,31 @@ describe('patchGraphvizRender (render fix + theme)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchGraphvizRender('// unrelated source')).toThrow(
       /fixGraphvizRender/,
+    )
+  })
+})
+
+describe('patchFlowchartTheme (task 91 — pair flowchart.js with the content theme)', () => {
+  it('the shipped Vditor source draws with NO style options (pre-patch, baked black)', () => {
+    expect(flowchartSource).toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('passes themed colours (foreground + fill:none) to drawSVG', () => {
+    const patched = patchFlowchartTheme(flowchartSource)
+    // line/element/font colours come from the themed foreground (getComputedStyle(item).color).
+    expect(patched).toContain('getComputedStyle(item).color')
+    expect(patched).toContain('"line-color": vmFcColor')
+    expect(patched).toContain('"element-color": vmFcColor')
+    expect(patched).toContain('"font-color": vmFcColor')
+    // box interiors transparent (NOT "transparent" — Raphael renders that black; "none" works).
+    expect(patched).toContain('"fill": "none"')
+    // the bare (baked-black) call is gone
+    expect(patched).not.toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('throws (fails the build loudly) if the drawSVG anchor is gone — version-bump guard', () => {
+    expect(() => patchFlowchartTheme('// unrelated source')).toThrow(
+      /fixFlowchartTheme/,
     )
   })
 })

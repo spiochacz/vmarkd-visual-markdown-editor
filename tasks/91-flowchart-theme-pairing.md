@@ -1,9 +1,16 @@
 # Task 91 — flowchart.js theme pairing (drawSVG styling options)
 
-> **Status:** 📋 TODO. Make `\`\`\`flowchart` diagrams follow the content theme — they render
-> black-on-transparent today (unreadable on dark themes) because Vditor calls
-> `drawSVG(item)` with no styling options. Reuse the shared palette mapping (task 86) + an
-> flowchart-specific options object. Also closes the live-re-theme gap.
+> **Status:** ✅ DONE (2026-06-16). `\`\`\`flowchart` follows the content theme. Two deviations from the
+> plan below, found by real-editor probing: (1) flowchart.js can NOT use `currentColor` (its Raphael
+> normalises it to a garbage `#6688cc`) and `fill:"transparent"` renders BLACK — so pass an EXPLICIT
+> colour (the themed foreground via `getComputedStyle(item).color`, an rgb() string Raphael parses) +
+> `fill:"none"`; the shared palette mapping (task 86) was NOT needed — a flowchart is monochrome
+> line-art, so a single foreground for line/element/font + transparent fill is the right pairing.
+> (2) `drawSVG(el, options)` is the real API. esbuild `patchFlowchartTheme` (esbuild-shared.mjs,
+> registered in VDITOR_TS_PATCHES) rewrites the bare `drawSVG(item)`. Live re-theme: `reRenderFlowchart`
+> (`media-src/src/flowchart-retheme.ts`, wired into `handleSetTheme` + `handleConfigChanged` via
+> `reThemeFlowchart`, which POLLS until the foreground settles — the content-theme `<link>` applies
+> late). Tests: 3 patch unit tests + `flowchart-theme.spec.ts` (open + live flip). No version bump.
 > **Source:** renderer-theming audit (the `vmarkd-renderer-theming` skill); user request.
 > **Value / Risk:** 🟢 readability/cohesion / low — additive, no asset change, no version bump.
 
