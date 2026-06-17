@@ -1,4 +1,4 @@
-// Harness for task 101 (WaveDrom) + task 103 (nomnoml) + task 99 (GeoJSON/TopoJSON).
+// Harness for task 101 (WaveDrom) + task 103 (nomnoml) + task 99 (GeoJSON/TopoJSON) + task 100 (STL).
 import '../src/preload'
 import Vditor from 'vditor/src/index'
 import { observeCustomDiagrams } from '../src/custom-diagrams'
@@ -22,6 +22,18 @@ const md = `# Custom diagrams
 
 \`\`\`topojson
 {"type":"Topology","objects":{"shape":{"type":"GeometryCollection","geometries":[{"type":"Polygon","arcs":[[0]]}]}},"arcs":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}
+\`\`\`
+
+\`\`\`stl
+solid triangle
+ facet normal 0 0 1
+  outer loop
+   vertex 0 0 0
+   vertex 1 0 0
+   vertex 0.5 1 0
+  endloop
+ endfacet
+endsolid triangle
 \`\`\`
 `
 

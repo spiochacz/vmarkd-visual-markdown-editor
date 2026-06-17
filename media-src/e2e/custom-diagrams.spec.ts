@@ -124,3 +124,33 @@ test.fixme('topojson converts and renders a Leaflet map', async ({ page }) => {
   expect(info.hasMap).toBe(true)
   expect(info.pathCount).toBeGreaterThan(0)
 })
+
+// --- STL 3D (three.js) ---
+
+test.fixme('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
+  await page.waitForSelector('.language-stl canvas', { timeout: 30000 })
+  const info = await page.evaluate(() => {
+    const canvas = document.querySelector('.language-stl canvas') as HTMLCanvasElement | null
+    return {
+      hasCanvas: !!canvas,
+      width: canvas?.getBoundingClientRect().width ?? 0,
+      height: canvas?.getBoundingClientRect().height ?? 0,
+      hasWebGL: !!canvas?.getContext('webgl2') || !!canvas?.getContext('webgl'),
+    }
+  })
+  expect(info.hasCanvas).toBe(true)
+  expect(info.width).toBeGreaterThan(100)
+  expect(info.height).toBeGreaterThanOrEqual(280)
+})
+
+test.fixme('stl canvas makes no remote requests (offline)', async ({ page }) => {
+  const remoteRequests: string[] = []
+  page.on('request', (req) => {
+    const url = req.url()
+    if (url.startsWith('http') && !url.startsWith('http://localhost'))
+      remoteRequests.push(url)
+  })
+
+  await page.waitForSelector('.language-stl[data-processed="true"]', { timeout: 30000 })
+  expect(remoteRequests).toHaveLength(0)
+})
