@@ -1,15 +1,12 @@
 # Task: Local (offline) PlantUML rendering — no remote server
 
-> **Status:** 📋 TODO — **spike first** (2026-06-09). Render PlantUML **fully offline in the
-> webview** using PlantUML's official **TeaVM** JS build (`plantuml/plantuml` → `./gradlew
-> teavm`) — plain self-hostable JS, SVG output, **no server, no CDN, no Java at runtime**.
-> User decisions (2026-06-09): offline in-browser; renders out-of-the-box; **local only**.
+> **Status:** ✅ DONE (2026-06-17). PlantUML renders fully offline via TeaVM JS (pre-built from
+> GitHub Releases `snapshot` tag, v1.2026.7beta3). `plantuml.js` 7.2 MB + `viz-global.js` 1.4 MB
+> (gzip ~2 MB), lazy-loaded. SVG post-processed to `currentColor` (theme-agnostic — no `{dark}`
+> needed). Shared `viz-global.js` with graphviz (`@viz-js/viz` 3.x replaces the old mdaines
+> `viz.js` + `full.render.js` — dropped 1.9 MB). Live re-render on theme flip. `data-code` saved
+> for re-render. Cache-buster `?v=<hash>` on webview assets (`main.js` + `main.css`). CSP OK.
 > **Source:** user request (2026-06-09); user pointed to `plantuml/plantuml/teavm.sh`.
-> Surfaced while auditing how each renderer follows the theme (mermaid task 86) — PlantUML
-> was the odd one out (remote + CSP-blocked).
-> **Value / Risk:** 🟡 feature / **medium** — adds a few-MB JS bundle (lazy-loaded) + a
-> build-time JDK/gradle step to produce the artifact. Spike to measure real size + confirm
-> it runs under our CSP.
 
 ## Problem (current state)
 PlantUML **does not render at all** in vMarkd today:
@@ -64,6 +61,36 @@ into the repo (`media/...`), and have `build.mjs` just copy it. CI/users never n
    build is compatible or the engine needs its bundled `viz-global.js`.
 4. Measure cold-start (first render spins the worker) + warm render time.
 5. **Decision gate:** acceptable bundle size + runs under CSP offline → GO. Record numbers here.
+
+### Spike results (2026-06-16) — **GO**
+
+Source: pre-built `js-plantuml-SNAPSHOT.zip` from GitHub Releases `snapshot` tag
+(PlantUML 1.2026.7beta3, 2026-06-16). No JDK needed — artifact is pre-compiled.
+
+| Metric | Result |
+|--------|--------|
+| `plantuml.js` raw | 7.2 MB |
+| `viz-global.js` raw | 1.4 MB |
+| **gzip (both)** | **~2 MB** (1.4 MB + 590 KB) |
+| Cold render (sequence diagram) | **699 ms** |
+| Warm render (class diagram) | **300 ms** |
+| Warm render (activity diagram) | **146 ms** |
+| Dark mode (`{dark: true}`) | **works** (inline SVG with dark palette) |
+| CSP | **works** with `script-src 'self'` + `worker-src blob:` |
+| SVG output | inline `<svg>` (no `<object>`, no remote) |
+| API | ES module: `import { render } from "./plantuml.js"` |
+| API call | `render(lines: string[], targetId: string, options?: {dark: boolean})` — **async** (writes SVG to DOM element after processing) |
+| Icon libraries | optional `.min.js` files (AWS 9.8 MB, IBM 23 MB, etc.) — NOT needed for core diagrams |
+
+**Key findings:**
+- The API is **async** — `render()` returns immediately, SVG appears in the target element
+  after processing. Must poll/observe for the SVG to appear.
+- `viz-global.js` is the modern `@viz-js/viz` 3.x build — **not our bundled mdaines `viz.js`**.
+  The engine requires ITS `viz-global.js` loaded as a `<script>` before the ES module import.
+- Cold start ~700ms is acceptable for a lazy-loaded renderer (first PlantUML block triggers load).
+- The icon libraries (AWS, Azure, IBM, etc.) are enormous but **optional** — basic sequence,
+  class, activity, state, component, use-case diagrams all work with just the two core files.
+- Pre-built artifacts available from GitHub Releases — no need to run `./gradlew teavm` ourselves.
 
 ## Approach (if GO)
 1. **Vendor** the TeaVM `plantuml.js` (pinned PlantUML SHA) + **`@viz-js/viz`'s

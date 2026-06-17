@@ -231,6 +231,7 @@ export function paletteToThemeVariables(
     actorLineColor: line,
     signalColor: fg,
     signalTextColor: fg,
+    sequenceNumberColor: bg,
     labelBoxBkgColor: surface,
     labelBoxBorderColor: line,
     labelTextColor: fg,

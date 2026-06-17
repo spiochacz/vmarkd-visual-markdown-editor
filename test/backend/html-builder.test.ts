@@ -244,8 +244,8 @@ describe('buildWebviewHtml', () => {
   describe('assets and structure', () => {
     it('renders main.js and main.css', () => {
       const html = buildWebviewHtml(defaults())
-      expect(html).toMatch(/src="[^"]*main\.js"/)
-      expect(html).toMatch(/href="[^"]*main\.css"/)
+      expect(html).toMatch(/src="[^"]*main\.js[^"]*"/)
+      expect(html).toMatch(/href="[^"]*main\.css[^"]*"/)
     })
 
     it('loads i18n bundle before main.js', () => {

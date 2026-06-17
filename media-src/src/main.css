@@ -391,6 +391,11 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
         .language-markmap,
         .language-abc,
         .language-smiles,
+        .language-wavedrom,
+        .language-nomnoml,
+        .language-geojson,
+        .language-topojson,
+        .language-stl,
         .language-math
       )
   ) {
@@ -416,6 +421,10 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
     .language-markmap,
     .language-abc,
     .language-smiles,
+    .language-wavedrom,
+    .language-nomnoml,
+    .language-geojson,
+    .language-topojson,
     .language-math
   ) {
   background: transparent !important;
@@ -429,13 +438,58 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    (can't be upscaled without clipping the coordinate space) so it only shrinks to fit (rule below).
    NOTE: mermaid + graphviz are deliberately EXCLUDED (user: "za duże" at full width) — left at their
    intrinsic size. echarts/mindmap (canvas) + markmap already size to the container. */
+/* Diagrams: natural size, shrink to fit the column if wider. No height cap — a tall sequence
+   diagram or big flowchart is legitimately tall. Same approach as graphviz/abc. Center the SVG
+   in the container so narrower-than-column diagrams don't hug the left edge. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-flowchart, .language-plantuml, .language-smiles) {
+  text-align: center;
+}
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-flowchart, .language-plantuml, .language-smiles)
   > svg {
-  width: 100%;
+  max-width: 100%;
   height: auto;
-  max-width: 100% !important;
-  max-height: 480px;
+}
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  .language-smiles
+  > svg {
+  max-width: 80%;
+}
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  .language-plantuml
+  > svg {
+  min-width: 300px;
+}
+/* Vditor enables mermaid `showSequenceNumbers: true` — style the numbered circles to match
+   the theme instead of the baked mermaid palette. The circle is an SVG <marker>, the number
+   is a <text class="sequenceNumber">. Use currentColor so they follow the content theme. */
+/* Sequence number circles + text: mermaid's `sequenceNumberColor` themeVariable (set in
+   paletteToThemeVariables) drives the text fill via the internal <style>. The circle marker
+   inherits from the SVG cascade — no CSS override needed for themed palettes. */
+/* markmap 0.18 theming: override CSS vars to follow the content theme. markmap's own defaults are
+   light-only (#333 text, #f0f0f0 code-bg); `.markmap-dark` flips them for dark, but we override
+   BOTH to use currentColor / theme vars so markmap inherits from the themed .vditor-reset for
+   any content theme, not just light/dark. The branch-line categorical palette (d3 schemeCategory10)
+   is untouched — it's markmap's signature multi-color identity and has adequate contrast on any bg. */
+.language-markmap .markmap {
+  --markmap-text-color: currentColor;
+  --markmap-a-color: var(--vmarkd-link, #0097e6);
+  --markmap-code-bg: var(--vmarkd-code-bg, #f0f0f0);
+  --markmap-code-color: currentColor;
+  --markmap-circle-open-bg: var(--vmarkd-bg, #fff);
+  --markmap-table-border: 1px solid currentColor;
+}
+/* wavedrom + nomnoml: center, shrink-to-fit, themed via currentColor post-processing */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-wavedrom, .language-nomnoml) {
+  text-align: center;
+}
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-wavedrom, .language-nomnoml)
+  > svg {
+  max-width: 100%;
+  height: auto;
 }
 /* abc + graphviz: shrink-to-fit (responsive DOWN with a narrowing window) but NOT upscaled — graphviz
    keeps its intrinsic size when there's room (user: full-width was "za duże") yet must not overflow /
@@ -790,6 +844,10 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
             .language-markmap,
             .language-abc,
             .language-smiles,
+            .language-wavedrom,
+            .language-nomnoml,
+            .language-geojson,
+            .language-topojson,
             .language-math
           )
       )

@@ -16,10 +16,15 @@
     "@playwright/cli": "^0.1.14",
     "@playwright/test": "^1.60.0",
     "@types/node": "^22",
-    "monocart-coverage-reports": "^2.12.12"
+    "markmap-lib": "^0.18.12",
+    "markmap-view": "^0.18.12",
+    "monocart-coverage-reports": "^2.12.12",
+    "three": "^0.184.0"
   },
   "dependencies": {
     "esbuild": "^0.28.0",
+    "graphre": "^0.1.3",
+    "nomnoml": "^1.7.0",
     "vditor": "^3.11.2"
   }
 }

@@ -47,11 +47,24 @@ import { resolveEchartsTheme } from '../../src/echarts-theme'
 import { applyEchartsTheme, readVscodePalette } from './echarts-apply'
 import { observeMindmaps, reRenderEcharts } from './echarts-retheme'
 import { reRenderFlowchart } from './flowchart-retheme'
+import {
+  reRenderPlantuml,
+  reRenderGraphviz,
+  reRenderAbc,
+} from './plantuml-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
 import { installEchartsResize } from './echarts-fit'
 import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
 import { observeSmiles, repairSmiles } from './smiles-render'
+import {
+  observeCustomDiagrams,
+  reRenderWavedrom,
+  reRenderNomnoml,
+  reRenderGeojson,
+  reRenderTopojson,
+  reRenderStl,
+} from './custom-diagrams'
 import { observeHtmlComments, observePreviewComments } from './html-comment'
 import { installMarkmapResize } from './markmap-fit'
 import { observeAbc } from './abc-fit'
@@ -126,6 +139,7 @@ let disposeSmiles: (() => void) | null = null
 let disposeHtmlComments: (() => void) | null = null
 let disposePreviewHtmlComments: (() => void) | null = null
 let disposeAbc: (() => void) | null = null
+let disposeCustomDiagrams: (() => void) | null = null
 let disposeMindmap: (() => void) | null = null
 
 // Shared mutable knownPages set — passed to setupCustomRenderer and updated by
@@ -488,6 +502,8 @@ function runFinishInit(msg: any): void {
   // survives mode switches); idempotent (skips previews that already hold an svg).
   disposeSmiles?.()
   disposeSmiles = observeSmiles(document.getElementById('app'))
+  disposeCustomDiagrams?.()
+  disposeCustomDiagrams = observeCustomDiagrams(document.getElementById('app'))
   // markmap fits its tree to the container only at create time and clips (doesn't shrink) when the
   // column is later resized. Re-fit every visible markmap on a (debounced) window resize — same
   // window-resize-only strategy as installEchartsResize (no mode-switch 0-collapse). Idempotent.
@@ -1027,6 +1043,9 @@ function handleSetTheme(msg: any) {
   // flowchart.js bakes its colours (no currentColor) → re-render in the new theme's foreground
   // (deferred so it reads the SETTLED colour after the content-theme <link> applies).
   reThemeFlowchart()
+  // PlantUML bakes dark/light at render time → re-render with the new mode.
+  // Graphviz uses currentColor but a re-render guarantees a fresh SVG.
+  reThemePlantumlGraphviz()
   // SMILES picks its palette from the page BACKGROUND luminance (bgIsDark), not the editor mode —
   // and a theme flip changes that background via CSS WITHOUT mutating the #app subtree, so
   // observeSmiles' MutationObserver never fires. Re-run repairSmiles explicitly. (No-op when the
@@ -1068,6 +1087,25 @@ function reThemeFlowchart(): void {
     if (ticks < 14) window.setTimeout(tick, 150) // watch for a late content-theme settle (~2s)
   }
   requestAnimationFrame(tick)
+}
+
+/** Re-render PlantUML (dark/light palette) + Graphviz (currentColor) after a theme flip.
+ *  Deferred so the content-theme `<link>` and vditor--dark class have settled. */
+function reThemePlantumlGraphviz(): void {
+  const cdn = lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || ''
+  const run = () => {
+    const el = activeModeElement(window.vditor) ?? undefined
+    reRenderPlantuml(el, cdn)
+    reRenderGraphviz(el, cdn)
+    reRenderAbc(el, cdn)
+    reRenderWavedrom(el ?? undefined)
+    reRenderNomnoml(el ?? undefined)
+    reRenderGeojson(el ?? undefined)
+    reRenderTopojson(el ?? undefined)
+    reRenderStl(el ?? undefined)
+  }
+  requestAnimationFrame(run)
+  window.setTimeout(run, 400)
 }
 
 function handleConfigChanged(msg: any) {
@@ -1165,6 +1203,7 @@ function handleConfigChanged(msg: any) {
   // flowchart.js bakes its foreground colour → re-render on a content-theme switch (deferred so it
   // reads the SETTLED foreground after the content-theme <link> applies).
   if (contentThemeChanged) reThemeFlowchart()
+  if (contentThemeChanged) reThemePlantumlGraphviz()
 }
 
 function handleReloadCss(msg: any) {

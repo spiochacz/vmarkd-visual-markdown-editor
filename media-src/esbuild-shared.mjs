@@ -59,6 +59,44 @@ try {
   echartsPin = null
 }
 
+// The vendored abcjs pin (build.mjs `syncAbcjs` overwrites Vditor's bundled
+// abcjs_basic.min.js with this version — task 92). null if unpinned.
+let markmapPin = null
+try {
+  markmapPin = JSON.parse(
+    readFileSync(
+      new URL('./vendor/markmap/source.json', import.meta.url),
+      'utf8',
+    ),
+  )
+} catch {
+  markmapPin = null
+}
+
+let smilesDrawerPin = null
+try {
+  smilesDrawerPin = JSON.parse(
+    readFileSync(
+      new URL('./vendor/smiles-drawer/source.json', import.meta.url),
+      'utf8',
+    ),
+  )
+} catch {
+  smilesDrawerPin = null
+}
+
+let abcjsPin = null
+try {
+  abcjsPin = JSON.parse(
+    readFileSync(
+      new URL('./vendor/abcjs/source.json', import.meta.url),
+      'utf8',
+    ),
+  )
+} catch {
+  abcjsPin = null
+}
+
 const stubPath = fileURLToPath(
   new URL('./src/stubs/vditor-toolbar-stubs.ts', import.meta.url),
 )
@@ -691,7 +729,8 @@ export function patchSetContentTheme(code) {
 // Anchored single-line rewrites; throw on drift.
 const MARKMAP_CREATE_ANCHOR = 'const mm = Markmap.create(svg, null);'
 const MARKMAP_SETDATA_ANCHOR = 'mm.setData(root, frontmatterOptions)'
-export function patchMarkmapStatic(code) {
+const MARKMAP_SCRIPT_ANCHOR = 'markmap.min.js`, "vditorMarkerScript"'
+export function patchMarkmapStatic(code, version) {
   if (
     !code.includes(MARKMAP_CREATE_ANCHOR) ||
     !code.includes(MARKMAP_SETDATA_ANCHOR)
@@ -700,15 +739,26 @@ export function patchMarkmapStatic(code) {
       'fixMarkmapStatic: create/setData anchor not found in vditor markmapRender.ts (version drift?)',
     )
   }
-  return code
+  let out = code
+  if (version && out.includes(MARKMAP_SCRIPT_ANCHOR)) {
+    out = out.replace(
+      MARKMAP_SCRIPT_ANCHOR,
+      `markmap.min.js?v=${version}\`, "vditorMarkerScript"`,
+    )
+  }
+  return out
     .replace(
       MARKMAP_CREATE_ANCHOR,
       // fitRatio:0.88 (default .95) — markmap fits content to the svg then clips overflow, but it
       // slightly UNDER-measures the bottom of the tree (label descenders / node markers), so the
       // default 2.5%-per-side margin let the lowest branch clip at the bottom ("obcina trochę
       // wykres"). 0.88 = 6% per side, absorbing the under-measure. Re-asserted in setData below.
-      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });' +
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.80, autoFit: true });' +
         ' try { mm.zoom.filter((e) => e.ctrlKey && !e.button); } catch (_e) {}' +
+        // Gate fold/unfold on Ctrl — plain click enters edit mode (expands the IR code block);
+        // Ctrl+click toggles node collapse. handleClick receives the DOM event as first arg.
+        ' try { const _origClick = mm.handleClick.bind(mm);' +
+        ' mm.handleClick = (e, d) => { if (e.ctrlKey) _origClick(e, d); }; } catch (_e) {}' +
         // Expose the instance on its svg so markmap-fit.ts can re-fit it when the column is resized
         // (markmap doesn\'t auto-refit; the svg shrinks but content clips). See markmap-fit.ts.
         ' try { svg.__vmarkdMm = mm; } catch (_e) {}',
@@ -717,61 +767,83 @@ export function patchMarkmapStatic(code) {
       MARKMAP_SETDATA_ANCHOR,
       // setData re-derives options from frontmatter (default fitRatio .95, duration), which would
       // overwrite our create-time values — re-assert both as the LAST merge so they stick.
-      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.80 }));' +
+        // Size SVG to tree content: default 150px is too short for multi-branch trees → clipping.
+        // Read the <g> bounding box (tree in local coords) and set SVG height to fit at scale 1.
+        // autoFit then re-runs fit() and centers within the correctly-sized viewport.
+        ' try { const b = mm.g.node().getBBox();' +
+        ' svg.style.height = Math.max(b.height * 1.5, 120) + "px"; mm.fit(); } catch(_e) {}',
     )
 }
-// graphvizRender renders via Viz.js in a Web Worker, but it builds that worker from a `blob:` URL
-// whose body is `importScripts('<full.render.js>')` — and that URL is the cross-origin
-// `https://*.vscode-cdn.net/...` webview resource. In the VS Code webview that cross-origin
-// importScripts from an opaque-origin blob worker silently HANGS: the render promise never settles,
-// `data-processed` was already set, so the block is stuck showing its raw DOT source ("źle
-// renderuje"). Fix part 1: fetch the script TEXT (connect-src allows the resource origin) and build
-// the worker from INLINED code (a same-origin blob) — no cross-origin importScripts.
-// Fix part 2 (theme — "złe tło"): graphviz bakes a white background polygon (fill="#ffffff"
-// stroke="transparent") and #000000 foreground (text/edges/node borders/arrowheads). Make the bg
-// transparent so the page shows through, and recolour #000000/black → currentColor so it follows the
-// content theme's foreground (the `.vditor-reset` colour), KaTeX-style — correct on light AND dark,
-// in the full Preview overlay AND the IR/WYSIWYG preview render. Anchored on the exact try body.
-const GRAPHVIZ_RENDER_ANCHOR = `                const blob = new Blob([\`importScripts('\${(document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js")}');\`],
-                    { type: "application/javascript" });
-                const url = window.URL || window.webkitURL;
-                const blobUrl = url.createObjectURL(blob);
-                const worker = new Worker(blobUrl);
-                new Viz({ worker })
-                    .renderSVGElement(code).then((result: HTMLElement) => {
-                        e.innerHTML = result.outerHTML;
-                    }).catch((error) => {
-                        e.innerHTML = \`graphviz render error: <br>\${error}\`;
-                        e.className = "vditor-reset--error";
-                    });`
-const GRAPHVIZ_RENDER_REPLACEMENT = `                const vmarkdGvizSrc = (document.getElementById("vditorGraphVizScript") as HTMLScriptElement).src.replace("viz.js", "full.render.js");
-                fetch(vmarkdGvizSrc).then((r) => r.text()).then((vmarkdWorkerSrc: string) => {
-                    const worker = new Worker((window.URL || window.webkitURL).createObjectURL(new Blob([vmarkdWorkerSrc], { type: "application/javascript" })));
-                    new Viz({ worker })
-                        .renderSVGElement(code).then((result: HTMLElement) => {
-                            e.innerHTML = result.outerHTML
-                                .replace(/(fill|stroke)="(#000000|black)"/g, '$1="currentColor"');
-                            e.querySelectorAll("svg polygon").forEach((p) => {
-                                const st = p.getAttribute("stroke");
-                                if (st === "transparent" || st === "none") { p.remove(); }
-                            });
-                        }).catch((error) => {
-                            e.innerHTML = \`graphviz render error: <br>\${error}\`;
-                            e.className = "vditor-reset--error";
-                        });
-                }).catch((error) => {
-                    e.innerHTML = \`graphviz render error: <br>\${error}\`;
-                    e.className = "vditor-reset--error";
-                });`
+// graphvizRender: Vditor ships the OLD mdaines viz.js + full.render.js (Web Worker via
+// blob-importScripts that hangs in the VS Code webview cross-origin). We replaced that with
+// a fetch+inline-blob fix, but now we vendor the modern `@viz-js/viz` 3.x `viz-global.js`
+// (shared with PlantUML TeaVM — task 87). Rewrite the entire render to use the modern API:
+// `Viz.instance().then(viz => viz.renderSVGElement(dot))` — no manual Worker construction,
+// no old viz.js/full.render.js. The script tag loads `viz-global.js` from the plantuml dir.
+// Theme fix (same as before): strip bg polygon, recolour #000000/black → currentColor.
+const GRAPHVIZ_ANCHOR = 'addScript(`${cdn}/dist/js/graphviz/viz.js`'
 export function patchGraphvizRender(code) {
-  if (!code.includes(GRAPHVIZ_RENDER_ANCHOR)) {
+  if (!code.includes(GRAPHVIZ_ANCHOR)) {
     throw new Error(
-      'fixGraphvizRender: blob-worker/render anchor not found in vditor graphvizRender.ts (version drift?)',
+      'fixGraphvizRender: addScript anchor not found in vditor graphvizRender.ts (version drift?)',
     )
   }
-  // Replacement passed as a FUNCTION so its inner regex `$1` is taken verbatim (a string
-  // replacement would treat `$1` as a backreference token).
-  return code.replace(GRAPHVIZ_RENDER_ANCHOR, () => GRAPHVIZ_RENDER_REPLACEMENT)
+  return `import {Constants} from "../constants";
+import {addScript} from "../util/addScript";
+import {graphvizRenderAdapter} from "./adapterRender";
+
+export const graphvizRender = (element: HTMLElement, cdn = Constants.CDN) => {
+    const graphvizElements = graphvizRenderAdapter.getElements(element);
+    if (graphvizElements.length === 0) return;
+
+    addScript(cdn + "/dist/js/plantuml/viz-global.js", "vditorVizGlobalScript").then(() => {
+        const VizCtor = (window as any).Viz;
+        if (!VizCtor || !VizCtor.instance) return;
+        VizCtor.instance().then((viz: any) => {
+            graphvizElements.forEach((e: HTMLDivElement) => {
+                if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
+                    e.parentElement.classList.contains("vditor-ir__marker--pre")) {
+                    return;
+                }
+                if (e.getAttribute("data-processed") === "true") return;
+                // On re-render (theme flip) textContent is SVG garbage; use saved data-code.
+                const code = e.getAttribute("data-code") || graphvizRenderAdapter.getCode(e);
+                if (!code || code.trim() === "") return;
+                try {
+                    e.setAttribute("data-code", code);
+                    const result = viz.renderSVGElement(code);
+                    e.innerHTML = result.outerHTML
+                        .replace(/(fill|stroke)="(#000000|black)"/g, '$1="currentColor"');
+                    // Text elements have NO fill attr → SVG default fill is black (invisible
+                    // on dark). Set currentColor explicitly so text follows the theme.
+                    e.querySelectorAll("svg text").forEach((t: Element) => {
+                        if (!t.getAttribute("fill")) t.setAttribute("fill", "currentColor");
+                    });
+                    // Remove the graph background polygon (fill="white" or similar solid bg).
+                    e.querySelectorAll("svg > g > polygon, svg polygon").forEach((p: Element) => {
+                        const f = p.getAttribute("fill");
+                        const st = p.getAttribute("stroke");
+                        if ((f === "white" || f === "#ffffff") && (st === "none" || st === "transparent" || !st)) p.remove();
+                    });
+                    // Node shapes (ellipses): subtle tinted fill instead of empty — like mermaid's
+                    // themed node backgrounds. currentColor + low opacity adapts to any theme.
+                    e.querySelectorAll("svg ellipse, svg polygon[fill='currentColor']").forEach((s: Element) => {
+                        if (s.getAttribute("fill") === "none" || s.getAttribute("fill") === "currentColor") {
+                            s.setAttribute("fill", "currentColor");
+                            s.setAttribute("fill-opacity", "0.06");
+                        }
+                    });
+                } catch (error) {
+                    e.innerHTML = "graphviz render error: <br>" + error;
+                    e.className = "vditor-reset--error";
+                }
+                e.setAttribute("data-processed", "true");
+            });
+        });
+    });
+};
+`
 }
 
 // flowchartRender (flowchart.js) bakes #000 lines/borders/text + #fff box fill and ignores the
@@ -794,6 +866,135 @@ export function patchFlowchartTheme(code) {
     'var vmFcColor = (typeof getComputedStyle === "function" && getComputedStyle(item).color) || "#000";\n' +
       '            flowchartObj.drawSVG(item, { "line-color": vmFcColor, "element-color": vmFcColor, "font-color": vmFcColor, "fill": "none" });',
   )
+}
+
+// Task 92/93 — bump abcjs 5→6 cache-buster + foreground color theming.
+// abcRender.ts loads `abcjs_basic.min.js` with no `?v=` → stale webview serves old bytes.
+// Also, `renderAbc(item, code)` passes no params → black ink, unreadable on dark. abcjs 6 has
+// `foregroundColor` → pass the themed foreground (getComputedStyle(item).color). Save `data-code`
+// for re-render on theme flip (the rendered SVG clobbers textContent).
+const ABC_SCRIPT_ANCHOR = 'abcjs_basic.min.js", "vditorAbcjsScript"'
+const ABC_RENDER_ANCHOR =
+  'ABCJS.renderAbc(item, abcRenderAdapter.getCode(item).trim())'
+export function patchAbcRender(code) {
+  if (!code.includes(ABC_RENDER_ANCHOR)) {
+    throw new Error(
+      'fixAbcRender: renderAbc anchor not found in abcRender.ts (version drift?)',
+    )
+  }
+  let out = code
+  if (abcjsPin?.version && out.includes(ABC_SCRIPT_ANCHOR)) {
+    out = out.replace(
+      ABC_SCRIPT_ANCHOR,
+      `abcjs_basic.min.js?v=${abcjsPin.version}", "vditorAbcjsScript"`,
+    )
+  }
+  out = out.replace(
+    ABC_RENDER_ANCHOR,
+    `(() => {
+                var abcCode = (item.getAttribute("data-code") || abcRenderAdapter.getCode(item) || "").trim();
+                if (!abcCode) return;
+                item.setAttribute("data-code", abcCode);
+                var abcFg = (typeof getComputedStyle === "function" && getComputedStyle(item).color) || "#000";
+                ABCJS.renderAbc(item, abcCode, { foregroundColor: abcFg });
+                })()`,
+  )
+  return out
+}
+
+// Task 87 — replace Vditor's remote-server `<object>` plantuml renderer with our local TeaVM
+// engine. The original loads `plantuml-encoder.min.js` and emits an `<object data="https://
+// plantuml.com/…">` tag → blocked by CSP `object-src 'none'` AND a privacy leak. The patch
+// rewrites the render function to lazy-load the local TeaVM JS (`plantuml.js` + `viz-global.js`)
+// and call `render(lines, targetEl, {dark})` — fully offline, inline SVG. The `{dark}` option
+// is read from Vditor's `options.theme` (passed by processCode → previewRender).
+const PLANTUML_ANCHOR = 'plantumlEncoder.encode(text)'
+export function patchPlantumlRender(code) {
+  if (!code.includes(PLANTUML_ANCHOR)) {
+    throw new Error(
+      'fixPlantumlRender: plantumlEncoder.encode anchor not found in plantumlRender.ts (version drift?)',
+    )
+  }
+  // Replace the ENTIRE function body. Always render in LIGHT mode (no {dark}) — then
+  // post-process the SVG like graphviz: replace baked foreground (#181818, #000000) with
+  // currentColor, strip participant-box fills (#E2E2F0) so they inherit the page, and set
+  // currentColor on text. This makes PlantUML theme-agnostic — works on any background.
+  return `import {Constants} from "../constants";
+import {addScript} from "../util/addScript";
+import {plantumlRenderAdapter} from "./adapterRender";
+
+let plantumlRenderFn = null;
+
+function themePumlSvg(container) {
+  var svg = container.querySelector("svg");
+  if (!svg) return;
+  // Replace baked foreground colors with currentColor
+  container.innerHTML = container.innerHTML
+    .replace(/(fill|stroke)="(#181818|#000000)"/g, '$1="currentColor"');
+  // Text elements without fill → set currentColor
+  container.querySelectorAll("svg text").forEach(function(t) {
+    var f = t.getAttribute("fill");
+    if (!f || f === "#000000" || f === "#181818") t.setAttribute("fill", "currentColor");
+  });
+  // Participant-box fills: subtle tinted currentColor instead of baked color — like mermaid
+  container.querySelectorAll("svg rect").forEach(function(r) {
+    var f = r.getAttribute("fill");
+    if (f === "#E2E2F0" || f === "#222222") {
+      r.setAttribute("fill", "currentColor");
+      r.setAttribute("fill-opacity", "0.06");
+    }
+  });
+  // Remove fully-transparent background rects
+  container.querySelectorAll("svg rect").forEach(function(r) {
+    var f = r.getAttribute("fill");
+    var s = r.getAttribute("stroke");
+    if (f === "#00000000" && (s === "#00000000" || !s)) r.remove();
+  });
+}
+
+export const plantumlRender = (element = document, cdn = Constants.CDN) => {
+  const plantumlElements = plantumlRenderAdapter.getElements(element);
+  if (plantumlElements.length === 0) return;
+
+  const vizUrl = cdn + "/dist/js/plantuml/viz-global.js";
+  const pumlUrl = cdn + "/dist/js/plantuml/plantuml.js";
+
+  addScript(vizUrl, "vditorVizGlobalScript").then(async () => {
+    if (!plantumlRenderFn) {
+      const mod = await import(pumlUrl);
+      plantumlRenderFn = mod.render;
+    }
+    plantumlElements.forEach((e) => {
+      if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
+          e.parentElement.classList.contains("vditor-ir__marker--pre")) {
+        return;
+      }
+      if (e.getAttribute("data-processed") === "true") return;
+      var text = (e.getAttribute("data-code") || plantumlRenderAdapter.getCode(e) || "").trim();
+      if (!text) return;
+      try {
+        e.setAttribute("data-code", text);
+        const targetId = "vmarkd-puml-" + Math.random().toString(36).slice(2, 10);
+        e.id = targetId;
+        e.innerHTML = "";
+        e.setAttribute("data-processed", "true");
+        // Always render LIGHT — post-process to currentColor (theme-agnostic)
+        plantumlRenderFn(text.split(/\\r\\n|\\r|\\n/), targetId);
+        // PlantUML render is async — observe for the SVG to appear, then theme it
+        var obs = new MutationObserver(function() {
+          if (e.querySelector("svg")) { obs.disconnect(); themePumlSvg(e); }
+        });
+        obs.observe(e, { childList: true, subtree: true });
+        // Fallback timeout in case observer misses
+        setTimeout(function() { obs.disconnect(); themePumlSvg(e); }, 5000);
+      } catch (error) {
+        e.className = "vditor-reset--error";
+        e.innerHTML = "plantuml render error: <br>" + error;
+      }
+    });
+  });
+};
+`
 }
 
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
@@ -862,7 +1063,7 @@ const VDITOR_TS_PATCHES = [
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]markmapRender\.ts$/,
-    transform: patchMarkmapStatic,
+    transform: (code) => patchMarkmapStatic(code, markmapPin?.version),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]graphvizRender\.ts$/,
@@ -871,6 +1072,26 @@ const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]flowchartRender\.ts$/,
     transform: patchFlowchartTheme,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]plantumlRender\.ts$/,
+    transform: patchPlantumlRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]abcRender\.ts$/,
+    transform: patchAbcRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]SMILESRender\.ts$/,
+    transform: (code) => {
+      if (!smilesDrawerPin?.version) return code
+      const anchor = 'smiles-drawer.min.js?v=2.1.7'
+      if (!code.includes(anchor)) return code
+      return code.replace(
+        anchor,
+        `smiles-drawer.min.js?v=${smilesDrawerPin.version}`,
+      )
+    },
   },
   {
     // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only

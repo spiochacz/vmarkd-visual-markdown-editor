@@ -1,0 +1,14 @@
+{
+  "version": "0.18.12",
+  "description": "Combined offline bundle: d3 7.9.0 (tree-shaken subset) + markmap-lib 0.18.12 (browser IIFE) + markmap-view 0.18.12 (browser UMD). Concatenated — each part uses its own UMD wrapper, merging onto window.markmap.",
+  "origin": {
+    "d3": "https://github.com/d3/d3 (ISC)",
+    "markmap-lib": "https://github.com/markmap/markmap (MIT)",
+    "markmap-view": "https://github.com/markmap/markmap (MIT)"
+  },
+  "files": {
+    "markmap.min.js": {
+      "sha256": "592b3c22d6cb5cdb22293f1c4965dce4584c42655fa082d325f2b9a7c7ba646c"
+    }
+  }
+}

@@ -51,6 +51,10 @@ const built = await esbuild.build({
     'preview-scroll': path.join(__dirname, 'preview-scroll-harness.ts'),
     'code-linenumber': path.join(__dirname, 'code-linenumber-harness.ts'),
     'config-apply': path.join(__dirname, 'config-apply-harness.ts'),
+    'custom-diagrams-harness': path.join(
+      __dirname,
+      'custom-diagrams-harness.ts',
+    ),
   },
   bundle: true,
   format: 'iife',
@@ -106,6 +110,9 @@ const codeLineNumberHtml = fs.readFileSync(
 )
 const configApplyHtml = fs.readFileSync(
   path.join(__dirname, 'config-apply.html'),
+)
+const customDiagramsHtml = fs.readFileSync(
+  path.join(__dirname, 'custom-diagrams.html'),
 )
 const wysiwygHighlightHtml = fs.readFileSync(
   path.join(__dirname, 'wysiwyg-highlight.html'),
@@ -242,6 +249,10 @@ const server = http.createServer((req, res) => {
   if (url === '/config-apply.html') {
     res.setHeader('content-type', 'text/html')
     return res.end(configApplyHtml)
+  }
+  if (url === '/custom-diagrams.html') {
+    res.setHeader('content-type', 'text/html')
+    return res.end(customDiagramsHtml)
   }
   if (url === '/wysiwyg-highlight.html') {
     res.setHeader('content-type', 'text/html')

@@ -1,0 +1,10 @@
+{
+    "version": "1.7.0",
+    "description": "nomnoml + graphre \u2014 lightweight UML renderer (MIT)",
+    "origin": "https://github.com/skanaar/nomnoml",
+    "files": {
+        "nomnoml.min.js": {
+            "sha256": "c1b7eff719ed2ed2d13b9886f9e42ebb6399a8ef232cde539c6c59a81b47b3a0"
+        }
+    }
+}

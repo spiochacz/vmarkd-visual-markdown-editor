@@ -1,12 +1,9 @@
 # Task 93 — abc (abcjs) theme pairing (renderAbc foregroundColor)
 
-> **Status:** 📋 TODO (after [task 92](92-abcjs-version-bump.md) — needs abcjs 6 for
-> `foregroundColor`). Make `\`\`\`abc` sheet music follow the content theme — it renders black
-> on transparent today (unreadable on dark) because Vditor calls `renderAbc(el, text)` with no
-> params. Also closes the live-re-theme gap.
-> **Source:** renderer-theming audit (the `vmarkd-renderer-theming` skill); user request.
-> **Value / Risk:** 🟢 readability/cohesion / low — additive; simplest of the diagram
-> theming tasks (abc has effectively one ink color).
+> **Status:** ✅ DONE (2026-06-17). `foregroundColor` from `getComputedStyle(item).color` passed
+> to `renderAbc` via esbuild patch `patchAbcRender` (same function as the task-92 cache-buster).
+> `data-code` saved for re-render. `reRenderAbc` wired into `handleSetTheme` + `handleConfigChanged`
+> (on `contentThemeChanged`). abc now follows the content theme on every palette + re-themes live.
 
 ## Problem
 abcjs renders the score in **black on transparent**. `abcRender.ts` does

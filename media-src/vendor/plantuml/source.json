@@ -1,0 +1,16 @@
+{
+  "version": "1.2026.7beta3",
+  "source": "https://github.com/plantuml/plantuml/releases/tag/snapshot",
+  "artifact": "js-plantuml-SNAPSHOT.zip",
+  "date": "2026-06-16",
+  "license": "MIT (plantuml-mit), Apache-2.0 (viz-global.js from @viz-js/viz)",
+  "files": {
+    "plantuml.js": {
+      "sha256": "98a6560b8e35aaff399d3a63960fe072d63f8020a7e832be74024445169c5f7b"
+    },
+    "viz-global.js": {
+      "sha256": "ef2cd8a08b5cf8b65e3634131052b41870ff30bb6fb23e23a87fd09d44666cba"
+    }
+  },
+  "notes": "Pre-built TeaVM JS from PlantUML GitHub Releases snapshot tag. No JDK needed. plantuml.js is the ES module (import { render }), viz-global.js must be loaded as a <script> before importing plantuml.js. API: render(lines, targetId, {dark}) — async, writes SVG into the target DOM element."
+}

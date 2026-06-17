@@ -139,6 +139,23 @@ function buildContentThemeLinks(
     .join('')
 }
 
+import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { join } from 'node:path'
+// Cache-buster for webview resources. VS Code's vscode-webview:// URI caches by path —
+// without a query param, a reinstalled extension serves stale JS/CSS until the user
+// manually reloads the window. Keyed on the main.js content hash so it busts on every build.
+const CACHE_BUST = (() => {
+  try {
+    const h = createHash('md5')
+    h.update(readFileSync(join(__dirname, '..', 'media', 'dist', 'main.js')))
+    h.update(readFileSync(join(__dirname, '..', 'media', 'dist', 'main.css')))
+    return `?v=${h.digest('hex').slice(0, 8)}`
+  } catch {
+    return ''
+  }
+})()
+
 export function buildWebviewHtml(params: HtmlBuildParams): string {
   const {
     toUri,
@@ -193,7 +210,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 				<base href="${baseHref}" />
 
 
-				${cssFiles.map((f) => `<link href="${f}" rel="stylesheet">`).join('\n')}
+				${cssFiles.map((f) => `<link href="${f}${CACHE_BUST}" rel="stylesheet">`).join('\n')}
 
 				<title>vMarkd</title>
       ` +
@@ -216,7 +233,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
-				${jsFiles.map((f) => `<script nonce="${nonce}" src="${f}"></script>`).join('\n')}
+				${jsFiles.map((f) => `<script nonce="${nonce}" src="${f}${CACHE_BUST}"></script>`).join('\n')}
 			</body>
 			</html>`
   )

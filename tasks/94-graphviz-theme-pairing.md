@@ -1,11 +1,10 @@
 # Task 94 — Graphviz theme pairing (DOT default attributes)
 
-> **Status:** 📋 TODO. Make `\`\`\`graphviz` (DOT) diagrams follow the content theme — they
-> render black-on-transparent today (unreadable on dark) because Vditor passes the DOT to
-> Viz.js untouched. Inject palette-derived **default** graph/node/edge attributes into the DOT.
-> Also closes the live-re-theme gap. **No Viz.js version change needed** (engine-agnostic).
-> **Source:** renderer-theming audit (the `vmarkd-renderer-theming` skill); user request.
-> **Value / Risk:** 🟢 readability/cohesion / low — additive; pure DOT-source manipulation.
+> **Status:** ✅ DONE (2026-06-17). SVG post-processing approach (not DOT injection — simpler,
+> less fragile). `#000000`/`black` → `currentColor`, text `fill="currentColor"`, bg polygon
+> removed, node shapes `fill-opacity: 0.06` (subtle tint). Shared `viz-global.js` with PlantUML
+> (task 87) — old mdaines `viz.js` + `full.render.js` dropped. `data-code` saved for re-render.
+> `reRenderGraphviz` wired into theme handlers. Verified in real VS Code (xvfb e2e test).
 
 ## Problem
 Graphviz renders DOT → SVG via Viz.js. Colors come from DOT **attributes**; with none set the

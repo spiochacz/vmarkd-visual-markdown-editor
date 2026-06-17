@@ -1,6 +1,9 @@
 # Task 95 — Full markmap bump (0.14.3 → 0.18.x) + offline bundle + color strategy
 
-> **Status:** 📋 TODO — **spike-heavy** (this is NOT a single-file swap). Vditor bundles a
+> **Status:** 📋 TODO — **spike partial** (2026-06-17). Offline bundle builds (758KB, -47KB vs old
+> 805KB), API shape matches, `Transformer.transform()` works — but `Markmap.create(svg, opts)` throws
+> `n is not a constructor` in the real VS Code webview (d3 v7 SVG namespace issue or esbuild IIFE
+> scope). Needs debugging: the constructor works in Node but not in the webview. Reverted for now. Vditor bundles a
 > combined `markmap.min.js` = **markmap-lib/view 0.14.3 + d3 6.7.0**; latest is **0.18.12**, but
 > 0.18 **split into separate packages** (markmap-lib, markmap-view, d3 external) — there's no
 > drop-in combined UMD. So: build our own offline combined bundle, vendor it (no CDN), AND work

@@ -1,12 +1,9 @@
 # Task 92 — Bump bundled abcjs 5.10.3 → 6.x
 
-> **Status:** 📋 TODO — **verify render first** (major 5→6). Vditor bundles **abcjs 5.10.3
-> (2019)**; latest is **6.6.3 (2026)**. Vendor the newer build over Vditor's copy (Lute/
-> Mermaid pattern). Brings ~7 years of fixes AND unblocks abc theming (`foregroundColor`,
-> absent in 5.10.3 — see task 93).
-> **Source:** renderer-version audit (the `vmarkd-renderer-theming` skill); user request.
-> **Value / Risk:** 🟡 fixes + unblocks theming / **medium** — major version; abcjs 6
-> repackaged (ESM-first), so confirm the global UMD bundle + render fidelity.
+> **Status:** ✅ DONE (2026-06-17). Vendored **abcjs 6.6.3** (MIT) over Vditor's 5.10.3.
+> `syncAbcjs()` in build.mjs with sha256 pin. `?v=6.6.3` cache-buster via esbuild patch
+> `patchAbcRender`. UMD global `ABCJS` confirmed; `renderAbc(el, code, {foregroundColor})`
+> works — unblocked task 93. 3 patch unit tests.
 
 ## Problem
 `media/vditor/dist/js/abcjs/abcjs_basic.min.js` is **abcjs_basic v5.10.3** (Copyright 2009-2019),

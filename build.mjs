@@ -67,6 +67,12 @@ async function syncVditorAssets() {
     recursive: true,
     force: true,
   })
+  // graphviz now uses the shared viz-global.js from plantuml/ (task 87); drop the old
+  // mdaines viz.js + full.render.js (1.9 MB) that syncVditorAssets just copied.
+  await fs.rm(path.join(targetDir, 'js', 'graphviz'), {
+    recursive: true,
+    force: true,
+  })
   await removeMacMetadata(targetDir)
 }
 
@@ -399,6 +405,302 @@ async function syncEcharts() {
   console.log(`[echarts] vendored v${source.version} verified + installed`)
 }
 
+async function syncPlantuml() {
+  const vendorDir = path.resolve('media-src/vendor/plantuml')
+  const targetDir = path.resolve('media/vditor/dist/js/plantuml')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[plantuml] no vendored pin (media-src/vendor/plantuml) — PlantUML offline disabled',
+    )
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[plantuml] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'plantuml.js'),
+    path.join(targetDir, 'plantuml.js'),
+  )
+  await fs.copyFile(
+    path.join(vendorDir, 'viz-global.js'),
+    path.join(targetDir, 'viz-global.js'),
+  )
+  console.log(`[plantuml] vendored v${source.version} verified + installed`)
+}
+
+async function syncAbcjs() {
+  const vendorDir = path.resolve('media-src/vendor/abcjs')
+  const targetDir = path.resolve('media/vditor/dist/js/abcjs')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[abcjs] no vendored pin (media-src/vendor/abcjs) — using Vditor default',
+    )
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[abcjs] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.copyFile(
+    path.join(vendorDir, 'abcjs_basic.min.js'),
+    path.join(targetDir, 'abcjs_basic.min.js'),
+  )
+  console.log(`[abcjs] vendored v${source.version} verified + installed`)
+}
+
+async function syncSmilesDrawer() {
+  const vendorDir = path.resolve('media-src/vendor/smiles-drawer')
+  const targetDir = path.resolve('media/vditor/dist/js/smiles-drawer')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[smiles-drawer] no vendored pin (media-src/vendor/smiles-drawer) — using Vditor default',
+    )
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[smiles-drawer] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.copyFile(
+    path.join(vendorDir, 'smiles-drawer.min.js'),
+    path.join(targetDir, 'smiles-drawer.min.js'),
+  )
+  console.log(`[smiles-drawer] vendored v${source.version} verified + installed`)
+}
+
+async function syncWavedrom() {
+  const vendorDir = path.resolve('media-src/vendor/wavedrom')
+  const targetDir = path.resolve('media/vditor/dist/js/wavedrom')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[wavedrom] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'wavedrom.min.js'),
+    path.join(targetDir, 'wavedrom.min.js'),
+  )
+  console.log(`[wavedrom] vendored v${source.version} verified + installed`)
+}
+
+async function syncNomnoml() {
+  const vendorDir = path.resolve('media-src/vendor/nomnoml')
+  const targetDir = path.resolve('media/vditor/dist/js/nomnoml')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[nomnoml] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'nomnoml.min.js'),
+    path.join(targetDir, 'nomnoml.min.js'),
+  )
+  console.log(`[nomnoml] vendored v${source.version} verified + installed`)
+}
+
+async function syncLeaflet() {
+  const vendorDir = path.resolve('media-src/vendor/leaflet')
+  const targetDir = path.resolve('media/vditor/dist/js/leaflet')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[leaflet] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'leaflet.js'),
+    path.join(targetDir, 'leaflet.js'),
+  )
+  await fs.copyFile(
+    path.join(vendorDir, 'leaflet.css'),
+    path.join(targetDir, 'leaflet.css'),
+  )
+  console.log(`[leaflet] vendored v${source.version} verified + installed`)
+}
+
+async function syncTopojson() {
+  const vendorDir = path.resolve('media-src/vendor/topojson')
+  const targetDir = path.resolve('media/vditor/dist/js/topojson')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[topojson] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'topojson-client.min.js'),
+    path.join(targetDir, 'topojson-client.min.js'),
+  )
+  console.log(`[topojson] vendored v${source.version} verified + installed`)
+}
+
+async function syncThreejs() {
+  const vendorDir = path.resolve('media-src/vendor/threejs')
+  const targetDir = path.resolve('media/vditor/dist/js/threejs')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[threejs] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'three-stl.min.js'),
+    path.join(targetDir, 'three-stl.min.js'),
+  )
+  console.log(`[threejs] vendored v${source.version} verified + installed`)
+}
+
+async function syncMarkmap() {
+  const vendorDir = path.resolve('media-src/vendor/markmap')
+  const targetDir = path.resolve('media/vditor/dist/js/markmap')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    console.log(
+      '[markmap] no vendored pin (media-src/vendor/markmap) — using Vditor default',
+    )
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const js = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(js).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[markmap] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.copyFile(
+    path.join(vendorDir, 'markmap.min.js'),
+    path.join(targetDir, 'markmap.min.js'),
+  )
+  console.log(`[markmap] vendored v${source.version} verified + installed`)
+}
+
 // Patch Vditor's OWN CSS at the source (we already patch its TS via esbuild; a Vditor fork is on
 // the table). Vditor's index.css zeroes WYSIWYG inline-code horizontal padding with `!important`
 // (`.vditor-wysiwyg code[data-marker="`"] { padding-left:0 !important; padding-right:0 !important }`)
@@ -436,6 +738,15 @@ await patchVditorIndexCss()
 await syncLute()
 await syncMermaid()
 await syncEcharts()
+await syncPlantuml()
+await syncAbcjs()
+await syncSmilesDrawer()
+await syncWavedrom()
+await syncNomnoml()
+await syncLeaflet()
+await syncTopojson()
+await syncThreejs()
+await syncMarkmap()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

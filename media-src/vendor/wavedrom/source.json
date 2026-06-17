@@ -1,0 +1,10 @@
+{
+    "version": "3.6.1",
+    "description": "wavedrom \u2014 digital timing diagram renderer (MIT)",
+    "origin": "https://github.com/wavedrom/wavedrom",
+    "files": {
+        "wavedrom.min.js": {
+            "sha256": "24cdd7da6d63d6b28b8ef9ff2ead399d6167937d44b52d29b777cf324bcea234"
+        }
+    }
+}

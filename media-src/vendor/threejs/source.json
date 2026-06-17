@@ -1,0 +1,10 @@
+{
+    "version": "0.184.0",
+    "description": "three.js tree-shaken STL viewer (Scene+Camera+Renderer+STLLoader+OrbitControls, MIT)",
+    "origin": "https://github.com/mrdoob/three.js",
+    "files": {
+        "three-stl.min.js": {
+            "sha256": "2e86d2b3a29471f73770db91cdbb16bfa1ac49a4faf994fbd2647b72c42c4643"
+        }
+    }
+}

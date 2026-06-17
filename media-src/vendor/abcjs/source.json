@@ -1,0 +1,10 @@
+{
+  "version": "6.6.3",
+  "source": "https://www.npmjs.com/package/abcjs/v/6.6.3",
+  "license": "MIT",
+  "files": {
+    "abcjs_basic.min.js": {
+      "sha256": "abdab74cf95c39fb9ff4ae0c96735b9c35222851f0844ce471ddd4354739bc75"
+    }
+  }
+}

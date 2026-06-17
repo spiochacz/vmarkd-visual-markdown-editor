@@ -18,6 +18,8 @@ import {
   patchMarkmapStatic,
   patchGraphvizRender,
   patchFlowchartTheme,
+  patchPlantumlRender,
+  patchAbcRender,
   patchMindmapThemeColors,
   patchEchartsThemeInit,
 } from '../../media-src/esbuild-shared.mjs'
@@ -73,6 +75,12 @@ const flowchartSource = read(
 )
 const mindmapSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mindmapRender.ts',
+)
+const plantumlSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/plantumlRender.ts',
+)
+const abcSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/abcRender.ts',
 )
 
 // The unguarded link-open condition Vditor ships — plain click follows the link.
@@ -285,54 +293,67 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
   })
 
   it('overrides the d3-zoom filter to Ctrl-gate, keeps duration:0 at create AND forces duration:0 into setData (no init animation)', () => {
-    const patched = patchMarkmapStatic(markmapSource)
-    // Instant render (no init animation) + Ctrl-to-interact filter override on the d3-zoom behavior.
-    // fitRatio:0.88 gives more margin so the tree's bottom branch doesn't clip ("obcina trochę wykres").
+    const patched = patchMarkmapStatic(markmapSource, '0.18.12')
     expect(patched).toContain(
-      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.88 });',
+      'const mm = Markmap.create(svg, { duration: 0, fitRatio: 0.80, autoFit: true });',
     )
     expect(patched).toContain('mm.zoom.filter((e) => e.ctrlKey && !e.button)')
-    // stash the instance on its svg so markmap-fit.ts can re-fit it on resize
+    // fold/unfold gated on Ctrl — plain click enters edit mode
+    expect(patched).toContain('if (e.ctrlKey) _origClick(e, d)')
     expect(patched).toContain('svg.__vmarkdMm = mm')
-    // duration:0 + fitRatio must be the LAST merge so they beat frontmatterOptions (deriveOptions default).
     expect(patched).toContain(
-      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.88 }))',
+      'mm.setData(root, Object.assign({}, frontmatterOptions, { duration: 0, fitRatio: 0.80 }))',
     )
     expect(patched).not.toContain('const mm = Markmap.create(svg, null);')
     expect(patched).not.toContain('mm.setData(root, frontmatterOptions)')
+  })
+
+  it('injects ?v= cache-buster on the markmap script load', () => {
+    const patched = patchMarkmapStatic(markmapSource, '0.18.12')
+    expect(patched).toContain('markmap.min.js?v=0.18.12')
+    expect(patched).not.toContain(
+      'markmap.min.js`, "vditorMarkerScript"',
+    )
+  })
+
+  it('skips ?v= when no version is provided', () => {
+    const patched = patchMarkmapStatic(markmapSource)
+    expect(patched).toContain('markmap.min.js`, "vditorMarkerScript"')
   })
 
   it('throws (fails the build loudly) if a markmap anchor is gone — version-bump guard', () => {
     expect(() => patchMarkmapStatic('// unrelated source')).toThrow(
       /fixMarkmapStatic/,
     )
-    // create present but setData drifted → still throws
     expect(() =>
       patchMarkmapStatic('const mm = Markmap.create(svg, null); // no setData'),
     ).toThrow(/fixMarkmapStatic/)
   })
 })
 
-describe('patchGraphvizRender (render fix + theme)', () => {
-  it('the shipped Vditor source builds the worker via blob importScripts (pre-patch)', () => {
-    expect(graphvizSource).toContain('const worker = new Worker(blobUrl);')
-    expect(graphvizSource).toContain('importScripts(')
+describe('patchGraphvizRender (shared viz-global.js + theme)', () => {
+  it('the shipped Vditor source loads the old graphviz/viz.js (pre-patch)', () => {
+    expect(graphvizSource).toContain('dist/js/graphviz/viz.js')
   })
 
-  it('fetches the script + builds the worker from inlined code, and themes the SVG', () => {
+  it('uses the shared viz-global.js (plantuml dir) via Viz.instance() API', () => {
     const patched = patchGraphvizRender(graphvizSource)
-    // Render fix: fetch the script TEXT, no more importScripts-in-a-blob-worker.
-    expect(patched).toContain('fetch(vmarkdGvizSrc).then((r) => r.text())')
+    expect(patched).toContain('dist/js/plantuml/viz-global.js')
+    expect(patched).not.toContain('dist/js/graphviz/viz.js')
+    expect(patched).toContain('VizCtor.instance()')
+    expect(patched).toContain('viz.renderSVGElement(code)')
+    // no manual Worker construction
+    expect(patched).not.toContain('new Worker(')
     expect(patched).not.toContain('importScripts(')
-    // Theme: recolour baked black → currentColor, and remove the white background polygon.
-    expect(patched).toContain(
-      '.replace(/(fill|stroke)="(#000000|black)"/g, \'$1="currentColor"\')',
-    )
-    expect(patched).toContain('e.querySelectorAll("svg polygon").forEach(')
+  })
+
+  it('themes the SVG: recolour black → currentColor, strip bg polygon', () => {
+    const patched = patchGraphvizRender(graphvizSource)
+    expect(patched).toContain('currentColor')
     expect(patched).toContain('p.remove()')
   })
 
-  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+  it('throws if the anchor is gone — version-bump guard', () => {
     expect(() => patchGraphvizRender('// unrelated source')).toThrow(
       /fixGraphvizRender/,
     )
@@ -360,6 +381,51 @@ describe('patchFlowchartTheme (task 91 — pair flowchart.js with the content th
   it('throws (fails the build loudly) if the drawSVG anchor is gone — version-bump guard', () => {
     expect(() => patchFlowchartTheme('// unrelated source')).toThrow(
       /fixFlowchartTheme/,
+    )
+  })
+})
+
+describe('patchPlantumlRender (task 87 — local offline TeaVM render)', () => {
+  it('the shipped Vditor source uses the remote plantuml.com encoder (pre-patch)', () => {
+    expect(plantumlSource).toContain('plantumlEncoder.encode(text)')
+    expect(plantumlSource).toContain('plantuml.com')
+  })
+
+  it('replaces the remote <object> with local TeaVM render()', () => {
+    const patched = patchPlantumlRender(plantumlSource)
+    expect(patched).not.toContain('plantumlEncoder.encode')
+    expect(patched).not.toContain('plantuml.com')
+    expect(patched).toContain('plantuml/plantuml.js')
+    expect(patched).toContain('plantuml/viz-global.js')
+    expect(patched).toContain('plantumlRenderFn')
+    expect(patched).toContain('data-processed')
+    expect(patched).toContain('themePumlSvg')
+  })
+
+  it('throws if the encoder anchor is gone — version-bump guard', () => {
+    expect(() => patchPlantumlRender('// unrelated source')).toThrow(
+      /fixPlantumlRender/,
+    )
+  })
+})
+
+describe('patchAbcRender (task 92/93 — abcjs bump + foreground color)', () => {
+  it('the shipped Vditor source calls renderAbc with no params (pre-patch)', () => {
+    expect(abcSource).toContain(
+      'ABCJS.renderAbc(item, abcRenderAdapter.getCode(item).trim())',
+    )
+  })
+
+  it('passes foregroundColor from the themed foreground', () => {
+    const patched = patchAbcRender(abcSource)
+    expect(patched).toContain('foregroundColor: abcFg')
+    expect(patched).toContain('getComputedStyle(item).color')
+    expect(patched).toContain('data-code')
+  })
+
+  it('throws if the renderAbc anchor is gone — version-bump guard', () => {
+    expect(() => patchAbcRender('// unrelated source')).toThrow(
+      /fixAbcRender/,
     )
   })
 })

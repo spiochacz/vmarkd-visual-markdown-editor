@@ -109,7 +109,7 @@ export function paletteToEchartsTheme(
   }
 
   return {
-    color: seriesPalette(accent, bg),
+    color: seriesPalette(line, bg),
     backgroundColor: bg,
     textStyle: { color: fg },
     title: {
