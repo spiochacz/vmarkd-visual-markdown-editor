@@ -134,7 +134,7 @@ digraph G {
 
 ---
 
-## 9. PlantUML — ZDALNY obraz z plantuml.com (może być blokowany przez CSP object-src)
+## 9. PlantUML — offline TeaVM + SVG post-processing (task 87)
 
 ```plantuml
 @startuml
@@ -169,27 +169,85 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ---
 
-## 12. Tabela + lista zadań (palette content-theme)
+## 12. WaveDrom — timing diagrams (task 101)
+
+```wavedrom
+{ "signal": [{ "name": "clk", "wave": "p......." }, { "name": "dat", "wave": "x.345x.." }, { "name": "req", "wave": "0.1..0.." }] }
+```
+
+---
+
+## 13. nomnoml — UML diagrams (task 103)
+
+```nomnoml
+[Pirate|eyeCount: Int|raid();pillage()]
+[Pirate] -> [Ship]
+[Ship] -> [Treasure]
+```
+
+---
+
+## 14. GeoJSON — interactive map, offline (task 99)
+
+```geojson
+{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[20.9,52.1],[21.1,52.1],[21.1,52.3],[20.9,52.3],[20.9,52.1]]]},"properties":{"name":"Warszawa"}}]}
+```
+
+---
+
+## 15. TopoJSON — converted to GeoJSON + Leaflet (task 99)
+
+```topojson
+{"type":"Topology","objects":{"shape":{"type":"GeometryCollection","geometries":[{"type":"Polygon","arcs":[[0]]}]}},"arcs":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}
+```
+
+---
+
+## 16. STL — 3D model, WebGL canvas (task 100)
+
+```stl
+solid triangle
+ facet normal 0 0 1
+  outer loop
+   vertex 0 0 0
+   vertex 1 0 0
+   vertex 0.5 1 0
+  endloop
+ endfacet
+ facet normal 0 0 -1
+  outer loop
+   vertex 0 0 0
+   vertex 0.5 1 0
+   vertex 1 0 0
+  endloop
+ endfacet
+endsolid triangle
+```
+
+---
+
+## 17. Tabela + lista zadań (palette content-theme)
 
 | Renderer | Śledzi motyw? | Mechanizm |
 |----------|:-------------:|-----------|
 | math (KaTeX) | ✅ | dziedziczy `currentColor` |
 | mermaid | ✅ | paleta (task 86) |
-| ECharts | ◑ | binarne dark/light |
-| smiles | ◑ | binarne dark/light |
-| markmap | ❌ | zaszyte |
-| graphviz | ❌ | zaszyte |
+| ECharts | ✅ | paleta + gallery themes (task 89/90) |
+| smiles | ✅ | foreground color (task 93) |
+| markmap | ✅ | CSS vars `--markmap-*` (task 95) |
+| graphviz | ✅ | SVG post-processing `currentColor` (task 94) |
+| plantuml | ✅ | SVG post-processing `currentColor` (task 87) |
 | flowchart | ✅ | foreground z motywu treści |
-| abc | ❌ | zaszyte |
-| plantuml | ❌ | zdalny obraz |
-
-- [x] math
-- [x] mermaid
-- [ ] reszta — do oceny wizualnej
+| abc | ✅ | foreground color (task 93) |
+| wavedrom | ✅ | SVG post-processing `currentColor` (task 101) |
+| nomnoml | ✅ | SVG post-processing `currentColor` (task 103) |
+| geojson | ✅ | Leaflet style color z computed style (task 99) |
+| topojson | ✅ | j.w. (task 99) |
+| stl | ✅ | MeshPhongMaterial color z computed style (task 100) |
 
 ---
 
-## 13. Callouts / GitHub Alerts (task 106)
+## 18. Callouts / GitHub Alerts (task 106)
 
 5 typów GitHub:
 
@@ -227,7 +285,7 @@ Zwykły blockquote (NIE callout — nie powinien dostać pudełka):
 
 ---
 
-## 14. Komentarze HTML — widoczne w edytorze
+## 19. Komentarze HTML — widoczne w edytorze
 
 <!-- Ten komentarz powinien być widoczny jako wyciszony tekst w IR, WYSIWYG i Preview. -->
 
