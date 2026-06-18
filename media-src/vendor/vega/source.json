@@ -1,0 +1,10 @@
+{
+    "version": "7.1.0",
+    "description": "vega-embed + vega 6.2.0 + vega-lite 6.4.3 \u2014 declarative data-viz (BSD-3-Clause)",
+    "origin": "https://github.com/vega/vega-embed",
+    "files": {
+        "vega-embed.min.js": {
+            "sha256": "7021eaa8b7d8b68d4f21e414a303095bcf5da9d98d341bd2511ffeb6aea1dc62"
+        }
+    }
+}
