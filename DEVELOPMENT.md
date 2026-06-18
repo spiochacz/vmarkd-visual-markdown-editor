@@ -168,6 +168,27 @@ skill) catch the perceptual "a few px / repro only in the real editor" bugs:
 For interactive measure-and-screenshot debugging on the harnesses, `playwright-cli`
 (`npm run harness:serve` + `npm run pw:cli`). All three are documented in the skill.
 
+### Running tests headless (xvfb)
+
+Always use `xvfb-run` for e2e and VS Code tests so they run headless (no GUI
+windows popping up). This is required on WSL and CI environments without a display:
+
+```bash
+# Playwright e2e (harness-based)
+xvfb-run -a npm --prefix media-src run test:e2e
+
+# Real VS Code webview tests
+xvfb-run -a npm run test:vscode
+
+# Golden screenshots (update baselines)
+xvfb-run -a npm --prefix media-src run test:visual:update
+```
+
+`-a` auto-picks a free display number. On WSLg with `DISPLAY=:0` already set,
+`xvfb-run` is still preferred (avoids fighting the existing X server). If
+`xvfb-run` fails with "Xvfb failed to start", kill stale Xvfb processes first:
+`pkill Xvfb; sleep 1`.
+
 > **Every new piece of functionality must ship with both layers** — a unit test
 > for the host/pure-logic side and an e2e test for the webview behaviour — and you
 > must **verify the new code is exercised** in the coverage report (see below). A
