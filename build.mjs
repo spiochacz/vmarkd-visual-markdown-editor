@@ -506,7 +506,9 @@ async function syncSmilesDrawer() {
     path.join(vendorDir, 'smiles-drawer.min.js'),
     path.join(targetDir, 'smiles-drawer.min.js'),
   )
-  console.log(`[smiles-drawer] vendored v${source.version} verified + installed`)
+  console.log(
+    `[smiles-drawer] vendored v${source.version} verified + installed`,
+  )
 }
 
 async function syncWavedrom() {
@@ -606,6 +608,74 @@ async function syncLeaflet() {
   console.log(`[leaflet] vendored v${source.version} verified + installed`)
 }
 
+async function syncD2() {
+  const vendorDir = path.resolve('media-src/vendor/d2')
+  const targetDir = path.resolve('media/vditor/dist/js/d2')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[d2] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'd2-compile.wasm'),
+    path.join(targetDir, 'd2-compile.wasm'),
+  )
+  await fs.copyFile(
+    path.join(vendorDir, 'wasm_exec.js'),
+    path.join(targetDir, 'wasm_exec.js'),
+  )
+  console.log(`[d2] vendored v${source.version} verified + installed`)
+}
+
+// elkjs (optional ELK D2 layout engine, vmarkd.diagram.d2Layout=elk). Unlike the other vendored
+// assets, the bytes shipped to media/ are NOT a copy of these sources — esbuild bundles
+// elk-api.js + elk-worker.min.js (via media-src/src/elk-entry.ts) into
+// media/vditor/dist/js/elk/elk-main.js during the webview build. syncElk's job is the sha GATE on
+// those two vendored sources (so an unpinned elkjs update fails the build loudly). See elk-entry.ts
+// for why we bundle the main-thread "fake worker" instead of the stock elk.bundled.js Web Worker.
+async function syncElk() {
+  const vendorDir = path.resolve('media-src/vendor/elk')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[elk] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  console.log(
+    `[elk] vendored v${source.version} verified (bundled to elk-main.js by the webview build)`,
+  )
+}
+
 async function syncTopojson() {
   const vendorDir = path.resolve('media-src/vendor/topojson')
   const targetDir = path.resolve('media/vditor/dist/js/topojson')
@@ -635,6 +705,37 @@ async function syncTopojson() {
     path.join(targetDir, 'topojson-client.min.js'),
   )
   console.log(`[topojson] vendored v${source.version} verified + installed`)
+}
+
+async function syncVega() {
+  const vendorDir = path.resolve('media-src/vendor/vega')
+  const targetDir = path.resolve('media/vditor/dist/js/vega')
+
+  let source
+  try {
+    source = JSON.parse(
+      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
+    )
+  } catch {
+    return
+  }
+
+  for (const [name, meta] of Object.entries(source.files)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `[vega] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
+  }
+
+  await fs.mkdir(targetDir, { recursive: true })
+  await fs.copyFile(
+    path.join(vendorDir, 'vega-embed.min.js'),
+    path.join(targetDir, 'vega-embed.min.js'),
+  )
+  console.log(`[vega] vendored v${source.version} verified + installed`)
 }
 
 async function syncThreejs() {
@@ -745,8 +846,11 @@ await syncWavedrom()
 await syncNomnoml()
 await syncLeaflet()
 await syncTopojson()
+await syncVega()
 await syncThreejs()
 await syncMarkmap()
+await syncD2()
+await syncElk()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

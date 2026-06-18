@@ -1,0 +1,10 @@
+{
+  "version": "0.1.33",
+  "d2Commit": "2446e24",
+  "description": "Compile-only D2 Go->WASM (d2compiler->graph JSON incl. styles + sql_table/class members; fonts+mathjax stubbed). Built via build/build-d2-wasm.sh.",
+  "origin": "https://github.com/terrastruct/d2 (MPL-2.0)",
+  "files": {
+    "d2-compile.wasm": { "sha256": "89862ef78dcec82d9ea758da1881637c6c359bf9d231f01be94d40533599c9ad" },
+    "wasm_exec.js": { "sha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14" }
+  }
+}

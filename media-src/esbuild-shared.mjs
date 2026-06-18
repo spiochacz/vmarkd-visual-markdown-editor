@@ -1138,6 +1138,11 @@ export const vditorSourceConfig = {
   },
   tsconfigRaw: { compilerOptions: { useDefineForClassFields: false } },
   loader: { '.less': 'empty' },
+  // main.css @font-face points at media/fonts/*.woff2 via `url(../fonts/…)` — correct RELATIVE TO
+  // THE OUTPUT (media/dist/main.css) but unresolvable from the source dir at bundle time. Mark
+  // woff2 external so esbuild leaves the url untouched. Shared by the prod build (build.mjs) AND
+  // the e2e harness server (e2e/serve.mjs), both of which bundle main.css.
+  external: ['*.woff2'],
   // stubUnusedVditorButtons uses onResolve (not onLoad) so it stays standalone; every onLoad
   // source patch is applied by the single registry-driven engine.
   plugins: [stubUnusedVditorButtons, vditorSourcePatches],

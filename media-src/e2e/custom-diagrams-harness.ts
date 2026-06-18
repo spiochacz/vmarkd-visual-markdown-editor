@@ -1,4 +1,5 @@
-// Harness for task 101 (WaveDrom) + task 103 (nomnoml) + task 99 (GeoJSON/TopoJSON) + task 100 (STL).
+// Harness for task 101 (WaveDrom) + task 103 (nomnoml) + task 99 (GeoJSON/TopoJSON) + task 100 (STL)
+// + task 104 (D2, compile-only WASM).
 import '../src/preload'
 import Vditor from 'vditor/src/index'
 import { observeCustomDiagrams } from '../src/custom-diagrams'
@@ -34,6 +35,16 @@ solid triangle
   endloop
  endfacet
 endsolid triangle
+\`\`\`
+
+\`\`\`vega-lite
+{"$schema":"https://vega.github.io/schema/vega-lite/v5.json","data":{"values":[{"a":"A","b":28},{"a":"B","b":55},{"a":"C","b":43}]},"mark":"bar","encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}},"width":200,"height":120}
+\`\`\`
+
+\`\`\`d2
+api -> server: request
+db: {shape: cylinder}
+server -> db
 \`\`\`
 `
 

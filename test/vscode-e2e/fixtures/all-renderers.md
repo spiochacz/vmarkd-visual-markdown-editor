@@ -1,15 +1,15 @@
-# vMarkd — wszystkie renderery
+# vMarkd — All Renderers
 
-Plik demonstracyjny: każdy renderer Vditora + matematyka + podświetlanie kodu.
-Otwórz w vMarkd i przełączaj `vmarkd.theme.content` / `vmarkd.theme.mermaid`,
-żeby zobaczyć, co podąża za motywem, a co ma zaszyte kolory.
+Demo file: every Vditor renderer + math + syntax highlighting.
+Open in vMarkd and toggle `vmarkd.theme.content` / `vmarkd.theme.mermaid`
+to see which renderers follow the theme and which have baked colors.
 
 ---
 
-## 1. Tekst + inline code + podświetlanie składni
+## 1. Text + inline code + syntax highlighting
 
-Zwykły akapit z `inline code` i **pogrubieniem**. Bloki kodu kolorowane przez
-highlight.js (sparowane z motywem treści):
+A regular paragraph with `inline code` and **bold text**. Code blocks are
+colored by highlight.js (paired with the content theme):
 
 ```js
 function greet(name) {
@@ -26,15 +26,15 @@ def fib(n):
     return a
 ```
 
-> Cytat blokowy — sprawdza tło/bordery blockquote z palety motywu.
+> Block quote — verifies blockquote background/borders from the theme palette.
 
 ---
 
-## 2. Matematyka (KaTeX) — dziedziczy `currentColor`
+## 2. Math (KaTeX) — inherits `currentColor`
 
-Inline: $E = mc^2$ oraz $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$.
+Inline: $E = mc^2$ and $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$.
 
-Blok:
+Block:
 
 $$
 \int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
@@ -42,14 +42,14 @@ $$
 
 ---
 
-## 3. Mermaid — pełne parowanie palety (task 86)
+## 3. Mermaid — full palette pairing (task 86)
 
 ```mermaid
 graph TD
-  A[Start] --> B{Decyzja}
-  B -->|tak| C[Zrób to]
-  B -->|nie| D[Pomiń]
-  C --> E[Koniec]
+  A[Start] --> B{Decision}
+  B -->|yes| C[Do it]
+  B -->|no| D[Skip]
+  C --> E[End]
   D --> E
 ```
 
@@ -57,21 +57,21 @@ graph TD
 sequenceDiagram
   participant U as User
   participant E as Editor
-  U->>E: otwórz .md
+  U->>E: open .md
   E-->>U: render WYSIWYG
-  U->>E: zmień motyw
-  E-->>U: re-render diagramu
+  U->>E: change theme
+  E-->>U: re-render diagram
 ```
 
 ---
 
-## 4. ECharts — śledzi binarnie dark/light (własny motyw 'dark')
+## 4. ECharts — palette + gallery themes (task 89/90)
 
 ```echarts
 {
   "title": { "text": "ECharts demo" },
   "tooltip": {},
-  "xAxis": { "type": "category", "data": ["Pon","Wt","Śr","Czw","Pt"] },
+  "xAxis": { "type": "category", "data": ["Mon","Tue","Wed","Thu","Fri"] },
   "yAxis": { "type": "value" },
   "series": [{ "type": "bar", "data": [5, 20, 36, 10, 12] }]
 }
@@ -79,40 +79,40 @@ sequenceDiagram
 
 ---
 
-## 5. Mindmap (ECharts tree) — wejście to markdown outline (lista)
+## 5. Mindmap (ECharts tree) — input is a markdown outline (list)
 
 ```mindmap
 - vMarkd
-  - Renderery
+  - Renderers
     - mermaid
     - math
-  - Motywy
+  - Themes
 ```
 
 ---
 
-## 6. Markmap — wejście to markdown outline (ignoruje motyw)
+## 6. Markmap — markdown outline, CSS var theming (task 95)
 
 ```markmap
 # Root
-## Gałąź A
-- liść 1
-- liść 2
-## Gałąź B
-- liść 3
-### Pod-gałąź
-- liść 4
+## Branch A
+- leaf 1
+- leaf 2
+## Branch B
+- leaf 3
+### Sub-branch
+- leaf 4
 ```
 
 ---
 
-## 7. flowchart.js — śledzi motyw treści
+## 7. flowchart.js — follows content theme
 
 ```flowchart
 st=>start: Start
-op=>operation: Zrób coś
-cond=>condition: Tak czy nie?
-e=>end: Koniec
+op=>operation: Do something
+cond=>condition: Yes or no?
+e=>end: End
 st->op->cond
 cond(yes)->e
 cond(no)->op
@@ -120,7 +120,7 @@ cond(no)->op
 
 ---
 
-## 8. Graphviz / Viz.js — DOT, bez motywu
+## 8. Graphviz / Viz.js — DOT, SVG post-processing theme (task 94)
 
 ```graphviz
 digraph G {
@@ -138,19 +138,19 @@ digraph G {
 
 ```plantuml
 @startuml
-Alice -> Bob: Cześć
-Bob --> Alice: Witaj
-Alice -> Bob: Jak leci?
+Alice -> Bob: Hello
+Bob --> Alice: Hi there
+Alice -> Bob: How are you?
 @enduml
 ```
 
 ---
 
-## 10. abc.js — notacja muzyczna ABC (bez motywu)
+## 10. abc.js — ABC music notation, foreground themed (task 93)
 
 ```abc
 X:1
-T:Gama C-dur
+T:C Major Scale
 M:4/4
 L:1/4
 K:C
@@ -159,9 +159,9 @@ C D E F | G A B c |
 
 ---
 
-## 11. smiles-drawer — struktura chemiczna (śledzi binarnie dark)
+## 11. smiles-drawer — chemical structure, foreground themed (task 93)
 
-Kofeina:
+Caffeine:
 
 ```smiles
 CN1C=NC2=C1C(=O)N(C(=O)N2C)C
@@ -187,10 +187,40 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ---
 
-## 14. GeoJSON — interactive map, offline (task 99)
+## 14. GeoJSON — interactive map, offline / no tiles (task 99)
 
 ```geojson
-{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[20.9,52.1],[21.1,52.1],[21.1,52.3],[20.9,52.3],[20.9,52.1]]]},"properties":{"name":"Warszawa"}}]}
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[20.85,52.15],[21.15,52.15],[21.15,52.35],[20.85,52.35],[20.85,52.15]]]
+      },
+      "properties": { "name": "Warsaw center" }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[20.9,52.2],[21.0,52.25],[21.1,52.22],[21.05,52.3]]
+      },
+      "properties": { "name": "Vistula river" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [21.01,52.23] },
+      "properties": { "name": "Old Town" }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [20.94,52.19] },
+      "properties": { "name": "Airport" }
+    }
+  ]
+}
 ```
 
 ---
@@ -198,107 +228,262 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 ## 15. TopoJSON — converted to GeoJSON + Leaflet (task 99)
 
 ```topojson
-{"type":"Topology","objects":{"shape":{"type":"GeometryCollection","geometries":[{"type":"Polygon","arcs":[[0]]}]}},"arcs":[[[0,0],[1,0],[1,1],[0,1],[0,0]]]}
+{
+  "type": "Topology",
+  "objects": {
+    "regions": {
+      "type": "GeometryCollection",
+      "geometries": [
+        { "type": "Polygon", "arcs": [[0]], "properties": { "name": "Region A" } },
+        { "type": "Polygon", "arcs": [[1]], "properties": { "name": "Region B" } }
+      ]
+    }
+  },
+  "arcs": [
+    [[0,0],[10,0],[10,10],[0,10],[0,0]],
+    [[10,0],[20,0],[20,10],[10,10],[10,0]]
+  ]
+}
 ```
 
 ---
 
-## 16. STL — 3D model, WebGL canvas (task 100)
+## 16. Vega-Lite — declarative data-viz (task 102)
+
+```vega-lite
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "data": { "values": [
+    {"category":"A","value":28},{"category":"B","value":55},
+    {"category":"C","value":43},{"category":"D","value":91},
+    {"category":"E","value":81},{"category":"F","value":53}
+  ]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field":"category","type":"nominal","axis":{"labelAngle":0}},
+    "y": {"field":"value","type":"quantitative"}
+  },
+  "width": 300,
+  "height": 200
+}
+```
+
+---
+
+## 17. STL — 3D model, WebGL canvas (task 100)
 
 ```stl
-solid triangle
- facet normal 0 0 1
+solid cube
+ facet normal 0 0 -1
   outer loop
    vertex 0 0 0
+   vertex 1 1 0
    vertex 1 0 0
-   vertex 0.5 1 0
   endloop
  endfacet
  facet normal 0 0 -1
   outer loop
    vertex 0 0 0
-   vertex 0.5 1 0
-   vertex 1 0 0
+   vertex 0 1 0
+   vertex 1 1 0
   endloop
  endfacet
-endsolid triangle
+ facet normal 0 0 1
+  outer loop
+   vertex 0 0 1
+   vertex 1 0 1
+   vertex 1 1 1
+  endloop
+ endfacet
+ facet normal 0 0 1
+  outer loop
+   vertex 0 0 1
+   vertex 1 1 1
+   vertex 0 1 1
+  endloop
+ endfacet
+ facet normal 0 -1 0
+  outer loop
+   vertex 0 0 0
+   vertex 1 0 0
+   vertex 1 0 1
+  endloop
+ endfacet
+ facet normal 0 -1 0
+  outer loop
+   vertex 0 0 0
+   vertex 1 0 1
+   vertex 0 0 1
+  endloop
+ endfacet
+ facet normal 0 1 0
+  outer loop
+   vertex 0 1 0
+   vertex 0 1 1
+   vertex 1 1 1
+  endloop
+ endfacet
+ facet normal 0 1 0
+  outer loop
+   vertex 0 1 0
+   vertex 1 1 1
+   vertex 1 1 0
+  endloop
+ endfacet
+ facet normal -1 0 0
+  outer loop
+   vertex 0 0 0
+   vertex 0 0 1
+   vertex 0 1 1
+  endloop
+ endfacet
+ facet normal -1 0 0
+  outer loop
+   vertex 0 0 0
+   vertex 0 1 1
+   vertex 0 1 0
+  endloop
+ endfacet
+ facet normal 1 0 0
+  outer loop
+   vertex 1 0 0
+   vertex 1 1 0
+   vertex 1 1 1
+  endloop
+ endfacet
+ facet normal 1 0 0
+  outer loop
+   vertex 1 0 0
+   vertex 1 1 1
+   vertex 1 0 1
+  endloop
+ endfacet
+endsolid cube
 ```
 
 ---
 
-## 17. Tabela + lista zadań (palette content-theme)
+## D2 — compile-only WASM + dagre + currentColor (task 104)
 
-| Renderer | Śledzi motyw? | Mechanizm |
-|----------|:-------------:|-----------|
-| math (KaTeX) | ✅ | dziedziczy `currentColor` |
-| mermaid | ✅ | paleta (task 86) |
-| ECharts | ✅ | paleta + gallery themes (task 89/90) |
+A plain diagram (nodes, edge labels, a container, shaped nodes) renders to themed SVG:
+
+```d2
+direction: right
+api: API
+server: {shape: circle}
+db: {shape: cylinder}
+api -> server: request
+server -> db: query
+cluster: {
+  worker_a
+  worker_b
+}
+api -> cluster.worker_a
+```
+
+Styles (fill / stroke / stroke-width / opacity / border-radius), a SQL table, a UML class, and a grid:
+
+```d2
+styled: Styled {
+  style: {fill: "#2b6cb0"; stroke: "#1a365d"; stroke-width: 3; border-radius: 8; opacity: 0.9}
+}
+users: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  email: varchar
+  org_id: int {constraint: foreign_key}
+}
+Animal: {
+  shape: class
+  +name: string
+  -age: int
+  +speak(): void
+}
+panel: {
+  grid-columns: 2
+  a; b; c; d
+}
+styled -> users
+```
+
+A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by dagre, so it falls
+back LOUDLY to the raw source (never a silently-wrong picture):
+
+```d2
+shape: sequence_diagram
+alice -> bob: hi
+bob -> alice: hey
+```
+
+---
+
+## 18. Theme coverage table
+
+| Renderer | Themed? | Mechanism |
+|----------|:-------:|-----------|
+| math (KaTeX) | ✅ | inherits `currentColor` |
+| mermaid | ✅ | palette pairing (task 86) |
+| ECharts | ✅ | palette + gallery themes (task 89/90) |
 | smiles | ✅ | foreground color (task 93) |
 | markmap | ✅ | CSS vars `--markmap-*` (task 95) |
 | graphviz | ✅ | SVG post-processing `currentColor` (task 94) |
 | plantuml | ✅ | SVG post-processing `currentColor` (task 87) |
-| flowchart | ✅ | foreground z motywu treści |
+| flowchart | ✅ | foreground from content theme |
 | abc | ✅ | foreground color (task 93) |
 | wavedrom | ✅ | SVG post-processing `currentColor` (task 101) |
 | nomnoml | ✅ | SVG post-processing `currentColor` (task 103) |
-| geojson | ✅ | Leaflet style color z computed style (task 99) |
-| topojson | ✅ | j.w. (task 99) |
-| stl | ✅ | MeshPhongMaterial color z computed style (task 100) |
+| geojson | ✅ | Leaflet style color from computed style (task 99) |
+| topojson | ✅ | same as geojson (task 99) |
+| vega / vega-lite | ✅ | vega-embed config (axis/label/title colors from computed style, task 102) |
+| stl | ✅ | MeshPhongMaterial color from computed style (task 100) |
+| d2 | ✅ | compile-only WASM + dagre + `currentColor` SVG (task 104) |
 
 ---
 
-## 18. Callouts / GitHub Alerts (task 106)
+## 19. Callouts / GitHub Alerts (task 106)
 
-5 typów GitHub:
+5 GitHub types:
 
 > [!NOTE]
-> Przydatna informacja, na którą użytkownik powinien zwrócić uwagę.
+> Useful information the user should be aware of.
 
 > [!TIP]
-> Pomocna rada — jak zrobić coś lepiej.
+> Helpful advice — how to do something better.
 
 > [!IMPORTANT]
-> Kluczowa informacja niezbędna do sukcesu.
+> Key information needed for success.
 
 > [!WARNING]
-> Treść wymagająca natychmiastowej uwagi (ryzyko).
+> Content requiring immediate attention (risk).
 
 > [!CAUTION]
-> Ostrzeżenie o negatywnych skutkach.
+> Warning about negative consequences.
 
-Z własnym tytułem:
+With a custom title:
 
-> [!WARNING] Uwaga na dane
-> Ta operacja jest nieodwracalna.
+> [!WARNING] Watch your data
+> This operation is irreversible.
 
-Foldowalne (Obsidian `-`/`+`):
+A plain blockquote (NOT a callout — should not get a box):
 
-> [!tip]- Zwinięty domyślnie
-> Ten tekst jest ukryty, dopóki nie rozwiniesz.
-
-> [!note]+ Rozwinięty domyślnie
-> Ten tekst jest widoczny od razu.
-
-Zwykły blockquote (NIE callout — nie powinien dostać pudełka):
-
-> To jest normalny cytat, bez markera `[!TYPE]`.
+> This is a regular quote, no `[!TYPE]` marker.
 
 ---
 
-## 19. Komentarze HTML — widoczne w edytorze
+## 20. HTML comments — visible in the editor
 
-<!-- Ten komentarz powinien być widoczny jako wyciszony tekst w IR, WYSIWYG i Preview. -->
+<!-- This comment should be visible as muted text in IR, WYSIWYG, and Preview. -->
 
-<!-- TODO: dodać testy e2e dla nowych rendererów -->
+<!-- TODO: add e2e tests for new renderers -->
 
 <!--
-Komentarz wieloliniowy:
-- linia pierwsza
-- linia druga
+Multi-line comment:
+- line one
+- line two
 -->
 
-Zwykły HTML block (NIE komentarz — powinien renderować się normalnie):
+A plain HTML block (NOT a comment — should render normally):
 
 <div style="padding:8px; border:1px solid currentColor; border-radius:4px">
-To jest zwykły blok HTML, nie komentarz.
+This is a regular HTML block, not a comment.
 </div>

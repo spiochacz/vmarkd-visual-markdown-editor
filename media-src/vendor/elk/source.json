@@ -1,0 +1,9 @@
+{
+  "version": "0.11.1",
+  "description": "elkjs (Eclipse Layout Kernel, JS build) — optional D2 layout engine selectable via vmarkd.diagram.d2Layout. We bundle elk-api.js (the ELK class) + elk-worker.min.js (the in-process 'fake worker') via esbuild into media/vditor/dist/js/elk/elk-main.js (see media-src/src/elk-entry.ts + media-src/build.mjs). This runs the layout on the MAIN THREAD with NO Web Worker — the stock elk.bundled.js spawns a blob Web Worker that fails under the VS Code webview, so we deliberately avoid it.",
+  "origin": "https://github.com/kieler/elkjs (EPL-2.0)",
+  "files": {
+    "elk-api.js": { "sha256": "3d72abb2975c93795878439592145292662d40697181e5c07daf066ab19474bc" },
+    "elk-worker.min.js": { "sha256": "458fbe927f19d11d8d054e34b7587011b9a4d1ecbdfb688b60e491fbdfb2a8d7" }
+  }
+}

@@ -38,8 +38,10 @@ describe('_getHtmlForWebview (via resolveCustomTextEditor)', () => {
   it('renders the app mount point and bundled assets', () => {
     const { html } = resolveAndGetHtml()
     expect(html).toContain('<div id="app">')
-    expect(html).toMatch(/<script[^>]+src="[^"]*main\.js"/)
-    expect(html).toMatch(/<link[^>]+href="[^"]*main\.css"/)
+    // main.js/main.css carry a `?v=<hash>` cache-buster (html-builder CACHE_BUST) whenever
+    // media/dist is built — so allow either a `?` or the closing `"` right after the filename.
+    expect(html).toMatch(/<script[^>]+src="[^"]*main\.js[?"]/)
+    expect(html).toMatch(/<link[^>]+href="[^"]*main\.css[?"]/)
   })
 
   it('loads the merged Vditor icon sprite script before the bundle', () => {

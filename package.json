@@ -355,6 +355,20 @@
             "default": "auto",
             "description": "Color theme for ECharts charts. \"auto\" follows the rendering theme (and the VS Code editor when that is \"auto\"); otherwise choose a neutral light/dark or one of ECharts' built-in gallery themes."
           },
+          "vmarkd.diagram.d2Layout": {
+            "order": 6,
+            "type": "string",
+            "enum": [
+              "dagre",
+              "elk"
+            ],
+            "enumDescriptions": [
+              "Dagre — fast hierarchical layout (bundled, the default). Lightest footprint; straight/curved edges.",
+              "ELK (Eclipse Layout Kernel) — orthogonal right-angle edge routing + stronger container nesting, closer to canonical D2. Lazy-loads a ~470 KB engine on the first D2 render."
+            ],
+            "default": "dagre",
+            "description": "Layout engine for D2 diagrams. \"elk\" gives cleaner orthogonal software-architecture layouts at the cost of a one-time ~470 KB engine download (loaded only when a D2 block is rendered); \"dagre\" is the lightweight bundled default."
+          },
           "vmarkd.theme.highlightHeadings": {
             "order": 5,
             "type": "boolean",

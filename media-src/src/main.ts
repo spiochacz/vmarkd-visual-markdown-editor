@@ -64,6 +64,8 @@ import {
   reRenderGeojson,
   reRenderTopojson,
   reRenderStl,
+  reRenderVega,
+  reRenderD2,
 } from './custom-diagrams'
 import { observeHtmlComments, observePreviewComments } from './html-comment'
 import { installMarkmapResize } from './markmap-fit'
@@ -523,6 +525,9 @@ function runFinishInit(msg: any): void {
 
 function initVditor(msg) {
   lastInitMsg = msg
+  // D2 layout engine (vmarkd.diagram.d2Layout) — read by custom-diagrams.ts renderD2 to pick
+  // dagre (default) vs ELK. A plain window global keeps custom-diagrams decoupled from main.ts.
+  ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
   // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
@@ -1102,7 +1107,12 @@ function reThemePlantumlGraphviz(): void {
     reRenderNomnoml(el ?? undefined)
     reRenderGeojson(el ?? undefined)
     reRenderTopojson(el ?? undefined)
+    reRenderVega(el ?? undefined)
     reRenderStl(el ?? undefined)
+    // One edit covers BOTH theme-flip sites: reThemePlantumlGraphviz() runs from
+    // handleSetTheme AND handleConfigChanged, so D2 re-renders on a content-theme flip
+    // and a config change alike (D2 SVG bakes currentColor, so a flip needs a re-render).
+    reRenderD2(el ?? undefined)
   }
   requestAnimationFrame(run)
   window.setTimeout(run, 400)
@@ -1123,6 +1133,10 @@ function handleConfigChanged(msg: any) {
   const echartsThemeChanged =
     lastInitMsg &&
     lastInitMsg.options?.echartsTheme !== msg.options?.echartsTheme
+  const d2LayoutChanged =
+    lastInitMsg && lastInitMsg.options?.d2Layout !== msg.options?.d2Layout
+  // Keep the D2-engine global current so a re-render uses the new engine (set before any re-render).
+  ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
   // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
   // its own (so content + code blocks are themed, not VS Code-dark). The host sends
   // the new effective mode in msg.theme; re-theme live so the content follows it.
@@ -1204,6 +1218,9 @@ function handleConfigChanged(msg: any) {
   // reads the SETTLED foreground after the content-theme <link> applies).
   if (contentThemeChanged) reThemeFlowchart()
   if (contentThemeChanged) reThemePlantumlGraphviz()
+  // D2 layout engine switch (dagre↔ELK) — re-render D2 blocks (reThemePlantumlGraphviz only runs
+  // on a content-theme change, so handle the engine switch explicitly).
+  if (d2LayoutChanged) reRenderD2(activeModeElement(window.vditor) ?? undefined)
 }
 
 function handleReloadCss(msg: any) {

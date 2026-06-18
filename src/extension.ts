@@ -1493,6 +1493,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       codeBlockLineNumbers: c.get<boolean>('editor.codeLineNumbers'),
       mermaidTheme: c.get<string>('theme.mermaid'),
       echartsTheme: c.get<string>('theme.echarts'),
+      d2Layout: c.get<string>('diagram.d2Layout'),
       showToolbar: c.get<boolean>('editor.toolbar'),
       highlightHeadings: c.get<boolean>('theme.highlightHeadings'),
       showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),

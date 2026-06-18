@@ -2,6 +2,12 @@
 // Each renderer: lazy-loads the engine script, finds unprocessed code blocks,
 // replaces them with rendered SVG. Themed via currentColor (same as graphviz/plantuml).
 
+// D2: compile-only WASM (compileD2) -> graph JSON -> dagre+Canvas SVG (renderD2Graph),
+// with a LOUD fallback for shapes dagre can't faithfully render (unsupportedReason).
+import { compileD2 } from './d2-wasm'
+import { renderD2Graph, canvasMeasure, unsupportedReason } from './d2-render'
+import { renderD2GraphElk } from './elk-layout'
+
 declare const window: Window & {
   vditor?: { options?: { cdn?: string } }
   wavedrom?: {
@@ -20,6 +26,8 @@ declare const window: Window & {
     feature: (topology: any, object: any) => any
   }
   __threeSTL?: any
+  WaveSkin?: any
+  vegaEmbed?: (el: HTMLElement, spec: any, opts?: any) => Promise<any>
 }
 
 function getCdn(): string {
@@ -55,12 +63,65 @@ function themeSvg(svg: SVGElement): void {
   svg.style.maxWidth = '100%'
   svg.style.height = 'auto'
   svg.querySelectorAll('text').forEach((t) => {
-    if (!t.getAttribute('fill') || t.getAttribute('fill') === '#000' || t.getAttribute('fill') === 'black')
+    if (
+      !t.getAttribute('fill') ||
+      t.getAttribute('fill') === '#000' ||
+      t.getAttribute('fill') === 'black'
+    )
       t.setAttribute('fill', 'currentColor')
   })
   svg.querySelectorAll('path, line, polyline, rect, polygon').forEach((el) => {
     const s = el.getAttribute('stroke')
     if (s === '#000' || s === 'black' || s === '#000000')
+      el.setAttribute('stroke', 'currentColor')
+  })
+}
+
+// WaveDrom bakes colors into inline style attrs (not fill/stroke attrs). The default
+// skin is light-only: white backgrounds, black text/grid, #0041c4 signal arrows.
+// Post-process: white bg → transparent, black → currentColor, dark grids → muted.
+// Signal wave colors (greens, blues, reds, yellows) are intentional data colors — keep them.
+function themeWavedromSvg(svg: SVGElement): void {
+  svg.style.maxWidth = '100%'
+  svg.style.height = 'auto'
+  const WHITE = ['white', '#fff', '#ffffff', '#FFF', '#ffffffcc']
+  const BLACK = ['#000', 'black', '#000000']
+  svg.querySelectorAll('*').forEach((el) => {
+    const st = (el as HTMLElement).style
+    if (!st) return
+    if (WHITE.some((w) => st.fill === w)) st.fill = 'transparent'
+    if (BLACK.some((b) => st.fill === b)) st.fill = 'currentColor'
+    if (BLACK.some((b) => st.stroke === b)) st.stroke = 'currentColor'
+    // Gray grid lines → follow theme (muted currentColor with opacity)
+    const rawStyle = el.getAttribute('style') ?? ''
+    if (rawStyle.includes('stroke:#888')) {
+      st.stroke = 'currentColor'
+      st.opacity = '0.3'
+    }
+  })
+  svg.querySelectorAll('text').forEach((t) => {
+    const fill = t.getAttribute('fill')
+    if (!fill || BLACK.includes(fill)) t.setAttribute('fill', 'currentColor')
+    if (!t.style.fill || BLACK.includes(t.style.fill))
+      t.style.fill = 'currentColor'
+  })
+}
+
+// nomnoml uses #33322E (dark brown) for text/strokes and #eee8d5 (beige) for node fills.
+function themeNomnomlSvg(svg: SVGElement): void {
+  svg.style.maxWidth = '100%'
+  svg.style.height = 'auto'
+  const DARK = ['#33322E', '#33322e']
+  const LIGHT_BG = ['#eee8d5', '#fdf6e3']
+  svg.querySelectorAll('*').forEach((el) => {
+    const fill = el.getAttribute('fill')
+    const stroke = el.getAttribute('stroke')
+    if (fill && DARK.includes(fill)) el.setAttribute('fill', 'currentColor')
+    if (fill && LIGHT_BG.includes(fill)) {
+      el.setAttribute('fill', 'currentColor')
+      el.setAttribute('fill-opacity', '0.06')
+    }
+    if (stroke && DARK.includes(stroke))
       el.setAttribute('stroke', 'currentColor')
   })
 }
@@ -79,14 +140,26 @@ function findBlocks(
   // preview pane wrapper.
   const sel = `code.language-${lang}:not([data-processed="true"]), div.language-${lang}:not([data-processed="true"])`
   for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
-    // Skip editable source blocks (IR marker panes) — render only in preview context
-    if (el.closest('.vditor-ir__marker--pre')) continue
+    // Skip editable source blocks — render only in preview context
+    if (el.closest('.vditor-ir__marker--pre, .vditor-wysiwyg__pre')) continue
     if (!el.getAttribute('data-code')) {
       el.setAttribute('data-code', el.textContent?.trim() ?? '')
     }
     const code = el.getAttribute('data-code') ?? el.textContent?.trim() ?? ''
     if (!code) continue
-    results.push({ wrapper: el, code })
+    // <code> can't hold block-level children (div/svg/canvas) — browsers refuse to
+    // parse them as DOM inside inline elements. Swap to a <div> with the same class
+    // so renderers can append real elements.
+    let wrapper = el
+    if (el.tagName === 'CODE') {
+      const div = document.createElement('div')
+      div.className = el.className
+      if (el.getAttribute('data-code'))
+        div.setAttribute('data-code', el.getAttribute('data-code')!)
+      el.replaceWith(div)
+      wrapper = div
+    }
+    results.push({ wrapper, code })
   }
   return results
 }
@@ -99,29 +172,32 @@ export function renderWavedrom(root?: ParentNode): void {
   if (!blocks.length) return
 
   const cdn = getCdn()
-  addScript(`${cdn}/dist/js/wavedrom/wavedrom.min.js`, 'vditorWavedromScript').then(() => {
+  addScript(
+    `${cdn}/dist/js/wavedrom/wavedrom.min.js`,
+    'vditorWavedromScript',
+  ).then(() => {
     const wd = window.wavedrom
     if (!wd?.renderWaveForm) return
+    // renderWaveForm internally reads window.WaveSkin (legacy global); the unpkg
+    // bundle only sets wavedrom.waveSkin — bridge it.
+    if (!window.WaveSkin && wd.waveSkin) (window as any).WaveSkin = wd.waveSkin
 
     let seq = 0
     blocks.forEach(({ wrapper, code }) => {
       try {
         const parsed = JSON.parse(code)
-        // renderWaveForm writes SVG via createElementNS — the target must be in
-        // the document for namespace resolution to work.
+        // renderWaveForm(index, source, idPrefix) renders into
+        // document.getElementById(idPrefix + index).
+        const id = `__vmarkd_wd_${seq}`
         const div = document.createElement('div')
-        div.style.position = 'absolute'
-        div.style.visibility = 'hidden'
-        document.body.appendChild(div)
-        wd.renderWaveForm(seq++, parsed, div)
-        const svg = div.querySelector('svg')
-        if (svg) {
-          themeSvg(svg)
-          wrapper.innerHTML = ''
-          wrapper.appendChild(svg)
-          wrapper.setAttribute('data-processed', 'true')
-        }
-        div.remove()
+        div.id = id
+        wrapper.innerHTML = ''
+        wrapper.appendChild(div)
+        wd.renderWaveForm(seq, parsed, '__vmarkd_wd_')
+        seq++
+        const svg = wrapper.querySelector('svg')
+        if (svg) themeWavedromSvg(svg)
+        wrapper.setAttribute('data-processed', 'true')
       } catch {
         // Invalid JSON or render error — leave the source visible
       }
@@ -154,7 +230,10 @@ export function renderNomnoml(root?: ParentNode): void {
   if (!blocks.length) return
 
   const cdn = getCdn()
-  addScript(`${cdn}/dist/js/nomnoml/nomnoml.min.js`, 'vditorNomnomlScript').then(() => {
+  addScript(
+    `${cdn}/dist/js/nomnoml/nomnoml.min.js`,
+    'vditorNomnomlScript',
+  ).then(() => {
     const nn = window.nomnoml
     if (!nn?.renderSvg) return
 
@@ -163,7 +242,7 @@ export function renderNomnoml(root?: ParentNode): void {
         const svgStr = nn.renderSvg(code)
         wrapper.innerHTML = svgStr
         const svg = wrapper.querySelector('svg')
-        if (svg) themeSvg(svg)
+        if (svg) themeNomnomlSvg(svg)
         wrapper.setAttribute('data-processed', 'true')
       } catch {
         // Parse error — leave the source visible
@@ -189,12 +268,91 @@ export function reRenderNomnoml(root?: ParentNode): void {
   renderNomnoml(container)
 }
 
+// --- D2 (compile-only WASM + dagre + currentColor SVG) ---
+
+export function renderD2(root?: ParentNode): void {
+  const container = root ?? document
+  // findBlocks already skips IR/WYSIWYG edit-surface markers (.vditor-ir__marker--pre,
+  // .vditor-wysiwyg__pre) and already-[data-processed] blocks — D2 inherits that guard.
+  const blocks = findBlocks(container, 'd2')
+  if (!blocks.length) return
+
+  const cdn = getCdn()
+  for (const { wrapper, code } of blocks) {
+    // D2 is ASYNC (WASM boot + compile), unlike the synchronous renderers above. Mark the
+    // block processed UP-FRONT so a re-firing observer can't double-render it while
+    // compileD2 is pending (the sync renderers set data-processed at the end; D2 cannot).
+    wrapper.setAttribute('data-processed', 'true')
+    compileD2(cdn, code)
+      .then(async (res) => {
+        if ('error' in res) {
+          // Distinguish a WASM boot/timeout from a real d2 compile error so a stuck engine
+          // isn't mistaken for bad syntax. Both leave the source visible (loud), like the
+          // other renderers' catch{}. data-d2-error is inspectable in devtools / e2e.
+          wrapper.setAttribute(
+            'data-d2-error',
+            res.error === 'd2 wasm unavailable' ? 'boot' : 'compile',
+          )
+          return
+        }
+        const reason = unsupportedReason(res)
+        if (reason) {
+          // LOUD fallback (faithful-by-construction, NON-NEGOTIABLE): raw source + a note,
+          // NEVER a partial/wrong picture. Single enforcement point for unsupportedReason.
+          wrapper.innerHTML = ''
+          const note = document.createElement('div')
+          note.className = 'd2-unsupported-note'
+          note.textContent = `d2: ${reason} not supported — showing source`
+          const pre = document.createElement('pre')
+          pre.className = 'language-d2-unsupported'
+          pre.textContent = code
+          wrapper.append(note, pre)
+          return
+        }
+        // Layout engine from the `vmarkd.diagram.d2Layout` setting (window global set by main.ts).
+        // ELK gives orthogonal routing; it lazy-loads a separate main-thread bundle (elk-main.js,
+        // ~1.4 MB) and returns null if it can't load/lay out, so we fall back to dagre.
+        let svgStr: string | null = null
+        let engine = 'dagre'
+        if ((window as any).__vmarkdD2Layout === 'elk') {
+          svgStr = await renderD2GraphElk(res, canvasMeasure, cdn)
+          if (svgStr) engine = 'elk'
+        }
+        if (!svgStr) svgStr = renderD2Graph(res, canvasMeasure)
+        wrapper.innerHTML = svgStr
+        // Record which engine actually produced the SVG (elk vs the dagre fallback). Lets the
+        // real-VS-Code e2e prove ELK ran in the webview rather than silently falling back.
+        wrapper.setAttribute('data-d2-engine', engine)
+        const svg = wrapper.querySelector('svg')
+        if (svg) themeSvg(svg)
+      })
+      .catch(() => {
+        /* leave source visible */
+      })
+  }
+}
+
+export function reRenderD2(root?: ParentNode): void {
+  const container = root ?? document
+  for (const pane of Array.from(
+    container.querySelectorAll<HTMLElement>(PANE_SEL),
+  )) {
+    for (const el of Array.from(
+      pane.querySelectorAll<HTMLElement>(
+        'code.language-d2[data-processed], div.language-d2[data-processed]',
+      ),
+    )) {
+      el.removeAttribute('data-processed')
+      el.removeAttribute('data-d2-error')
+      el.innerHTML = ''
+    }
+  }
+  renderD2(container)
+}
+
 // --- GeoJSON / TopoJSON (Leaflet) ---
 
-function initLeafletMap(
-  wrapper: HTMLElement,
-  geojson: any,
-): void {
+function initLeafletMap(wrapper: HTMLElement, geojson: any): void {
   const L = window.L
   if (!L) return
 
@@ -217,8 +375,13 @@ function initLeafletMap(
       fillOpacity: 0.15,
       weight: 2,
     },
-    pointToLayer: (feature: any, latlng: any) =>
-      L.circleMarker(latlng, { radius: 6, color: fg, fillColor: fg, fillOpacity: 0.4 }),
+    pointToLayer: (_feature: any, latlng: any) =>
+      L.circleMarker(latlng, {
+        radius: 6,
+        color: fg,
+        fillColor: fg,
+        fillOpacity: 0.4,
+      }),
   })
   layer.addTo(map)
 
@@ -238,17 +401,19 @@ export function renderGeojson(root?: ParentNode): void {
 
   const cdn = getCdn()
   addStylesheet(`${cdn}/dist/js/leaflet/leaflet.css`, 'vditorLeafletCss')
-  addScript(`${cdn}/dist/js/leaflet/leaflet.js`, 'vditorLeafletScript').then(() => {
-    if (!window.L) return
-    blocks.forEach(({ wrapper, code }) => {
-      try {
-        const data = JSON.parse(code)
-        initLeafletMap(wrapper, data)
-      } catch {
-        // Invalid JSON — leave source visible
-      }
-    })
-  })
+  addScript(`${cdn}/dist/js/leaflet/leaflet.js`, 'vditorLeafletScript').then(
+    () => {
+      if (!window.L) return
+      blocks.forEach(({ wrapper, code }) => {
+        try {
+          const data = JSON.parse(code)
+          initLeafletMap(wrapper, data)
+        } catch {
+          // Invalid JSON — leave source visible
+        }
+      })
+    },
+  )
 }
 
 export function renderTopojson(root?: ParentNode): void {
@@ -260,7 +425,10 @@ export function renderTopojson(root?: ParentNode): void {
   addStylesheet(`${cdn}/dist/js/leaflet/leaflet.css`, 'vditorLeafletCss')
   Promise.all([
     addScript(`${cdn}/dist/js/leaflet/leaflet.js`, 'vditorLeafletScript'),
-    addScript(`${cdn}/dist/js/topojson/topojson-client.min.js`, 'vditorTopojsonScript'),
+    addScript(
+      `${cdn}/dist/js/topojson/topojson-client.min.js`,
+      'vditorTopojsonScript',
+    ),
   ]).then(() => {
     if (!window.L || !window.topojson) return
     blocks.forEach(({ wrapper, code }) => {
@@ -310,6 +478,97 @@ export function reRenderTopojson(root?: ParentNode): void {
   renderTopojson(container)
 }
 
+// --- Vega / Vega-Lite ---
+
+function renderVegaBlock(
+  blocks: { wrapper: HTMLElement; code: string }[],
+): void {
+  const ve = window.vegaEmbed
+  if (!ve) return
+
+  blocks.forEach(({ wrapper, code }) => {
+    try {
+      const spec = JSON.parse(code)
+      // Block remote data URLs for offline/security — only inline data.values works
+      if (spec.data?.url) delete spec.data.url
+      const div = document.createElement('div')
+      wrapper.innerHTML = ''
+      wrapper.appendChild(div)
+      const fg = getComputedStyle(wrapper).color || '#333'
+      const bg = 'transparent'
+      ve(div, spec, {
+        renderer: 'svg',
+        actions: false,
+        config: {
+          background: bg,
+          axis: {
+            labelColor: fg,
+            titleColor: fg,
+            tickColor: fg,
+            domainColor: fg,
+            gridColor: fg,
+            gridOpacity: 0.15,
+          },
+          legend: { labelColor: fg, titleColor: fg },
+          title: { color: fg },
+          view: { stroke: 'transparent' },
+        },
+      })
+        .then(() => {
+          wrapper.setAttribute('data-processed', 'true')
+        })
+        .catch(() => {})
+    } catch {
+      // Invalid JSON — leave source visible
+    }
+  })
+}
+
+export function renderVega(root?: ParentNode): void {
+  const container = root ?? document
+  const blocks = findBlocks(container, 'vega')
+  if (!blocks.length) return
+
+  const cdn = getCdn()
+  addScript(`${cdn}/dist/js/vega/vega-embed.min.js`, 'vditorVegaScript').then(
+    () => {
+      renderVegaBlock(blocks)
+    },
+  )
+}
+
+export function renderVegaLite(root?: ParentNode): void {
+  const container = root ?? document
+  const blocks = findBlocks(container, 'vega-lite')
+  if (!blocks.length) return
+
+  const cdn = getCdn()
+  addScript(`${cdn}/dist/js/vega/vega-embed.min.js`, 'vditorVegaScript').then(
+    () => {
+      renderVegaBlock(blocks)
+    },
+  )
+}
+
+export function reRenderVega(root?: ParentNode): void {
+  const container = root ?? document
+  for (const pane of Array.from(
+    container.querySelectorAll<HTMLElement>(PANE_SEL),
+  )) {
+    for (const el of Array.from(
+      pane.querySelectorAll<HTMLElement>(
+        'code.language-vega[data-processed], div.language-vega[data-processed],' +
+          'code.language-vega-lite[data-processed], div.language-vega-lite[data-processed]',
+      ),
+    )) {
+      el.removeAttribute('data-processed')
+      el.innerHTML = ''
+    }
+  }
+  renderVega(container)
+  renderVegaLite(container)
+}
+
 // --- STL 3D models (three.js) ---
 
 function initStlViewer(wrapper: HTMLElement, stlText: string): void {
@@ -317,7 +576,8 @@ function initStlViewer(wrapper: HTMLElement, stlText: string): void {
   if (!T) return
 
   const canvas = document.createElement('canvas')
-  canvas.style.cssText = 'width:100%;height:300px;display:block;background:transparent'
+  canvas.style.cssText =
+    'width:100%;height:300px;display:block;background:transparent'
   wrapper.innerHTML = ''
   wrapper.appendChild(canvas)
 
@@ -326,23 +586,31 @@ function initStlViewer(wrapper: HTMLElement, stlText: string): void {
 
   const scene = new T.Scene()
   const camera = new T.PerspectiveCamera(50, w / h, 0.1, 10000)
-  scene.add(new T.AmbientLight(0x888888))
-  const dirLight = new T.DirectionalLight(0xffffff, 1)
-  dirLight.position.set(1, 1, 1)
-  scene.add(dirLight)
+  scene.add(new T.AmbientLight(0x666666))
+  const keyLight = new T.DirectionalLight(0xffffff, 1.2)
+  keyLight.position.set(1, 2, 1.5)
+  scene.add(keyLight)
+  const fillLight = new T.DirectionalLight(0xffffff, 0.4)
+  fillLight.position.set(-1, -0.5, -1)
+  scene.add(fillLight)
 
   const geom = new T.STLLoader().parse(stlText)
+  geom.computeVertexNormals()
   const fg = getComputedStyle(wrapper).color || '#888888'
-  const mat = new T.MeshPhongMaterial({ color: new T.Color(fg), flatShading: true })
+  const mat = new T.MeshPhongMaterial({
+    color: new T.Color(fg),
+    shininess: 60,
+    specular: new T.Color(0x444444),
+  })
   const mesh = new T.Mesh(geom, mat)
   scene.add(mesh)
 
-  // Center and fit camera to model
   const box = new T.Box3().setFromObject(mesh)
   const center = box.getCenter(new T.Vector3())
   mesh.position.sub(center)
   const size = box.getSize(new T.Vector3()).length()
-  camera.position.set(0, 0, size * 1.5)
+  // Offset camera for a 3/4 view so multiple faces are visible with shading
+  camera.position.set(size * 0.8, size * 0.6, size * 1.2)
 
   const renderer = new T.WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setSize(w, h)
@@ -354,18 +622,33 @@ function initStlViewer(wrapper: HTMLElement, stlText: string): void {
   controls.enableRotate = false
   controls.enablePan = false
   canvas.addEventListener('mousedown', (e: MouseEvent) => {
-    if (e.ctrlKey) { controls.enableRotate = true; controls.enablePan = true }
+    if (e.ctrlKey) {
+      controls.enableRotate = true
+      controls.enablePan = true
+    }
   })
   canvas.addEventListener('mouseup', () => {
-    controls.enableRotate = false; controls.enablePan = false
+    controls.enableRotate = false
+    controls.enablePan = false
   })
-  canvas.addEventListener('wheel', (e: WheelEvent) => {
-    if (e.ctrlKey) { controls.enableZoom = true; e.preventDefault() }
-    else { controls.enableZoom = false }
-  }, { passive: false })
+  canvas.addEventListener(
+    'wheel',
+    (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        controls.enableZoom = true
+        e.preventDefault()
+      } else {
+        controls.enableZoom = false
+      }
+    },
+    { passive: false },
+  )
 
   function animate() {
-    if (!canvas.isConnected) { renderer.dispose(); return }
+    if (!canvas.isConnected) {
+      renderer.dispose()
+      return
+    }
     requestAnimationFrame(animate)
     controls.update()
     renderer.render(scene, camera)
@@ -381,7 +664,10 @@ export function renderStl(root?: ParentNode): void {
   if (!blocks.length) return
 
   const cdn = getCdn()
-  addScript(`${cdn}/dist/js/threejs/three-stl.min.js`, 'vditorThreeStlScript').then(() => {
+  addScript(
+    `${cdn}/dist/js/threejs/three-stl.min.js`,
+    'vditorThreeStlScript',
+  ).then(() => {
     if (!window.__threeSTL) return
     blocks.forEach(({ wrapper, code }) => {
       try {
@@ -423,7 +709,10 @@ export function observeCustomDiagrams(
     renderNomnoml(appEl)
     renderGeojson(appEl)
     renderTopojson(appEl)
+    renderVega(appEl)
+    renderVegaLite(appEl)
     renderStl(appEl)
+    renderD2(appEl)
   }
   const schedule = () => {
     if (!raf) raf = requestAnimationFrame(run)

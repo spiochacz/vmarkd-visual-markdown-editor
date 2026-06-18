@@ -28,6 +28,17 @@ export const CUSTOM_LANGS = new Set([
   'abc',
   'smiles',
   'math',
+  // Custom-diagram renderers (custom-diagrams.ts) — their source is diagram markup, NOT
+  // syntax-highlighted code, so it must NOT get the `.hljs` code panel; it sits on the page
+  // background like the render. Keep in sync with the renderers in custom-diagrams.ts.
+  'wavedrom',
+  'nomnoml',
+  'geojson',
+  'topojson',
+  'vega',
+  'vega-lite',
+  'stl',
+  'd2',
 ])
 
 /** Add `hljs` to every editable code-block source `<code>` (skipping diagram languages). */

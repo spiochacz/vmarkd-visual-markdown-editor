@@ -15,8 +15,12 @@ test.beforeEach(async ({ page }) => {
       { timeout: 30000 },
     )
   } catch {
-    const html = await page.evaluate(() => document.body.innerHTML.substring(0, 500))
-    throw new Error(`__ready never set. Errors: ${errors.join('; ')}. Body: ${html}`)
+    const html = await page.evaluate(() =>
+      document.body.innerHTML.substring(0, 500),
+    )
+    throw new Error(
+      `__ready never set. Errors: ${errors.join('; ')}. Body: ${html}`,
+    )
   }
 })
 
@@ -71,9 +75,13 @@ test.fixme('nomnoml SVG text uses currentColor (themed)', async ({ page }) => {
 // --- GeoJSON (Leaflet) ---
 
 test.fixme('geojson renders an interactive Leaflet map', async ({ page }) => {
-  await page.waitForSelector('.language-geojson .leaflet-container', { timeout: 30000 })
+  await page.waitForSelector('.language-geojson .leaflet-container', {
+    timeout: 30000,
+  })
   const info = await page.evaluate(() => {
-    const container = document.querySelector('.language-geojson .leaflet-container')
+    const container = document.querySelector(
+      '.language-geojson .leaflet-container',
+    )
     return {
       hasMap: !!container,
       width: container?.getBoundingClientRect().width ?? 0,
@@ -113,9 +121,13 @@ test('geojson map makes no remote tile requests (offline)', async ({
 // --- TopoJSON ---
 
 test.fixme('topojson converts and renders a Leaflet map', async ({ page }) => {
-  await page.waitForSelector('.language-topojson .leaflet-container', { timeout: 30000 })
+  await page.waitForSelector('.language-topojson .leaflet-container', {
+    timeout: 30000,
+  })
   const info = await page.evaluate(() => {
-    const container = document.querySelector('.language-topojson .leaflet-container')
+    const container = document.querySelector(
+      '.language-topojson .leaflet-container',
+    )
     return {
       hasMap: !!container,
       pathCount: container?.querySelectorAll('path').length ?? 0,
@@ -130,7 +142,9 @@ test.fixme('topojson converts and renders a Leaflet map', async ({ page }) => {
 test.fixme('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
   await page.waitForSelector('.language-stl canvas', { timeout: 30000 })
   const info = await page.evaluate(() => {
-    const canvas = document.querySelector('.language-stl canvas') as HTMLCanvasElement | null
+    const canvas = document.querySelector(
+      '.language-stl canvas',
+    ) as HTMLCanvasElement | null
     return {
       hasCanvas: !!canvas,
       width: canvas?.getBoundingClientRect().width ?? 0,
@@ -143,7 +157,9 @@ test.fixme('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
   expect(info.height).toBeGreaterThanOrEqual(280)
 })
 
-test.fixme('stl canvas makes no remote requests (offline)', async ({ page }) => {
+test.fixme('stl canvas makes no remote requests (offline)', async ({
+  page,
+}) => {
   const remoteRequests: string[] = []
   page.on('request', (req) => {
     const url = req.url()
@@ -151,6 +167,30 @@ test.fixme('stl canvas makes no remote requests (offline)', async ({ page }) => 
       remoteRequests.push(url)
   })
 
-  await page.waitForSelector('.language-stl[data-processed="true"]', { timeout: 30000 })
+  await page.waitForSelector('.language-stl[data-processed="true"]', {
+    timeout: 30000,
+  })
   expect(remoteRequests).toHaveLength(0)
+})
+
+// Task 104 — D2 (compile-only WASM + dagre + currentColor SVG). Same harness limitation as the
+// other unknown languages (Vditor doesn't expose .language-d2 in the harness WYSIWYG DOM), so the
+// render assertion is fixme. The WASM contract + renderer are covered by node + unit tests
+// (d2-wasm.test.ts, d2-render.test.ts) and the live render by the real-VS-Code suite
+// (test/vscode-e2e/custom-diagrams-render.spec.ts).
+test.fixme('d2 renders a themed SVG from a compile-only WASM graph', async ({
+  page,
+}) => {
+  await page.waitForSelector('.language-d2 svg', { timeout: 30000 })
+  const info = await page.evaluate(() => {
+    const svg = document.querySelector('.language-d2 svg')
+    return {
+      hasSvg: !!svg,
+      rects: svg?.querySelectorAll('rect').length ?? 0,
+      stroke: svg?.querySelector('rect')?.getAttribute('stroke') ?? '',
+    }
+  })
+  expect(info.hasSvg).toBe(true)
+  expect(info.rects).toBeGreaterThan(0)
+  expect(info.stroke).toBe('currentColor')
 })

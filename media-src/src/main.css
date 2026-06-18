@@ -396,6 +396,9 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
         .language-geojson,
         .language-topojson,
         .language-stl,
+        .language-vega,
+        .language-vega-lite,
+        .language-d2,
         .language-math
       )
   ) {
@@ -425,6 +428,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
     .language-nomnoml,
     .language-geojson,
     .language-topojson,
+    .language-d2,
     .language-math
   ) {
   background: transparent !important;
@@ -479,6 +483,48 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   --markmap-code-color: currentColor;
   --markmap-circle-open-bg: var(--vmarkd-bg, #fff);
   --markmap-table-border: 1px solid currentColor;
+}
+/* D2: center, shrink-to-fit, themed via currentColor (themeSvg post-processes the SVG). */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview) .language-d2 {
+  text-align: center;
+}
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  .language-d2
+  > svg {
+  max-width: 100%;
+  height: auto;
+}
+/* LOUD unsupported-shape fallback: a note + the raw source, made visually distinct (left border)
+   so it reads as "intentionally not rendered", NOT a broken/blank diagram. */
+.d2-unsupported-note {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+.language-d2-unsupported {
+  display: block;
+  border-left: 3px solid currentColor;
+  padding: 8px 10px;
+  opacity: 0.85;
+  text-align: left;
+  white-space: pre;
+  overflow-x: auto;
+}
+/* Bundled Source Sans 3 (SIL OFL) — D2's canonical label font. canvasMeasure (d2-render.ts) AND
+   the rendered SVG both use this family, so label sizing matches what D2's freetype produced
+   (drops the ~9% no-font width drift to <1%). This @font-face family MUST stay in sync with
+   D2_FONT_STACK in d2-render.ts (guarded by a unit test). */
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/SourceSans3-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/SourceSans3-Bold.woff2") format("woff2");
 }
 /* wavedrom + nomnoml: center, shrink-to-fit, themed via currentColor post-processing */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
@@ -848,6 +894,7 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
             .language-nomnoml,
             .language-geojson,
             .language-topojson,
+            .language-d2,
             .language-math
           )
       )
