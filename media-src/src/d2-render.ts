@@ -169,6 +169,8 @@ export interface PlacedEdge {
   label?: string
   lx?: number
   ly?: number
+  lw?: number // label box width (for the on-line mask, task 122)
+  lh?: number
 }
 export interface Layout {
   W: number
@@ -444,6 +446,14 @@ function arrow(x: number, y: number, angle: number, color: string): string {
   return `<polygon points="${x},${y} ${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="${color}"/>`
 }
 
+// Small deterministic string hash (djb2) → a stable, collision-unlikely id suffix so multiple D2
+// SVGs on one page don't share a <mask> id. No Math.random — keep toSVG pure/deterministic.
+function djb2(s: string): string {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i)
+  return (h >>> 0).toString(36)
+}
+
 function toSVG(layout: Layout): string {
   const OFF = 10
   const W = layout.W + 20
@@ -452,6 +462,30 @@ function toSVG(layout: Layout): string {
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`,
   ]
+
+  // On-line edge labels (task 122): cut the connection line out from UNDER each label box with a mask
+  // (like D2's makeLabelMask) so the centred label reads cleanly without an opaque plate — works on
+  // any theme bg. Unique mask id per diagram (content hash) avoids id collisions between SVGs.
+  const labelRects = layout.edges
+    .filter((e) => e.label && e.lx != null && e.ly != null && e.lw && e.lh)
+    .map((e) => ({
+      x: (e.lx as number) + OFF - (e.lw as number) / 2 - 3,
+      y: (e.ly as number) + OFF - (e.lh as number) / 2 - 1,
+      w: (e.lw as number) + 6,
+      h: (e.lh as number) + 2,
+    }))
+  const maskId = `vmarkd-d2lbl-${djb2(`${W}x${H}:${layout.edges.map((e) => e.label || '').join('|')}`)}`
+  const maskAttr = labelRects.length ? ` mask="url(#${maskId})"` : ''
+  if (labelRects.length) {
+    parts.push(
+      `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect x="0" y="0" width="${W}" height="${H}" fill="white"/>${labelRects
+        .map(
+          (r) =>
+            `<rect x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" fill="black"/>`,
+        )
+        .join('')}</mask></defs>`,
+    )
+  }
 
   for (const e of layout.edges) {
     const pts = e.points.map((p) => [p[0] + OFF, p[1] + OFF])
@@ -466,7 +500,7 @@ function toSVG(layout: Layout): string {
     const d =
       layout.edgeStyle === 'orthogonal' ? roundedPolyPath(rp) : splinePath(rp)
     parts.push(
-      `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"/>`,
+      `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"${maskAttr}/>`,
     )
     const n = pts.length
     if (e.dstArrow !== false && n >= 2) {

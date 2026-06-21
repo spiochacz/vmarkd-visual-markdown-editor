@@ -384,4 +384,33 @@ describe('toSVG connection rendering (task 122 — rounded corners + endpoint tr
     expect(pathD).not.toContain('70.0,70.0') // line was retracted; not drawn to the raw endpoint
     expect(svg).toContain('<polygon') // arrowhead still drawn (at the endpoint)
   })
+
+  it('masks the connection line out from under an on-line label', () => {
+    const svg = toSVG({
+      W: 200,
+      H: 200,
+      nodes: [],
+      edges: [
+        {
+          points: [
+            [0, 0],
+            [0, 100],
+          ],
+          srcArrow: false,
+          dstArrow: true,
+          label: 'lbl',
+          lx: 0,
+          ly: 50,
+          lw: 30,
+          lh: 16,
+        },
+      ],
+      edgeStyle: 'orthogonal',
+    } as any)
+    expect(svg).toContain('<mask') // a label mask was emitted
+    // the connection path references it (so the line is cut under the centred label)
+    expect(svg).toMatch(
+      /<path d="[^"]+" fill="none"[^>]*mask="url\(#vmarkd-d2lbl-/,
+    )
+  })
 })

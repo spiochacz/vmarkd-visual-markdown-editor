@@ -149,7 +149,16 @@ export async function layoutElk(
     // the reserved gap won't match the rendered text.
     if (e.label) {
       const lm = measure(e.label, EDGE_FONT_SIZE)
-      elkEdge.labels = [{ text: e.label, width: lm.w, height: lm.h }]
+      elkEdge.labels = [
+        {
+          text: e.label,
+          width: lm.w,
+          height: lm.h,
+          // Per-label (NOT root) — D2 sets it here; makes ELK centre the label ON the line instead of
+          // beside it (task 122 on-line style). Root-level was a no-op.
+          layoutOptions: { 'elk.edgeLabels.inline': 'true' },
+        },
+      ]
     }
     if (owner && nodeById.get(owner)?.edges)
       nodeById.get(owner).edges.push(elkEdge)
@@ -218,6 +227,8 @@ export async function layoutElk(
           label: withLabel ? em.label : undefined,
           lx: withLabel ? lp?.[0] : undefined,
           ly: withLabel ? lp?.[1] : undefined,
+          lw: withLabel ? elkLbl?.width : undefined,
+          lh: withLabel ? elkLbl?.height : undefined,
         })
         firstSection = false
       }

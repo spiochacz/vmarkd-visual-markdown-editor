@@ -5,11 +5,14 @@
 > position (`elk-layout.ts`); (2) connection polish in `toSVG` (`d2-render.ts`) — **rounded corners**
 > (`roundedPolyPath`: `L` to before the bend + `Q` through the corner, radius clamped to half-segment,
 > mirrors D2 `pathData`) + **endpoint trim** (`towards`: retract the line end so the stroke meets the
-> arrowhead base, mirrors D2 `getArrowheadAdjustments`). Verified: unit tests ("reserves layer space",
-> "rounds an orthogonal bend", "trims the line end") + visual `comparison_big1_micro.png` /
-> `our_elk_crop.png`. **Still open:** variant B (collision-aware label nudge for dense hubs) + D2's
-> on-line label style (per-label `elk.edgeLabels.inline:true` + mask/plate — see source notes below).
-> Routing-quality beyond ELK still escalates to task 115 (libavoid).
+> arrowhead base, mirrors D2 `getArrowheadAdjustments`); (3) **D2 on-line labels** — per-label
+> `elk.edgeLabels.inline:true` (ELK centres the label ON the line; root-level was a no-op) + a `<mask>`
+> in `toSVG` that cuts the connection line out from under each label box (mirrors D2 `makeLabelMask`;
+> theme-independent, no opaque plate), unique mask id per diagram (content hash). Verified: unit tests
+> ("reserves layer space", "rounds an orthogonal bend", "trims the line end", "masks the line under an
+> on-line label") + visual `comparison_big1_micro.png` / `our_elk_crop.png` (labels now on-line, line
+> cut, matches D2). **Still open:** variant B (collision-aware label nudge for the densest hubs, where
+> ELK's reserved slot still crowds). Routing-quality beyond ELK still escalates to task 115 (libavoid).
 
 ## Source-verified facts (D2 v0.7.1 / commit 2446e24, fetched 2026-06-21)
 From `d2renderers/d2svg/d2svg.go` + `d2layouts/d2elklayout/layout.go`:
