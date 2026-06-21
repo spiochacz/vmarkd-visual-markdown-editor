@@ -17,6 +17,8 @@ media/vditor/dist/js/mathjax
 
 # Internal docs / working files — never ship in the .vsix
 AGENTS.md
+CLAUDE.md
+.claude
 docs
 tasks
 test-results
@@ -26,6 +28,10 @@ tmp
 .nvmrc
 out/**/*.md
 out/**/*.test.js
+
+# Dev tooling config — not needed at runtime
+biome.json
+skills-lock.json
 
 # Source maps — debug artifacts, not needed at runtime
 **/*.map
