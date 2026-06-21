@@ -435,7 +435,7 @@ endsolid cube
 
 ---
 
-## 18. D2 — compile-only WASM + dagre + currentColor (task 104)
+## 18. D2 — compile-only WASM + dagre/ELK + currentColor (task 104)
 
 A plain diagram (nodes, edge labels, a container, shaped nodes) renders to themed SVG:
 
@@ -478,8 +478,57 @@ panel: {
 styled -> users
 ```
 
-A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by dagre, so it falls
-back LOUDLY to the raw source (never a silently-wrong picture):
+A larger software-architecture graph — many shape kinds (person / hexagon / queue / cylinder /
+cloud / sql_table), a nested container, and ~25 edges — exercises the default ELK orthogonal layout:
+
+```d2
+user: User {shape: person}
+mobile: Mobile App {shape: person}
+cdn: CDN {shape: hexagon}
+gw: API Gateway {shape: hexagon}
+web: Web Frontend
+authsvc: Auth Service
+usersvc: User Service
+ordersvc: Order Service
+paysvc: Payment Service
+shipsvc: Shipping Service
+searchsvc: Search Service
+notifsvc: Notification Service
+bus: Event Bus {shape: queue}
+cache: Redis Cache {shape: cylinder}
+search_idx: Search Index {shape: cylinder}
+email: Email Provider {shape: cloud}
+data: Data Stores {
+  userdb: users {shape: sql_table}
+  orderdb: orders {shape: sql_table}
+  paydb: payments {shape: cylinder}
+}
+
+user -> cdn: visit
+mobile -> gw: api
+cdn -> web: assets
+web -> gw: request
+gw -> authsvc: verify
+gw -> usersvc: route
+gw -> ordersvc: route
+gw -> searchsvc: query
+ordersvc -> paysvc: charge
+ordersvc -> shipsvc: fulfill
+ordersvc -> bus: publish
+paysvc -> bus: publish
+bus -> notifsvc: consume
+notifsvc -> email: send
+authsvc -> data.userdb: read
+usersvc -> data.userdb: write
+usersvc -> cache: cache
+ordersvc -> data.orderdb: write
+paysvc -> data.paydb: write
+searchsvc -> search_idx: index
+notifsvc -> usersvc: lookup
+```
+
+A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by our dagre/ELK layout, so
+it falls back LOUDLY to the raw source (never a silently-wrong picture):
 
 ```d2
 shape: sequence_diagram
