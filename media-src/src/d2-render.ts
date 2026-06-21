@@ -446,6 +446,105 @@ function arrow(x: number, y: number, angle: number, color: string): string {
   return `<polygon points="${x},${y} ${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="${color}"/>`
 }
 
+// --- route simplification (mirrors D2's deleteBends): drop collinear points, then straighten
+// interior staircases into a single L — but ONLY when the straightened L clears every node box
+// (obstacle guard). First/last segments are left alone (they own the node ports). ---
+function dedupeCollinear(pts: number[][]): number[][] {
+  if (pts.length < 3) return pts
+  const out = [pts[0]]
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = out[out.length - 1]
+    const b = pts[i]
+    const c = pts[i + 1]
+    const colX = Math.abs(a[0] - b[0]) < 0.5 && Math.abs(b[0] - c[0]) < 0.5
+    const colY = Math.abs(a[1] - b[1]) < 0.5 && Math.abs(b[1] - c[1]) < 0.5
+    if (!colX && !colY) out.push(b)
+  }
+  out.push(pts[pts.length - 1])
+  return out
+}
+type Rect = { x: number; y: number; w: number; h: number }
+function segHitsRect(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  r: Rect,
+  m: number,
+): boolean {
+  const x0 = r.x - m
+  const x1 = r.x + r.w + m
+  const y0 = r.y - m
+  const y1 = r.y + r.h + m
+  if (Math.abs(ay - by) < 0.5) {
+    const lo = Math.min(ax, bx)
+    const hi = Math.max(ax, bx)
+    return ay > y0 && ay < y1 && lo < x1 && hi > x0
+  }
+  if (Math.abs(ax - bx) < 0.5) {
+    const lo = Math.min(ay, by)
+    const hi = Math.max(ay, by)
+    return ax > x0 && ax < x1 && lo < y1 && hi > y0
+  }
+  return true // non-orthogonal: refuse (never introduce a diagonal through open space)
+}
+export function simplifyRoute(pts: number[][], obstacles: Rect[]): number[][] {
+  let p = dedupeCollinear(pts)
+  const M = 3
+  let changed = true
+  let guard = 0
+  while (changed && guard++ < 40) {
+    changed = false
+    // keep the first & last segments (node ports) → only straighten interior jogs (i in [2, len-4])
+    for (let i = 2; i <= p.length - 4; i++) {
+      const A = p[i - 1]
+      const D = p[i + 2]
+      for (const corner of [
+        [D[0], A[1]],
+        [A[0], D[1]],
+      ]) {
+        const blocked =
+          obstacles.some((r) =>
+            segHitsRect(A[0], A[1], corner[0], corner[1], r, M),
+          ) ||
+          obstacles.some((r) =>
+            segHitsRect(corner[0], corner[1], D[0], D[1], r, M),
+          )
+        if (!blocked) {
+          p = dedupeCollinear([...p.slice(0, i), corner, ...p.slice(i + 2)])
+          changed = true
+          break
+        }
+      }
+      if (changed) break
+    }
+  }
+  return p
+}
+// Point at half the arc-length of a polyline — where an on-line label sits (D2 INSIDE_MIDDLE_CENTER).
+function polylineMidpoint(pts: number[][]): number[] {
+  if (pts.length < 2) return pts[0] ?? [0, 0]
+  const seg: number[] = []
+  let total = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
+    seg.push(d)
+    total += d
+  }
+  let half = total / 2
+  for (let i = 0; i < seg.length; i++) {
+    if (half <= seg[i]) {
+      const t = seg[i] ? half / seg[i] : 0
+      return [
+        pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t,
+        pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t,
+      ]
+    }
+    half -= seg[i]
+  }
+  return pts[pts.length - 1]
+}
+
 // Small deterministic string hash (djb2) → a stable, collision-unlikely id suffix so multiple D2
 // SVGs on one page don't share a <mask> id. No Math.random — keep toSVG pure/deterministic.
 function djb2(s: string): string {
@@ -463,16 +562,39 @@ function toSVG(layout: Layout): string {
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`,
   ]
 
+  // Simplify each route (collinear cleanup + interior staircase → L, obstacle-guarded — mirrors D2's
+  // deleteBends). Leaf nodes are obstacles; containers/grids are NOT (edges legitimately enter them).
+  const obstacles: Rect[] = layout.nodes
+    .filter((n) => n.kind !== 'container' && n.kind !== 'grid')
+    .map((n) => ({ x: n.x + OFF, y: n.y + OFF, w: n.w, h: n.h }))
+  const drawn = layout.edges.map((e) => {
+    const route = simplifyRoute(
+      e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
+      obstacles,
+    )
+    // On-line label sits at the SIMPLIFIED route's midpoint (stays synced with the line + mask after
+    // straightening). ELK edges carry lw/lh → masked; dagre edges (no lw/lh) fall back to lx/ly text.
+    const masked = !!(e.label && e.lw && e.lh)
+    const lpos = e.label
+      ? masked
+        ? polylineMidpoint(route)
+        : e.lx != null && e.ly != null
+          ? [e.lx + OFF, e.ly + OFF]
+          : polylineMidpoint(route)
+      : null
+    return { e, route, lpos, masked }
+  })
+
   // On-line edge labels (task 122): cut the connection line out from UNDER each label box with a mask
   // (like D2's makeLabelMask) so the centred label reads cleanly without an opaque plate — works on
   // any theme bg. Unique mask id per diagram (content hash) avoids id collisions between SVGs.
-  const labelRects = layout.edges
-    .filter((e) => e.label && e.lx != null && e.ly != null && e.lw && e.lh)
-    .map((e) => ({
-      x: (e.lx as number) + OFF - (e.lw as number) / 2 - 3,
-      y: (e.ly as number) + OFF - (e.lh as number) / 2 - 1,
-      w: (e.lw as number) + 6,
-      h: (e.lh as number) + 2,
+  const labelRects = drawn
+    .filter((d) => d.masked && d.lpos)
+    .map((d) => ({
+      x: (d.lpos as number[])[0] - (d.e.lw as number) / 2 - 3,
+      y: (d.lpos as number[])[1] - (d.e.lh as number) / 2 - 1,
+      w: (d.e.lw as number) + 6,
+      h: (d.e.lh as number) + 2,
     }))
   const maskId = `vmarkd-d2lbl-${djb2(`${W}x${H}:${layout.edges.map((e) => e.label || '').join('|')}`)}`
   const maskAttr = labelRects.length ? ` mask="url(#${maskId})"` : ''
@@ -487,11 +609,10 @@ function toSVG(layout: Layout): string {
     )
   }
 
-  for (const e of layout.edges) {
-    const pts = e.points.map((p) => [p[0] + OFF, p[1] + OFF])
+  for (const { e, route, lpos } of drawn) {
     // Retract the line ends so the stroke meets the arrowhead base / border, not the node centre
     // (mirrors D2's getArrowheadAdjustments); the arrowhead itself stays at the original endpoint.
-    const rp = pts.map((p) => [p[0], p[1]])
+    const rp = route.map((p) => [p[0], p[1]])
     if (rp.length >= 2) {
       const last = rp.length - 1
       rp[last] = towards(rp[last], rp[last - 1], e.dstArrow !== false ? 9 : 1)
@@ -502,21 +623,21 @@ function toSVG(layout: Layout): string {
     parts.push(
       `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"${maskAttr}/>`,
     )
-    const n = pts.length
+    const n = route.length
     if (e.dstArrow !== false && n >= 2) {
       const a = Math.atan2(
-        pts[n - 1][1] - pts[n - 2][1],
-        pts[n - 1][0] - pts[n - 2][0],
+        route[n - 1][1] - route[n - 2][1],
+        route[n - 1][0] - route[n - 2][0],
       )
-      parts.push(arrow(pts[n - 1][0], pts[n - 1][1], a, themeColor))
+      parts.push(arrow(route[n - 1][0], route[n - 1][1], a, themeColor))
     }
     if (e.srcArrow === true && n >= 2) {
-      const a = Math.atan2(pts[0][1] - pts[1][1], pts[0][0] - pts[1][0])
-      parts.push(arrow(pts[0][0], pts[0][1], a, themeColor))
+      const a = Math.atan2(route[0][1] - route[1][1], route[0][0] - route[1][0])
+      parts.push(arrow(route[0][0], route[0][1], a, themeColor))
     }
-    if (e.label && e.lx != null && e.ly != null) {
+    if (e.label && lpos) {
       parts.push(
-        `<text x="${(e.lx + OFF).toFixed(1)}" y="${(e.ly + OFF).toFixed(1)}" font-size="${EDGE_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" fill="${themeColor}">${esc2(e.label)}</text>`,
+        `<text x="${lpos[0].toFixed(1)}" y="${lpos[1].toFixed(1)}" font-size="${EDGE_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" fill="${themeColor}">${esc2(e.label)}</text>`,
       )
     }
   }

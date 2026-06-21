@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   renderD2Graph,
+  simplifyRoute,
   toSVG,
   unsupportedReason,
   type Sizer,
@@ -412,5 +413,44 @@ describe('toSVG connection rendering (task 122 — rounded corners + endpoint tr
     expect(svg).toMatch(
       /<path d="[^"]+" fill="none"[^>]*mask="url\(#vmarkd-d2lbl-/,
     )
+  })
+})
+
+describe('simplifyRoute (task 122 — D2 deleteBends-style straightening)', () => {
+  // a staircase: H, V, H, V, H — many interior bends
+  const staircase = () => [
+    [0, 0],
+    [0, 10],
+    [20, 10],
+    [20, 20],
+    [40, 20],
+    [40, 30],
+  ]
+
+  it('straightens an interior staircase into fewer bends when the space is clear', () => {
+    const out = simplifyRoute(staircase(), [])
+    expect(out.length).toBeLessThan(staircase().length)
+    expect(out[0]).toEqual([0, 0]) // endpoints preserved
+    expect(out[out.length - 1]).toEqual([40, 30])
+  })
+
+  it('keeps the staircase when an obstacle blocks every straightened L', () => {
+    const blocked = simplifyRoute(staircase(), [{ x: 5, y: 5, w: 40, h: 30 }])
+    expect(blocked.length).toBe(staircase().length) // nothing removed — guard refused
+  })
+
+  it('drops collinear points', () => {
+    const out = simplifyRoute(
+      [
+        [0, 0],
+        [0, 10],
+        [0, 20],
+      ],
+      [],
+    )
+    expect(out).toEqual([
+      [0, 0],
+      [0, 20],
+    ])
   })
 })

@@ -10,9 +10,19 @@
 > in `toSVG` that cuts the connection line out from under each label box (mirrors D2 `makeLabelMask`;
 > theme-independent, no opaque plate), unique mask id per diagram (content hash). Verified: unit tests
 > ("reserves layer space", "rounds an orthogonal bend", "trims the line end", "masks the line under an
-> on-line label") + visual `comparison_big1_micro.png` / `our_elk_crop.png` (labels now on-line, line
-> cut, matches D2). **Still open:** variant B (collision-aware label nudge for the densest hubs, where
-> ELK's reserved slot still crowds). Routing-quality beyond ELK still escalates to task 115 (libavoid).
+> on-line label"); (4) **route simplification** (`simplifyRoute` — mirrors D2 `deleteBends`): drops
+> collinear points + straightens interior staircases into a single L, **obstacle-guarded** (never
+> routes through a leaf-node box; containers/grids excluded). On-line labels re-anchor to the
+> SIMPLIFIED route's midpoint so label + mask stay synced. Verified: unit tests
+> ("reserves layer space", "rounds an orthogonal bend", "trims the line end", "masks the line under an
+> on-line label", "straightens an interior staircase", "keeps it when blocked", "drops collinear") +
+> visual `our_elk_simplified.png` (32 real bends, long routes now clean L's, matches D2).
+> **Still open:** variant B (collision-aware label nudge for the densest hubs, where ELK's reserved
+> slot still crowds). Routing-quality beyond ELK still escalates to task 115 (libavoid).
+>
+> **ELK bend flags are a dead end (verified):** `unnecessaryBendpoints`/`favorStraightEdges` don't
+> change the visible routing (they only add collinear points → same drawn line). D2 reduces bends in
+> its renderer (`deleteBends`), not via ELK — which is what (4) replicates.
 
 ## Source-verified facts (D2 v0.7.1 / commit 2446e24, fetched 2026-06-21)
 From `d2renderers/d2svg/d2svg.go` + `d2layouts/d2elklayout/layout.go`:
