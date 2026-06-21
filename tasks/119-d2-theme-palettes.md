@@ -76,6 +76,20 @@ or back-fill so it reads on either editor theme.
   the content theme (auto) re-renders. (D2 render assertions are `fixme` in the harness — the live
   proof belongs in the real-VS-Code suite `test/vscode-e2e/`, like task 104 / d2-elk.)
 
+## Reference — D2 "Neutral default" palette (extracted 2026-06-21 from `big1_micro_elk.svg`)
+The official D2 colour comes from a themed **slot system** (verified by reverse-engineering the CLI
+output's `.fill-*`/`.stroke-*` classes). Each theme = a neutral ramp + a primary ramp + accents;
+shapes get a slot by role/depth. Theme 0 "Neutral default":
+- **Neutrals N1→N7** (dark→light; text→fill→bg): `#0A0F25 #676C7E #9499AB #CFD2DD #DEE1EB #EEF1F8 #FFFFFF`
+- **Primary B1→B6**: `#0D32B2 #0D32B2 #E3E9FD #E3E9FD #EDF0FD #F7F8FE`
+- **Accent AA2**: `#4A6FF3` (+ AA4 `#EDF0FD` / AA5 `#F7F8FE`, and an AB mirror)
+
+Typical assignment seen: container/leaf fills = light neutrals/blues (N5/N6, B5/B6), borders =
+B1/N1, header/label text = N1, muted text = N2. Rendered via `d2 --layout elk`, white baked bg,
+embedded woff fonts. **For our Phase A we don't need D2's exact slots** — `pairedPalette` +
+`MERMAID_PALETTES` already give theme-aware `{bg,fg,line,accent,muted}`; this Neutral set is a good
+**Phase-B preset** to offer as a named `d2Theme`. (Side-by-side proof: `tmp/d2-compare/comparison_big1_micro.png` — ours mono vs D2 ELK/TALA coloured; note TALA is a paid/closed engine, "UNLICENSED COPY" watermark, so not shippable — only its *look* is a target.)
+
 ## See also
 - Skill `vmarkd-renderer-theming` (3 layers; shared mapping vs per-engine translation; model #3).
 - **Task 104** (our D2 renderer — `toSVG`/`paintAttrs`/`textAttrs`/`labelColor`/the bespoke drawers).

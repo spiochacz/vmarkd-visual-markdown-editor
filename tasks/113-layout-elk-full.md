@@ -21,6 +21,31 @@ to SVG and rasterized via Playwright chromium, side-by-side with the TALA render
 - Artifacts: `/tmp/elk-demo/` (`layout.mjs`, `elk_a.png`, `compare.png`). Verdict: A is
   real and cheap; "layered DNA" is its ceiling, routing-polish is C's job.
 
+## Empirical follow-up (2026-06-21 — measured on `big1_micro` through OUR production `layoutElk`)
+
+Compared our shipped ELK options against D2's, then trialled the hidden levers on a SECOND graph
+(`tmp/d2-compare/run2.mjs` → `elk_variants_big1_micro.png`, via `layoutElk` `extraOptions`).
+
+- **D2's ELK passthrough exposes ONLY 5 flags** (verified, CLI): `--elk-algorithm`, `--elk-padding`,
+  `--elk-nodeNodeBetweenLayers`, `--elk-edgeNodeBetweenLayers`, `--elk-nodeSelfLoop`. Everything else
+  uses ELK defaults + D2's fixed `d2elklayout` config. **Our `elk-layout.ts` already sets the same
+  core** (`layered` + `DOWN` + `ORTHOGONAL` + `INCLUDE_CHILDREN` + spacing). So the D2-vs-ours visual
+  gap is NOT a hidden ELK flag — it's **colour (task 119)** + D2's **post-layout edge/label polish**
+  (D2's own renderer places on-edge labels without overlap; our `toSVG` takes ELK geometry more
+  directly → some label overlap). D2's ELK output is itself a tall strip (ref `big1_micro_elk.svg` =
+  1117×3016), i.e. D2 does NOT use the compactness levers either.
+- **Measured aspects (w×h, aspect):** baseline `941×1307` 0.72 · `+considerModelOrder` `863×1307` 0.66
+  · `+wrapping+aspectRatio` `1602×1054` 1.52 · `+both` `1480×1054` 1.40.
+- **`considerModelOrder.strategy=NODES_AND_EDGES` = a cheap win** — slightly narrower, node order
+  follows declaration (predictable/stable), no downside. **Adopt** (one line in `elk-layout.ts`).
+- **`wrapping.strategy=MULTI_EDGE` + `aspectRatio` is NOT a universal win.** It squared `complex.d2`
+  (the original POC) but on `big1_micro` it just goes wide and **unbalanced** (one chain drifts left,
+  the rest packs right, lots of whitespace) — looks worse. ⇒ wrapping must be **per-graph / gated**
+  (e.g. only when the layered strip exceeds an aspect threshold), not a blanket default. Tune +
+  steer-by-eye before shipping.
+- **Routing polish** (the label-overlap gap) is the other real lever and points back to Option C
+  (libavoid, task 115) + smarter on-edge label placement, not to an ELK flag.
+
 ## Context — the TALA-alternative cluster (113–116)
 
 Came out of the d2/TALA layout-quality dig (TALA = Terrastruct's closed, watermarked-
