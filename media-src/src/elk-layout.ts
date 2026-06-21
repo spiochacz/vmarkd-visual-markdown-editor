@@ -171,12 +171,24 @@ export async function layoutElk(
       'elk.algorithm': 'layered',
       'elk.direction': 'DOWN', // matches D2's default + the dagre rankdir:TB path
       'elk.edgeRouting': 'ORTHOGONAL',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '50',
-      'elk.spacing.nodeNode': '40',
-      'elk.spacing.edgeNode': '20',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
-      // Place edge labels in space ELK reserves for them (task 122) — paired with the sized
-      // `labels` we attach per edge above. Without this the label is ignored by layout.
+      // Layout tuning ported from D2's own d2elklayout config (source-verified, task 113/122): balanced
+      // Brandes-Köpf alignment + preserved model order (stable, declaration-ordered) + greedy
+      // model-order cycle breaking + higher thoroughness + min-size nodes → D2's clean BALANCED
+      // fan-out instead of a lopsided one. Chosen by eye over baseline/airy/horizontal variants.
+      'elk.layered.nodePlacement.bk.fixedAlignment': 'BALANCED',
+      'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+      'elk.layered.cycleBreaking.strategy': 'GREEDY_MODEL_ORDER',
+      'elk.layered.thoroughness': '8',
+      'elk.nodeSize.constraints': 'MINIMUM_SIZE',
+      // Spacing/padding matched to D2 for clearer layer separation.
+      'elk.layered.spacing.nodeNodeBetweenLayers': '70',
+      'elk.spacing.nodeNode': '40',
+      'elk.spacing.edgeNode': '40',
+      'elk.layered.spacing.edgeEdgeBetweenLayers': '50',
+      'elk.padding': '[top=50,left=50,bottom=50,right=50]',
+      // Place edge labels in space ELK reserves for them (task 122) — paired with the sized,
+      // per-label-inline `labels` we attach per edge above.
       'elk.edgeLabels.placement': 'CENTER',
       ...extraOptions,
     },

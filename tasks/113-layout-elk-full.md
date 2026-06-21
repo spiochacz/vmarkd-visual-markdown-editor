@@ -45,6 +45,12 @@ Compared our shipped ELK options against D2's, then trialled the hidden levers o
   steer-by-eye before shipping.
 - **Routing polish** (the label-overlap gap) is the other real lever and points back to Option C
   (libavoid, task 115) + smarter on-edge label placement, not to an ELK flag.
+- **ADOPTED into production (2026-06-21):** the D2-match option set now ships in `elk-layout.ts` —
+  `nodePlacement.bk.fixedAlignment=BALANCED`, `considerModelOrder.strategy=NODES_AND_EDGES`,
+  `cycleBreaking.strategy=GREEDY_MODEL_ORDER`, `thoroughness=8`, `nodeSize.constraints=MINIMUM_SIZE`,
+  spacing 70/40/edgeEdge 50, padding 50. Chosen by eye over baseline / airy / horizontal-RIGHT
+  variants (`tmp/d2-compare/layout_variants_big1_micro.png`) → balanced fan-out, D2-like separation.
+  `wrapping`/`aspectRatio` deliberately NOT adopted (helped `complex.d2`, hurt `big1_micro`).
 
 ## Context — the TALA-alternative cluster (113–116)
 
