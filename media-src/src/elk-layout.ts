@@ -129,7 +129,13 @@ export async function layoutElk(
 
   const edgeMeta = new Map<
     string,
-    { srcArrow: boolean; dstArrow: boolean; label?: string }
+    {
+      srcArrow: boolean
+      dstArrow: boolean
+      label?: string
+      src: string
+      dst: string
+    }
   >()
   const rootEdges: any[] = []
   let ei = 0
@@ -140,6 +146,8 @@ export async function layoutElk(
       srcArrow: e.srcArrow,
       dstArrow: e.dstArrow,
       label: e.label,
+      src: e.src,
+      dst: e.dst,
     })
     const owner = lcaContainer(e.src, e.dst)
     const elkEdge: any = { id, sources: [e.src], targets: [e.dst] }
@@ -185,10 +193,19 @@ export async function layoutElk(
       'elk.layered.spacing.nodeNodeBetweenLayers': '70',
       'elk.spacing.nodeNode': '40',
       'elk.spacing.edgeNode': '40',
+      // The lever for how far bends sit from boxes: this is the edge↔node clearance INSIDE the
+      // inter-layer gap, where a DOWN-routed edge turns into its horizontal channel. ELK's default is
+      // only 10 → bends hug the box. D2 sets it to 40 (its EdgeNodeSpacing → spacing.edgeNodeBetweenLayers,
+      // d2elklayout/layout.go DefaultOpts), so its turns sit ~30px farther out. Match it. (task 122)
+      'elk.layered.spacing.edgeNodeBetweenLayers': '40',
       'elk.layered.spacing.edgeEdgeBetweenLayers': '50',
       'elk.padding': '[top=50,left=50,bottom=50,right=50]',
       // Place edge labels in space ELK reserves for them (task 122) — paired with the sized,
-      // per-label-inline `labels` we attach per edge above.
+      // per-label-inline `labels` we attach per edge above. We leave centerLabelPlacementStrategy at
+      // ELK's default (MEDIAN_LAYER, same as D2): it keeps antiparallel pairs as a tight parallel pair
+      // AND spreads their labels along the centre line so they don't collide (TAIL_LAYER instead shoved
+      // the two lines far apart — broke the routing). The deconfliction works because toSVG now reads the
+      // label position straight from ELK (lx/ly) instead of recomputing the geometric midpoint.
       'elk.edgeLabels.placement': 'CENTER',
       ...extraOptions,
     },
@@ -241,6 +258,8 @@ export async function layoutElk(
           ly: withLabel ? lp?.[1] : undefined,
           lw: withLabel ? elkLbl?.width : undefined,
           lh: withLabel ? elkLbl?.height : undefined,
+          src: (em as any).src,
+          dst: (em as any).dst,
         })
         firstSection = false
       }

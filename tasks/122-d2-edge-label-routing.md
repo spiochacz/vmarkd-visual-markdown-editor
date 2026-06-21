@@ -23,9 +23,26 @@
 > nearest node's Δy; `simplifyRoute` re-cleans. Container children left alone. Verified across 6
 > diagrams (`tmp/d2-compare/cmp_aligned_*.png`) — fixes mixed rows, no-op on uniform/simple ones,
 > nothing broke. Unit tests: snaps a grouped row, leaves container children alone.
+> (6) **routing polish round (2026-06-21):** (a) `elk.layered.spacing.edgeNodeBetweenLayers=40` — the
+> inter-layer edge↔node clearance (ELK default 10 → bends hugged boxes; D2 uses 40), so turns sit ~30px
+> farther out. (b) on-line label read straight from ELK `lx/ly` (honours ELK's deconfliction spread)
+> instead of recomputing the geometric midpoint. (c) **`straightenEnds`** ports D2 deleteBends'
+> source/target S-shape removal (kills the tiny port-attach pixel-steps), capped at `MAX_KINK=24` so it
+> only absorbs pixel kinks, never a genuine routing step (else an edge re-attached near a box corner —
+> e.g. d2_hub `route` must enter orders' centre). (d) **selective anchor-guard**: `simplifyRoute` takes
+> an `anchor` (the label point) and refuses to straighten the side-channel out from under it — but ONLY
+> for **parallel/antiparallel pairs** (a node-pair with ≥2 edges, e.g. d1_pipeline run↔report), where
+> ELK made that channel to keep the two inline labels apart. A lone labelled edge (e.g. big2 `notify`)
+> gets no guard → it straightens freely (no frozen staircase). `PlacedEdge.src/dst` now thread the
+> endpoint ids so toSVG can spot pairs. Verified by eye across all 6 canaries + 32 unit tests.
 > **Still open:** cross-container alignment (a top-level node like Redis vs a container's content row —
 > deliberately skipped); variant B (collision-aware label nudge for the densest hubs). Routing beyond
 > ELK still escalates to task 115 (libavoid).
+> **Future refactor (the real fix):** PORT DISTRIBUTION like D2 (d2elklayout widens multi-edge nodes +
+> assigns each edge a distinct ELK port). Then parallel edges attach at different points → labels
+> separate with no channel/guard, and every edge routes more directly → could delete the anchor-guard +
+> `MAX_KINK` heuristics. Biggest/riskiest change (rewrite the ELK node/edge build with `portConstraints`),
+> deferred in favour of the contained selective-guard above.
 >
 > **ELK bend flags are a dead end (verified):** `unnecessaryBendpoints`/`favorStraightEdges` don't
 > change the visible routing (they only add collinear points → same drawn line). D2 reduces bends in

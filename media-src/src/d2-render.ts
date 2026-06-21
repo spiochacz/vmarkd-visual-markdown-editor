@@ -171,6 +171,8 @@ export interface PlacedEdge {
   ly?: number
   lw?: number // label box width (for the on-line mask, task 122)
   lh?: number
+  src?: string // endpoint node ids — lets toSVG spot parallel/antiparallel pairs (task 122)
+  dst?: string
 }
 export interface Layout {
   W: number
@@ -488,9 +490,30 @@ function segHitsRect(
   }
   return true // non-orthogonal: refuse (never introduce a diagonal through open space)
 }
-export function simplifyRoute(pts: number[][], obstacles: Rect[]): number[][] {
+// Perpendicular distance from point q to segment a–b (for the label-anchor guard in simplifyRoute).
+function pointSegDist(q: number[], a: number[], b: number[]): number {
+  const dx = b[0] - a[0]
+  const dy = b[1] - a[1]
+  const len2 = dx * dx + dy * dy
+  if (len2 < 1e-9) return Math.hypot(q[0] - a[0], q[1] - a[1])
+  let t = ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / len2
+  t = Math.max(0, Math.min(1, t))
+  return Math.hypot(q[0] - (a[0] + t * dx), q[1] - (a[1] + t * dy))
+}
+// `anchor`: an inline-label point the drawn line must stay under. ELK routes a labelled edge through a
+// side channel so its inline label clears the parallel edge (e.g. d1_pipeline run sits on its x=80
+// channel, not the x=94 attach column). Straightening that channel back to the column would strand the
+// label beside the line (then the label mask cuts empty space) — so refuse it. task 122
+export function simplifyRoute(
+  pts: number[][],
+  obstacles: Rect[],
+  anchor?: number[],
+): number[][] {
   let p = dedupeCollinear(pts)
-  const M = 3
+  // Box clearance for a straightened segment. D2's deleteBends treats a box as hit at edge_node_spacing-1
+  // (=39px) so it won't pull a route up against a box (d2elklayout/layout.go countObjectIntersects). Match
+  // that — a tiny 3px buffer let our straightening cancel the wider bend clearance ELK now reserves. task 122
+  const M = 39
   let changed = true
   let guard = 0
   while (changed && guard++ < 40) {
@@ -499,6 +522,20 @@ export function simplifyRoute(pts: number[][], obstacles: Rect[]): number[][] {
     for (let i = 2; i <= p.length - 4; i++) {
       const A = p[i - 1]
       const D = p[i + 2]
+      // Would replacing A→p[i]→p[i+1]→D with A→corner→D strand the label anchor off the line?
+      const keepsAnchor = (corner: number[]): boolean => {
+        if (!anchor) return true
+        const distOld = Math.min(
+          pointSegDist(anchor, A, p[i]),
+          pointSegDist(anchor, p[i], p[i + 1]),
+          pointSegDist(anchor, p[i + 1], D),
+        )
+        const distNew = Math.min(
+          pointSegDist(anchor, A, corner),
+          pointSegDist(anchor, corner, D),
+        )
+        return !(distNew > distOld + 0.5 && distNew > 8)
+      }
       for (const corner of [
         [D[0], A[1]],
         [A[0], D[1]],
@@ -510,7 +547,7 @@ export function simplifyRoute(pts: number[][], obstacles: Rect[]): number[][] {
           obstacles.some((r) =>
             segHitsRect(corner[0], corner[1], D[0], D[1], r, M),
           )
-        if (!blocked) {
+        if (!blocked && keepsAnchor(corner)) {
           p = dedupeCollinear([...p.slice(0, i), corner, ...p.slice(i + 2)])
           changed = true
           break
@@ -518,6 +555,69 @@ export function simplifyRoute(pts: number[][], obstacles: Rect[]): number[][] {
       }
       if (changed) break
     }
+  }
+  return p
+}
+// The leaf box whose border the point sits on (the box an edge endpoint attaches to). Used by
+// straightenEnds to verify a straightened attach point stays on the same border.
+function endpointBox(a: number[], obstacles: Rect[]): Rect | null {
+  for (const r of obstacles) {
+    const onV =
+      (Math.abs(a[0] - r.x) < 1.5 || Math.abs(a[0] - (r.x + r.w)) < 1.5) &&
+      a[1] >= r.y - 1.5 &&
+      a[1] <= r.y + r.h + 1.5
+    const onH =
+      (Math.abs(a[1] - r.y) < 1.5 || Math.abs(a[1] - (r.y + r.h)) < 1.5) &&
+      a[0] >= r.x - 1.5 &&
+      a[0] <= r.x + r.w + 1.5
+    if (onV || onH) return r
+  }
+  return null
+}
+// Straighten a 3-point S-jog at each END of the route into one straight segment, IF the line still
+// attaches within the endpoint box border (±10px) and the straightened segment adds no new box
+// collision. Mirrors D2's deleteBends "S-shapes at the source and the target" pass
+// (d2elklayout/layout.go) — removes the tiny port-attach steps ELK leaves when a node has several edges
+// (each gets a distinct attach point that then steps to its routing channel). task 122
+export function straightenEnds(pts: number[][], obstacles: Rect[]): number[][] {
+  let p = pts
+  for (const isSource of [true, false]) {
+    if (p.length < 4) break
+    const n = p.length
+    const a = isSource ? p[0] : p[n - 1] // attach point on the box border
+    const b = isSource ? p[1] : p[n - 2] // corner
+    const c = isSource ? p[2] : p[n - 3] // next point (kept)
+    const box = endpointBox(a, obstacles)
+    if (!box) continue
+    const vertFirst = Math.abs(a[0] - b[0]) < 0.5 // a→b runs vertically
+    const newA = vertFirst ? [c[0], a[1]] : [a[0], c[1]]
+    // Only absorb a SMALL port-attach kink — not a genuine routing step. The attach moves by |a−c| along
+    // the border; collapsing a big step would drag the line to attach near a corner instead of where ELK
+    // entered (e.g. d2_hub `route` enters orders' centre x=174 via a 66px step; straightening it would
+    // re-attach at x=240, the box's right edge). Cap at ~½ a small node so only pixel-level steps go.
+    const MAX_KINK = 24
+    if (Math.abs(vertFirst ? c[0] - a[0] : c[1] - a[1]) > MAX_KINK) continue
+    // still attached? the moved coordinate must stay inside the border edge (D2's ±10 margin)
+    if (vertFirst) {
+      if (c[0] <= box.x + 10 || c[0] >= box.x + box.w - 10) continue
+    } else {
+      if (c[1] <= box.y + 10 || c[1] >= box.y + box.h - 10) continue
+    }
+    // refuse if the straightened segment cuts through a DIFFERENT box than the S already did
+    const others = obstacles.filter((r) => r !== box)
+    const oldHit = others.filter(
+      (r) =>
+        segHitsRect(a[0], a[1], b[0], b[1], r, 3) ||
+        segHitsRect(b[0], b[1], c[0], c[1], r, 3),
+    ).length
+    const newHit = others.filter((r) =>
+      segHitsRect(newA[0], newA[1], c[0], c[1], r, 3),
+    ).length
+    if (newHit > oldHit) continue
+    // commit: drop a,b,c → newA reconnects to the rest (newA→p[3] / p[n-4]→newA stays orthogonal)
+    p = dedupeCollinear(
+      isSource ? [newA, ...p.slice(3)] : [...p.slice(0, n - 3), newA],
+    )
   }
   return p
 }
@@ -567,20 +667,43 @@ function toSVG(layout: Layout): string {
   const obstacles: Rect[] = layout.nodes
     .filter((n) => n.kind !== 'container' && n.kind !== 'grid')
     .map((n) => ({ x: n.x + OFF, y: n.y + OFF, w: n.w, h: n.h }))
+  // Node-pairs carrying MORE THAN ONE edge (parallel/antiparallel, e.g. d1_pipeline ci↔test run+report).
+  // ELK routes each such edge through its own side channel so the two inline labels don't collide; the
+  // anchor-guard below preserves those channels. A lone edge (e.g. notify) needs no channel — guarding it
+  // would freeze ELK's staircase instead of letting simplifyRoute clean it. task 122
+  const pairKey = (a: string, b: string) => (a < b ? `${a} ${b}` : `${b} ${a}`)
+  const pairCount = new Map<string, number>()
+  for (const e of layout.edges)
+    if (e.src && e.dst) {
+      const k = pairKey(e.src, e.dst)
+      pairCount.set(k, (pairCount.get(k) || 0) + 1)
+    }
   const drawn = layout.edges.map((e) => {
-    const route = simplifyRoute(
-      e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
+    // Keep the line under its inline label (ELK's lx/ly) so simplifyRoute doesn't straighten the label
+    // channel out from under the text — but ONLY for parallel pairs, where ELK made that channel to keep
+    // their labels apart. For a lone labelled edge, let it straighten (no anchor). task 122
+    const isParallel =
+      !!e.src && !!e.dst && (pairCount.get(pairKey(e.src, e.dst)) || 0) >= 2
+    const anchor =
+      isParallel && e.label && e.lx != null && e.ly != null
+        ? [e.lx + OFF, e.ly + OFF]
+        : undefined
+    const route = straightenEnds(
+      simplifyRoute(
+        e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
+        obstacles,
+        anchor,
+      ),
       obstacles,
     )
-    // On-line label sits at the SIMPLIFIED route's midpoint (stays synced with the line + mask after
-    // straightening). ELK edges carry lw/lh → masked; dagre edges (no lw/lh) fall back to lx/ly text.
+    // On-line label position. For a guarded parallel edge the channel (and ELK's deconfliction spread) is
+    // preserved, so use ELK's lx/ly. For a lone edge we let the route straighten, so ELK's point can be
+    // off the new line — follow the simplified route's midpoint instead. ELK edges carry lw/lh → masked.
     const masked = !!(e.label && e.lw && e.lh)
     const lpos = e.label
-      ? masked
-        ? polylineMidpoint(route)
-        : e.lx != null && e.ly != null
-          ? [e.lx + OFF, e.ly + OFF]
-          : polylineMidpoint(route)
+      ? anchor && e.lx != null && e.ly != null
+        ? [e.lx + OFF, e.ly + OFF]
+        : polylineMidpoint(route)
       : null
     return { e, route, lpos, masked }
   })

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   renderD2Graph,
   simplifyRoute,
+  straightenEnds,
   toSVG,
   unsupportedReason,
   type Sizer,
@@ -452,5 +453,81 @@ describe('simplifyRoute (task 122 — D2 deleteBends-style straightening)', () =
       [0, 0],
       [0, 20],
     ])
+  })
+
+  // task 122: ELK routes a labelled edge through a side channel so its inline label clears a parallel
+  // edge; an anchor on that channel must stop the straightener from pulling the line back off the label.
+  it('keeps a label-bearing channel when an anchor sits on it', () => {
+    // mostly-vertical (x=0) with a sideways excursion to x=40 in the middle (the label channel)
+    const jog = (): number[][] => [
+      [0, 0],
+      [0, 40],
+      [40, 40],
+      [40, 60],
+      [0, 60],
+      [0, 100],
+    ]
+    // no anchor → the excursion straightens away to the bare vertical
+    expect(simplifyRoute(jog(), []).length).toBeLessThan(6)
+    // anchor on the channel → it (and the label's spot) is preserved
+    const kept = simplifyRoute(jog(), [], [40, 50])
+    expect(kept.length).toBe(6)
+    expect(kept).toContainEqual([40, 40])
+  })
+})
+
+describe('straightenEnds (task 122 — D2 deleteBends source/target S-shape removal)', () => {
+  const box = { x: 0, y: 0, w: 40, h: 20 }
+
+  it('straightens an endpoint port-attach S-jog when it stays on the border', () => {
+    // attach at (10,20) on the box bottom, steps to channel x=25, then down — a tiny S near the box
+    const sJog = [
+      [10, 20],
+      [10, 40],
+      [25, 40],
+      [25, 100],
+    ]
+    const out = straightenEnds(sJog, [box])
+    // collapses to a straight vertical at x=25; attach point rides along the border to x=25
+    expect(out).toEqual([
+      [25, 20],
+      [25, 100],
+    ])
+  })
+
+  it('keeps the S-jog if straightening would slide the attach off the border', () => {
+    // c.x=38 is past the box.x+w-10 margin → moving the attach there would detach → left alone
+    const sJog = [
+      [10, 20],
+      [10, 40],
+      [38, 40],
+      [38, 100],
+    ]
+    expect(straightenEnds(sJog, [box]).length).toBe(4)
+  })
+
+  it('refuses to straighten through another box', () => {
+    // blocker lies on the NEW segment (x=25, y≈25-35) that replaces the S, but not on the old S path
+    const blocker = { x: 22, y: 25, w: 8, h: 10 }
+    const sJog = [
+      [10, 20],
+      [10, 40],
+      [25, 40],
+      [25, 100],
+    ]
+    expect(straightenEnds(sJog, [box, blocker]).length).toBe(4)
+  })
+
+  it('keeps a large step (a real routing jog, not a pixel kink) even within the border', () => {
+    // wide box: c.x=70 is well inside the border, but the 60px step is a genuine routing move — D2's
+    // route-into-orders case. Collapsing it would re-attach near the corner instead of where ELK entered.
+    const wide = { x: 0, y: 0, w: 100, h: 20 }
+    const sJog = [
+      [10, 20],
+      [10, 40],
+      [70, 40],
+      [70, 100],
+    ]
+    expect(straightenEnds(sJog, [wide]).length).toBe(4)
   })
 })
