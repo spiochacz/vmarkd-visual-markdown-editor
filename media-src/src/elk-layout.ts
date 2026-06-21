@@ -11,6 +11,7 @@ import {
   type PlacedEdge,
   type PlacedNode,
   type Sizer,
+  EDGE_FONT_SIZE,
   classify,
   computeGridInfo,
   leafInfo,
@@ -141,7 +142,15 @@ export async function layoutElk(
       label: e.label,
     })
     const owner = lcaContainer(e.src, e.dst)
-    const elkEdge = { id, sources: [e.src], targets: [e.dst] }
+    const elkEdge: any = { id, sources: [e.src], targets: [e.dst] }
+    // Hand ELK the SIZED label so its layered pass reserves a gap for it (a "label dummy node") and
+    // routes around it — instead of us dropping the text on the raw route midpoint where it collides
+    // with lines/boxes (task 122). Measure with the SAME sizer + edge font size toSVG draws with, or
+    // the reserved gap won't match the rendered text.
+    if (e.label) {
+      const lm = measure(e.label, EDGE_FONT_SIZE)
+      elkEdge.labels = [{ text: e.label, width: lm.w, height: lm.h }]
+    }
     if (owner && nodeById.get(owner)?.edges)
       nodeById.get(owner).edges.push(elkEdge)
     else rootEdges.push(elkEdge)
@@ -157,6 +166,9 @@ export async function layoutElk(
       'elk.spacing.nodeNode': '40',
       'elk.spacing.edgeNode': '20',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
+      // Place edge labels in space ELK reserves for them (task 122) — paired with the sized
+      // `labels` we attach per edge above. Without this the label is ignored by layout.
+      'elk.edgeLabels.placement': 'CENTER',
       ...extraOptions,
     },
     children: roots,
@@ -176,21 +188,38 @@ export async function layoutElk(
   const collectEdges = (node: any, ax: number, ay: number) => {
     for (const e of node.edges || []) {
       const em = edgeMeta.get(e.id) || { srcArrow: false, dstArrow: true }
+      // ELK placed the label (CENTER) in the gap it reserved — its x/y is the label box's top-left,
+      // relative to this node, so centre it + offset like the route points. Fall back to the route
+      // midpoint only if ELK returned no label position (task 122).
+      const elkLbl = e.labels?.[0]
+      const labelPos =
+        em.label && elkLbl && elkLbl.x != null
+          ? [
+              elkLbl.x + (elkLbl.width || 0) / 2 + ax,
+              elkLbl.y + (elkLbl.height || 0) / 2 + ay,
+            ]
+          : null
+      let firstSection = true
       for (const sec of e.sections || []) {
         const pts: [number, number][] = [
           sec.startPoint,
           ...(sec.bendPoints || []),
           sec.endPoint,
         ].map((p: any) => [p.x + ax, p.y + ay])
+        // An edge can have several sections — draw the label on the FIRST only, at ELK's reserved
+        // position (else the section midpoint).
         const mid = pts[Math.floor(pts.length / 2)]
+        const lp = labelPos ?? mid
+        const withLabel = firstSection && !!em.label
         placedEdges.push({
           points: pts,
           srcArrow: em.srcArrow,
           dstArrow: em.dstArrow,
-          label: em.label,
-          lx: mid?.[0],
-          ly: mid?.[1],
+          label: withLabel ? em.label : undefined,
+          lx: withLabel ? lp?.[0] : undefined,
+          ly: withLabel ? lp?.[1] : undefined,
         })
+        firstSection = false
       }
     }
   }

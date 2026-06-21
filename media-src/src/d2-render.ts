@@ -2,7 +2,7 @@ import dagre from '@dagrejs/dagre'
 import type { D2Graph, D2Shape } from './d2-wasm'
 
 const FONT_SIZE = 16
-const EDGE_FONT_SIZE = 14
+export const EDGE_FONT_SIZE = 14
 const INNER_PAD = 5
 const P = 40 // d2 defaultPadding
 export type Sizer = (
@@ -397,6 +397,42 @@ function polyPath(pts: number[][]): string {
     .join(' ')
 }
 
+// Move `from` toward `to` by `dist` (clamped to the segment length). Mirrors D2's
+// getArrowheadAdjustments: retract a route endpoint so the stroke meets the arrowhead base / shape
+// border cleanly instead of poking through it (task 122).
+function towards(from: number[], to: number[], dist: number): number[] {
+  const dx = to[0] - from[0]
+  const dy = to[1] - from[1]
+  const len = Math.hypot(dx, dy) || 1
+  const t = Math.min(dist, len) / len
+  return [from[0] + dx * t, from[1] + dy * t]
+}
+
+// Orthogonal path with ROUNDED corners — mirrors D2's pathData (task 122): straight `L` to just
+// before each bend, then a quadratic through the corner (control = the corner point), radius clamped
+// to half of each adjacent segment so it never overshoots. < 3 points → plain polyline.
+const CORNER_R = 8
+function roundedPolyPath(pts: number[][], r = CORNER_R): string {
+  if (pts.length < 3) return polyPath(pts)
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const prev = pts[i - 1]
+    const cur = pts[i]
+    const next = pts[i + 1]
+    const inLen = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]) || 1
+    const outLen = Math.hypot(next[0] - cur[0], next[1] - cur[1]) || 1
+    const ru = Math.min(r, inLen / 2, outLen / 2)
+    const ix = cur[0] - ((cur[0] - prev[0]) / inLen) * ru
+    const iy = cur[1] - ((cur[1] - prev[1]) / inLen) * ru
+    const ox = cur[0] + ((next[0] - cur[0]) / outLen) * ru
+    const oy = cur[1] + ((next[1] - cur[1]) / outLen) * ru
+    d += ` L${ix.toFixed(1)},${iy.toFixed(1)} Q${cur[0].toFixed(1)},${cur[1].toFixed(1)} ${ox.toFixed(1)},${oy.toFixed(1)}`
+  }
+  const last = pts[pts.length - 1]
+  d += ` L${last[0].toFixed(1)},${last[1].toFixed(1)}`
+  return d
+}
+
 function arrow(x: number, y: number, angle: number, color: string): string {
   const len = 10
   const a1 = angle + Math.PI - 0.4
@@ -419,8 +455,16 @@ function toSVG(layout: Layout): string {
 
   for (const e of layout.edges) {
     const pts = e.points.map((p) => [p[0] + OFF, p[1] + OFF])
+    // Retract the line ends so the stroke meets the arrowhead base / border, not the node centre
+    // (mirrors D2's getArrowheadAdjustments); the arrowhead itself stays at the original endpoint.
+    const rp = pts.map((p) => [p[0], p[1]])
+    if (rp.length >= 2) {
+      const last = rp.length - 1
+      rp[last] = towards(rp[last], rp[last - 1], e.dstArrow !== false ? 9 : 1)
+      rp[0] = towards(rp[0], rp[1], e.srcArrow === true ? 9 : 1)
+    }
     const d =
-      layout.edgeStyle === 'orthogonal' ? polyPath(pts) : splinePath(pts)
+      layout.edgeStyle === 'orthogonal' ? roundedPolyPath(rp) : splinePath(rp)
     parts.push(
       `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"/>`,
     )

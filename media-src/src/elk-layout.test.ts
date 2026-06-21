@@ -129,4 +129,49 @@ describe('elk-layout (main-thread fake worker)', () => {
       expect(py).toBeLessThanOrEqual(box.y + box.h + M)
     }
   })
+
+  // task 122: a labelled edge is handed to ELK with a SIZED label so the layered pass reserves a gap
+  // for it. Proof = the inter-layer gap is wider WITH a (tall) label than without — i.e. ELK made room
+  // instead of us dropping the text on the route. The label position then comes from ELK.
+  it('reserves layer space for an edge label (variant A)', async () => {
+    const a = {
+      id: 'a',
+      idVal: 'a',
+      label: 'A',
+      shape: 'rectangle',
+      special: empty(),
+    }
+    const b = {
+      id: 'b',
+      idVal: 'b',
+      label: 'B',
+      shape: 'rectangle',
+      special: empty(),
+    }
+    const withLabel = (label?: string) =>
+      g(
+        [a, b],
+        [{ src: 'a', dst: 'b', srcArrow: false, dstArrow: true, label }],
+      )
+    const gap = (layout: any) => {
+      const na = layout.nodes.find((n: any) => n.s.id === 'a')!
+      const nb = layout.nodes.find((n: any) => n.s.id === 'b')!
+      return nb.y - (na.y + na.h)
+    }
+    const plain = await layoutElk(withLabel(undefined), sizer, elk)
+    const labelled = await layoutElk(
+      withLabel('a fairly long edge label'),
+      sizer,
+      elk,
+    )
+    // ELK widened the gap to fit the label dummy node
+    expect(gap(labelled)).toBeGreaterThan(gap(plain))
+    // and the label is emitted with a position
+    const e = labelled.edges.find(
+      (x: any) => x.label === 'a fairly long edge label',
+    )!
+    expect(e).toBeTruthy()
+    expect(typeof e.lx).toBe('number')
+    expect(typeof e.ly).toBe('number')
+  })
 })

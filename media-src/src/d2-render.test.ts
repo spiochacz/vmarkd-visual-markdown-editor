@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { renderD2Graph, unsupportedReason, type Sizer } from './d2-render'
+import {
+  renderD2Graph,
+  toSVG,
+  unsupportedReason,
+  type Sizer,
+} from './d2-render'
 import type { D2Graph } from './d2-wasm'
 
 // deterministic label sizer for tests (no Canvas): ~8px/char, 20px tall line
@@ -332,5 +337,51 @@ describe('unsupportedReason (faithful-by-construction guard)', () => {
         ]),
       ),
     ).toMatch(/near/)
+  })
+})
+
+describe('toSVG connection rendering (task 122 — rounded corners + endpoint trim)', () => {
+  const mk = (points: number[][], dstArrow = true) =>
+    ({
+      W: 200,
+      H: 200,
+      nodes: [],
+      edges: [{ points, srcArrow: false, dstArrow }],
+      edgeStyle: 'orthogonal',
+    }) as any
+
+  it('rounds an orthogonal bend with a quadratic corner', () => {
+    const svg = toSVG(
+      mk([
+        [0, 0],
+        [0, 60],
+        [60, 60],
+      ]),
+    )
+    expect(svg).toContain('Q') // bend → rounded corner, not a hard L join
+  })
+
+  it('keeps a straight 2-point edge as a plain line (no corner)', () => {
+    const svg = toSVG(
+      mk([
+        [0, 0],
+        [80, 0],
+      ]),
+    )
+    expect(svg).not.toContain('Q')
+  })
+
+  it('trims the line end back from the arrowhead endpoint', () => {
+    // endpoint (60,60)+OFF(10) = 70,70; the stroke must stop SHORT of it (arrow stays at 70,70).
+    const svg = toSVG(
+      mk([
+        [0, 0],
+        [0, 60],
+        [60, 60],
+      ]),
+    )
+    const pathD = svg.match(/<path d="([^"]+)" fill="none"/)?.[1] ?? ''
+    expect(pathD).not.toContain('70.0,70.0') // line was retracted; not drawn to the raw endpoint
+    expect(svg).toContain('<polygon') // arrowhead still drawn (at the endpoint)
   })
 })
