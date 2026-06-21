@@ -279,6 +279,65 @@ export async function layoutElk(
 }
 
 // Full ELK render: boot the engine, lay out, emit SVG. Returns null if ELK can't be loaded.
+// Snap top-level leaf rows to a common centre-Y so a mixed-height row (e.g. a tall cylinder next to
+// short rectangles) doesn't leave boxes 30-40px off a shared line — ELK centres uniform rows but not
+// mixed-height ones, and there's no ELK flag for it (verified). Group leaves by centre-Y proximity,
+// snap each group to its median, then drag every edge endpoint by the Δy of its nearest node so the
+// routes follow; toSVG's simplifyRoute re-cleans them. Container children are left alone (their coords
+// are container-relative — moving them could break the container). task 122.
+export function alignRows(layout: Layout): void {
+  const leaves = layout.nodes.filter(
+    (n) => n.kind !== 'container' && n.kind !== 'grid' && !n.s.container,
+  )
+  const groups: { cy: number; items: PlacedNode[] }[] = []
+  for (const n of [...leaves].sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2))) {
+    const cy = n.y + n.h / 2
+    const g = groups.find((gr) => Math.abs(gr.cy - cy) < 40)
+    if (g) {
+      g.items.push(n)
+      g.cy = (g.cy * (g.items.length - 1) + cy) / g.items.length
+    } else groups.push({ cy, items: [n] })
+  }
+  const delta = new Map<string, number>()
+  for (const g of groups) {
+    if (g.items.length < 2) continue
+    const cys = g.items.map((n) => n.y + n.h / 2).sort((a, b) => a - b)
+    const median = cys[Math.floor(cys.length / 2)]
+    for (const n of g.items) {
+      const d = median - (n.y + n.h / 2)
+      if (Math.abs(d) > 0.5) {
+        n.y += d
+        delta.set(n.s.id, d)
+      }
+    }
+  }
+  if (!delta.size) return
+  const centres = layout.nodes.map((n) => ({
+    id: n.s.id,
+    x: n.x + n.w / 2,
+    y: n.y + n.h / 2,
+  }))
+  const nearestDelta = (px: number, py: number): number => {
+    let best: string | null = null
+    let bd = Number.POSITIVE_INFINITY
+    for (const c of centres) {
+      const dd = (c.x - px) ** 2 + (c.y - py) ** 2
+      if (dd < bd) {
+        bd = dd
+        best = c.id
+      }
+    }
+    return best ? delta.get(best) || 0 : 0
+  }
+  for (const e of layout.edges) {
+    if (!e.points.length) continue
+    const f = e.points[0]
+    f[1] += nearestDelta(f[0], f[1])
+    const l = e.points[e.points.length - 1]
+    l[1] += nearestDelta(l[0], l[1])
+  }
+}
+
 export async function renderD2GraphElk(
   graph: D2Graph,
   measure: Sizer,
@@ -288,6 +347,7 @@ export async function renderD2GraphElk(
     const elk = await bootElk(cdn)
     if (!elk) return null
     const layout = await layoutElk(graph, measure, elk)
+    alignRows(layout)
     return toSVG(layout)
   } catch {
     // ELK can fail in the webview (e.g. blob-worker / CSP). NEVER let that break D2 rendering —

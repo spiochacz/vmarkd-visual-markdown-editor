@@ -17,8 +17,15 @@
 > ("reserves layer space", "rounds an orthogonal bend", "trims the line end", "masks the line under an
 > on-line label", "straightens an interior staircase", "keeps it when blocked", "drops collinear") +
 > visual `our_elk_simplified.png` (32 real bends, long routes now clean L's, matches D2).
-> **Still open:** variant B (collision-aware label nudge for the densest hubs, where ELK's reserved
-> slot still crowds). Routing-quality beyond ELK still escalates to task 115 (libavoid).
+> (5) **row alignment** (`alignRows` in `elk-layout.ts`, in `renderD2GraphElk`): snap top-level leaf
+> rows to a common centre-Y (ELK centres uniform rows but not mixed-height ones — a tall cylinder next
+> to short rects left boxes ~34px off; no ELK flag fixes it, verified). Drag edge endpoints by their
+> nearest node's Δy; `simplifyRoute` re-cleans. Container children left alone. Verified across 6
+> diagrams (`tmp/d2-compare/cmp_aligned_*.png`) — fixes mixed rows, no-op on uniform/simple ones,
+> nothing broke. Unit tests: snaps a grouped row, leaves container children alone.
+> **Still open:** cross-container alignment (a top-level node like Redis vs a container's content row —
+> deliberately skipped); variant B (collision-aware label nudge for the densest hubs). Routing beyond
+> ELK still escalates to task 115 (libavoid).
 >
 > **ELK bend flags are a dead end (verified):** `unnecessaryBendpoints`/`favorStraightEdges` don't
 > change the visible routing (they only add collinear points → same drawn line). D2 reduces bends in

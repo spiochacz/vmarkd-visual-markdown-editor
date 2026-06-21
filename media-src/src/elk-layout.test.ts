@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createRequire } from 'node:module'
-import { layoutElk } from './elk-layout'
+import { layoutElk, alignRows } from './elk-layout'
 import type { D2Graph } from './d2-wasm'
 import type { Sizer } from './d2-render'
 
@@ -173,5 +173,61 @@ describe('elk-layout (main-thread fake worker)', () => {
     expect(e).toBeTruthy()
     expect(typeof e.lx).toBe('number')
     expect(typeof e.ly).toBe('number')
+  })
+})
+
+describe('alignRows (task 122 — snap mixed-height rows to a common centre-Y)', () => {
+  const node = (id: string, y: number, h: number) => ({
+    s: { id },
+    x: 0,
+    y,
+    w: 40,
+    h,
+    kind: 'leaf',
+  })
+
+  it('snaps two grouped leaves to a shared centre-Y', () => {
+    const layout: any = {
+      W: 200,
+      H: 200,
+      edgeStyle: 'orthogonal',
+      // a (cy=120) and b (cy=140) are within 40 → one row; c (cy=200) is separate
+      nodes: [node('a', 100, 40), node('b', 120, 40), node('c', 180, 40)],
+      edges: [
+        {
+          points: [
+            [20, 140],
+            [20, 200],
+          ],
+          srcArrow: false,
+          dstArrow: true,
+        },
+      ],
+    }
+    alignRows(layout)
+    const cy = (n: any) => n.y + n.h / 2
+    expect(cy(layout.nodes[0])).toBe(cy(layout.nodes[1])) // a and b now share a row
+  })
+
+  it('leaves container children alone', () => {
+    const layout: any = {
+      W: 200,
+      H: 200,
+      edgeStyle: 'orthogonal',
+      nodes: [
+        { ...node('x', 100, 40) },
+        {
+          s: { id: 'y', container: 'box' },
+          x: 0,
+          y: 130,
+          w: 40,
+          h: 40,
+          kind: 'leaf',
+        },
+      ],
+      edges: [],
+    }
+    alignRows(layout)
+    expect(layout.nodes[1].y).toBe(130) // container child untouched
   })
 })
