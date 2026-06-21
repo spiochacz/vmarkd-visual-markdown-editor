@@ -194,3 +194,34 @@ test.fixme('d2 renders a themed SVG from a compile-only WASM graph', async ({
   expect(info.rects).toBeGreaterThan(0)
   expect(info.stroke).toBe('currentColor')
 })
+
+// Task 102 — Vega / Vega-Lite layout. Unlike the other custom languages above, the harness WYSIWYG
+// DOM DOES expose `.language-vega-lite` + its rendered SVG, so the layout (centring + shrink-to-fit)
+// is asserted LIVE here — vega was originally omitted from the diagram-centring CSS, so this guards
+// the regression. The SVG must carry a viewBox for `max-width:100%` to scale it WITHOUT distorting.
+test('vega-lite chart renders centered with a scalable (viewBox) SVG', async ({
+  page,
+}) => {
+  await page.waitForSelector('.language-vega-lite[data-processed] svg', {
+    timeout: 30000,
+  })
+  const info = await page.evaluate(() => {
+    const svg = document.querySelector(
+      '.language-vega-lite[data-processed] svg',
+    )
+    const block = svg?.closest('.language-vega-lite')
+    const embed = svg?.closest('.vega-embed')
+    return {
+      hasSvg: !!svg,
+      hasViewBox: !!svg?.getAttribute('viewBox'),
+      blockTextAlign: block ? getComputedStyle(block).textAlign : '',
+      embedDisplay: embed ? getComputedStyle(embed).display : '',
+      svgMaxWidth: svg ? getComputedStyle(svg).maxWidth : '',
+    }
+  })
+  expect(info.hasSvg).toBe(true)
+  expect(info.hasViewBox).toBe(true) // required so max-width scaling keeps aspect (no distortion)
+  expect(info.blockTextAlign).toBe('center') // centring rule applied
+  expect(info.embedDisplay).toBe('inline-block') // so text-align actually centres .vega-embed
+  expect(info.svgMaxWidth).not.toBe('none') // shrink-to-fit rule applied (default would be 'none')
+})

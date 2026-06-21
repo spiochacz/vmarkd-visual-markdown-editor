@@ -494,6 +494,22 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   max-width: 100%;
   height: auto;
 }
+/* Vega / Vega-Lite: center + shrink-to-fit, mirroring d2. vega-embed wraps the chart in
+   `.vega-embed` (inline-block), so `text-align:center` on the block centres it; the chart SVG
+   carries a viewBox (verified empirically), so `max-width:100%; height:auto` scales it DOWN to the
+   content column without distorting (and lets a wide `hconcat` fit). NOTE: unlike d2 the SVG is a
+   GRANDCHILD (`.language-vega > .vega-embed > svg`), so this is a descendant selector, not `> svg`.
+   Without this, vega rendered left-aligned at intrinsic size and a wide spec overflowed the column. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-vega, .language-vega-lite) {
+  text-align: center;
+}
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-vega, .language-vega-lite)
+  svg {
+  max-width: 100%;
+  height: auto;
+}
 /* LOUD unsupported-shape fallback: a note + the raw source, made visually distinct (left border)
    so it reads as "intentionally not rendered", NOT a broken/blank diagram. */
 .d2-unsupported-note {
