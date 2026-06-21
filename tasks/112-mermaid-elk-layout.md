@@ -1,6 +1,10 @@
 # Task 112 — Mermaid ELK layout engine (opt-in alternative to dagre)
 
-**Status:** planned (spike-first — vendor `@mermaid-js/layout-elk` + size gate before building)
+**Status:** planned (spike-first — vendor `@mermaid-js/layout-elk` + size gate before building).
+**KEY UPDATE 2026-06-21:** the D2 ELK work (task 104/113, `d2-elk-main-thread` memory + ADR-0004)
+already hit and **solved** the elkjs-in-webview blocker — `@mermaid-js/layout-elk` will hit the SAME
+one, and should **reuse our main-thread ELK boot** instead of vendoring a second elkjs. See the new
+"Reuse our webview-ELK" section below — it changes the bundle plan (no second ~1.4 MB elkjs).
 
 ## Origin / motivation
 
@@ -41,7 +45,9 @@ belongs in the same wrapped `initialize`.
    + a `fetch-mermaid-layout-elk.mjs` (mirror `media-src/scripts/fetch-mermaid.mjs`),
    `source.json` (version + sha256), MIT license file; a `syncMermaidLayoutElk()` in
    `build.mjs` copying it into `media/vditor/dist/js/mermaid/` next to `mermaid.min.js`.
-   The package is ESM and pulls **elkjs (~1.4 MB min)** — that's the real cost (size gate).
+   The package is ESM and normally pulls **elkjs (~1.4 MB min)** — but see "Reuse our webview-ELK":
+   we already ship elkjs for D2, so vendor only the thin `layout-elk` adapter and share our instance
+   (and our fake-worker — stock elkjs's blob worker rejects in the webview anyway).
 2. **Register the loader once** in `mermaid-theme.ts`'s hook:
    `mermaid.registerLayoutLoaders(elkLayouts)` right after we capture `window.mermaid`,
    so `layout: "elk"` resolves (otherwise mermaid errors / falls back to dagre).
@@ -56,6 +62,30 @@ belongs in the same wrapped `initialize`.
    `addScript` gating mermaid already uses.
 5. **Live re-render** — make `reRenderMermaid` (task 59) re-run cleanly when the layout
    setting flips, same as a theme flip.
+
+## ⚠️ Reuse our webview-ELK (learned from D2 ELK, 2026-06-21)
+
+**The blocker `@mermaid-js/layout-elk` WILL hit:** stock `elkjs` spawns a **blob Web Worker**, and
+`elk.layout()` **rejects under the VS Code webview** (CSP / worker origin) — it silently fails or
+falls back. We already proved + fixed this for D2: vendored `elk-api.js` + `elk-worker.min.js` as an
+**in-process FAKE worker**, esbuild-bundled via `elk-entry.ts` → `media/vditor/dist/js/elk/elk-main.js`
+→ constructs the ELK instance on the **MAIN THREAD** and exposes `window.__vmarkdElk`
+(`elk-layout.ts bootElk`, `d2-elk-main-thread` memory, ADR-0004; verified by `d2-elk.spec`).
+
+**So the bundle plan changes:** do NOT vendor a second full elkjs inside `@mermaid-js/layout-elk`.
+Instead point mermaid's elk loader at our existing main-thread instance:
+- `@mermaid-js/layout-elk` internally does `new ELK()` (which spawns the blob worker). Patch/shim it to
+  use **our** already-booted `window.__vmarkdElk` (or construct via our `elk-api` + fake-worker factory,
+  the same `workerFactory` we pass in `elk-layout.ts`). An esbuild source patch (like `VDITOR_TS_PATCHES`)
+  on the layout-elk entry is the likely seam.
+- Net: we ship **one** elkjs (already present for D2), shared by D2 + mermaid → the ~1.4 MB size gate in
+  step 1/decisions is **already paid** by D2; mermaid-elk adds only the thin `layout-elk` adapter.
+- `bootElk(cdn)` is already the lazy main-thread loader; mermaid's elk path can `await` it before render.
+
+**This is the single biggest reuse** (per the 2026-06-21 D2↔mermaid discussion): our hard-won
+main-thread ELK boot, NOT our `toSVG` (that's a D2-shape renderer — mermaid keeps its own renderer +
+theming). Empirical ELK option knowledge (task 113: BALANCED BK, model-order, spacing) can also seed
+mermaid-elk config where it exposes knobs (it exposes few — see Out of scope).
 
 ## Interactions to verify (don't regress)
 
@@ -73,11 +103,11 @@ belongs in the same wrapped `initialize`.
 - **Setting name + grouping**: `vmarkd.mermaid.layout` vs `vmarkd.diagram.mermaidLayout`
   vs folding under `vmarkd.theme.*` (it's *layout*, not theme — argues for its own key).
   Values `dagre` | `elk` (no `auto` — there's no content-theme signal that implies a layout).
-- **Bundle strategy**: standalone elk script loaded on demand vs a combined mermaid+elk
-  vendor bundle. On-demand keeps the dagre path cheap; combined is simpler but always pays
-  the size. Lean on-demand given the ~1.4 MB.
-- **Is the size worth it?** elkjs ~1.4 MB is the biggest single renderer asset we'd add.
-  Gate the decision on measured min+gzip, lazy-loaded so it's zero-cost unless used.
+- **Bundle strategy**: SUPERSEDED by "Reuse our webview-ELK" — share the D2 main-thread elkjs
+  (`window.__vmarkdElk` via `bootElk`) rather than bundling a second one. Open question is just the
+  esbuild seam to make `@mermaid-js/layout-elk` use our instance/`workerFactory` instead of `new ELK()`.
+- **Is the size worth it?** elkjs's ~1.4 MB is **already paid by D2** — sharing it makes mermaid-elk
+  nearly free (only the thin `layout-elk` adapter). If D2 ELK is ever removed, re-open the size gate.
 
 ## Out of scope
 
@@ -96,5 +126,14 @@ belongs in the same wrapped `initialize`.
   `%%{init:{"layout":"elk"}}%%` diagram renders without the loader-missing error; theme
   palette still applied. **Verify coverage** on the new code (AGENTS.md).
 - Build: `syncMermaidLayoutElk()` verifies sha256 + ships MIT license; `fixMermaidVersion`
-  still green; bundle size delta recorded (lazy → 0 unless elk used).
+  still green; bundle size delta recorded (≈0 — elkjs shared with D2, not re-vendored).
+- **Real-VS-Code (mandatory):** `elk.layout()` actually RESOLVES in the webview (uses our
+  `window.__vmarkdElk` / fake-worker, not a blob worker) — mirror `test/vscode-e2e/d2-elk.spec`; a
+  harness/headless pass is NOT sufficient proof for this (the blob-worker rejection is webview-only).
 - `tsc` + `biome` + full vitest + Playwright green, headless (`xvfb-run -a`).
+
+## See also
+- `d2-elk-main-thread` memory + ADR-0004 (the fake-worker main-thread ELK we reuse), `elk-entry.ts`,
+  `elk-layout.ts` (`bootElk`, `window.__vmarkdElk`), `test/vscode-e2e/d2-elk.spec`.
+- Task 104 (our D2 renderer — note we DON'T reuse its `toSVG` here; mermaid keeps its own renderer),
+  task 113 (empirical ELK option findings), task 86 (mermaid theme pairing — stays orthogonal to layout).

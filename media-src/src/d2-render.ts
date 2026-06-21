@@ -1,4 +1,5 @@
 import dagre from '@dagrejs/dagre'
+import { mix } from '../../src/mermaid-palettes'
 import type { D2Graph, D2Shape } from './d2-wasm'
 
 const FONT_SIZE = 16
@@ -71,8 +72,14 @@ function labelColor(fill?: string): string {
 }
 
 // Common shape paint attributes from D2 style (B: strokeWidth/strokeDash/opacity + per-node stroke/fill).
-function paintAttrs(s: Partial<D2Shape>, defaultFill: string): string {
-  const stroke = s.stroke || 'currentColor'
+// `defaultStroke`/`defaultFill` are the palette defaults (task 119) used only when the shape sets none —
+// an explicit source `style:{fill/stroke}` always wins (fallback-only, like task 94's DOT defaults).
+function paintAttrs(
+  s: Partial<D2Shape>,
+  defaultFill: string,
+  defaultStroke = 'currentColor',
+): string {
+  const stroke = s.stroke || defaultStroke
   const fill = s.fill || defaultFill
   const sw = s.strokeWidth ? Number(s.strokeWidth) : 2
   let a = `fill="${fill}" stroke="${stroke}" stroke-width="${sw}"`
@@ -82,9 +89,55 @@ function paintAttrs(s: Partial<D2Shape>, defaultFill: string): string {
   return a
 }
 
-// Label paint: explicit fontColor > contrast-vs-fill > currentColor; + bold/italic.
-function textAttrs(s: Partial<D2Shape>, fontSize = FONT_SIZE): string {
-  const color = s.fontColor || labelColor(s.fill)
+// Task 119 — D2-style auto-colour. A content-paired palette ({bg,fg,line,accent,muted}) → the default
+// fill/stroke a shape uses when it has no explicit style. Theme-aware: tints derive from the palette so
+// they read on light AND dark (no baked background — the canvas stays transparent over the themed
+// surface). No palette → today's monochrome (transparent fill, currentColor stroke).
+export interface D2Palette {
+  bg: string
+  fg: string
+  line?: string
+  accent?: string
+  muted?: string
+}
+interface D2Style {
+  leafFill: string
+  leafStroke: string
+  contFill: string
+  contStroke: string
+  contOpacity: string
+  mono: boolean
+}
+export function paletteStyle(p?: D2Palette): D2Style {
+  if (!p)
+    return {
+      leafFill: 'transparent',
+      leafStroke: 'currentColor',
+      contFill: 'transparent',
+      contStroke: 'currentColor',
+      contOpacity: '0.04',
+      mono: true,
+    }
+  const accent = p.accent || p.line || p.fg
+  return {
+    leafFill: mix(p.bg, accent, 0.1), // subtle accent-tinted surface
+    leafStroke: accent, // coloured border, D2-like
+    contFill: mix(p.bg, p.fg, 0.05), // muted container surface
+    contStroke: mix(p.fg, accent, 0.4),
+    contOpacity: '1',
+    mono: false,
+  }
+}
+
+// Label paint: explicit fontColor > contrast-vs-fill > currentColor; + bold/italic. `effFill` is the
+// palette default fill the shape actually got (task 119) — contrast the label against THAT (not the
+// undefined source fill) so text stays legible on a coloured tint on light AND dark themes.
+function textAttrs(
+  s: Partial<D2Shape>,
+  fontSize = FONT_SIZE,
+  effFill?: string,
+): string {
+  const color = s.fontColor || labelColor(s.fill || effFill)
   let a = `font-size="${fontSize}" fill="${color}"`
   if (s.bold) a += ' font-weight="700"'
   if (s.italic) a += ' font-style="italic"'
@@ -363,8 +416,12 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
   }
 }
 
-export function renderD2Graph(graph: D2Graph, measure: Sizer): string {
-  return toSVG(layoutDagre(graph, measure))
+export function renderD2Graph(
+  graph: D2Graph,
+  measure: Sizer,
+  palette?: D2Palette,
+): string {
+  return toSVG(layoutDagre(graph, measure), palette)
 }
 
 // ---------------- SVG generation (engine-neutral) ----------------
@@ -653,11 +710,12 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36)
 }
 
-function toSVG(layout: Layout): string {
+function toSVG(layout: Layout, palette?: D2Palette): string {
   const OFF = 10
   const W = layout.W + 20
   const H = layout.H + 20
   const themeColor = 'currentColor'
+  const sty = paletteStyle(palette) // task 119 — default shape fill/stroke (mono when no palette)
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`,
   ]
@@ -732,6 +790,28 @@ function toSVG(layout: Layout): string {
     )
   }
 
+  // Background pass — containers + grids FIRST so their fills sit BEHIND the edges. With task 119
+  // colouring the container fill is OPAQUE; drawing it after the edges (the old order) hid any edge
+  // entering a container (e.g. bus→shipping vanished under the Services fill). Leaves are drawn AFTER
+  // the edges (foreground pass below) so an edge still trims cleanly at a leaf border.
+  for (const n of layout.nodes) {
+    if (n.kind !== 'container' && n.kind !== 'grid') continue
+    const s = n.s
+    const left = n.x + OFF
+    const top = n.y + OFF
+    if (n.kind === 'grid' && n.grid) {
+      parts.push(drawGrid(s, n.grid, left, top, n.w, n.h, sty))
+      continue
+    }
+    const rx = s.borderRadius || 6
+    parts.push(
+      `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${n.w.toFixed(1)}" height="${n.h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.contFill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
+    )
+    parts.push(
+      `<text x="${(left + 8).toFixed(1)}" y="${(top + 16).toFixed(1)}" ${textAttrs(s, FONT_SIZE, sty.contFill)}>${esc2(s.label)}</text>`,
+    )
+  }
+
   for (const { e, route, lpos } of drawn) {
     // Retract the line ends so the stroke meets the arrowhead base / border, not the node centre
     // (mirrors D2's getArrowheadAdjustments); the arrowhead itself stays at the original endpoint.
@@ -765,12 +845,10 @@ function toSVG(layout: Layout): string {
     }
   }
 
-  // containers + grids behind leaves
-  const order = (k: NodeKind) => (k === 'container' || k === 'grid' ? 0 : 1)
-  const nodes = layout.nodes
-    .slice()
-    .sort((a, b) => order(a.kind) - order(b.kind))
-  for (const n of nodes) {
+  // Foreground pass — leaf shapes (sql/class/basic) ON TOP of the edges (edges trim at their borders,
+  // so covering an edge end is correct). Containers + grids were drawn in the background pass above.
+  for (const n of layout.nodes) {
+    if (n.kind === 'container' || n.kind === 'grid') continue
     const s = n.s
     const left = n.x + OFF
     const top = n.y + OFF
@@ -779,20 +857,6 @@ function toSVG(layout: Layout): string {
     const cx = left + w / 2
     const cy = top + h / 2
 
-    if (n.kind === 'grid' && n.grid) {
-      parts.push(drawGrid(s, n.grid, left, top, w, h))
-      continue
-    }
-    if (n.kind === 'container') {
-      const rx = s.borderRadius || 6
-      parts.push(
-        `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, 'transparent')} fill-opacity="${s.fill ? '1' : '0.04'}"/>`,
-      )
-      parts.push(
-        `<text x="${(left + 8).toFixed(1)}" y="${(top + 16).toFixed(1)}" ${textAttrs(s)}>${esc2(s.label)}</text>`,
-      )
-      continue
-    }
     if (n.kind === 'sql') {
       parts.push(drawSqlTable(s, n.sqlCols || [0, 0, 0], left, top, w, h))
       continue
@@ -807,28 +871,28 @@ function toSVG(layout: Layout): string {
       case 'circle':
       case 'oval':
         parts.push(
-          `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(w / 2).toFixed(1)}" ry="${(h / 2).toFixed(1)}" ${paintAttrs(s, 'transparent')}/>`,
+          `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="${(w / 2).toFixed(1)}" ry="${(h / 2).toFixed(1)}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       case 'diamond':
         parts.push(
-          `<polygon points="${cx},${top.toFixed(1)} ${(left + w).toFixed(1)},${cy} ${cx},${(top + h).toFixed(1)} ${left.toFixed(1)},${cy}" ${paintAttrs(s, 'transparent')}/>`,
+          `<polygon points="${cx},${top.toFixed(1)} ${(left + w).toFixed(1)},${cy} ${cx},${(top + h).toFixed(1)} ${left.toFixed(1)},${cy}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       case 'hexagon': {
         const i = w * 0.22
         parts.push(
-          `<polygon points="${(left + i).toFixed(1)},${top.toFixed(1)} ${(left + w - i).toFixed(1)},${top.toFixed(1)} ${(left + w).toFixed(1)},${cy} ${(left + w - i).toFixed(1)},${(top + h).toFixed(1)} ${(left + i).toFixed(1)},${(top + h).toFixed(1)} ${left.toFixed(1)},${cy}" ${paintAttrs(s, 'transparent')}/>`,
+          `<polygon points="${(left + i).toFixed(1)},${top.toFixed(1)} ${(left + w - i).toFixed(1)},${top.toFixed(1)} ${(left + w).toFixed(1)},${cy} ${(left + w - i).toFixed(1)},${(top + h).toFixed(1)} ${(left + i).toFixed(1)},${(top + h).toFixed(1)} ${left.toFixed(1)},${cy}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       }
       case 'cylinder': {
         const ry = Math.min(h * 0.12, 12)
         parts.push(
-          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)} L${(left + w).toFixed(1)},${(top + h - ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${left},${(top + h - ry).toFixed(1)} Z" ${paintAttrs(s, 'transparent')}/>`,
+          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)} L${(left + w).toFixed(1)},${(top + h - ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${left},${(top + h - ry).toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         parts.push(
-          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 0 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)}" fill="none" stroke="${s.stroke || themeColor}" stroke-width="${s.strokeWidth || 2}"/>`,
+          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 0 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
         )
         break
       }
@@ -836,10 +900,10 @@ function toSVG(layout: Layout): string {
         // D2 queue = a horizontal cylinder: rounded right cap + an inner vertical arc.
         const rx = Math.min(w * 0.12, 14)
         parts.push(
-          `<path d="M${left.toFixed(1)},${top.toFixed(1)} L${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 1 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)} L${left.toFixed(1)},${(top + h).toFixed(1)} Z" ${paintAttrs(s, 'transparent')}/>`,
+          `<path d="M${left.toFixed(1)},${top.toFixed(1)} L${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 1 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)} L${left.toFixed(1)},${(top + h).toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         parts.push(
-          `<path d="M${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 0 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)}" fill="none" stroke="${s.stroke || themeColor}" stroke-width="${s.strokeWidth || 2}"/>`,
+          `<path d="M${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 0 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
         )
         break
       }
@@ -851,10 +915,10 @@ function toSVG(layout: Layout): string {
         const bx2 = left + w * 0.84
         const by = top + h
         parts.push(
-          `<circle cx="${cx.toFixed(1)}" cy="${hcy.toFixed(1)}" r="${hr.toFixed(1)}" ${paintAttrs(s, 'transparent')}/>`,
+          `<circle cx="${cx.toFixed(1)}" cy="${hcy.toFixed(1)}" r="${hr.toFixed(1)}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         parts.push(
-          `<path d="M${bx1.toFixed(1)},${by.toFixed(1)} A${((bx2 - bx1) / 2).toFixed(1)},${(by - hcy - hr).toFixed(1)} 0 0 1 ${bx2.toFixed(1)},${by.toFixed(1)} Z" ${paintAttrs(s, 'transparent')}/>`,
+          `<path d="M${bx1.toFixed(1)},${by.toFixed(1)} A${((bx2 - bx1) / 2).toFixed(1)},${(by - hcy - hr).toFixed(1)} 0 0 1 ${bx2.toFixed(1)},${by.toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       }
@@ -863,17 +927,17 @@ function toSVG(layout: Layout): string {
         const x = left
         const y = top
         parts.push(
-          `<path d="M${(x + w * 0.26).toFixed(1)},${(y + h * 0.88).toFixed(1)} A${(w * 0.16).toFixed(1)},${(h * 0.24).toFixed(1)} 0 0 1 ${(x + w * 0.22).toFixed(1)},${(y + h * 0.46).toFixed(1)} A${(w * 0.18).toFixed(1)},${(h * 0.34).toFixed(1)} 0 0 1 ${(x + w * 0.5).toFixed(1)},${(y + h * 0.3).toFixed(1)} A${(w * 0.18).toFixed(1)},${(h * 0.32).toFixed(1)} 0 0 1 ${(x + w * 0.78).toFixed(1)},${(y + h * 0.46).toFixed(1)} A${(w * 0.16).toFixed(1)},${(h * 0.24).toFixed(1)} 0 0 1 ${(x + w * 0.74).toFixed(1)},${(y + h * 0.88).toFixed(1)} Z" ${paintAttrs(s, 'transparent')}/>`,
+          `<path d="M${(x + w * 0.26).toFixed(1)},${(y + h * 0.88).toFixed(1)} A${(w * 0.16).toFixed(1)},${(h * 0.24).toFixed(1)} 0 0 1 ${(x + w * 0.22).toFixed(1)},${(y + h * 0.46).toFixed(1)} A${(w * 0.18).toFixed(1)},${(h * 0.34).toFixed(1)} 0 0 1 ${(x + w * 0.5).toFixed(1)},${(y + h * 0.3).toFixed(1)} A${(w * 0.18).toFixed(1)},${(h * 0.32).toFixed(1)} 0 0 1 ${(x + w * 0.78).toFixed(1)},${(y + h * 0.46).toFixed(1)} A${(w * 0.16).toFixed(1)},${(h * 0.24).toFixed(1)} 0 0 1 ${(x + w * 0.74).toFixed(1)},${(y + h * 0.88).toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       }
       default:
         parts.push(
-          `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, 'transparent')}/>`,
+          `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
     }
     parts.push(
-      `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s)}>${esc2(s.label)}</text>`,
+      `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s, FONT_SIZE, sty.leafFill)}>${esc2(s.label)}</text>`,
     )
   }
   parts.push('</svg>')
@@ -888,15 +952,16 @@ function drawGrid(
   top: number,
   w: number,
   h: number,
+  sty: D2Style,
 ): string {
   const out: string[] = []
   const rx = s.borderRadius || 6
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, 'transparent')} fill-opacity="${s.fill ? '1' : '0.04'}"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.contFill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
   )
   if (s.label)
     out.push(
-      `<text x="${(left + 8).toFixed(1)}" y="${(top + gi.headerH - 6).toFixed(1)}" ${textAttrs(s)}>${esc2(s.label)}</text>`,
+      `<text x="${(left + 8).toFixed(1)}" y="${(top + gi.headerH - 6).toFixed(1)}" ${textAttrs(s, FONT_SIZE, sty.contFill)}>${esc2(s.label)}</text>`,
     )
   const ox = left + 8
   const oy = top + gi.headerH + 8
@@ -908,10 +973,10 @@ function drawGrid(
     const cx = ox + col * gi.cellW + 8
     const cy = oy + row * gi.cellH + 8
     out.push(
-      `<rect x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" width="${cw.toFixed(1)}" height="${ch.toFixed(1)}" rx="${c.borderRadius || 4}" ${paintAttrs(c, 'transparent')}/>`,
+      `<rect x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" width="${cw.toFixed(1)}" height="${ch.toFixed(1)}" rx="${c.borderRadius || 4}" ${paintAttrs(c, sty.leafFill, sty.leafStroke)}/>`,
     )
     out.push(
-      `<text x="${(cx + cw / 2).toFixed(1)}" y="${(cy + ch / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(c)}>${esc2(c.label)}</text>`,
+      `<text x="${(cx + cw / 2).toFixed(1)}" y="${(cy + ch / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(c, FONT_SIZE, sty.leafFill)}>${esc2(c.label)}</text>`,
     )
   })
   return out.join('\n')
