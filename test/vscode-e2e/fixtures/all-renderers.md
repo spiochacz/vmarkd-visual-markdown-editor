@@ -248,7 +248,9 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ---
 
-## 16. Vega-Lite — declarative data-viz (task 102)
+## 16. Vega / Vega-Lite — declarative data-viz (task 102)
+
+Vega-Lite (high-level grammar):
 
 ```vega-lite
 {
@@ -265,6 +267,76 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
   },
   "width": 300,
   "height": 200
+}
+```
+
+Full Vega (low-level grammar — same renderer; `$schema` selects the dialect):
+
+```vega
+{
+  "$schema": "https://vega.github.io/schema/vega/v5.json",
+  "width": 300,
+  "height": 200,
+  "padding": 5,
+  "data": [
+    {
+      "name": "table",
+      "values": [
+        {"category":"A","amount":28},{"category":"B","amount":55},
+        {"category":"C","amount":43},{"category":"D","amount":91},
+        {"category":"E","amount":81},{"category":"F","amount":53}
+      ]
+    }
+  ],
+  "scales": [
+    {
+      "name": "xscale",
+      "type": "band",
+      "domain": {"data": "table", "field": "category"},
+      "range": "width",
+      "padding": 0.05
+    },
+    {
+      "name": "yscale",
+      "domain": {"data": "table", "field": "amount"},
+      "nice": true,
+      "range": "height"
+    }
+  ],
+  "axes": [
+    {"orient": "bottom", "scale": "xscale"},
+    {"orient": "left", "scale": "yscale"}
+  ],
+  "marks": [
+    {
+      "type": "rect",
+      "from": {"data": "table"},
+      "encode": {
+        "enter": {
+          "x": {"scale": "xscale", "field": "category"},
+          "width": {"scale": "xscale", "band": 1},
+          "y": {"scale": "yscale", "field": "amount"},
+          "y2": {"scale": "yscale", "value": 0}
+        }
+      }
+    }
+  ]
+}
+```
+
+Three charts side by side — use **one** spec with `hconcat` (markdown can't put separate fenced
+blocks in a row; the renderer makes one full-width block per fence). `vconcat` stacks, and
+`concat` + `"columns": N` makes a grid:
+
+```vega-lite
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "data": {"values": [{"a":"X","b":4},{"a":"Y","b":7},{"a":"Z","b":2}]},
+  "hconcat": [
+    {"mark":"bar","width":110,"height":110,"encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}}},
+    {"mark":"line","width":110,"height":110,"encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}}},
+    {"mark":"point","width":110,"height":110,"encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}}}
+  ]
 }
 ```
 
@@ -363,7 +435,7 @@ endsolid cube
 
 ---
 
-## D2 — compile-only WASM + dagre + currentColor (task 104)
+## 18. D2 — compile-only WASM + dagre + currentColor (task 104)
 
 A plain diagram (nodes, edge labels, a container, shaped nodes) renders to themed SVG:
 
@@ -417,7 +489,7 @@ bob -> alice: hey
 
 ---
 
-## 18. Theme coverage table
+## 19. Theme coverage table
 
 | Renderer | Themed? | Mechanism |
 |----------|:-------:|-----------|
@@ -440,7 +512,7 @@ bob -> alice: hey
 
 ---
 
-## 19. Callouts / GitHub Alerts (task 106)
+## 20. Callouts / GitHub Alerts (task 106)
 
 5 GitHub types:
 
@@ -470,7 +542,7 @@ A plain blockquote (NOT a callout — should not get a box):
 
 ---
 
-## 20. HTML comments — visible in the editor
+## 21. HTML comments — visible in the editor
 
 <!-- This comment should be visible as muted text in IR, WYSIWYG, and Preview. -->
 
