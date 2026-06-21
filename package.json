@@ -363,11 +363,11 @@
               "elk"
             ],
             "enumDescriptions": [
-              "Dagre — fast hierarchical layout (bundled, the default). Lightest footprint; straight/curved edges.",
-              "ELK (Eclipse Layout Kernel) — orthogonal right-angle edge routing + stronger container nesting, closer to canonical D2. Lazy-loads a ~470 KB engine on the first D2 render."
+              "Dagre — fast hierarchical layout (bundled). Lightest footprint; straight/curved edges.",
+              "ELK (Eclipse Layout Kernel) — orthogonal right-angle edge routing + stronger container nesting, closer to canonical D2 (the default). Lazy-loads a ~1.4 MB engine on the first D2 render."
             ],
-            "default": "dagre",
-            "description": "Layout engine for D2 diagrams. \"elk\" gives cleaner orthogonal software-architecture layouts at the cost of a one-time ~470 KB engine download (loaded only when a D2 block is rendered); \"dagre\" is the lightweight bundled default."
+            "default": "elk",
+            "description": "Layout engine for D2 diagrams. \"elk\" (the default) gives cleaner orthogonal software-architecture layouts at the cost of a one-time ~1.4 MB engine load (only when a D2 block is rendered); \"dagre\" is a lighter bundled alternative with straight/curved edges."
           },
           "vmarkd.theme.highlightHeadings": {
             "order": 5,
