@@ -820,11 +820,47 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       w: (d.e.lw as number) + 6,
       h: (d.e.lh as number) + 2,
     }))
+  // Canvas bounds: W/H were sized to NODE extents only (layout.W/H). But the A* back-edge router may route a
+  // loop in its PAD margin OUTSIDE the node box (even negative x — see cicd2's reg→staging cycle-closer), and
+  // labels can poke past too. Such geometry gets clipped by the viewBox AND masked out by the label mask
+  // (whose white rect is 0,0,W,H → anything outside reads as masked). Grow the viewBox + mask to cover ALL
+  // drawn geometry (nodes + simplified routes + label boxes). Only the overflowing side grows, so diagrams
+  // that fit stay byte-identical (vb* === 0/W/H).
+  let gMinX = 0
+  let gMinY = 0
+  let gMaxX = W
+  let gMaxY = H
+  for (const n of layout.nodes) {
+    gMinX = Math.min(gMinX, n.x + OFF)
+    gMinY = Math.min(gMinY, n.y + OFF)
+    gMaxX = Math.max(gMaxX, n.x + OFF + n.w)
+    gMaxY = Math.max(gMaxY, n.y + OFF + n.h)
+  }
+  for (const d of drawn)
+    for (const p of d.route) {
+      gMinX = Math.min(gMinX, p[0])
+      gMinY = Math.min(gMinY, p[1])
+      gMaxX = Math.max(gMaxX, p[0])
+      gMaxY = Math.max(gMaxY, p[1])
+    }
+  for (const r of labelRects) {
+    gMinX = Math.min(gMinX, r.x)
+    gMinY = Math.min(gMinY, r.y)
+    gMaxX = Math.max(gMaxX, r.x + r.w)
+    gMaxY = Math.max(gMaxY, r.y + r.h)
+  }
+  const VBMARGIN = 6
+  const vbX = gMinX < 0 ? Math.floor(gMinX) - VBMARGIN : 0
+  const vbY = gMinY < 0 ? Math.floor(gMinY) - VBMARGIN : 0
+  const vbW = (gMaxX > W ? Math.ceil(gMaxX) + VBMARGIN : W) - vbX
+  const vbH = (gMaxY > H ? Math.ceil(gMaxY) + VBMARGIN : H) - vbY
+  if (vbX !== 0 || vbY !== 0 || vbW !== W || vbH !== H)
+    parts[0] = `<svg xmlns="http://www.w3.org/2000/svg" width="${vbW}" height="${vbH}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`
   const maskId = `vmarkd-d2lbl-${djb2(`${W}x${H}:${layout.edges.map((e) => e.label || '').join('|')}`)}`
   const maskAttr = labelRects.length ? ` mask="url(#${maskId})"` : ''
   if (labelRects.length) {
     parts.push(
-      `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect x="0" y="0" width="${W}" height="${H}" fill="white"/>${labelRects
+      `<defs><mask id="${maskId}" maskUnits="userSpaceOnUse" x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}"><rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="white"/>${labelRects
         .map(
           (r) =>
             `<rect x="${r.x.toFixed(1)}" y="${r.y.toFixed(1)}" width="${r.w.toFixed(1)}" height="${r.h.toFixed(1)}" fill="black"/>`,
