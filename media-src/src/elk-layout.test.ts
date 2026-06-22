@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createRequire } from 'node:module'
-import { layoutElk, alignRows } from './elk-layout'
+import { layoutElk, alignRows, spreadCrampedRows } from './elk-layout'
 import type { D2Graph } from './d2-wasm'
 import type { Sizer } from './d2-render'
 
@@ -229,5 +229,88 @@ describe('alignRows (task 122 — snap mixed-height rows to a common centre-Y)',
     }
     alignRows(layout)
     expect(layout.nodes[1].y).toBe(130) // container child untouched
+  })
+})
+
+describe('spreadCrampedRows (task 122 — push rows apart for a jammed horizontal edge)', () => {
+  // a leaf box "low" (top=100) with an edge whose interior horizontal segment runs at y=90 — only 10px
+  // above the box top (< CLEAR 16), x-overlapping it → cramped. Expect the box pushed down so the gap
+  // reaches TARGET (24); the segment itself must NOT move (only rows below the boundary shift).
+  const crampedLayout = (): any => ({
+    W: 300,
+    H: 300,
+    edgeStyle: 'orthogonal',
+    nodes: [{ s: { id: 'low' }, x: 80, y: 100, w: 60, h: 40, kind: 'leaf' }],
+    edges: [
+      {
+        srcArrow: false,
+        dstArrow: true,
+        points: [
+          [50, 50],
+          [50, 90],
+          [150, 90], // horizontal segment at y=90 (10px above the box top at 100)
+          [150, 130],
+          [150, 200],
+        ],
+      },
+    ],
+  })
+
+  it('pushes the jammed lower row down to TARGET clearance, leaving the segment in place', () => {
+    const layout = crampedLayout()
+    const h0 = layout.H
+    spreadCrampedRows(layout)
+    // box pushed down by need = 24 - (100 - 90) = 14
+    expect(layout.nodes[0].y).toBe(114)
+    // segment untouched (it sits above the boundary)
+    expect(layout.edges[0].points[1][1]).toBe(90)
+    expect(layout.edges[0].points[2][1]).toBe(90)
+    // the box-side points (below the boundary) follow down by 14
+    expect(layout.edges[0].points[3][1]).toBe(144)
+    expect(layout.edges[0].points[4][1]).toBe(214)
+    expect(layout.H).toBe(h0 + 14)
+  })
+
+  it('is a no-op when no horizontal segment is cramped against a box', () => {
+    const layout: any = {
+      W: 300,
+      H: 300,
+      edgeStyle: 'orthogonal',
+      // box top at 200 is far below the y=90 segment → not cramped
+      nodes: [{ s: { id: 'low' }, x: 80, y: 200, w: 60, h: 40, kind: 'leaf' }],
+      edges: [
+        {
+          srcArrow: false,
+          dstArrow: true,
+          points: [
+            [50, 50],
+            [50, 90],
+            [150, 90],
+            [150, 130],
+            [150, 160],
+          ],
+        },
+      ],
+    }
+    spreadCrampedRows(layout)
+    expect(layout.nodes[0].y).toBe(200)
+    expect(layout.H).toBe(300)
+  })
+
+  it('grows a container that straddles the push boundary', () => {
+    const layout = crampedLayout()
+    // a container wrapping the jammed box (spans 80..180, boundary at 100 is inside it)
+    layout.nodes.push({
+      s: { id: 'box' },
+      x: 70,
+      y: 80,
+      w: 100,
+      h: 100,
+      kind: 'container',
+    })
+    spreadCrampedRows(layout)
+    const box = layout.nodes.find((n: any) => n.s.id === 'box')
+    expect(box.y).toBe(80) // top above the boundary → not shifted
+    expect(box.h).toBe(114) // grown by 14 to keep wrapping the moved child
   })
 })

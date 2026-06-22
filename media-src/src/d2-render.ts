@@ -561,10 +561,32 @@ function pointSegDist(q: number[], a: number[], b: number[]): number {
 // side channel so its inline label clears the parallel edge (e.g. d1_pipeline run sits on its x=80
 // channel, not the x=94 attach column). Straightening that channel back to the column would strand the
 // label beside the line (then the label mask cuts empty space) — so refuse it. task 122
+// Proper segment-segment intersection (for the edge-crossing guard below).
+function segsCross(
+  p1: number[],
+  p2: number[],
+  p3: number[],
+  p4: number[],
+): boolean {
+  const d = (a: number[], b: number[], c: number[]) =>
+    (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+  const d1 = d(p3, p4, p1)
+  const d2 = d(p3, p4, p2)
+  const d3 = d(p1, p2, p3)
+  const d4 = d(p1, p2, p4)
+  return (
+    ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+  )
+}
+// `otherSegs`: segments of all OTHER edges. simplifyRoute straightens a jog only if the new segment hits
+// no box AND crosses none of these — without it, straightening a back-edge's detour can pull a long
+// segment across another edge (e.g. sso `assertion` straightened over `lookup`). task 122
 export function simplifyRoute(
   pts: number[][],
   obstacles: Rect[],
   anchor?: number[],
+  otherSegs: number[][][] = [],
 ): number[][] {
   let p = dedupeCollinear(pts)
   // Box clearance for a straightened segment. D2's deleteBends treats a box as hit at edge_node_spacing-1
@@ -603,6 +625,12 @@ export function simplifyRoute(
           ) ||
           obstacles.some((r) =>
             segHitsRect(corner[0], corner[1], D[0], D[1], r, M),
+          ) ||
+          // don't straighten a jog across another edge (would create a crossing the bent route avoided)
+          otherSegs.some(
+            (s) =>
+              segsCross(A, corner, s[0], s[1]) ||
+              segsCross(corner, D, s[0], s[1]),
           )
         if (!blocked && keepsAnchor(corner)) {
           p = dedupeCollinear([...p.slice(0, i), corner, ...p.slice(i + 2)])
@@ -736,7 +764,18 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       const k = pairKey(e.src, e.dst)
       pairCount.set(k, (pairCount.get(k) || 0) + 1)
     }
-  const drawn = layout.edges.map((e) => {
+  // raw (pre-simplify) segments per edge, in drawn coords — the edge-crossing reference for simplifyRoute
+  const rawSegs = layout.edges.map((e) => {
+    const s: number[][][] = []
+    const pp = e.points
+    for (let i = 0; i + 1 < pp.length; i++)
+      s.push([
+        [pp[i][0] + OFF, pp[i][1] + OFF],
+        [pp[i + 1][0] + OFF, pp[i + 1][1] + OFF],
+      ])
+    return s
+  })
+  const drawn = layout.edges.map((e, ei) => {
     // Keep the line under its inline label (ELK's lx/ly) so simplifyRoute doesn't straighten the label
     // channel out from under the text — but ONLY for parallel pairs, where ELK made that channel to keep
     // their labels apart. For a lone labelled edge, let it straighten (no anchor). task 122
@@ -746,11 +785,15 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       isParallel && e.label && e.lx != null && e.ly != null
         ? [e.lx + OFF, e.ly + OFF]
         : undefined
+    const otherSegs: number[][][] = []
+    for (let j = 0; j < rawSegs.length; j++)
+      if (j !== ei) for (const s of rawSegs[j]) otherSegs.push(s)
     const route = straightenEnds(
       simplifyRoute(
         e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
         obstacles,
         anchor,
+        otherSegs,
       ),
       obstacles,
     )

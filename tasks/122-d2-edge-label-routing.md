@@ -1,5 +1,27 @@
 # Task 122 — D2 edge-label placement + connection polish
 
+> **Status:** 🟢 LAYOUT PIPELINE BAKED TO PRODUCTION (2026-06-22). The full post-process pipeline +
+> back-edge A* router — developed/validated in the `tmp/d2-compare` harness — is now shipped in
+> production code:
+> - **`elk-layout.ts` `layoutElk` toggles baked** (no more `__` A/B globals): port pre-pass always runs;
+>   leaf widening = D2's exact rule (`outs>=2||ins>=2 → max(natural, max(in,out)*40)`); `portConstraints`
+>   always `FIXED_SIDE`; per-container `edgeEdge=24` / `edgeNode=60` / `contPad=24`; root `edgeNode=60`.
+>   Removed the dead `__selWiden` and `__portOrderCx` branches.
+> - **New `d2-refine.ts` `refineLayout(layout)`** runs the validated pipeline in order:
+>   `alignRows → adaptiveLayerGaps → spreadCrampedRows → monotonizeEdges → deleteBendsEndpoints →
+>   deOvershoot → detourContainers → alignChannels → bundleSiblings → back-edge A* reroute → placeLabels`
+>   (labels last so they follow rerouted back-edges). Constants baked: gap `clamp(40+22*lines,40,280)`,
+>   `CHANSPACE=40`, A* `M=10/COMFORT=40/COMFW=6/EDGECLR=20/PAD=64/STEP=24`. Back-edge reroute preserves
+>   both ELK port stubs verbatim, A*-routes only the middle, and is greedily accepted only if it does not
+>   increase the total crossing count.
+> - **`renderD2GraphElk` wired** to `refineLayout` (was inline `alignRows + spreadCrampedRows`).
+> - **Verified:** 6-diagram production crossing check (`tmp/d2-compare/verify-prod.mjs`, renders through
+>   the PRODUCTION `renderD2GraphElk`) matches the harness exactly — ecommerce 0, vpc 1, cqrs 0, ml 1,
+>   sso 0, gitops 0. Unit tests added (`d2-refine.test.ts`): deOvershoot collapses an opposite-direction
+>   H-V-H bump; bundleSiblings raises a late jog (keeping ≥CHANSPACE 40 from a blocking horizontal); a
+>   back-edge reroute preserves both stubs. Full unit suite 770 pass; build + biome clean (new/changed
+>   files). Still pending: the e2e/real-VS-Code no-overlap assertion (point below).
+>
 > **Status:** 🟡 PARTIAL (2026-06-21). **SHIPPED:** (1) variant A — labels handed to ELK with measured
 > size + `elk.edgeLabels.placement: CENTER`, ELK reserves a gap (label dummy node), we read its
 > position (`elk-layout.ts`); (2) connection polish in `toSVG` (`d2-render.ts`) — **rounded corners**
@@ -47,6 +69,34 @@
 > **ELK bend flags are a dead end (verified):** `unnecessaryBendpoints`/`favorStraightEdges` don't
 > change the visible routing (they only add collinear points → same drawn line). D2 reduces bends in
 > its renderer (`deleteBends`), not via ELK — which is what (4) replicates.
+>
+> **Port distribution — SHIPPED at natural width (2026-06-21):** the "future refactor" above is now in
+> `elk-layout.ts`: each leaf gets one ELK port per edge, spread across its EXISTING border at
+> `x = w*(k+1)/(n+1)` (1 edge → dead centre, `portConstraints: FIXED_POS`, out=SOUTH/in=NORTH), keyed by
+> the absolute `graph.edges` index so the edge loop references the same port. Boxes are NOT widened
+> (`w` = natural). Containers get no ports (edge uses the free container port). A box-widening variant
+> (D2's `Width=max(W, max(in,out)*PORT_SPACING)`, `PORT_SPACING=40`) exists behind the harness-only
+> `__portWiden` global — tested, NOT adopted: it only spreads heavy-fanout nodes a little, lines
+> reconverge past the box, and boxes stop holding equal width in a row. Harness A/B toggles
+> `__noPorts`/`__portWiden` are gated by `globalThis` and never set in production.
+>
+> **Single-edge centring — verified + caveat (2026-06-21):** measured Δ=0.0 for every 1-out/1-in leaf
+> (raw ELK port = box centre, both in a trivial chain and full ecommerce). The IN line renders dead
+> centre. The OUT line can drift a few px off-centre because `straightenEnds` collapses a small
+> port-attach step (< `MAX_KINK`) to run the line straight into the next node (e.g. ecommerce `index`:
+> port 854, but Search Index sits at 867 → exit straightened to ~858). Intentional (matches D2
+> deleteBends); leaving it. (Diagnostic gotcha: `toSVG` adds `OFF=10` to every drawn point — a guide
+> drawn at raw coords sits 10px left of the render.)
+>
+> **Straightness lever = node-placement, NOT group width (verified 2026-06-21):** giving boxes more
+> horizontal room (`elk.spacing.nodeNode` 40→100) did NOT straighten edges (ecommerce 1/17 → 0/17, mean
+> horizontal Δ unchanged ~77px) — the box↔partner offset is fan-out geometry, not crowding. What helps:
+> `elk.layered.nodePlacement.strategy = NETWORK_SIMPLEX` (vs default Brandes-Köpf/BALANCED) →
+> dead-straight verticals jump per diagram: ecommerce 1→7, ml 6→8, cqrs 5→7, gitops 4→6, vpc 5→5, sso
+> 6→6 (≤17 edges each), SAME width, no crossing regression on the 6-diagram gallery. **Kept BALANCED**
+> (user decision 2026-06-21) for parity with D2's own d2elklayout (which uses BALANCED) — the extra
+> straight lines weren't worth diverging from the D2 look. Re-run: `tmp/d2-compare/run30.mjs` (metric),
+> `run31.mjs` (gallery).
 
 ## Source-verified facts (D2 v0.7.1 / commit 2446e24, fetched 2026-06-21)
 From `d2renderers/d2svg/d2svg.go` + `d2layouts/d2elklayout/layout.go`:

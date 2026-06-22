@@ -18,6 +18,7 @@ import {
   leafInfo,
   toSVG,
 } from './d2-render'
+import { refineLayout } from './d2-refine'
 
 declare const window: any
 
@@ -62,6 +63,34 @@ export async function layoutElk(
   const { containers, gridIds, inGrid } = classify(graph)
   const gridInfo = computeGridInfo(graph, measure, gridIds)
 
+  // Grid children are absorbed into the grid leaf (drawn by drawGrid), so they are NOT ELK nodes —
+  // an edge touching one must be dropped, else ELK references a non-existent node.
+  const elkNodeIds = new Set(
+    graph.shapes.filter((s) => !inGrid(s)).map((s) => s.id),
+  )
+
+  // Port distribution along the NATURAL width (task 122): give each leaf its own ELK port per edge,
+  // spread evenly across the existing border (1 edge → centred), so a node's edges leave/enter at
+  // separate points instead of bunching at one — WITHOUT widening the box (D2 widens; we don't).
+  // Outgoing → SOUTH (DOWN layout), incoming → NORTH. Keyed by the graph.edges index so the edge loop
+  // below references the same port. Containers get no ports (edges use the container id, free port).
+  const outList = new Map<string, number[]>()
+  const inList = new Map<string, number[]>()
+  const push = (m: Map<string, number[]>, k: string, v: number) => {
+    const a = m.get(k)
+    if (a) a.push(v)
+    else m.set(k, [v])
+  }
+  // Always build ports (task 122): each leaf gets one ELK port per edge, spread evenly across its border
+  // so a node's edges leave/enter at separate points instead of bunching at one. Containers get no ports.
+  graph.edges.forEach((e, gi) => {
+    if (!elkNodeIds.has(e.src) || !elkNodeIds.has(e.dst)) return
+    if (!containers.has(e.src)) push(outList, e.src, gi)
+    if (!containers.has(e.dst)) push(inList, e.dst, gi)
+  })
+  const portId = (id: string, side: 'o' | 'i', gi: number) =>
+    `${id}${side}${gi}`
+
   // id -> kind/size, so we can rebuild PlacedNodes after ELK assigns positions.
   const meta = new Map<
     string,
@@ -77,35 +106,77 @@ export async function layoutElk(
       const kids = graph.shapes
         .filter((c) => c.container === s.id)
         .map(buildNode)
+      // Per-container edge↔edge spacing (task 122): tightens the routing LANES so an edge crossing a
+      // container's interior sits 24px from the next lane (matches D2's container lanes). Baked from the
+      // validated harness value.
+      const ee = 24
+      // Per-container edge↔node spacing (task 122): widens the routing LANES beside the node column inside
+      // a container (where back-edges like ml's fail/retrain loop around), matching D2's wider container
+      // lanes. Must be set on the CONTAINER node (not root) to affect intra-container routing. Baked = 60.
+      const en = 60
+      // Container padding (task 122): the gap between a line routed at the container edge and the box WALL
+      // is the padding — the lever for "lines too close to the grouping box". Baked = 24 (top keeps the
+      // extra 20px for the container label: 34 + (24 - 14) = 44).
+      const cp = 24
+      const pad = `[top=${34 + (cp - 14)},left=${cp},bottom=${cp},right=${cp}]`
       const node = {
         id: s.id,
         labels: [{ text: s.label }],
         children: kids,
         edges: [] as any[],
-        layoutOptions: { 'elk.padding': '[top=34,left=14,bottom=14,right=14]' },
+        layoutOptions: {
+          'elk.padding': pad,
+          'elk.spacing.edgeEdge': String(ee),
+          'elk.layered.spacing.edgeEdgeBetweenLayers': String(ee),
+          'elk.spacing.edgeNode': String(en),
+          'elk.layered.spacing.edgeNodeBetweenLayers': String(en),
+        },
       }
       nodeById.set(s.id, node)
       return node
     }
     const li = leafInfo(s, measure, gridInfo)
     meta.set(s.id, { s, kind: li.kind, sqlCols: li.sqlCols, grid: li.grid })
-    const node = {
+    const outs = outList.get(s.id) || []
+    const ins = inList.get(s.id) || []
+    const nPorts = Math.max(outs.length, ins.length)
+    // D2's EXACT node-widening rule (d2elklayout/layout.go, task 122): a node with ≥2 ports on either side
+    // widens to max(natural, max(in,out)*40) so its ports (and thus the lines leaving/entering) spread
+    // ~40px apart instead of bunching on a narrow box. Baked from the validated harness path.
+    let w = li.w
+    if (outs.length >= 2 || ins.length >= 2) w = Math.max(li.w, nPorts * 40)
+    // Ports spread evenly across the border: k-th of n at w*(k+1)/(n+1) → 1 edge centred.
+    const ports = [
+      ...outs.map((gi, k) => ({
+        id: portId(s.id, 'o', gi),
+        x: (w * (k + 1)) / (outs.length + 1),
+        y: li.h,
+        layoutOptions: { 'elk.port.side': 'SOUTH' },
+      })),
+      ...ins.map((gi, k) => ({
+        id: portId(s.id, 'i', gi),
+        x: (w * (k + 1)) / (ins.length + 1),
+        y: 0,
+        layoutOptions: { 'elk.port.side': 'NORTH' },
+      })),
+    ]
+    const node: any = {
       id: s.id,
-      width: li.w,
+      width: w,
       height: li.h,
       labels: [{ text: s.label }],
+    }
+    if (ports.length) {
+      node.ports = ports
+      // FIXED_SIDE (task 122): lets ELK ORDER + position ports on the SOUTH/NORTH side it was assigned,
+      // which kills declaration-order crossings. Baked from the validated harness path.
+      node.layoutOptions = { 'elk.portConstraints': 'FIXED_SIDE' }
     }
     nodeById.set(s.id, node)
     return node
   }
 
   const roots = graph.shapes.filter((s) => !s.container).map(buildNode)
-
-  // Grid children are absorbed into the grid leaf (drawn by drawGrid), so they are NOT ELK nodes —
-  // an edge touching one must be dropped, else ELK references a non-existent node.
-  const elkNodeIds = new Set(
-    graph.shapes.filter((s) => !inGrid(s)).map((s) => s.id),
-  )
 
   // The container chain above a shape (nearest first), used to find an edge's owning container.
   const parentOf = new Map<string, string | undefined>()
@@ -140,7 +211,9 @@ export async function layoutElk(
   >()
   const rootEdges: any[] = []
   let ei = 0
+  let gi = -1 // absolute graph.edges index (matches the port pre-pass keys)
   for (const e of graph.edges) {
+    gi++
     if (!elkNodeIds.has(e.src) || !elkNodeIds.has(e.dst)) continue
     const id = `e${ei++}`
     edgeMeta.set(id, {
@@ -151,7 +224,10 @@ export async function layoutElk(
       dst: e.dst,
     })
     const owner = lcaContainer(e.src, e.dst)
-    const elkEdge: any = { id, sources: [e.src], targets: [e.dst] }
+    // Use the per-edge port when the endpoint is a leaf with ports; else the node id (containers).
+    const srcRef = outList.has(e.src) ? portId(e.src, 'o', gi) : e.src
+    const dstRef = inList.has(e.dst) ? portId(e.dst, 'i', gi) : e.dst
+    const elkEdge: any = { id, sources: [srcRef], targets: [dstRef] }
     // Hand ELK the SIZED label so its layered pass reserves a gap for it (a "label dummy node") and
     // routes around it — instead of us dropping the text on the raw route midpoint where it collides
     // with lines/boxes (task 122). Measure with the SAME sizer + edge font size toSVG draws with, or
@@ -193,12 +269,13 @@ export async function layoutElk(
       // Spacing/padding matched to D2 for clearer layer separation.
       'elk.layered.spacing.nodeNodeBetweenLayers': '70',
       'elk.spacing.nodeNode': '40',
-      'elk.spacing.edgeNode': '40',
-      // The lever for how far bends sit from boxes: this is the edge↔node clearance INSIDE the
-      // inter-layer gap, where a DOWN-routed edge turns into its horizontal channel. ELK's default is
-      // only 10 → bends hug the box. D2 sets it to 40 (its EdgeNodeSpacing → spacing.edgeNodeBetweenLayers,
-      // d2elklayout/layout.go DefaultOpts), so its turns sit ~30px farther out. Match it. (task 122)
-      'elk.layered.spacing.edgeNodeBetweenLayers': '40',
+      // Edge↔node lane spacing (task 122): the lever for how far bends sit from boxes — the edge↔node
+      // clearance INSIDE the inter-layer gap, where a DOWN-routed edge turns into its horizontal channel.
+      // ELK's default is only 10 → bends hug the box; D2 sets it wider (EdgeNodeSpacing → both keys,
+      // d2elklayout/layout.go). Baked = 60 from the validated harness path so back-edges loop around boxes
+      // with room (matches the per-container `en`).
+      'elk.spacing.edgeNode': '60',
+      'elk.layered.spacing.edgeNodeBetweenLayers': '60',
       'elk.layered.spacing.edgeEdgeBetweenLayers': '50',
       'elk.padding': '[top=50,left=50,bottom=50,right=50]',
       // Place edge labels in space ELK reserves for them (task 122) — paired with the sized,
@@ -358,6 +435,71 @@ export function alignRows(layout: Layout): void {
   }
 }
 
+// After ELK layout + alignRows, a horizontal edge segment can sit jammed against a box top with no
+// vertical room — e.g. cqrs `read` runs just above Orders View, squeezed between the projection row and
+// the cylinder tops. ELK minimises edge length so it parks the turn right on the box edge and never
+// reclaims the gap. spreadCrampedRows finds such segments and pushes the lower row (the box it's jammed
+// against) + everything below it DOWN by a step-function Δy so the segment gets TARGET clearance —
+// dragging every node y, every edge point y, and every straddling container's height to match. Routes
+// stay orthogonal: only y shifts, by a step function of y, so a vertical segment crossing the boundary
+// just lengthens. No-op when nothing is cramped. task 122.
+export function spreadCrampedRows(layout: Layout): void {
+  const CLEAR = 16 // a horizontal segment within this of a box top counts as cramped
+  const TARGET = 24 // clearance to give it after spreading
+  const MINLEN = 26 // ignore short port-attach jogs
+  const leaves = layout.nodes.filter(
+    (n) => n.kind !== 'container' && n.kind !== 'grid',
+  )
+  const xov = (a1: number, a2: number, b1: number, b2: number) =>
+    Math.min(a2, b2) - Math.max(a1, b1) > 4
+  // Each cramped horizontal segment → one push-down event at the lower-row top it's jammed against.
+  const events: { y: number; d: number }[] = []
+  for (const e of layout.edges) {
+    const p = e.points
+    for (let i = 1; i + 2 <= p.length - 1; i++) {
+      const a = p[i]
+      const b = p[i + 1]
+      if (Math.abs(a[1] - b[1]) > 0.5) continue // horizontal only
+      if (Math.abs(a[0] - b[0]) < MINLEN) continue // skip short jogs
+      const yH = a[1]
+      const x1 = Math.min(a[0], b[0])
+      const x2 = Math.max(a[0], b[0])
+      let lowTop = Number.POSITIVE_INFINITY
+      for (const B of leaves) {
+        if (!xov(x1, x2, B.x, B.x + B.w)) continue
+        const top = B.y
+        if (top > yH + 0.5 && top - yH < CLEAR && top < lowTop) lowTop = top
+      }
+      if (!Number.isFinite(lowTop)) continue
+      const need = TARGET - (lowTop - yH)
+      if (need <= 0) continue
+      const ex = events.find((ev) => Math.abs(ev.y - lowTop) < 20)
+      if (ex) ex.d = Math.max(ex.d, Math.ceil(need))
+      else events.push({ y: lowTop, d: Math.ceil(need) })
+    }
+  }
+  if (!events.length) return
+  // Step function: a coordinate at/below an event boundary shifts down by that event's Δ (cumulative).
+  const shift = (y: number) =>
+    events.reduce((s, ev) => s + (ev.y <= y + 0.5 ? ev.d : 0), 0)
+  // A container straddling an event boundary grows by that Δ so it keeps wrapping its moved children.
+  const inside = (top: number, bot: number) =>
+    events.reduce(
+      (s, ev) => s + (ev.y > top + 0.5 && ev.y < bot - 0.5 ? ev.d : 0),
+      0,
+    )
+  for (const n of layout.nodes) {
+    const top = n.y
+    n.y += shift(top)
+    if (n.kind === 'container') n.h += inside(top, top + n.h)
+  }
+  for (const e of layout.edges) {
+    for (const pt of e.points) pt[1] += shift(pt[1])
+    if (e.ly != null) e.ly += shift(e.ly)
+  }
+  layout.H += events.reduce((s, ev) => s + ev.d, 0)
+}
+
 export async function renderD2GraphElk(
   graph: D2Graph,
   measure: Sizer,
@@ -368,7 +510,9 @@ export async function renderD2GraphElk(
     const elk = await bootElk(cdn)
     if (!elk) return null
     const layout = await layoutElk(graph, measure, elk)
-    alignRows(layout)
+    // Full post-process pipeline (task 122): row alignment, adaptive gaps, channel/bend cleanup, back-edge
+    // A* reroute, label placement. See d2-refine.ts for the exact ordering and rationale.
+    refineLayout(layout)
     return toSVG(layout, palette)
   } catch {
     // ELK can fail in the webview (e.g. blob-worker / CSP). NEVER let that break D2 rendering —
