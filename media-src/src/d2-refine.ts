@@ -4,6 +4,7 @@
 // same-label sibling bundling, a back-edge A* reroute, and final label placement. Every pass mutates the
 // shared `Layout` in place and is guarded so it never increases the drawn crossing count. The passes were
 // developed and validated in tmp/d2-compare (harness2.ts + run67.mjs) and baked here verbatim.
+import { labelAnchor } from './d2-render'
 import type { Layout, PlacedEdge, PlacedNode } from './d2-render'
 import { alignRows, spreadCrampedRows } from './elk-layout'
 
@@ -862,32 +863,13 @@ function bundleSiblings(layout: Layout): void {
   }
 }
 
-// task 122: re-place each edge label at the arc-midpoint of its FINAL route (D2's INSIDE_MIDDLE_CENTER).
-// ELK's lx/ly gets mangled by the Y-shift passes; recomputing from the post-processed route puts the
-// label back on the line. Parallel same-direction edges stagger along the arc so wide labels don't
-// collide. Runs LAST so labels follow the rerouted back-edges.
+// task 122: re-place each edge label on a STRAIGHT segment of its FINAL route, never across a bend (D2's
+// INSIDE_MIDDLE_CENTER, corner-aware — see labelAnchor). ELK's lx/ly gets mangled by the Y-shift passes;
+// recomputing from the post-processed route puts the label back on the line. Parallel same-direction edges
+// stagger along the arc (frac) so wide labels don't collide. Runs LAST so labels follow the rerouted
+// back-edges. (lx/ly is used by toSVG for guarded parallel pairs; lone edges are re-placed there on the
+// simplified route via the same labelAnchor.)
 function placeLabels(layout: Layout): void {
-  const arcAt = (pts: Pt[], frac: number): Pt => {
-    const segs: number[] = []
-    let tot = 0
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
-      segs.push(l)
-      tot += l
-    }
-    let d = tot * frac
-    for (let i = 0; i + 1 < pts.length; i++) {
-      if (d <= segs[i] || i === pts.length - 2) {
-        const t = segs[i] ? d / segs[i] : 0
-        return [
-          pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t,
-          pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t,
-        ]
-      }
-      d -= segs[i]
-    }
-    return pts[0]
-  }
   const groups = new Map<string, PlacedEdge[]>()
   for (const e of layout.edges) {
     if (!e.label || e.points.length < 2) continue
@@ -897,17 +879,12 @@ function placeLabels(layout: Layout): void {
     else groups.set(k, [e])
   }
   for (const es of groups.values()) {
-    if (es.length === 1) {
-      const m = arcAt(es[0].points, 0.5)
-      es[0].lx = m[0]
-      es[0].ly = m[1]
-    } else {
-      es.forEach((e, i) => {
-        const m = arcAt(e.points, (i + 1) / (es.length + 1))
-        e.lx = m[0]
-        e.ly = m[1]
-      })
-    }
+    es.forEach((e, i) => {
+      const frac = es.length === 1 ? 0.5 : (i + 1) / (es.length + 1)
+      const m = labelAnchor(e.points as number[][], e.lw ?? 0, e.lh ?? 0, frac)
+      e.lx = m[0]
+      e.ly = m[1]
+    })
   }
 }
 

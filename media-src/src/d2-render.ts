@@ -707,27 +707,97 @@ export function straightenEnds(pts: number[][], obstacles: Rect[]): number[][] {
   return p
 }
 // Point at half the arc-length of a polyline — where an on-line label sits (D2 INSIDE_MIDDLE_CENTER).
-function polylineMidpoint(pts: number[][]): number[] {
-  if (pts.length < 2) return pts[0] ?? [0, 0]
-  const seg: number[] = []
-  let total = 0
-  for (let i = 0; i < pts.length - 1; i++) {
-    const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
-    seg.push(d)
-    total += d
+// Candidate label positions on STRAIGHT segments of the route, never across a bend (task 122). Centring a
+// label at the arc-length midpoint (the old behaviour) lands it ON a corner whenever a bend sits near
+// mid-route (common for L/staircase routes) — the centred, line-masking box then covers the bend. Instead,
+// for each straight run long enough to hold the box clear of BOTH corners (label width matters on a
+// horizontal run, height on a vertical run), sample positions along its clear band. Results are ordered by
+// closeness to the desired arc fraction, so candidates[0] is the most central choice; toSVG walks the list
+// to DECONFLICT overlapping labels (try the next position when one collides). Falls back to the longest
+// segment's centre if no run is long enough. `frac` lets parallel siblings stagger (1/3, 2/3, …).
+type LSeg = {
+  a: number[]
+  b: number[]
+  len: number
+  horiz: boolean
+  start: number
+}
+export function labelCandidates(
+  pts: number[][],
+  lw: number,
+  lh: number,
+  frac = 0.5,
+): number[][] {
+  const n = pts.length
+  if (n < 2) return [pts[0] ?? [0, 0]]
+  const segs: LSeg[] = []
+  let tot = 0
+  for (let i = 0; i + 1 < n; i++) {
+    const a = pts[i]
+    const b = pts[i + 1]
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const horiz = Math.abs(a[1] - b[1]) <= Math.abs(a[0] - b[0])
+    segs.push({ a, b, len, horiz, start: tot })
+    tot += len
   }
-  let half = total / 2
-  for (let i = 0; i < seg.length; i++) {
-    if (half <= seg[i]) {
-      const t = seg[i] ? half / seg[i] : 0
-      return [
-        pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t,
-        pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t,
-      ]
+  const targetD = tot * frac
+  const MARGIN = 8
+  const STEP = 12
+  const at = (s: LSeg, along: number): number[] => {
+    const t = s.len ? along / s.len : 0.5
+    return [s.a[0] + (s.b[0] - s.a[0]) * t, s.a[1] + (s.b[1] - s.a[1]) * t]
+  }
+  const need = (s: LSeg) => (s.horiz ? lw : lh) / 2 + MARGIN // half-extent to clear a corner along the axis
+  const fit = segs.filter((s) => s.len >= 2 * need(s))
+  if (!fit.length) {
+    // nothing fits → longest segment, centred (minimises corner overlap)
+    let s = segs[0]
+    for (const c of segs) if (c.len > s.len) s = c
+    return [at(s, s.len / 2)]
+  }
+  // PRIMARY (candidates[0]): the fitting segment whose CENTRE is nearest the target fraction, with the box
+  // clamped into that segment's clear band. This is the single most-central, bend-clear spot — used as-is
+  // when the label has no conflict, so non-overlapping labels are never disturbed by deconfliction.
+  const clamp = (s: LSeg) =>
+    Math.max(need(s), Math.min(s.len - need(s), targetD - s.start))
+  let pseg = fit[0]
+  let bestc = Math.abs(fit[0].start + fit[0].len / 2 - targetD)
+  for (const s of fit) {
+    const sc = Math.abs(s.start + s.len / 2 - targetD)
+    if (sc < bestc) {
+      bestc = sc
+      pseg = s
     }
-    half -= seg[i]
   }
-  return pts[pts.length - 1]
+  const primary = at(pseg, clamp(pseg))
+  // ALTERNATIVES: sample every fitting segment's clear band (+ band ends + each segment's clamped target),
+  // ordered by closeness to the target — walked by toSVG's deconfliction only when the primary collides.
+  const alt: { pos: number[]; score: number }[] = []
+  for (const s of fit) {
+    const lo = need(s)
+    const hi = s.len - need(s)
+    for (let along = lo; along <= hi + 0.01; along += STEP)
+      alt.push({
+        pos: at(s, along),
+        score: Math.abs(s.start + along - targetD),
+      })
+    alt.push({ pos: at(s, hi), score: Math.abs(s.start + hi - targetD) })
+    alt.push({
+      pos: at(s, clamp(s)),
+      score: Math.abs(s.start + clamp(s) - targetD),
+    })
+  }
+  alt.sort((a, b) => a.score - b.score)
+  return [primary, ...alt.map((o) => o.pos)]
+}
+// single best position (candidates[0]); used by placeLabels for guarded parallel pairs
+export function labelAnchor(
+  pts: number[][],
+  lw: number,
+  lh: number,
+  frac = 0.5,
+): number[] {
+  return labelCandidates(pts, lw, lh, frac)[0]
 }
 
 // Small deterministic string hash (djb2) → a stable, collision-unlikely id suffix so multiple D2
@@ -797,17 +867,98 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       ),
       obstacles,
     )
-    // On-line label position. For a guarded parallel edge the channel (and ELK's deconfliction spread) is
-    // preserved, so use ELK's lx/ly. For a lone edge we let the route straighten, so ELK's point can be
-    // off the new line — follow the simplified route's midpoint instead. ELK edges carry lw/lh → masked.
+    // `anchor` (placeLabels' lx/ly) is used ABOVE only to guard simplifyRoute (preserve the channel under a
+    // parallel pair's label). The final label POSITION for every labelled edge — parallel or lone — is
+    // chosen by the deconfliction pass below on the simplified route, so it is bend-clear AND non-overlapping.
+    // (Positioning here per-edge meant two labels could collide, e.g. oauth redirect / request+token, which
+    // pairKey even groups as an antiparallel pair.) ELK edges carry lw/lh → masked.
     const masked = !!(e.label && e.lw && e.lh)
-    const lpos = e.label
-      ? anchor && e.lx != null && e.ly != null
-        ? [e.lx + OFF, e.ly + OFF]
-        : polylineMidpoint(route)
-      : null
+    const lpos: number[] | null = null
     return { e, route, lpos, masked }
   })
+
+  // Lone-edge label placement + DECONFLICTION (task 122). labelCandidates gives positions on the straight
+  // segments of each route (clear of that route's OWN bends), ordered most-central first. Each lone label is
+  // then scored against everything already placed and committed at its lowest-cost candidate, where cost is
+  // lexicographic: (1) don't overlap another label box, (2) don't cover ANOTHER edge's bend, (3) stay near
+  // the route midpoint. So two wide labels on nearby parallel segments (oauth redirect / request+token) no
+  // longer stack, AND a label sliding to avoid a neighbour won't land on someone else's corner. Parallel-pair
+  // boxes are seeded as obstacles; widest labels go first (fewest free spots).
+  const GAP = 4
+  const boxOf = (pos: number[], lw: number, lh: number) => ({
+    x: pos[0] - lw / 2 - 3,
+    y: pos[1] - lh / 2 - 1,
+    w: lw + 6,
+    h: lh + 2,
+  })
+  type LBox = { x: number; y: number; w: number; h: number }
+  const boxesOverlap = (a: LBox, b: LBox) =>
+    a.x < b.x + b.w + GAP &&
+    a.x + a.w + GAP > b.x &&
+    a.y < b.y + b.h + GAP &&
+    a.y + a.h + GAP > b.y
+  // every route's INTERIOR vertices (= its bends) with the owning edge, so a label can avoid covering a bend
+  const cornerList: { p: number[]; owner: unknown }[] = []
+  for (const d of drawn) {
+    const r = d.route
+    for (let i = 1; i + 1 < r.length; i++)
+      cornerList.push({ p: r[i], owner: d })
+  }
+  const inBox = (p: number[], b: LBox) =>
+    p[0] > b.x && p[0] < b.x + b.w && p[1] > b.y && p[1] < b.y + b.h
+  // fixed obstacles: parallel-pair label boxes (already positioned, not moved here)
+  const fixedBoxes: LBox[] = []
+  for (const d of drawn)
+    if (d.lpos && d.masked)
+      fixedBoxes.push(boxOf(d.lpos, d.e.lw as number, d.e.lh as number))
+  // lone labels start at their primary (candidates[0]); coordinate-descent then nudges them apart
+  const lone = drawn.filter((d) => d.e.label && !d.lpos)
+  const candOf = new Map<(typeof lone)[number], number[][]>()
+  for (const d of lone) {
+    const c = labelCandidates(d.route, d.e.lw ?? 0, d.e.lh ?? 0)
+    candOf.set(d, c)
+    d.lpos = c[0]
+  }
+  // Iterative deconfliction (coordinate descent). Each pass re-places every lone label at its lowest-cost
+  // candidate given ALL OTHER labels' CURRENT positions — cost lexicographic: (1) don't overlap another
+  // label box, (2) don't cover ANOTHER edge's bend, (3) stay near the route midpoint (candidate index).
+  // Re-placing against current positions (not just earlier-placed) lets BOTH members of a colliding pair
+  // move, so two wide labels on nearby parallel segments (oauth redirect / request+token) separate instead
+  // of one staying stuck. Total cost is monotonically non-increasing → converges; capped at 6 passes.
+  const order = [...lone].sort((a, b) => (b.e.lw ?? 0) - (a.e.lw ?? 0))
+  for (let pass = 0; pass < 6; pass++) {
+    let changed = false
+    for (const d of order) {
+      const lw = d.e.lw ?? 0
+      const lh = d.e.lh ?? 0
+      if (!(lw && lh)) continue // unmasked label: no box → nothing to deconflict
+      const others = fixedBoxes.slice()
+      for (const o of lone)
+        if (o !== d && o.e.lw && o.e.lh)
+          others.push(boxOf(o.lpos as number[], o.e.lw, o.e.lh))
+      const cands = candOf.get(d) as number[][]
+      let best = cands[0]
+      let bestCost = Number.POSITIVE_INFINITY
+      cands.forEach((c, idx) => {
+        const box = boxOf(c, lw, lh)
+        let ovr = 0
+        for (const p of others) if (boxesOverlap(box, p)) ovr++
+        let bend = 0
+        for (const cc of cornerList)
+          if (cc.owner !== d && inBox(cc.p, box)) bend++
+        const cost = ovr * 10000 + bend * 1000 + idx // overlap ≫ other-bend ≫ distance-from-mid
+        if (cost < bestCost) {
+          bestCost = cost
+          best = c
+        }
+      })
+      if (best !== d.lpos) {
+        d.lpos = best
+        changed = true
+      }
+    }
+    if (!changed) break
+  }
 
   // On-line edge labels (task 122): cut the connection line out from UNDER each label box with a mask
   // (like D2's makeLabelMask) so the centred label reads cleanly without an opaque plate — works on
