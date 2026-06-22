@@ -311,9 +311,7 @@ describe('patchMarkmapStatic (markmap wheel/zoom hijack)', () => {
   it('injects ?v= cache-buster on the markmap script load', () => {
     const patched = patchMarkmapStatic(markmapSource, '0.18.12')
     expect(patched).toContain('markmap.min.js?v=0.18.12')
-    expect(patched).not.toContain(
-      'markmap.min.js`, "vditorMarkerScript"',
-    )
+    expect(patched).not.toContain('markmap.min.js`, "vditorMarkerScript"')
   })
 
   it('skips ?v= when no version is provided', () => {
@@ -424,9 +422,7 @@ describe('patchAbcRender (task 92/93 — abcjs bump + foreground color)', () => 
   })
 
   it('throws if the renderAbc anchor is gone — version-bump guard', () => {
-    expect(() => patchAbcRender('// unrelated source')).toThrow(
-      /fixAbcRender/,
-    )
+    expect(() => patchAbcRender('// unrelated source')).toThrow(/fixAbcRender/)
   })
 })
 

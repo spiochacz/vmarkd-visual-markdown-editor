@@ -36,32 +36,46 @@ test('mermaid SVG marker probe', async ({ workbox, evaluateInVSCode }) => {
     const all = [...svg.querySelectorAll('*')]
 
     // Find circles with text (the numbered markers)
-    const circleGroups = all.filter(e => e.querySelector('circle') && e.querySelector('text'))
-      .map(e => ({
+    const circleGroups = all
+      .filter((e) => e.querySelector('circle') && e.querySelector('text'))
+      .map((e) => ({
         tag: e.tagName,
-        class: (e as HTMLElement).className?.toString?.() || e.getAttribute('class'),
+        class:
+          (e as HTMLElement).className?.toString?.() || e.getAttribute('class'),
         id: e.id,
         html: (e as HTMLElement).outerHTML?.substring(0, 300),
       }))
 
     // Find anything with "access" in class/id
-    const accessEls = all.filter(e => {
-      const cls = (e.className?.toString?.() || e.getAttribute('class') || '') + (e.id || '')
-      return /access|a11y|aria|descr/i.test(cls)
-    }).map(e => ({
-      tag: e.tagName,
-      class: (e as HTMLElement).className?.toString?.() || e.getAttribute('class'),
-      id: e.id,
-    }))
+    const accessEls = all
+      .filter((e) => {
+        const cls =
+          (e.className?.toString?.() || e.getAttribute('class') || '') +
+          (e.id || '')
+        return /access|a11y|aria|descr/i.test(cls)
+      })
+      .map((e) => ({
+        tag: e.tagName,
+        class:
+          (e as HTMLElement).className?.toString?.() || e.getAttribute('class'),
+        id: e.id,
+      }))
 
     // Find all circles
-    const circles = all.filter(e => e.tagName === 'circle').map(c => ({
-      r: c.getAttribute('r'),
-      parentClass: c.parentElement?.getAttribute('class'),
-      parentId: c.parentElement?.id,
-    }))
+    const circles = all
+      .filter((e) => e.tagName === 'circle')
+      .map((c) => ({
+        r: c.getAttribute('r'),
+        parentClass: c.parentElement?.getAttribute('class'),
+        parentId: c.parentElement?.id,
+      }))
 
-    return { circleGroups, accessEls, circles, svgHTML: svg.outerHTML.substring(0, 5000) }
+    return {
+      circleGroups,
+      accessEls,
+      circles,
+      svgHTML: svg.outerHTML.substring(0, 5000),
+    }
   })
 
   console.log('=== CIRCLE GROUPS ===')
