@@ -563,7 +563,16 @@ function detourContainers(layout: Layout): void {
         const x = a[0]
         const y1 = Math.min(a[1], b[1])
         const y2 = Math.max(a[1], b[1])
-        if (!(x > bx + 1 && x < bx + bw - 1)) continue // inside container x-span
+        // fire for a vertical crossing the container INTERIOR, OR one running flush along a wall (±WTOL):
+        // a segment sitting exactly on a wall reads as "line drawn on the box border" (it overlaps the
+        // container stroke pixel-for-pixel), so detour it outward like an interior crossing. WTOL matches
+        // vHitsBox's ±4 fuzz so the interior and wall bands join with no gap. newx below always resolves to
+        // the OUTWARD side, clearing the wall by CLEAR.
+        const WTOL = 4
+        const interior = x > bx + 1 && x < bx + bw - 1
+        const onWall =
+          Math.abs(x - bx) <= WTOL || Math.abs(x - (bx + bw)) <= WTOL
+        if (!interior && !onWall) continue
         if (Math.min(y2, by + bh) - Math.max(y1, by) <= 4) continue // overlaps y
         const newx = x - bx < bx + bw - x ? bx - CLEAR : bx + bw + CLEAR
         if (vHitsBox(newx, y1, y2, [e.src, e.dst])) break // no room on that side
@@ -592,9 +601,25 @@ function detourContainers(layout: Layout): void {
             b.slice() as Pt,
           ] as PlacedEdge['points']
         } else {
-          // interior vertical: shift x, neighbours adjust
+          // interior vertical: shift this segment to newx. The naive shift assumes BOTH neighbours are
+          // horizontal jogs that simply lengthen. But if a neighbour is a COLLINEAR vertical continuation
+          // (the run flows straight on at the old x — e.g. into the ELK entry/exit stub at a box port),
+          // moving only [a,b] leaves that neighbour behind → the connector turns diagonal. Re-orthogonalise
+          // such a joint by inserting an L-corner at (oldx, this-segment's-Y): the run jogs back to the
+          // neighbour's x, then the stub keeps its original vertical entry direction (mirrors the port
+          // branches above). x still holds the pre-shift wall x.
           a[0] = newx
           b[0] = newx
+          const corners: { at: number; pt: [number, number] }[] = []
+          const nb = p[i + 2] // neighbour past b
+          if (nb && Math.abs(nb[1] - b[1]) > 1 && Math.abs(nb[0] - x) < 1.5)
+            corners.push({ at: i + 2, pt: [x, b[1]] })
+          const pa = p[i - 1] // neighbour before a
+          if (pa && Math.abs(pa[1] - a[1]) > 1 && Math.abs(pa[0] - x) < 1.5)
+            corners.push({ at: i, pt: [x, a[1]] })
+          // splice the higher index first so the lower-index insertion stays valid
+          corners.sort((u, v) => v.at - u.at)
+          for (const c of corners) e.points.splice(c.at, 0, c.pt)
         }
         if (countCrossings(layout) > base) {
           e.points = snapshot as PlacedEdge['points'] // revert if it adds a crossing
@@ -728,6 +753,30 @@ function bundleSiblings(layout: Layout): void {
   // CHANSPACE = min vertical gap to keep between parallel horizontal lines (channels), matching the ~40px
   // spacing between parallel vertical lanes (port_spacing).
   const CHANSPACE = 40
+  // A raised jog must keep this much clearance from any leaf box edge AND any container top/bottom wall it
+  // runs along. The old check only rejected ≤4px box OVERLAP, so a jog could sit 8px under the source box
+  // ("ciasno poziomo"); and it ignored container walls entirely, so raising into a cramped row landed the
+  // jog flush on the container's bottom wall. Rejecting the whole clearance band forces the jog DOWN past a
+  // cramped row into the open area below the container, where it still bundles but clears everything.
+  const JOGCLR = 16
+  const containers = layout.nodes.filter((n) => n.kind === 'container')
+  // true ⇢ the horizontal jog y over [xL,xR] keeps ≥JOGCLR from every x-overlapping leaf box band and
+  // every x-overlapping container wall (so it neither hugs a box nor grazes a wall)
+  const jogClear = (a: Pt, b: Pt) => {
+    const y = a[1]
+    const xL = Math.min(a[0], b[0])
+    const xR = Math.max(a[0], b[0])
+    for (const n of leaves) {
+      if (xR <= n.x || xL >= n.x + n.w) continue
+      if (y > n.y - JOGCLR && y < n.y + n.h + JOGCLR) return false
+    }
+    for (const c of containers) {
+      if (xR <= c.x || xL >= c.x + c.w) continue
+      if (Math.abs(y - c.y) < JOGCLR || Math.abs(y - (c.y + c.h)) < JOGCLR)
+        return false
+    }
+    return true
+  }
   const collinear = (e: PlacedEdge, y: number, x1: number, x2: number) => {
     for (const o of layout.edges) {
       if (o === e) continue
@@ -783,7 +832,9 @@ function bundleSiblings(layout: Layout): void {
       const base = countCrossings(layout)
       const sA = A[1]
       const sB = B[1]
-      // raise the jog from ytop downward (by 6) to the first valid Y (= highest = longest parallel run)
+      // raise the jog from ytop downward (by 6) to the first valid Y (= highest = longest parallel run).
+      // jogClear (below) keeps the chosen Y off boxes and container walls, so in a cramped row the search
+      // skips the tight band and settles just below the container instead of grazing it.
       for (
         let target = Math.max(ytop, Math.min(pre[1], sA) + 8);
         target <= yJog - 4;
@@ -791,13 +842,14 @@ function bundleSiblings(layout: Layout): void {
       ) {
         A[1] = target
         B[1] = target
-        // box-check only the NEW geometry: the moved jog [A,B] and the descent EXTENSION's new upper part
+        // check only the NEW geometry: the moved jog [A,B] (clearance from boxes + container walls) and the
+        // descent EXTENSION's new upper part (just box overlap — it runs vertically and may cross a wall)
         const ext: [Pt, Pt] = [
           [B[0], target],
           [B[0], sB],
         ]
         if (
-          !hitsBox(A, B) &&
+          jogClear(A, B) &&
           !hitsBox(ext[0], ext[1]) &&
           !collinear(e, target, Math.min(A[0], B[0]), Math.max(A[0], B[0])) &&
           countCrossings(layout) <= base
