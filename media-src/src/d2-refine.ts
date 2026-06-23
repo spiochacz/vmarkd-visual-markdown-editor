@@ -1510,6 +1510,49 @@ function astar(
   }
   ok[si * Yl + sj] = 1
   ok[gi * Yl + gj] = 1
+  // Spatial index over edgeSegs for the per-neighbor cost (the dominant inner loop: segsCross + parDist over
+  // EVERY other-edge segment, per candidate step). A one-grid-step candidate can only interact with edge
+  // segments whose bbox is within EDGECLR: a crossing needs bbox overlap (⊂ the inflated query), and
+  // parDist < EDGECLR needs the segment within EDGECLR perpendicular AND overlapping in extent (also ⊂ it).
+  // So querying the candidate's bbox inflated by EDGECLR yields the SAME ec (we still run segsCross exactly)
+  // and the SAME epp (any segment that could push ep below EDGECLR is captured; farther ones can't). Bucket
+  // each segment into the uniform-grid cells its bbox spans.
+  const ESCELL = 48
+  let eMinX = Number.POSITIVE_INFINITY
+  let eMinY = Number.POSITIVE_INFINITY
+  let eMaxX = Number.NEGATIVE_INFINITY
+  let eMaxY = Number.NEGATIVE_INFINITY
+  for (const s of edgeSegs) {
+    const lx = s[0][0] < s[1][0] ? s[0][0] : s[1][0]
+    const hx = s[0][0] > s[1][0] ? s[0][0] : s[1][0]
+    const ly = s[0][1] < s[1][1] ? s[0][1] : s[1][1]
+    const hy = s[0][1] > s[1][1] ? s[0][1] : s[1][1]
+    if (lx < eMinX) eMinX = lx
+    if (hx > eMaxX) eMaxX = hx
+    if (ly < eMinY) eMinY = ly
+    if (hy > eMaxY) eMaxY = hy
+  }
+  const eCols = edgeSegs.length
+    ? Math.max(1, Math.ceil((eMaxX - eMinX) / ESCELL) + 1)
+    : 1
+  const eRows = edgeSegs.length
+    ? Math.max(1, Math.ceil((eMaxY - eMinY) / ESCELL) + 1)
+    : 1
+  const eCol = (x: number) =>
+    Math.max(0, Math.min(eCols - 1, Math.floor((x - eMinX) / ESCELL)))
+  const eRow = (y: number) =>
+    Math.max(0, Math.min(eRows - 1, Math.floor((y - eMinY) / ESCELL)))
+  const eBuckets: number[][] = Array.from({ length: eCols * eRows }, () => [])
+  edgeSegs.forEach((s, idx) => {
+    const c0 = eCol(Math.min(s[0][0], s[1][0]))
+    const c1 = eCol(Math.max(s[0][0], s[1][0]))
+    const r0 = eRow(Math.min(s[0][1], s[1][1]))
+    const r1 = eRow(Math.max(s[0][1], s[1][1]))
+    for (let c = c0; c <= c1; c++)
+      for (let r = r0; r <= r1; r++) eBuckets[c * eRows + r].push(idx)
+  })
+  const eStamp = new Int32Array(edgeSegs.length) // dedup marks; query ids start at 1 (default 0 ≠ any id)
+  let eQid = 0
   const Hh = (i: number, j: number) =>
     Math.abs(X[i] - X[gi]) + Math.abs(Y[j] - Y[gj])
   // Open set = binary min-heap keyed (f, seq). seq is the push counter; ordering by (f, then earliest seq)
@@ -1597,21 +1640,31 @@ function astar(
       const b: Pt = [X[ni], Y[nj]]
       if (boxes.some((B) => segHitsABox(a, b, B))) continue
       const turn = cur.di !== null && (di !== cur.di || dj !== cur.dj) ? 40 : 0
-      const ec = edgeSegs.reduce(
-        (c, s2) => c + (segsCross(a, b, s2[0], s2[1]) ? 1 : 0),
-        0,
-      )
+      // Only edge segments near this candidate step can cross it or sit within EDGECLR of it — query the
+      // spatial index (margin EDGECLR) instead of scanning all of edgeSegs. ec/ep come out identical.
+      eQid++
+      let ec = 0
+      let ep = 1e9
+      const qc0 = eCol(Math.min(a[0], b[0]) - EDGECLR)
+      const qc1 = eCol(Math.max(a[0], b[0]) + EDGECLR)
+      const qr0 = eRow(Math.min(a[1], b[1]) - EDGECLR)
+      const qr1 = eRow(Math.max(a[1], b[1]) + EDGECLR)
+      for (let c = qc0; c <= qc1; c++)
+        for (let r = qr0; r <= qr1; r++)
+          for (const idx of eBuckets[c * eRows + r]) {
+            if (eStamp[idx] === eQid) continue
+            eStamp[idx] = eQid
+            const s2 = edgeSegs[idx]
+            if (segsCross(a, b, s2[0], s2[1])) ec++
+            const d = parDist(a, b, s2[0], s2[1])
+            if (d < ep) ep = d
+          }
       let cl = 1e9
       for (const B of clearObs) {
         const d = B.kind === 'container' ? wallDist(a, b, B) : boxDist(a, b, B)
         if (d < cl) cl = d
       }
       const cp = cl < COMFORT ? (COMFORT - cl) * COMFW : 0
-      let ep = 1e9
-      for (const s2 of edgeSegs) {
-        const d = parDist(a, b, s2[0], s2[1])
-        if (d < ep) ep = d
-      }
       const epp = ep < EDGECLR ? (EDGECLR - ep) * COMFW : 0
       const g =
         cur.g +
