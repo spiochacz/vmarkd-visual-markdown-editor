@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createRequire } from 'node:module'
-import { layoutElk, alignRows, spreadCrampedRows } from './elk-layout'
+import { layoutElk } from './elk-layout'
+import { alignRows, spreadCrampedRows } from './d2-refine'
 import type { D2Graph } from './d2-wasm'
 import type { Sizer } from './d2-render'
 

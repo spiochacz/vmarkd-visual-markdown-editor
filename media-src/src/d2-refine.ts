@@ -6,7 +6,6 @@
 // developed and validated in tmp/d2-compare (harness2.ts + run67.mjs) and baked here verbatim.
 import { labelAnchor } from './d2-render'
 import type { Layout, PlacedEdge, PlacedNode } from './d2-render'
-import { alignRows, spreadCrampedRows } from './elk-layout'
 
 type Pt = [number, number] | number[]
 
@@ -1765,6 +1764,131 @@ function rerouteBackEdges(layout: Layout): void {
     if (x <= best) best = x
     else e.points = old // revert
   }
+}
+
+// Snap top-level leaf rows to a common centre-Y so a mixed-height row (e.g. a tall cylinder next to
+// short rectangles) doesn't leave boxes 30-40px off a shared line — ELK centres uniform rows but not
+// mixed-height ones, and there's no ELK flag for it (verified). Group leaves by centre-Y proximity,
+// snap each group to its median, then drag every edge endpoint by the Δy of its nearest node so the
+// routes follow; toSVG's simplifyRoute re-cleans them. Container children are left alone (their coords
+// are container-relative — moving them could break the container). task 122. (First refine pass; lived in
+// elk-layout.ts until the elk-layout↔d2-refine import cycle was broken by moving it here with the rest.)
+export function alignRows(layout: Layout): void {
+  const leaves = layout.nodes.filter(
+    (n) => n.kind !== 'container' && n.kind !== 'grid' && !n.s.container,
+  )
+  const groups: { cy: number; items: PlacedNode[] }[] = []
+  for (const n of [...leaves].sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2))) {
+    const cy = n.y + n.h / 2
+    const g = groups.find((gr) => Math.abs(gr.cy - cy) < 40)
+    if (g) {
+      g.items.push(n)
+      g.cy = (g.cy * (g.items.length - 1) + cy) / g.items.length
+    } else groups.push({ cy, items: [n] })
+  }
+  const delta = new Map<string, number>()
+  for (const g of groups) {
+    if (g.items.length < 2) continue
+    const cys = g.items.map((n) => n.y + n.h / 2).sort((a, b) => a - b)
+    const median = cys[Math.floor(cys.length / 2)]
+    for (const n of g.items) {
+      const d = median - (n.y + n.h / 2)
+      if (Math.abs(d) > 0.5) {
+        n.y += d
+        delta.set(n.s.id, d)
+      }
+    }
+  }
+  if (!delta.size) return
+  const centres = layout.nodes.map((n) => ({
+    id: n.s.id,
+    x: n.x + n.w / 2,
+    y: n.y + n.h / 2,
+  }))
+  const nearestDelta = (px: number, py: number): number => {
+    let best: string | null = null
+    let bd = Number.POSITIVE_INFINITY
+    for (const c of centres) {
+      const dd = (c.x - px) ** 2 + (c.y - py) ** 2
+      if (dd < bd) {
+        bd = dd
+        best = c.id
+      }
+    }
+    return best ? delta.get(best) || 0 : 0
+  }
+  for (const e of layout.edges) {
+    if (!e.points.length) continue
+    const f = e.points[0]
+    f[1] += nearestDelta(f[0], f[1])
+    const l = e.points[e.points.length - 1]
+    l[1] += nearestDelta(l[0], l[1])
+  }
+}
+
+// After ELK layout + alignRows, a horizontal edge segment can sit jammed against a box top with no
+// vertical room — e.g. cqrs `read` runs just above Orders View, squeezed between the projection row and
+// the cylinder tops. ELK minimises edge length so it parks the turn right on the box edge and never
+// reclaims the gap. spreadCrampedRows finds such segments and pushes the lower row (the box it's jammed
+// against) + everything below it DOWN by a step-function Δy so the segment gets TARGET clearance —
+// dragging every node y, every edge point y, and every straddling container's height to match. Routes
+// stay orthogonal: only y shifts, by a step function of y, so a vertical segment crossing the boundary
+// just lengthens. No-op when nothing is cramped. task 122.
+export function spreadCrampedRows(layout: Layout): void {
+  const CLEAR = 16 // a horizontal segment within this of a box top counts as cramped
+  const TARGET = 24 // clearance to give it after spreading
+  const MINLEN = 26 // ignore short port-attach jogs
+  const leaves = layout.nodes.filter(
+    (n) => n.kind !== 'container' && n.kind !== 'grid',
+  )
+  const xov = (a1: number, a2: number, b1: number, b2: number) =>
+    Math.min(a2, b2) - Math.max(a1, b1) > 4
+  // Each cramped horizontal segment → one push-down event at the lower-row top it's jammed against.
+  const events: { y: number; d: number }[] = []
+  for (const e of layout.edges) {
+    const p = e.points
+    for (let i = 1; i + 2 <= p.length - 1; i++) {
+      const a = p[i]
+      const b = p[i + 1]
+      if (Math.abs(a[1] - b[1]) > 0.5) continue // horizontal only
+      if (Math.abs(a[0] - b[0]) < MINLEN) continue // skip short jogs
+      const yH = a[1]
+      const x1 = Math.min(a[0], b[0])
+      const x2 = Math.max(a[0], b[0])
+      let lowTop = Number.POSITIVE_INFINITY
+      for (const B of leaves) {
+        if (!xov(x1, x2, B.x, B.x + B.w)) continue
+        const top = B.y
+        if (top > yH + 0.5 && top - yH < CLEAR && top < lowTop) lowTop = top
+      }
+      if (!Number.isFinite(lowTop)) continue
+      const need = TARGET - (lowTop - yH)
+      if (need <= 0) continue
+      const ex = events.find((ev) => Math.abs(ev.y - lowTop) < 20)
+      if (ex) ex.d = Math.max(ex.d, Math.ceil(need))
+      else events.push({ y: lowTop, d: Math.ceil(need) })
+    }
+  }
+  if (!events.length) return
+  // Step function: a coordinate at/below an event boundary shifts down by that event's Δ (cumulative).
+  const shift = (y: number) =>
+    events.reduce((s, ev) => s + (ev.y <= y + 0.5 ? ev.d : 0), 0)
+  // A container straddling an event boundary grows by that Δ so it keeps wrapping its moved children.
+  const inside = (top: number, bot: number) =>
+    events.reduce(
+      (s, ev) => s + (ev.y > top + 0.5 && ev.y < bot - 0.5 ? ev.d : 0),
+      0,
+    )
+  for (const n of layout.nodes) {
+    const top = n.y
+    n.y += shift(top)
+    if (n.kind === 'container') n.h += inside(top, top + n.h)
+  }
+  for (const e of layout.edges) {
+    for (const pt of e.points) pt[1] += shift(pt[1])
+    if (e.ly != null) e.ly += shift(e.ly)
+  }
+  layout.H += events.reduce((s, ev) => s + ev.d, 0)
 }
 
 // Full post-process pipeline (task 122). Mutates `layout` in place. Order matters — see the harness
