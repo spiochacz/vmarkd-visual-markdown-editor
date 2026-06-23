@@ -42,18 +42,31 @@ function countCrossings(layout: Layout): number {
   return c
 }
 
-// task 122: adaptive inter-layer vertical spacing. D2 reserves a big gap between EVERY layer; we want the
-// gap PROPORTIONAL to how busy it is (many crossing lines → widen, few lines → tighten). Cluster leaves
-// into rows by centre-Y, and for each inter-row gap count the edges crossing its midline, then set
-// gap = clamp(40 + 22*lines, 40, 280). Apply Δ (per gap, +widen or −tighten) as a step function of y —
-// same machinery as spreadCrampedRows. WIDEN is always safe; TIGHTEN only when the gap is a pure vertical
-// pass-through (no horizontal channels) and (if labelled) stays above the label floor.
+// task 122: adaptive inter-layer vertical spacing. ELK reserves a huge gap between EVERY layer (158–450px
+// observed) — mostly EMPTY vertical space around the inline edge-labels + routing channels — which makes
+// stacked-layer pipelines absurdly tall (dataplatform 589×2687). This pass reclaims that slack: cluster
+// leaves into rows by centre-Y, and for each inter-row gap remove the EMPTY space down to what the gap's
+// actual horizontal routing channels need (~CHAN_SP per stacked lane + a base margin).
+//
+// WHY the previous metric was wrong: it sized gaps by crossCount (every edge whose y-range straddles the
+// midline — i.e. pass-through verticals too). A vertical passing straight through needs HORIZONTAL room
+// (nodeNode/edgeNode spacing), NOT a taller gap, so counting them ballooned every busy gap to MAX. And the
+// tighten guard froze any gap with ≥1 channel at its bloated size, so nothing ever compressed.
+//
+// WHY this is crossing-safe: we never move two "occupied" y-levels (a row edge or a horizontal channel)
+// closer than MARGIN. We split each gap into the EMPTY bands between consecutive occupied levels and remove
+// slack only from those bands (largest first), each kept ≥ MARGIN. Shrinking empty vertical space between
+// parallel horizontal channels keeps them parallel and ≥ MARGIN apart; verticals crossing the gap merely
+// shorten — no segment that didn't cross before can start crossing. Applied as a step function of y (same
+// machinery as spreadCrampedRows). A final countCrossings guard reverts the whole pass as cheap insurance.
 function adaptiveLayerGaps(layout: Layout): void {
-  const BASE = 40
-  const K = 22
-  const MIN = 40
-  const MAX = 280
+  const BASE = 56 // base margin a gap keeps regardless of channel count
+  const CHAN_SP = 44 // vertical room reserved per stacked horizontal routing channel
+  const MIN = 56
+  const MAX = 320
+  const MARGIN = 40 // never bring two occupied y-levels (row edge / channel) closer than this
   const ROWTOL = 36 // centre-Y proximity to be the same row (matches alignRows' 40)
+  const HMINLEN = 24 // a horizontal segment this long counts as a routing channel (vs. a short attach jog)
   const leaves = layout.nodes.filter(isLeaf)
   if (leaves.length < 2) return
   const rows: { cy: number; top: number; bot: number; items: PlacedNode[] }[] =
@@ -70,27 +83,10 @@ function adaptiveLayerGaps(layout: Layout): void {
   }
   rows.sort((a, b) => a.cy - b.cy)
   if (rows.length < 2) return
-  // Edges crossing a horizontal scan-line at y (y-range strictly straddles y) = "lines in the layer".
-  const crossCount = (y: number) => {
-    let c = 0
-    for (const e of layout.edges) {
-      const p = e.points
-      if (p.length < 2) continue
-      let lo = Number.POSITIVE_INFINITY
-      let hi = Number.NEGATIVE_INFINITY
-      for (const q of p) {
-        if (q[1] < lo) lo = q[1]
-        if (q[1] > hi) hi = q[1]
-      }
-      if (lo < y - 0.5 && hi > y + 0.5) c++
-    }
-    return c
-  }
-  // Distinct horizontal CHANNEL levels inside a gap band — the fan-out/fan-in routing that lives there.
-  // Squishing a stack of horizontal channels makes routes cross, so a gap carrying channels is never
-  // compressed (a pure vertical pass-through gap has 0 channels → safe to compress).
-  const HMINLEN = 24
-  const channelLevels = (top: number, bot: number) => {
+  // Distinct y-levels of every horizontal segment strictly inside (top,bot). `longOnly` keeps only real
+  // routing channels (≥HMINLEN) for SIZING the gap; the full set (longOnly=false) marks every occupied
+  // level so band compression never squishes even a short attach jog into a neighbour.
+  const horizLevels = (top: number, bot: number, longOnly: boolean) => {
     const ys: number[] = []
     for (const e of layout.edges) {
       const p = e.points
@@ -98,48 +94,109 @@ function adaptiveLayerGaps(layout: Layout): void {
         const a = p[i]
         const b = p[i + 1]
         if (Math.abs(a[1] - b[1]) > 0.5) continue // horizontal only
-        if (Math.abs(a[0] - b[0]) < HMINLEN) continue // skip short attach jogs
+        if (longOnly && Math.abs(a[0] - b[0]) < HMINLEN) continue
         if (a[1] <= top + 0.5 || a[1] >= bot - 0.5) continue // must be inside the band
         if (!ys.some((y) => Math.abs(y - a[1]) < 8)) ys.push(a[1])
       }
     }
-    return ys.length
+    return ys.sort((x, y) => x - y)
   }
   const labelInGap = (top: number, bot: number) =>
     layout.edges.some(
       (e) => e.ly != null && e.ly > top + 0.5 && e.ly < bot - 0.5,
     )
   const LABEL_FLOOR = 56 // keep this much room when a label sits in the gap
+  // Container walls are occupied levels too: a channel must not be compressed flush against a container's
+  // top/bottom wall (the "line along the container side" defect). The strip just INSIDE a top wall holds
+  // the container title + padding (~44px baked in elk-layout) and just inside a bottom wall holds padding
+  // (~24px) — keep those bands at least that tall so a channel never lands on the wall or over the title.
+  const TOPPAD = 46
+  const BOTPAD = 28
+  const cTop = layout.nodes
+    .filter((n) => n.kind === 'container')
+    .map((n) => n.y)
+  const cBot = layout.nodes
+    .filter((n) => n.kind === 'container')
+    .map((n) => n.y + n.h)
   const events: { y: number; d: number }[] = []
   for (let i = 0; i + 1 < rows.length; i++) {
     const cur = rows[i].bot
     const nxt = rows[i + 1].top
     const gap = nxt - cur
     if (gap <= 1) continue
-    const mid = (cur + nxt) / 2
-    const lines = crossCount(mid)
-    const want = Math.max(MIN, Math.min(MAX, BASE + K * lines))
-    let target = want
-    if (want < gap) {
-      const ch = channelLevels(cur, nxt)
-      let floor = MIN
-      if (ch > 0)
-        floor = gap // has horizontal channels → don't compress
-      else if (labelInGap(cur, nxt)) floor = Math.max(floor, LABEL_FLOOR)
-      target = Math.max(floor, want)
+    const ch = horizLevels(cur, nxt, true).length
+    let want = Math.max(MIN, Math.min(MAX, BASE + CHAN_SP * ch))
+    if (labelInGap(cur, nxt)) want = Math.max(want, LABEL_FLOOR)
+    if (want >= gap) {
+      // Rare: the gap is already tighter than its channels need → widen via a single midline step.
+      const d = Math.round(want - gap)
+      if (d >= 2) events.push({ y: (cur + nxt) / 2, d })
+      continue
     }
-    const d = Math.round(target - gap)
-    if (Math.abs(d) < 2) continue
-    events.push({ y: mid, d })
+    // Compress: remove (gap − want) of EMPTY space, distributed across the empty bands between occupied
+    // levels (largest band first). Occupied levels = the row boundaries, every horizontal channel, AND any
+    // container wall inside the gap. Each band keeps a floor (MARGIN normally; TOPPAD/BOTPAD for the
+    // title/padding strip just inside a container wall) so no two occupied levels collapse together.
+    let slack = gap - want
+    const levels: { y: number; top: boolean; bot: boolean }[] = [
+      { y: cur, top: false, bot: false },
+      ...horizLevels(cur, nxt, false).map((y) => ({
+        y,
+        top: false,
+        bot: false,
+      })),
+      ...cTop
+        .filter((y) => y > cur + 0.5 && y < nxt - 0.5)
+        .map((y) => ({ y, top: true, bot: false })),
+      ...cBot
+        .filter((y) => y > cur + 0.5 && y < nxt - 0.5)
+        .map((y) => ({ y, top: false, bot: true })),
+      { y: nxt, top: false, bot: false },
+    ].sort((a, b) => a.y - b.y)
+    // Merge levels within 1px (a channel coinciding with a wall) so a band is never degenerate.
+    const merged: { y: number; top: boolean; bot: boolean }[] = []
+    for (const lv of levels) {
+      const last = merged[merged.length - 1]
+      if (last && Math.abs(last.y - lv.y) < 1) {
+        last.top = last.top || lv.top
+        last.bot = last.bot || lv.bot
+      } else merged.push({ ...lv })
+    }
+    const bands: { lo: number; hi: number; floor: number }[] = []
+    for (let k = 0; k + 1 < merged.length; k++) {
+      let floor = MARGIN
+      if (merged[k].top) floor = Math.max(floor, TOPPAD) // band just below a container top wall = title strip
+      if (merged[k + 1].bot) floor = Math.max(floor, BOTPAD) // band just above a container bottom wall = padding
+      bands.push({ lo: merged[k].y, hi: merged[k + 1].y, floor })
+    }
+    bands.sort((a, b) => b.hi - b.lo - (a.hi - a.lo))
+    for (const band of bands) {
+      if (slack < 2) break
+      const take = Math.min(slack, Math.max(0, band.hi - band.lo - band.floor))
+      if (take < 2) continue
+      events.push({ y: (band.lo + band.hi) / 2, d: -Math.round(take) })
+      slack -= take
+    }
   }
   if (!events.length) return
+  // Step function of y: a coordinate at/below an event boundary moves by that event's Δ (cumulative).
   const shift = (y: number) =>
     events.reduce((s, ev) => s + (ev.y <= y + 0.5 ? ev.d : 0), 0)
+  // A container straddling a boundary grows/shrinks by the Δ inside it so it keeps wrapping its children.
   const inside = (top: number, bot: number) =>
     events.reduce(
       (s, ev) => s + (ev.y > top + 0.5 && ev.y < bot - 0.5 ? ev.d : 0),
       0,
     )
+  // Snapshot for an exact restore — band compression is crossing-safe by construction, but the (imperfect)
+  // row/channel detection could in principle draw a new crossing; revert wholesale if so. (A replay with
+  // negated Δ would NOT restore exactly: the step function is position-dependent and positions just moved.)
+  const before = countCrossings(layout)
+  const snapNy = layout.nodes.map((n) => n.y)
+  const snapNh = layout.nodes.map((n) => n.h)
+  const snapEy = layout.edges.map((e) => e.points.map((pt) => pt[1]))
+  const snapLy = layout.edges.map((e) => e.ly)
+  const snapH = layout.H
   for (const n of layout.nodes) {
     const top = n.y
     n.y += shift(top)
@@ -150,6 +207,19 @@ function adaptiveLayerGaps(layout: Layout): void {
     if (e.ly != null) e.ly += shift(e.ly)
   }
   layout.H += events.reduce((s, ev) => s + ev.d, 0)
+  if (countCrossings(layout) > before) {
+    layout.nodes.forEach((n, i) => {
+      n.y = snapNy[i]
+      n.h = snapNh[i]
+    })
+    layout.edges.forEach((e, i) => {
+      e.points.forEach((pt, j) => {
+        pt[1] = snapEy[i][j]
+      })
+      e.ly = snapLy[i]
+    })
+    layout.H = snapH
+  }
 }
 
 // task 122: make each edge's Y-profile monotonic toward its destination. The step-function Y-shifts in
@@ -638,6 +708,17 @@ function detourContainers(layout: Layout): void {
 // crossing; monotonicity guard keeps the jog between its adjacent points' Ys.
 function alignChannels(layout: Layout): void {
   const leaves = layout.nodes.filter(isLeaf)
+  // Container walls the shared channel must avoid: a jog snapped onto a top/bottom wall reads as a line
+  // drawn on the container border, and the strip just below a top wall holds the container title + padding.
+  const WALLCLR = 14
+  const TOPPAD = 46
+  const BOTPAD = 28
+  const cWalls = layout.nodes
+    .filter((n) => n.kind === 'container')
+    .flatMap((n) => [
+      { y: n.y, top: true },
+      { y: n.y + n.h, top: false },
+    ])
   const rows: { cy: number; top: number; bot: number }[] = []
   for (const n of [...leaves].sort((a, b) => a.y + a.h / 2 - (b.y + b.h / 2))) {
     const cy = n.y + n.h / 2
@@ -687,10 +768,23 @@ function alignChannels(layout: Layout): void {
     const inGap = segs.filter((s) => s.y > g.lo + 0.5 && s.y < g.hi - 0.5)
     if (inGap.length < 2) continue
     const ys = inGap.map((s) => s.y).sort((a, b) => a - b)
-    const target = Math.max(
+    let target = Math.max(
       g.lo + 12,
       Math.min(g.hi - 12, ys[Math.floor(ys.length / 2)]),
     )
+    // Nudge the shared channel off any container wall in this gap: a top wall forbids [wall−CLR, wall+TOPPAD]
+    // (the title strip), a bottom wall forbids [wall−BOTPAD, wall+CLR]. Move to the nearer clear side that
+    // still fits the gap; if neither side fits, leave it (the per-segment crossing guard below still applies).
+    for (const w of cWalls) {
+      if (w.y <= g.lo + 0.5 || w.y >= g.hi - 0.5) continue
+      const zLo = w.top ? w.y - WALLCLR : w.y - BOTPAD
+      const zHi = w.top ? w.y + TOPPAD : w.y + WALLCLR
+      if (target <= zLo || target >= zHi) continue
+      const upOk = zLo >= g.lo + 12
+      const downOk = zHi <= g.hi - 12
+      if (upOk && (!downOk || target - zLo <= zHi - target)) target = zLo
+      else if (downOk) target = zHi
+    }
     const placed: Seg[] = []
     // seed the channel with segments already on target so a moved segment is X-overlap-checked against them
     for (const s of inGap) if (Math.abs(s.y - target) < 0.5) placed.push(s)
@@ -858,6 +952,330 @@ function bundleSiblings(layout: Layout): void {
           break
         A[1] = sA
         B[1] = sB
+      }
+    }
+  }
+}
+
+// task 122: parallelism rule for same-SOURCE same-label edges (fan-out). bundleSiblings keeps same-TARGET
+// edges parallel where they CONVERGE; this keeps same-SOURCE edges from colliding where they DIVERGE. Two
+// edges leaving one node with one label exit as parallel trunks then peel off to different targets — but ELK
+// can place the deeper edge's peel jog at the SAME Y as the shallower one, with its descent dropping in the
+// shallower edge's trunk lane (netmesh's two "route" jogs both at y=443, route-b descending at x≈320 = where
+// route-a's trunk sits → their corners kiss / verticals stitch). Fix: bring them toward one channel but never
+// closer than CHANSPACE — stagger by target depth so the deeper edge peels CHANSPACE BELOW the shallower
+// one, its descent then starting below the shallower trunk's end (no overlap). Guarded by crossing count.
+function bundleSourceSiblings(layout: Layout): void {
+  const CHANSPACE = 40
+  type Peel = {
+    e: PlacedEdge
+    i: number
+    trunkX: number
+    descentX: number
+    peelY: number
+    ybot: number
+  }
+  const peelOf = (e: PlacedEdge): Peel | null => {
+    const p = e.points
+    for (let i = 1; i + 2 <= p.length - 1; i++) {
+      const pre = p[i - 1]
+      const A = p[i]
+      const B = p[i + 1]
+      const post = p[i + 2]
+      if (
+        Math.abs(pre[0] - A[0]) < 0.5 &&
+        Math.abs(pre[1] - A[1]) > 0.5 && // V trunk
+        Math.abs(A[1] - B[1]) < 0.5 &&
+        Math.abs(A[0] - B[0]) > 0.5 && // H peel
+        Math.abs(B[0] - post[0]) < 0.5 &&
+        Math.abs(B[1] - post[1]) > 0.5 // V descent
+      )
+        return {
+          e,
+          i,
+          trunkX: A[0],
+          descentX: B[0],
+          peelY: A[1],
+          ybot: post[1],
+        }
+    }
+    return null
+  }
+  // Container walls a staggered peel must avoid: lowering a jog onto a container's top/bottom wall reads as
+  // a line drawn on the box border (netmesh: two `route` peels at the same Y, the lower one landing on the
+  // Service Mesh top wall). The crossing guard can't see this (it isn't a crossing), so check walls explicitly.
+  const WALLCLR = 16
+  const cWalls = layout.nodes
+    .filter((n) => n.kind === 'container')
+    .flatMap((n) => [n.y, n.y + n.h])
+  const groups = new Map<string, PlacedEdge[]>()
+  for (const e of layout.edges) {
+    if (!e.src || !e.label) continue
+    const k = `${e.src}|${e.label}`
+    const g = groups.get(k)
+    if (g) g.push(e)
+    else groups.set(k, [e])
+  }
+  for (const es of groups.values()) {
+    if (es.length < 2) continue
+    const peels = es.map(peelOf).filter(Boolean) as Peel[]
+    if (peels.length < 2) continue
+    peels.sort((a, b) => a.ybot - b.ybot) // shallowest target first
+    for (let k = 1; k < peels.length; k++) {
+      const shallow = peels[k - 1]
+      const deep = peels[k]
+      // only act when the deeper edge descends in (near) the shallower edge's trunk lane AND they peel at
+      // nearly the same height — that's the kiss. Otherwise the lanes are already clear, leave them.
+      if (Math.abs(deep.descentX - shallow.trunkX) >= CHANSPACE) continue
+      if (deep.peelY >= shallow.peelY + CHANSPACE - 0.5) continue
+      // Stagger the deep peel DOWN (below the shallow peel). It MUST stay below the shallow peel: the deep
+      // edge's descent shares the shallow edge's trunk x-lane, so a peel ABOVE the shallow peel would drop
+      // the descent into that trunk → collinear overlap (the netmesh "route" lines lying on each other). If
+      // the natural target lands on a container wall, pull it UP to just above the wall — still below the
+      // shallow peel — instead of below the title. Skip if no clear lane fits between the shallow peel and
+      // the wall. A collinearOverlap guard (plus the crossing guard) reverts anything that still overlaps.
+      const preY = deep.e.points[deep.i - 1][1]
+      let target = shallow.peelY + CHANSPACE
+      for (const w of cWalls)
+        if (target > w - WALLCLR && target < w + WALLCLR) target = w - WALLCLR
+      if (target <= shallow.peelY + 12) continue // no clear lane between the shallow peel and the wall
+      if (target >= deep.ybot - 8 || target <= preY + 4) continue // no room in that lane
+      const A = deep.e.points[deep.i]
+      const B = deep.e.points[deep.i + 1]
+      const oldY = A[1]
+      const base = countCrossings(layout)
+      const cbase = collinearOverlapCount(layout)
+      A[1] = target
+      B[1] = target
+      if (
+        countCrossings(layout) > base ||
+        collinearOverlapCount(layout) > cbase
+      ) {
+        A[1] = oldY
+        B[1] = oldY
+        continue
+      }
+      deep.peelY = target
+    }
+  }
+}
+
+// task 122: compact back-edge RINGS. ELK (and our reroute) returns each back-edge to a top/bottom hub by
+// looping AROUND the figure; with many of them they nest as concentric rings that ELK fans out very wide /
+// high / low (saga: rings out to x≈1231, horizontals at y≈60 and y≈1013) — far more than needed, since a
+// tighter ring would still clear everything. Pull each ring's OUTER segments inward toward the box bbox
+// (the far vertical toward centre, the lowest/highest horizontals toward the figure) until it is within
+// RINGCLR of a box OR RINGGAP of another edge's parallel segment, guarded so it adds no crossing. Innermost
+// ring first, so the outer ones nest snugly against the tightened inner ones. Stubs (first/last segment)
+// are never moved. This is the "if the loop sticks out past the others, bring its anchor points closer but
+// never closer than N px to a box" rule.
+function compactBackRings(layout: Layout): void {
+  const RINGCLR = 24 // min clearance a compacted ring keeps from any box
+  const RINGGAP = 24 // min spacing between a compacted ring and another edge's parallel segment
+  const STEP = 6
+  const N = new Map(layout.nodes.map((n) => [n.s.id, n]))
+  const cyOf = (n: PlacedNode) => n.y + n.h / 2
+  const obs: ABox[] = layout.nodes
+    .filter((n) => n.kind !== 'grid')
+    .map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h }))
+  if (!obs.length) return
+  let bxMin = Number.POSITIVE_INFINITY
+  let bxMax = Number.NEGATIVE_INFINITY
+  let byMin = Number.POSITIVE_INFINITY
+  let byMax = Number.NEGATIVE_INFINITY
+  for (const b of obs) {
+    bxMin = Math.min(bxMin, b.x)
+    bxMax = Math.max(bxMax, b.x + b.w)
+    byMin = Math.min(byMin, b.y)
+    byMax = Math.max(byMax, b.y + b.h)
+  }
+  const cx = (bxMin + bxMax) / 2
+  // slide interior segment i (axis 0 = vertical seg moved in x, axis 1 = horizontal seg moved in y) by STEP
+  // toward `dir` until a guard stops it. p[i],p[i+1] move together; neighbours stretch, staying orthogonal.
+  const slide = (e: PlacedEdge, i: number, axis: 0 | 1, dir: -1 | 1) => {
+    const p = e.points
+    for (;;) {
+      const nv = p[i][axis] + dir * STEP
+      const a: Pt = axis === 0 ? [nv, p[i][1]] : [p[i][0], nv]
+      const b: Pt = axis === 0 ? [nv, p[i + 1][1]] : [p[i + 1][0], nv]
+      let ok = true
+      for (const B of obs)
+        if (boxDist(a, b, B) < RINGCLR) {
+          ok = false
+          break
+        }
+      if (ok)
+        for (const o of layout.edges) {
+          if (o === e) continue
+          const q = o.points
+          for (let j = 0; j + 1 < q.length; j++) {
+            const par =
+              axis === 0
+                ? Math.abs(q[j][0] - q[j + 1][0]) < 0.5
+                : Math.abs(q[j][1] - q[j + 1][1]) < 0.5
+            if (par && parDist(a, b, q[j], q[j + 1]) < RINGGAP) {
+              ok = false
+              break
+            }
+          }
+          if (!ok) break
+        }
+      if (!ok) break
+      const o0 = p[i][axis]
+      const o1 = p[i + 1][axis]
+      const base = countCrossings(layout)
+      p[i][axis] = nv
+      p[i + 1][axis] = nv
+      if (countCrossings(layout) > base) {
+        p[i][axis] = o0
+        p[i + 1][axis] = o1
+        break
+      }
+    }
+  }
+  const backs = layout.edges.filter((e) => {
+    const s = e.src ? N.get(e.src) : undefined
+    const d = e.dst ? N.get(e.dst) : undefined
+    return !!(s && d && cyOf(d) < cyOf(s) - 40 && e.points.length >= 6)
+  })
+  // outer vertical = interior vertical seg sticking farthest outside [bxMin,bxMax]
+  const outerVertIdx = (e: PlacedEdge) => {
+    const p = e.points
+    let bi = -1
+    let bd = RINGCLR
+    for (let i = 1; i <= p.length - 3; i++) {
+      if (Math.abs(p[i][0] - p[i + 1][0]) > 0.5) continue
+      const x = p[i][0]
+      const out = x < cx ? bxMin - x : x - bxMax
+      if (out > bd) {
+        bd = out
+        bi = i
+      }
+    }
+    return bi
+  }
+  // process innermost ring first so outer rings nest against the already-tightened inner ones
+  const items = backs
+    .map((e) => ({ e, vi: outerVertIdx(e) }))
+    .filter((it) => it.vi >= 0)
+    .sort(
+      (a, b) =>
+        Math.abs(a.e.points[a.vi][0] - cx) - Math.abs(b.e.points[b.vi][0] - cx),
+    )
+  for (const { e, vi } of items) {
+    slide(e, vi, 0, e.points[vi][0] < cx ? 1 : -1) // outer vertical → toward centre
+    // lowest horizontal below the figure → up; highest horizontal above → down
+    const p = e.points
+    let loI = -1
+    let hiI = -1
+    for (let i = 1; i <= p.length - 3; i++) {
+      if (Math.abs(p[i][1] - p[i + 1][1]) > 0.5) continue // horizontal only
+      const y = p[i][1]
+      if (y > byMax + 1 && (loI < 0 || y > p[loI][1])) loI = i
+      if (y < byMin - 1 && (hiI < 0 || y < p[hiI][1])) hiI = i
+    }
+    if (loI >= 0) slide(e, loI, 1, -1)
+    if (hiI >= 0) slide(e, hiI, 1, 1)
+  }
+}
+
+// Count pairs of vertical segments from DIFFERENT edges that run collinear (x within 2) with a y-overlap
+// > 4 — i.e. two lines drawn on top of each other. Guard reference for separateKissingJogs: a jog move must
+// never create such an overlap (the trap a naive Y-nudge falls into — it stitches the moved edge's vertical
+// onto another edge's trunk).
+function collinearOverlapCount(layout: Layout): number {
+  const vert: [number, number, number, number][] = [] // x, y0, y1, edgeIndex
+  layout.edges.forEach((e, ei) => {
+    const p = e.points
+    for (let i = 0; i + 1 < p.length; i++) {
+      if (Math.abs(p[i][0] - p[i + 1][0]) > 0.5) continue
+      vert.push([
+        p[i][0],
+        Math.min(p[i][1], p[i + 1][1]),
+        Math.max(p[i][1], p[i + 1][1]),
+        ei,
+      ])
+    }
+  })
+  let c = 0
+  for (let i = 0; i < vert.length; i++)
+    for (let j = i + 1; j < vert.length; j++) {
+      if (vert[i][3] === vert[j][3]) continue
+      if (Math.abs(vert[i][0] - vert[j][0]) > 2) continue
+      const lo = Math.max(vert[i][1], vert[j][1])
+      const hi = Math.min(vert[i][2], vert[j][2])
+      if (hi - lo > 4) c++
+    }
+  return c
+}
+
+// task 122: general corner separation. Two horizontal jogs from DIFFERENT edges can have their corners land
+// at nearly the same point (within CORNER_GAP) without their segments overlapping — they "kiss" and read as
+// one kinked line (e.g. events: the mobile→bus "publish" corner sits 2px from the retry back-edge's corner,
+// both turning at y=681 above bus). Unlike bundleSourceSiblings (same source, semantic depth-stagger) these
+// are unrelated edges, so just nudge one jog's Y until the corners are ≥CORNER_GAP apart, in the direction
+// that adds NO crossing AND NO collinear vertical overlap. Runs after the bundling passes so it only cleans
+// up residual kisses they didn't resolve.
+function separateKissingJogs(layout: Layout): void {
+  const CORNER_GAP = 14
+  type Jog = { e: PlacedEdge; i: number; y: number; lo: number; hi: number }
+  const jogs: Jog[] = []
+  for (const e of layout.edges) {
+    const p = e.points
+    for (let i = 1; i + 2 <= p.length - 1; i++) {
+      const a = p[i]
+      const b = p[i + 1]
+      if (Math.abs(a[1] - b[1]) > 0.5) continue // horizontal jog
+      if (Math.abs(a[0] - b[0]) < 6) continue
+      if (Math.abs(p[i - 1][0] - a[0]) > 0.5) continue // V before
+      if (Math.abs(p[i + 2][0] - b[0]) > 0.5) continue // V after
+      jogs.push({
+        e,
+        i,
+        y: a[1],
+        lo: Math.min(a[0], b[0]),
+        hi: Math.max(a[0], b[0]),
+      })
+    }
+  }
+  for (let ii = 0; ii < jogs.length; ii++) {
+    for (let jj = ii + 1; jj < jogs.length; jj++) {
+      const s = jogs[ii]
+      const t = jogs[jj]
+      if (s.e === t.e) continue
+      if (Math.abs(s.y - t.y) >= CORNER_GAP) continue // already apart
+      if (Math.min(s.hi, t.hi) - Math.max(s.lo, t.lo) > 2) continue // x-overlap = different problem
+      let kiss = false
+      for (const sx of [s.lo, s.hi])
+        for (const tx of [t.lo, t.hi])
+          if (Math.abs(sx - tx) < CORNER_GAP) kiss = true
+      if (!kiss) continue
+      const base = countCrossings(layout)
+      const cbase = collinearOverlapCount(layout)
+      // try moving t (then s) to other.y ± CORNER_GAP; accept first with no new crossing / overlap
+      for (const [mover, other] of [
+        [t, s],
+        [s, t],
+      ] as [Jog, Jog][]) {
+        const A = mover.e.points[mover.i]
+        const B = mover.e.points[mover.i + 1]
+        const oldY = A[1]
+        let done = false
+        for (const ny of [other.y + CORNER_GAP, other.y - CORNER_GAP]) {
+          A[1] = ny
+          B[1] = ny
+          if (
+            countCrossings(layout) <= base &&
+            collinearOverlapCount(layout) <= cbase
+          ) {
+            mover.y = ny
+            done = true
+            break
+          }
+          A[1] = oldY
+          B[1] = oldY
+        }
+        if (done) break
       }
     }
   }
@@ -1215,16 +1633,38 @@ function rerouteBackEdges(layout: Layout): void {
 // (tmp/d2-compare/harness2.ts fullLayout + run67.mjs) where it was validated. placeLabels runs AFTER the
 // reroute so labels follow the rerouted back-edges.
 export function refineLayout(layout: Layout): void {
+  // Diagnostic seam (no-op in production): when a harness sets globalThis.__refineTrace, each pass reports
+  // its post-state so the elkdiff tooling can attribute which pass reshaped which edge. Gated + zero-cost
+  // (one optional-chain per pass) when unset; never wired in the shipped webview.
+  const tr =
+    (globalThis as { __refineTrace?: (name: string, l: Layout) => void })
+      .__refineTrace ?? null
   alignRows(layout)
+  tr?.('alignRows', layout)
   adaptiveLayerGaps(layout)
+  tr?.('adaptiveLayerGaps', layout)
   spreadCrampedRows(layout)
+  tr?.('spreadCrampedRows', layout)
   monotonizeEdges(layout)
+  tr?.('monotonizeEdges', layout)
   deleteBendsEndpoints(layout)
+  tr?.('deleteBendsEndpoints', layout)
   deOvershoot(layout)
+  tr?.('deOvershoot', layout)
   detourContainers(layout)
+  tr?.('detourContainers', layout)
   alignChannels(layout)
+  tr?.('alignChannels', layout)
   bundleSiblings(layout)
+  tr?.('bundleSiblings', layout)
+  bundleSourceSiblings(layout)
+  tr?.('bundleSourceSiblings', layout)
   rerouteBackEdges(layout)
+  tr?.('rerouteBackEdges', layout)
+  compactBackRings(layout)
+  tr?.('compactBackRings', layout)
+  separateKissingJogs(layout)
+  tr?.('separateKissingJogs', layout)
   placeLabels(layout)
 }
 

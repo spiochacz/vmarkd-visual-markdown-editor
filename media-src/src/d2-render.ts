@@ -884,7 +884,7 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
   // the route midpoint. So two wide labels on nearby parallel segments (oauth redirect / request+token) no
   // longer stack, AND a label sliding to avoid a neighbour won't land on someone else's corner. Parallel-pair
   // boxes are seeded as obstacles; widest labels go first (fewest free spots).
-  const GAP = 4
+  const GAP = 10 // min breathing room kept between two label boxes (4 looked "za gęsto" on oauth's hub)
   const boxOf = (pos: number[], lw: number, lh: number) => ({
     x: pos[0] - lw / 2 - 3,
     y: pos[1] - lh / 2 - 1,
@@ -906,6 +906,49 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
   }
   const inBox = (p: number[], b: LBox) =>
     p[0] > b.x && p[0] < b.x + b.w && p[1] > b.y && p[1] < b.y + b.h
+  // every route's axis-aligned SEGMENTS with the owning edge — so a label can avoid sitting ACROSS another
+  // edge's line. The mask cuts the line under a label, but a label parked on a busy junction still reads as
+  // "covering" 2-3 lines (oauth hub); penalising line-crossings nudges it to a clearer stretch.
+  const segList: { a: number[]; b: number[]; owner: unknown }[] = []
+  for (const d of drawn) {
+    const r = d.route
+    for (let i = 0; i + 1 < r.length; i++)
+      segList.push({ a: r[i], b: r[i + 1], owner: d })
+  }
+  const segHitsBoxLbl = (a: number[], b: number[], box: LBox) => {
+    if (Math.abs(a[0] - b[0]) < 0.5) {
+      // vertical
+      const x = a[0]
+      if (x <= box.x || x >= box.x + box.w) return false
+      return (
+        Math.max(a[1], b[1]) > box.y && Math.min(a[1], b[1]) < box.y + box.h
+      )
+    }
+    const y = a[1]
+    if (y <= box.y || y >= box.y + box.h) return false
+    return Math.max(a[0], b[0]) > box.x && Math.min(a[0], b[0]) < box.x + box.w
+  }
+  // STATIC obstacles a label must also avoid (besides other labels + bends): container TITLE text, container
+  // WALL strokes (the mask only cuts edge lines, not the container rect — a label across a wall reads as
+  // struck-through, e.g. dataplatform "snapshot" over the Stream Processing right wall), and leaf node boxes
+  // (a label belongs on the route between nodes, not on a node's own label, e.g. "consume" over the
+  // "Stream Processing" title). Penalised in the cost so labels slide to a clear spot.
+  const staticBoxes: LBox[] = []
+  const WALL = 6 // wall-band thickness to catch a label straddling a container stroke
+  for (const n of layout.nodes) {
+    const left = n.x + OFF
+    const top = n.y + OFF
+    if (n.kind === 'container' || n.kind === 'grid') {
+      const tw = ((n.s.label?.length ?? 0) * FONT_SIZE) / 1.85 + 6 // title text width estimate
+      if (tw > 8) staticBoxes.push({ x: left + 6, y: top + 2, w: tw, h: 18 })
+      staticBoxes.push({ x: left - WALL / 2, y: top, w: WALL, h: n.h }) // left wall
+      staticBoxes.push({ x: left + n.w - WALL / 2, y: top, w: WALL, h: n.h }) // right wall
+      staticBoxes.push({ x: left, y: top - WALL / 2, w: n.w, h: WALL }) // top wall
+      staticBoxes.push({ x: left, y: top + n.h - WALL / 2, w: n.w, h: WALL }) // bottom wall
+    } else {
+      staticBoxes.push({ x: left, y: top, w: n.w, h: n.h }) // leaf node box (its own label lives inside)
+    }
+  }
   // fixed obstacles: parallel-pair label boxes (already positioned, not moved here)
   const fixedBoxes: LBox[] = []
   for (const d of drawn)
@@ -943,10 +986,16 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
         const box = boxOf(c, lw, lh)
         let ovr = 0
         for (const p of others) if (boxesOverlap(box, p)) ovr++
+        let stat = 0
+        for (const p of staticBoxes) if (boxesOverlap(box, p)) stat++
         let bend = 0
         for (const cc of cornerList)
           if (cc.owner !== d && inBox(cc.p, box)) bend++
-        const cost = ovr * 10000 + bend * 1000 + idx // overlap ≫ other-bend ≫ distance-from-mid
+        let line = 0
+        for (const s of segList)
+          if (s.owner !== d && segHitsBoxLbl(s.a, s.b, box)) line++
+        // label-overlap ≫ static (title/wall/node) ≫ other-bend ≫ other-line ≫ distance-from-mid
+        const cost = ovr * 10000 + stat * 4000 + bend * 1000 + line * 500 + idx
         if (cost < bestCost) {
           bestCost = cost
           best = c
@@ -971,42 +1020,42 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       w: (d.e.lw as number) + 6,
       h: (d.e.lh as number) + 2,
     }))
-  // Canvas bounds: W/H were sized to NODE extents only (layout.W/H). But the A* back-edge router may route a
-  // loop in its PAD margin OUTSIDE the node box (even negative x — see cicd2's reg→staging cycle-closer), and
-  // labels can poke past too. Such geometry gets clipped by the viewBox AND masked out by the label mask
-  // (whose white rect is 0,0,W,H → anything outside reads as masked). Grow the viewBox + mask to cover ALL
-  // drawn geometry (nodes + simplified routes + label boxes). Only the overflowing side grows, so diagrams
-  // that fit stay byte-identical (vb* === 0/W/H).
-  let gMinX = 0
-  let gMinY = 0
-  let gMaxX = W
-  let gMaxY = H
+  // Canvas = TIGHT bbox of ALL drawn geometry (nodes + simplified routes + label boxes) + a uniform margin.
+  // ELK's layout.W/H is unreliable after refineLayout: too WIDE once compactBackRings pulls the back-edge
+  // rings in (dead right margin), and too NARROW when the A* router loops into its PAD margin (cicd2's
+  // negative-x cycle-closer used to get clipped). Sizing to the real extent fixes both. The label mask's
+  // white rect must cover the same box (it masks-out anything outside it).
+  let gMinX = Number.POSITIVE_INFINITY
+  let gMinY = Number.POSITIVE_INFINITY
+  let gMaxX = Number.NEGATIVE_INFINITY
+  let gMaxY = Number.NEGATIVE_INFINITY
+  const grow = (x: number, y: number) => {
+    if (x < gMinX) gMinX = x
+    if (y < gMinY) gMinY = y
+    if (x > gMaxX) gMaxX = x
+    if (y > gMaxY) gMaxY = y
+  }
   for (const n of layout.nodes) {
-    gMinX = Math.min(gMinX, n.x + OFF)
-    gMinY = Math.min(gMinY, n.y + OFF)
-    gMaxX = Math.max(gMaxX, n.x + OFF + n.w)
-    gMaxY = Math.max(gMaxY, n.y + OFF + n.h)
+    grow(n.x + OFF, n.y + OFF)
+    grow(n.x + OFF + n.w, n.y + OFF + n.h)
   }
-  for (const d of drawn)
-    for (const p of d.route) {
-      gMinX = Math.min(gMinX, p[0])
-      gMinY = Math.min(gMinY, p[1])
-      gMaxX = Math.max(gMaxX, p[0])
-      gMaxY = Math.max(gMaxY, p[1])
-    }
+  for (const d of drawn) for (const p of d.route) grow(p[0], p[1])
   for (const r of labelRects) {
-    gMinX = Math.min(gMinX, r.x)
-    gMinY = Math.min(gMinY, r.y)
-    gMaxX = Math.max(gMaxX, r.x + r.w)
-    gMaxY = Math.max(gMaxY, r.y + r.h)
+    grow(r.x, r.y)
+    grow(r.x + r.w, r.y + r.h)
   }
-  const VBMARGIN = 6
-  const vbX = gMinX < 0 ? Math.floor(gMinX) - VBMARGIN : 0
-  const vbY = gMinY < 0 ? Math.floor(gMinY) - VBMARGIN : 0
-  const vbW = (gMaxX > W ? Math.ceil(gMaxX) + VBMARGIN : W) - vbX
-  const vbH = (gMaxY > H ? Math.ceil(gMaxY) + VBMARGIN : H) - vbY
-  if (vbX !== 0 || vbY !== 0 || vbW !== W || vbH !== H)
-    parts[0] = `<svg xmlns="http://www.w3.org/2000/svg" width="${vbW}" height="${vbH}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`
+  if (!Number.isFinite(gMinX)) {
+    gMinX = 0
+    gMinY = 0
+    gMaxX = W
+    gMaxY = H
+  }
+  const VBMARGIN = OFF
+  const vbX = Math.floor(gMinX) - VBMARGIN
+  const vbY = Math.floor(gMinY) - VBMARGIN
+  const vbW = Math.ceil(gMaxX) + VBMARGIN - vbX
+  const vbH = Math.ceil(gMaxY) + VBMARGIN - vbY
+  parts[0] = `<svg xmlns="http://www.w3.org/2000/svg" width="${vbW}" height="${vbH}" viewBox="${vbX} ${vbY} ${vbW} ${vbH}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`
   const maskId = `vmarkd-d2lbl-${djb2(`${W}x${H}:${layout.edges.map((e) => e.label || '').join('|')}`)}`
   const maskAttr = labelRects.length ? ` mask="url(#${maskId})"` : ''
   if (labelRects.length) {
