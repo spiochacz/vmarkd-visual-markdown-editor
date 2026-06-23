@@ -11,12 +11,9 @@ import { renderD2GraphElk } from './elk-layout'
 declare const window: Window & {
   vditor?: { options?: { cdn?: string } }
   wavedrom?: {
-    renderWaveForm: (
-      index: number,
-      source: object,
-      outputElement: HTMLElement,
-      skin?: string,
-    ) => void
+    // 3rd arg is an id PREFIX string: renderWaveForm renders into document.getElementById(prefix+index).
+    renderWaveForm: (index: number, source: object, idPrefix: string) => void
+    waveSkin?: unknown // unpkg bundle exposes the skin here; bridged to window.WaveSkin (legacy global)
   }
   nomnoml?: {
     renderSvg: (source: string) => string

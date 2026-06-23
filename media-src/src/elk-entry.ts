@@ -11,12 +11,10 @@
 // blob, no `worker-src` CSP dependency. D2 graphs are small, so main-thread layout is sub-frame.
 
 // elk-api.js is a UMD/CJS bundle whose `module.exports` is the ELK class (with `.default` self-ref).
-// @ts-expect-error — vendored JS, no type declarations shipped alongside it.
 import ELKMod from '../vendor/elk/elk-api.js'
 // elk-worker.min.js does `module.exports = { default: <FakeWorker>, Worker: <FakeWorker> }` when a
 // CommonJS module context exists (esbuild provides one); the in-worker branch is skipped because
 // `document` is defined on the main thread.
-// @ts-expect-error — vendored JS, no type declarations shipped alongside it.
 import workerMod from '../vendor/elk/elk-worker.min.js'
 
 const ELK = (ELKMod as { default?: unknown }).default ?? ELKMod

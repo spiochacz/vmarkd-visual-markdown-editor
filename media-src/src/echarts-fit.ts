@@ -33,6 +33,11 @@ export function installEchartsResize(
   win: Window & {
     echarts?: EchartsGlobal
     __vmarkdEchartsResolve?: (ec: unknown) => string | undefined
+    // ResizeObserver/MutationObserver are global constructors (lib.dom `declare var`) but not members of
+    // the `Window` interface, so accessing them as win.* needs declaring. ResizeObserver is optional —
+    // guarded at runtime for older webviews; MutationObserver is always present.
+    ResizeObserver?: typeof ResizeObserver
+    MutationObserver: typeof MutationObserver
   },
 ): void {
   if (installed) return

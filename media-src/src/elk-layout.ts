@@ -303,7 +303,14 @@ export async function layoutElk(
   // origin (top-left). So collect edges at EVERY level, offset by that node's absolute origin.
   const collectEdges = (node: any, ax: number, ay: number) => {
     for (const e of node.edges || []) {
-      const em = edgeMeta.get(e.id) || { srcArrow: false, dstArrow: true }
+      // Fallback matches edgeMeta's value type (src/dst required) so em.label/src/dst type-check; it is
+      // effectively dead since every collected edge id was registered in edgeMeta above.
+      const em = edgeMeta.get(e.id) || {
+        srcArrow: false,
+        dstArrow: true,
+        src: '',
+        dst: '',
+      }
       // ELK placed the label (CENTER) in the gap it reserved — its x/y is the label box's top-left,
       // relative to this node, so centre it + offset like the route points. Fall back to the route
       // midpoint only if ELK returned no label position (task 122).
@@ -336,8 +343,8 @@ export async function layoutElk(
           ly: withLabel ? lp?.[1] : undefined,
           lw: withLabel ? elkLbl?.width : undefined,
           lh: withLabel ? elkLbl?.height : undefined,
-          src: (em as any).src,
-          dst: (em as any).dst,
+          src: em.src,
+          dst: em.dst,
         })
         firstSection = false
       }
