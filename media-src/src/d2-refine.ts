@@ -27,18 +27,51 @@ function segsCross(p1: Pt, p2: Pt, p3: Pt, p4: Pt): boolean {
 }
 // Count crossings between the polyline segments of all edges (skip same-edge pairs). The guard every pass
 // uses: a pass keeps a candidate change only if it does not raise this count.
+//
+// Speed: segments are sorted by minX and swept — once a later segment's minX passes the current segment's
+// maxX, no remaining pair can overlap in x, so we break; pairs that overlap in x but not in y are AABB-
+// rejected before the (4-cross-product) proper-crossing test. This returns the IDENTICAL count to the naive
+// O(n²) double loop: a proper crossing requires overlapping bounding boxes, so every skipped pair provably
+// cannot cross. (Hot path — called per candidate move inside every guarded pass.)
+type XSeg = {
+  a: Pt
+  b: Pt
+  ei: number
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
 function countCrossings(layout: Layout): number {
-  const segs: [Pt, Pt, number][] = []
+  const segs: XSeg[] = []
   layout.edges.forEach((e, ei) => {
     const p = e.points
-    for (let i = 0; i + 1 < p.length; i++) segs.push([p[i], p[i + 1], ei])
-  })
-  let c = 0
-  for (let i = 0; i < segs.length; i++)
-    for (let j = i + 1; j < segs.length; j++) {
-      if (segs[i][2] === segs[j][2]) continue
-      if (segsCross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) c++
+    for (let i = 0; i + 1 < p.length; i++) {
+      const a = p[i]
+      const b = p[i + 1]
+      segs.push({
+        a,
+        b,
+        ei,
+        minX: a[0] < b[0] ? a[0] : b[0],
+        maxX: a[0] > b[0] ? a[0] : b[0],
+        minY: a[1] < b[1] ? a[1] : b[1],
+        maxY: a[1] > b[1] ? a[1] : b[1],
+      })
     }
+  })
+  segs.sort((u, v) => u.minX - v.minX)
+  let c = 0
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i]
+    for (let j = i + 1; j < segs.length; j++) {
+      const t = segs[j]
+      if (t.minX > s.maxX) break // sorted by minX → no later segment overlaps s in x
+      if (s.ei === t.ei) continue
+      if (s.maxY < t.minY || t.maxY < s.minY) continue // AABB y-reject
+      if (segsCross(s.a, s.b, t.a, t.b)) c++
+    }
+  }
   return c
 }
 
@@ -1197,11 +1230,14 @@ function collinearOverlapCount(layout: Layout): number {
       ])
     }
   })
+  // Sort by x and sweep: once a later vertical is > 2px to the right it (and all after it, sorted) can't be
+  // collinear → break. Identical count to the naive O(n²) loop, just skips the provably-far pairs.
+  vert.sort((a, b) => a[0] - b[0])
   let c = 0
   for (let i = 0; i < vert.length; i++)
     for (let j = i + 1; j < vert.length; j++) {
+      if (vert[j][0] - vert[i][0] > 2) break
       if (vert[i][3] === vert[j][3]) continue
-      if (Math.abs(vert[i][0] - vert[j][0]) > 2) continue
       const lo = Math.max(vert[i][1], vert[j][1])
       const hi = Math.min(vert[i][2], vert[j][2])
       if (hi - lo > 4) c++
@@ -1346,14 +1382,6 @@ function segHitsABox(a: Pt, b: Pt, B: ABox): boolean {
   const hi = Math.max(a[0], b[0])
   return hi > x1 && lo < x2
 }
-function ptInABox(p: Pt, B: ABox): boolean {
-  return (
-    p[0] > B.x - ASTAR_M &&
-    p[0] < B.x + B.w + ASTAR_M &&
-    p[1] > B.y - ASTAR_M &&
-    p[1] < B.y + B.h + ASTAR_M
-  )
-}
 // perpendicular distance from an axis-aligned segment a-b to (un-inflated) box B
 function boxDist(a: Pt, b: Pt, B: ABox): number {
   const lo0 = Math.min(a[0], b[0])
@@ -1400,6 +1428,7 @@ interface ANode {
   di: number | null
   dj: number | null
   prev: ANode | null
+  seq: number // push order — the open-set tie-break (see astar's heap)
 }
 
 // A* on a Hanan grid. `boxes` = HARD obstacles; `clearObs` = SOFT clearance set (+ containers). Returns
@@ -1452,43 +1481,99 @@ function astar(
   }
   const X = [...densify(xs)].sort((a, b) => a - b)
   const Y = [...densify(ys)].sort((a, b) => a - b)
-  const key = (i: number, j: number) => `${i}_${j}`
-  const inAny = (p: Pt) => boxes.some((B) => ptInABox(p, B))
-  const ok = new Set<string>()
-  for (let i = 0; i < X.length; i++)
-    for (let j = 0; j < Y.length; j++) {
-      const p: Pt = [X[i], Y[j]]
-      if (
-        !inAny(p) ||
-        (X[i] === start[0] && Y[j] === start[1]) ||
-        (X[i] === goal[0] && Y[j] === goal[1])
-      )
-        ok.add(key(i, j))
-    }
+  // Numeric cell index i*Yl+j (was a `${i}_${j}` string key) — hot map/set lookups, identical semantics.
+  const Yl = Y.length
   const si = X.indexOf(start[0])
   const sj = Y.indexOf(start[1])
   const gi = X.indexOf(goal[0])
   const gj = Y.indexOf(goal[1])
+  // Walkable grid. Build by MARKING the cells each inflated box covers as blocked (O(boxes × box-cells)),
+  // instead of testing every cell against every box (O(cells × boxes)). Identical result: a cell is blocked
+  // iff it falls inside some inflated box — X[i] ∈ (B.x−M, B.x+B.w+M) and Y[j] ∈ (B.y−M, B.y+B.h+M), the same
+  // strict interval the old per-cell test used. start/goal are always re-opened (was `|| isStart || isGoal`).
+  const ok = new Uint8Array(X.length * Yl).fill(1)
+  for (const B of boxes) {
+    const x1 = B.x - ASTAR_M
+    const x2 = B.x + B.w + ASTAR_M
+    const y1 = B.y - ASTAR_M
+    const y2 = B.y + B.h + ASTAR_M
+    let i0 = 0
+    while (i0 < X.length && X[i0] <= x1) i0++
+    let i1 = i0
+    while (i1 < X.length && X[i1] < x2) i1++
+    let j0 = 0
+    while (j0 < Yl && Y[j0] <= y1) j0++
+    let j1 = j0
+    while (j1 < Yl && Y[j1] < y2) j1++
+    for (let i = i0; i < i1; i++)
+      for (let j = j0; j < j1; j++) ok[i * Yl + j] = 0
+  }
+  ok[si * Yl + sj] = 1
+  ok[gi * Yl + gj] = 1
   const Hh = (i: number, j: number) =>
     Math.abs(X[i] - X[gi]) + Math.abs(Y[j] - Y[gj])
-  const open: ANode[] = [
-    {
-      i: si,
-      j: sj,
-      g: 0,
-      f: Hh(si, sj),
-      di: inDir[0],
-      dj: inDir[1],
-      prev: null,
-    },
-  ]
-  const seen = new Map<string, number>()
+  // Open set = binary min-heap keyed (f, seq). seq is the push counter; ordering by (f, then earliest seq)
+  // reproduces EXACTLY the old per-iteration `open.sort((a,b)=>a.f-b.f)` + shift(): a stable sort breaks
+  // equal-f ties by array position, and with shift-front/push-back that position is FIFO push order. Same
+  // pop sequence ⇒ byte-identical routed path, but O(N log N) instead of O(N² log N) (was the whole cost).
+  const heap: ANode[] = []
+  let pushSeq = 0
+  const hless = (a: ANode, b: ANode) =>
+    a.f < b.f || (a.f === b.f && a.seq < b.seq)
+  const hpush = (n: ANode) => {
+    n.seq = pushSeq++
+    heap.push(n)
+    let c = heap.length - 1
+    while (c > 0) {
+      const p = (c - 1) >> 1
+      if (!hless(heap[c], heap[p])) break
+      const t = heap[c]
+      heap[c] = heap[p]
+      heap[p] = t
+      c = p
+    }
+  }
+  const hpop = (): ANode => {
+    const top = heap[0]
+    const last = heap.pop() as ANode
+    if (heap.length) {
+      heap[0] = last
+      let c = 0
+      for (;;) {
+        const l = 2 * c + 1
+        const r = 2 * c + 2
+        let m = c
+        if (l < heap.length && hless(heap[l], heap[m])) m = l
+        if (r < heap.length && hless(heap[r], heap[m])) m = r
+        if (m === c) break
+        const t = heap[c]
+        heap[c] = heap[m]
+        heap[m] = t
+        c = m
+      }
+    }
+    return top
+  }
+  hpush({
+    i: si,
+    j: sj,
+    g: 0,
+    f: Hh(si, sj),
+    di: inDir[0],
+    dj: inDir[1],
+    prev: null,
+    seq: 0,
+  })
+  // seen key = cell index folded with the entry direction (di,dj ∈ {-1,0,1} → 0..8). Numeric (was a
+  // `${i}_${j}|${di},${dj}` string), identical dedup semantics.
+  const seen = new Map<number, number>()
   let goalNode: ANode | null = null
-  while (open.length) {
-    open.sort((a, b) => a.f - b.f)
-    const cur = open.shift() as ANode
-    const sk = `${key(cur.i, cur.j)}|${cur.di},${cur.dj}`
-    if (seen.has(sk) && (seen.get(sk) as number) <= cur.g) continue
+  while (heap.length) {
+    const cur = hpop()
+    const sk =
+      (cur.i * Yl + cur.j) * 9 + ((cur.di ?? 0) + 1) * 3 + ((cur.dj ?? 0) + 1)
+    const prevG = seen.get(sk)
+    if (prevG !== undefined && prevG <= cur.g) continue
     seen.set(sk, cur.g)
     if (cur.i === gi && cur.j === gj) {
       // forbid arriving at the goal in a direction that would REVERSE the fixed entry stub (overshoot)
@@ -1507,7 +1592,7 @@ function astar(
       const ni = cur.i + di
       const nj = cur.j + dj
       if (ni < 0 || nj < 0 || ni >= X.length || nj >= Y.length) continue
-      if (!ok.has(key(ni, nj))) continue
+      if (!ok[ni * Yl + nj]) continue
       const a: Pt = [X[cur.i], Y[cur.j]]
       const b: Pt = [X[ni], Y[nj]]
       if (boxes.some((B) => segHitsABox(a, b, B))) continue
@@ -1536,7 +1621,7 @@ function astar(
         ec * 1500 +
         cp +
         epp
-      open.push({ i: ni, j: nj, g, f: g + Hh(ni, nj), di, dj, prev: cur })
+      hpush({ i: ni, j: nj, g, f: g + Hh(ni, nj), di, dj, prev: cur, seq: 0 })
     }
   }
   if (!goalNode) return null
