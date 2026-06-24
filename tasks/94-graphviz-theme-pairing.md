@@ -1,5 +1,9 @@
 # Task 94 — Graphviz theme pairing (DOT default attributes)
 
+> **🔎 Audit 2026-06-24 (task 142):** done, but **foreground-only** (`currentColor`) — no
+> content-theme PALETTE pairing like mermaid (task 86). Open / verify-first: do HTML-like labels,
+> clusters/subgraphs, `image=`, and custom fontnames render correctly via viz-js 3.x? Track findings here.
+
 > **Status:** ✅ DONE (2026-06-17). SVG post-processing approach (not DOT injection — simpler,
 > less fragile). `#000000`/`black` → `currentColor`, text `fill="currentColor"`, bg polygon
 > removed, node shapes `fill-opacity: 0.06` (subtle tint). Shared `viz-global.js` with PlantUML

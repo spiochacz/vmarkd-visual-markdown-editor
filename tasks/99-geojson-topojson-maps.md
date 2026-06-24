@@ -1,5 +1,11 @@
 # Task 99 — GeoJSON / TopoJSON interactive maps (GitHub parity)
 
+> **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderGeojson`/`renderTopojson` are wired in
+> `custom-diagrams.ts` (Leaflet 1.9.4 + topojson 3.1.0 vendored); status below is stale. **Open gap:**
+> no base-map TILE layer (remote tiles → CSP-blocked offline), so only the geometry shows on a blank
+> background. Decide: vendor offline tiles (size) vs document as "geometry-only". Mark this task done
+> for the render + track the basemap gap.
+
 > **Status:** 📋 TODO. Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps
 > — a **GitHub-native** Markdown feature (since 2022) that vMarkd lacks. Offline via a bundled
 > JS map lib (Leaflet/MapLibre). **First of the new-renderer tasks: it establishes the shared

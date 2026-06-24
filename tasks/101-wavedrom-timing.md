@@ -1,5 +1,9 @@
 # Task 101 — WaveDrom timing diagrams
 
+> **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderWavedrom` is wired in `custom-diagrams.ts`
+> (wavedrom 3.6.1 vendored), themed via `themeWavedromSvg` (signal colours kept, black→currentColor);
+> status below is stale. Verify-first: `reg`/`assign` skins + `config` honoured. Mark done once verified.
+
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```wavedrom ` fenced blocks as digital **timing diagrams** (WaveJSON). Popular in
 > hardware/EE docs; supported by Kroki/GitLab-adjacent tooling. Pure-JS, SVG, fully offline.

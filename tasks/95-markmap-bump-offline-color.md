@@ -1,5 +1,10 @@
 # Task 95 — Full markmap bump (0.14.3 → 0.18.x) + offline bundle + color strategy
 
+> **🔎 Audit 2026-06-24 (task 142):** `media-src/vendor/markmap/source.json` now pins **0.18.12** —
+> so the bump may have landed since this status was written. VERIFY the spike blocker (`Markmap.create`
+> "n is not a constructor" in the real webview) is actually resolved in shipped code. Theming still ❌
+> (baked palette); collapse/zoom interaction unverified. Update the status once confirmed.
+
 > **Status:** 📋 TODO — **spike partial** (2026-06-17). Offline bundle builds (758KB, -47KB vs old
 > 805KB), API shape matches, `Transformer.transform()` works — but `Markmap.create(svg, opts)` throws
 > `n is not a constructor` in the real VS Code webview (d3 v7 SVG namespace issue or esbuild IIFE

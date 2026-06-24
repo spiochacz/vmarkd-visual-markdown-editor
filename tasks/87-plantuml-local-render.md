@@ -138,5 +138,7 @@ Source: pre-built `js-plantuml-SNAPSHOT.zip` from GitHub Releases `snapshot` tag
 - Task 86 (mermaid theme pairing — same "renderer follows theme?" audit; `{dark}` here is the
   analogue), task 67 (CSP: `object-src 'none'` blocks the current remote `<object>`), task 66
   (Lute vendoring pattern — pin + build-once + vendor + license).
+- [Task 144](144-plantuml-architecture-hardening.md) — post-implementation architecture review:
+  patch-as-string→real module, hardcoded-skin-colour test, innerHTML reparse, snapshot→stable pin.
 - `plantuml/plantuml` → `teavm.sh`, `src/main/java/net/sourceforge/plantuml/teavm/`,
   `src/main/resources/teavm/GITHUB_INTEGRATION.md`; vditor `plantumlRender.ts`.

@@ -1,5 +1,9 @@
 # Task 100 — ASCII STL interactive 3D models (GitHub parity)
 
+> **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderStl` is wired in `custom-diagrams.ts`
+> (three.js 0.184 vendored); status below is stale. Verify-first: orbit controls, lighting, and perf on
+> large meshes. Mark done for the render once verified.
+
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```stl ` fenced blocks as interactive 3D models — a **GitHub-native** Markdown feature
 > that vMarkd lacks. Offline via bundled three.js. Fully offline (no remote, WebGL/canvas only).

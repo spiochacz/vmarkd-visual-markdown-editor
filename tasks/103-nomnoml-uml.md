@@ -1,5 +1,9 @@
 # Task 103 — nomnoml lightweight UML
 
+> **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderNomnoml` is wired in `custom-diagrams.ts`
+> (nomnoml 1.7.0 vendored); status below is stale. Verify-first: theming — do `#fill`/`#stroke`
+> directives + default colours follow / clash with the content theme? Mark done once theming verified.
+
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```nomnoml ` fenced blocks as UML diagrams. nomnoml is a tiny, pure-JS UML language —
 > a lightweight, fully-offline alternative to PlantUML (task 87) for class/relationship sketches.

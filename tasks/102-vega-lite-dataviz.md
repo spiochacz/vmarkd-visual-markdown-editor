@@ -1,5 +1,10 @@
 # Task 102 — Vega / Vega-Lite data-visualization
 
+> **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderVega` is wired in `custom-diagrams.ts`
+> (vega 7.x / vega-embed vendored); status below is stale. **Open gap:** `spec.data.url` is stripped
+> (offline) → only inline data works; document it. Verify-first: vega light/dark theming + responsive
+> width/height. Mark done for inline-data render + track the data-URL limitation.
+
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```vega ` / ` ```vega-lite ` fenced blocks (JSON spec) as charts. Vega is a richer
 > data-viz grammar than ECharts for declarative/statistical plots; supported by Kroki + Jupyter +

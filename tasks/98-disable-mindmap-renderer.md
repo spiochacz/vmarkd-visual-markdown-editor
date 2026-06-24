@@ -1,5 +1,9 @@
 # Task 98 — Disable the `mindmap` renderer (adapter-neuter)
 
+> **🔎 Audit 2026-06-24 (task 142):** still UNCHANGED — `mindmap` blocks still render (echarts-tree,
+> baked light palette, hostile URL-encoded-JSON input). Decision still pending: disable (this task) vs
+> theme it. No action taken; keep TODO until decided.
+
 > **Status:** 📋 TODO. Stop rendering ` ```mindmap ` blocks. The ECharts-tree mindmap is
 > **redundant with markmap**, takes a **hostile input** (URL-encoded JSON —
 > `JSON.parse(decodeURIComponent(text))`, unwritable by hand), and is **locked to a light
