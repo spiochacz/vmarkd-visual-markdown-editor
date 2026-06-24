@@ -7,7 +7,7 @@
 // we avoid the stock blob-Web-Worker build (it rejects under the VS Code webview).
 import type { D2Graph, D2Shape } from './d2-wasm'
 import {
-  type D2Palette,
+  type D2Style,
   type Layout,
   type PlacedEdge,
   type PlacedNode,
@@ -389,7 +389,7 @@ export async function renderD2GraphElk(
   graph: D2Graph,
   measure: Sizer,
   cdn: string,
-  palette?: D2Palette,
+  style?: D2Style,
 ): Promise<string | null> {
   try {
     const elk = await bootElk(cdn)
@@ -398,7 +398,7 @@ export async function renderD2GraphElk(
     // Full post-process pipeline (task 122): row alignment, adaptive gaps, channel/bend cleanup, back-edge
     // A* reroute, label placement. See d2-refine.ts for the exact ordering and rationale.
     refineLayout(layout)
-    return toSVG(layout, palette)
+    return toSVG(layout, style)
   } catch {
     // ELK can fail in the webview (e.g. blob-worker / CSP). NEVER let that break D2 rendering —
     // return null so renderD2 falls back to the dagre engine.

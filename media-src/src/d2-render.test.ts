@@ -85,14 +85,16 @@ describe('d2-render', () => {
     expect(svg).toContain('<ellipse')
   })
 
-  it('renders a person as a head circle + body (not a plain rect)', () => {
+  it('renders a person as a silhouette path (not a plain rect)', () => {
+    // d2 v0.7.1 lib/shape person = one head+shoulders outline path with the label below; NOT a rect,
+    // and no longer the old crude head-circle + dome.
     const svg = renderD2Graph(
       g([
         { id: 'u', idVal: 'u', label: 'u', shape: 'person', special: empty() },
       ]),
       sizer,
     )
-    expect(svg).toContain('<circle')
+    expect(svg).toContain('<path')
     expect(svg).not.toContain('<rect')
   })
 

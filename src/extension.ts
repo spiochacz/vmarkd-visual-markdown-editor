@@ -1494,6 +1494,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       mermaidTheme: c.get<string>('theme.mermaid'),
       echartsTheme: c.get<string>('theme.echarts'),
       d2Layout: c.get<string>('diagram.d2Layout'),
+      d2Theme: c.get<string>('diagram.d2Theme'),
       showToolbar: c.get<boolean>('editor.toolbar'),
       highlightHeadings: c.get<boolean>('theme.highlightHeadings'),
       showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),

@@ -1,5 +1,5 @@
 import dagre from '@dagrejs/dagre'
-import { mix } from '../../src/mermaid-palettes'
+import { MERMAID_PALETTES, mix } from '../../src/mermaid-palettes'
 import type { D2Graph, D2Shape } from './d2-wasm'
 
 const FONT_SIZE = 16
@@ -50,6 +50,34 @@ function dimsToFit(
       return { w: ceil(w + P), h: ceil(((h + 29.59) * 18.925) / 14) }
     case 'page':
       return { w: ceil(w + P), h: ceil(h + 60.348) }
+    // The cases below match d2 v0.7.1 lib/shape GetDimensionsToFit so labels fit the bespoke
+    // geometry the toSVG switch now draws for these shapes (previously they fell through to a
+    // plain rectangle box). ARC=24 (defaultArcDepth), wedge constants per shape.
+    case 'queue':
+      // shape_queue: 1 arc left + 2 arcs right (3*24), padX=20
+      return { w: ceil(w + 3 * 24 + 20), h: ceil(h + P) }
+    case 'stored_data':
+      // shape_stored_data: 2 side wedges (15) + padX=30
+      return { w: ceil(w + 2 * 15 + 30), h: ceil(h + P) }
+    case 'step':
+      // shape_step: 2 wedges (35) + padX=10, padY += wedge
+      return { w: ceil(w + 2 * 35 + 10), h: ceil(h + P + 35) }
+    case 'callout':
+      // shape_callout: a downward tail adds tipHeight (45) below the body
+      return { w: ceil(w + P), h: ceil(h + 45 + 20) }
+    case 'package':
+      // shape_package: a top tab band above the label (≈ measured +52 over the content box)
+      return { w: ceil(w + P), h: ceil(h + 52) }
+    case 'cloud':
+      // shape_cloud: the puffy body needs generous room around the centred label
+      return { w: ceil(w * 1.4 + 30), h: ceil(h * 1.6 + 30) }
+    case 'person': {
+      // shape_person: a square figure with the label rendered BELOW it — reserve a label band
+      // under a square figure sized from the label height.
+      const band = FONT_SIZE + 8
+      const fig = ceil(h + 28)
+      return { w: ceil(Math.max(fig, w)), h: fig + band }
+    }
     default:
       return { w: ceil(w + P), h: ceil(h + P) } // rectangle/"": (40,40)
   }
@@ -100,13 +128,23 @@ export interface D2Palette {
   accent?: string
   muted?: string
 }
-interface D2Style {
-  leafFill: string
-  leafStroke: string
-  contFill: string
-  contStroke: string
+export interface D2Style {
+  leafFill: string // d2 B6 — leaf shape fill (near-white in light themes)
+  leafStroke: string // d2 B1 — every shape + connection stroke
+  contFill: string // d2 B4 — level-0 container fill (see `fills` for the nesting cascade)
+  contStroke: string // d2 B1
   contOpacity: string
+  edge: string // d2 B1 — connection lines + arrowheads
+  bg?: string // d2 N7 — page background rect (undefined = transparent canvas, follows the editor)
   mono: boolean
+  // Full d2 token map for FAITHFUL sql_table / class / label colouring (verified against the binary).
+  // In mono these all collapse to currentColor/transparent so the legacy monochrome look is preserved.
+  text: string // d2 N1 — node + container labels
+  textMuted: string // d2 N2 — edge labels (italic) + sql column type
+  paper: string // d2 N7 — sql_table/class body fill + their header text
+  accent: string // d2 B2 — sql column name / class +- visibility
+  accent2: string // d2 AA2 — sql constraint / class field type
+  fills: string[] // d2 [B4,B5,B6,N7] — container fill by nesting depth (index = level, clamped)
 }
 export function paletteStyle(p?: D2Palette): D2Style {
   if (!p)
@@ -116,7 +154,14 @@ export function paletteStyle(p?: D2Palette): D2Style {
       contFill: 'transparent',
       contStroke: 'currentColor',
       contOpacity: '0.04',
+      edge: 'currentColor',
       mono: true,
+      text: 'currentColor',
+      textMuted: 'currentColor',
+      paper: 'transparent',
+      accent: 'currentColor',
+      accent2: 'currentColor',
+      fills: ['transparent', 'transparent', 'transparent', 'transparent'],
     }
   const accent = p.accent || p.line || p.fg
   return {
@@ -125,8 +170,129 @@ export function paletteStyle(p?: D2Palette): D2Style {
     contFill: mix(p.bg, p.fg, 0.05), // muted container surface
     contStroke: mix(p.fg, accent, 0.4),
     contOpacity: '1',
+    edge: p.line || accent,
+    bg: p.bg, // paint the editor background so the paired theme blends into that environment
     mono: false,
+    text: p.fg,
+    textMuted: mix(p.bg, p.fg, 0.6),
+    paper: p.bg,
+    accent,
+    accent2: accent,
+    fills: [
+      mix(p.bg, p.fg, 0.1),
+      mix(p.bg, p.fg, 0.06),
+      mix(p.bg, p.fg, 0.03),
+      p.bg,
+    ],
   }
+}
+
+// Named colour themes for D2 diagrams, selected via `vmarkd.diagram.d2Theme`. The `d2-*` themes are
+// FAITHFUL ports of d2 v0.7.1's own token mapping (every token + element→token assignment verified
+// against the real `d2` binary): leaf fill=B6, every stroke + connection=B1, container fill cascades
+// B4→B5→B6→N7 by nesting depth, labels=N1, edge labels=N2 (italic), page=N7; sql_table/class use the
+// NEUTRAL tokens (white N7 body, dark N1 border + solid N1 header with N7 text, column name=B2,
+// type=N2, constraint=AA2). 'mono' keeps the original currentColor behaviour (no page background).
+const d2Catalog = (t: {
+  N1: string
+  N2: string
+  N7: string
+  B1: string
+  B2: string
+  B4: string
+  B5: string
+  B6: string
+  AA2: string
+}): D2Style => ({
+  leafFill: t.B6,
+  leafStroke: t.B1,
+  contFill: t.B4,
+  contStroke: t.B1,
+  contOpacity: '1',
+  edge: t.B1,
+  bg: t.N7,
+  mono: false,
+  text: t.N1,
+  textMuted: t.N2,
+  paper: t.N7,
+  accent: t.B2,
+  accent2: t.AA2,
+  fills: [t.B4, t.B5, t.B6, t.N7],
+})
+
+// Editor-paired themes (vscode/github light+dark) — mirror the mermaid palette look: SUBTLE accent-
+// tinted fills (not d2's saturated tokens), accent borders + edges, page bg = the editor's own
+// background, so the diagram blends into that environment like mermaid does. Reuses MERMAID_PALETTES.
+const pairedTheme = (id: string): D2Style => paletteStyle(MERMAID_PALETTES[id])
+
+const D2_THEMES: Record<string, D2Style> = {
+  // d2 catalog — full token sets pulled verbatim from `d2 --theme=<id>` (v0.7.1).
+  'd2-original': d2Catalog({
+    N1: '#0A0F25',
+    N2: '#676C7E',
+    N7: '#FFFFFF',
+    B1: '#0D32B2',
+    B2: '#0D32B2',
+    B4: '#E3E9FD',
+    B5: '#EDF0FD',
+    B6: '#F7F8FE',
+    AA2: '#4A6FF3',
+  }), // Neutral default (0)
+  'd2-neutral-grey': d2Catalog({
+    N1: '#0A0F25',
+    N2: '#676C7E',
+    N7: '#FFFFFF',
+    B1: '#0A0F25',
+    B2: '#676C7E',
+    B4: '#CFD2DD',
+    B5: '#DEE1EB',
+    B6: '#EEF1F8',
+    AA2: '#676C7E',
+  }), // Neutral Grey (1)
+  'd2-cool-classics': d2Catalog({
+    N1: '#0A0F25',
+    N2: '#676C7E',
+    N7: '#FFFFFF',
+    B1: '#000536',
+    B2: '#0F66B7',
+    B4: '#87BFF3',
+    B5: '#BCDDFB',
+    B6: '#E5F3FF',
+    AA2: '#076F6F',
+  }), // Cool classics (4)
+  'd2-dark-mauve': d2Catalog({
+    N1: '#CDD6F4',
+    N2: '#BAC2DE',
+    N7: '#1E1E2E',
+    B1: '#CBA6F7',
+    B2: '#CBA6F7',
+    B4: '#585B70',
+    B5: '#45475A',
+    B6: '#313244',
+    AA2: '#F38BA8',
+  }), // Dark Mauve (200)
+  'd2-terminal': d2Catalog({
+    N1: '#000410',
+    N2: '#0000B8',
+    N7: '#FFFFFF',
+    B1: '#000410',
+    B2: '#0000E4',
+    B4: '#E7E9EE',
+    B5: '#F5F6F9',
+    B6: '#FFFFFF',
+    AA2: '#008566',
+  }), // Terminal (300)
+  // editor-paired (mermaid-style tints)
+  'vscode-light': pairedTheme('vscode-light-2026'),
+  'vscode-dark': pairedTheme('vscode-dark-2026'),
+  'github-light': pairedTheme('github-light'),
+  'github-dark': pairedTheme('github-dark'),
+}
+
+// Resolve a theme NAME to its style. Unknown / 'mono' / undefined → the monochrome currentColor style
+// (today's default), so existing diagrams are unchanged unless a colour theme is explicitly selected.
+export function d2Theme(name?: string): D2Style {
+  return (name && D2_THEMES[name]) || paletteStyle()
 }
 
 // Label paint: explicit fontColor > contrast-vs-fill > currentColor; + bold/italic. `effFill` is the
@@ -136,8 +302,15 @@ function textAttrs(
   s: Partial<D2Shape>,
   fontSize = FONT_SIZE,
   effFill?: string,
+  themeText?: string,
 ): string {
-  const color = s.fontColor || labelColor(s.fill || effFill)
+  // d2 paints labels with its N1 token regardless of fill (passed as themeText). An explicit source
+  // fontColor still wins; an explicit source fill falls back to contrast-vs-fill; else themeText (N1),
+  // else currentColor (mono).
+  const color =
+    s.fontColor ||
+    (s.fill ? labelColor(s.fill) : themeText) ||
+    labelColor(effFill)
   let a = `font-size="${fontSize}" fill="${color}"`
   if (s.bold) a += ' font-weight="700"'
   if (s.italic) a += ' font-style="italic"'
@@ -419,9 +592,9 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
 export function renderD2Graph(
   graph: D2Graph,
   measure: Sizer,
-  palette?: D2Palette,
+  style?: D2Style,
 ): string {
-  return toSVG(layoutDagre(graph, measure), palette)
+  return toSVG(layoutDagre(graph, measure), style)
 }
 
 // ---------------- SVG generation (engine-neutral) ----------------
@@ -808,12 +981,28 @@ function djb2(s: string): string {
   return (h >>> 0).toString(36)
 }
 
-function toSVG(layout: Layout, palette?: D2Palette): string {
+function toSVG(layout: Layout, style?: D2Style): string {
   const OFF = 10
   const W = layout.W + 20
   const H = layout.H + 20
-  const themeColor = 'currentColor'
-  const sty = paletteStyle(palette) // task 119 — default shape fill/stroke (mono when no palette)
+  const sty = style ?? paletteStyle() // mono (currentColor) unless a colour theme is supplied
+  const themeColor = sty.edge // connection lines + arrowheads + edge labels
+  // Container/grid fill cascades by nesting depth (d2: B4→B5→B6→N7 by level). Compute each shape's
+  // level from its container chain; mono keeps the flat transparent fill.
+  const byId = new Map(layout.nodes.map((n) => [n.s.id, n.s]))
+  const levelOf = (s: D2Shape): number => {
+    let lvl = 0
+    let c = s.container
+    while (c) {
+      lvl++
+      c = byId.get(c)?.container
+    }
+    return lvl
+  }
+  const contFillAt = (s: D2Shape): string =>
+    sty.mono
+      ? sty.contFill
+      : sty.fills[Math.min(levelOf(s), sty.fills.length - 1)]
   const parts: string[] = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family='"Source Sans 3","Source Sans Pro",system-ui,sans-serif'>`,
   ]
@@ -1069,6 +1258,14 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
     )
   }
 
+  // Page background (colour themes only). A self-contained light/dark card behind everything so the
+  // diagram reads identically regardless of the VS Code editor background. Mono theme has no bg →
+  // transparent canvas that follows the editor (today's behaviour). Drawn first = furthest back.
+  if (sty.bg)
+    parts.push(
+      `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${sty.bg}"/>`,
+    )
+
   // Background pass — containers + grids FIRST so their fills sit BEHIND the edges. With task 119
   // colouring the container fill is OPAQUE; drawing it after the edges (the old order) hid any edge
   // entering a container (e.g. bus→shipping vanished under the Services fill). Leaves are drawn AFTER
@@ -1083,11 +1280,12 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       continue
     }
     const rx = s.borderRadius || 6
+    const cfill = contFillAt(s) // d2 nesting cascade B4→B5→B6→N7
     parts.push(
-      `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${n.w.toFixed(1)}" height="${n.h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.contFill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
+      `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${n.w.toFixed(1)}" height="${n.h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, cfill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
     )
     parts.push(
-      `<text x="${(left + 8).toFixed(1)}" y="${(top + 16).toFixed(1)}" ${textAttrs(s, FONT_SIZE, sty.contFill)}>${esc2(s.label)}</text>`,
+      `<text x="${(left + 8).toFixed(1)}" y="${(top + 16).toFixed(1)}" ${textAttrs(s, FONT_SIZE, cfill, sty.text)}>${esc2(s.label)}</text>`,
     )
   }
 
@@ -1118,8 +1316,9 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
       parts.push(arrow(route[0][0], route[0][1], a, themeColor))
     }
     if (e.label && lpos) {
+      // d2 draws connection labels in N2 (muted), italic — not the connection's own colour.
       parts.push(
-        `<text x="${lpos[0].toFixed(1)}" y="${lpos[1].toFixed(1)}" font-size="${EDGE_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" fill="${themeColor}">${esc2(e.label)}</text>`,
+        `<text x="${lpos[0].toFixed(1)}" y="${lpos[1].toFixed(1)}" font-size="${EDGE_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" font-style="italic" fill="${sty.textMuted}">${esc2(e.label)}</text>`,
       )
     }
   }
@@ -1137,11 +1336,38 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
     const cy = top + h / 2
 
     if (n.kind === 'sql') {
-      parts.push(drawSqlTable(s, n.sqlCols || [0, 0, 0], left, top, w, h))
+      parts.push(drawSqlTable(s, n.sqlCols || [0, 0, 0], left, top, w, h, sty))
       continue
     }
     if (n.kind === 'class') {
-      parts.push(drawClass(s, left, top, w, h))
+      parts.push(drawClass(s, left, top, w, h, sty))
+      continue
+    }
+
+    const R = left + w
+    const B = top + h
+    const f1 = (v: number) => v.toFixed(1)
+    // All bespoke shape geometry below is a faithful port of d2 v0.7.1 lib/shape (paths derived
+    // from the real `d2` binary's SVG output, sizing from GetDimensionsToFit/GetInnerBox). The
+    // label position (lx,ly) defaults to the box centre but shifts for shapes whose D2 inner box
+    // is offset (cylinder caps, queue caps, callout tail, package tab, document wave).
+    let lx = cx
+    let ly = cy
+
+    // person: head+shoulders silhouette as ONE outline, label rendered BELOW the figure (d2
+    // shape_person renders the label outside, under the figure). dimsToFit reserves a label band.
+    if (s.shape === 'person') {
+      const band = FONT_SIZE + 8
+      const sd = Math.min(w, h - band) // square figure side, centred in the box top
+      const fx = cx - sd / 2
+      const X = (t: number) => f1(fx + t * sd)
+      const Y = (t: number) => f1(top + t * sd)
+      parts.push(
+        `<path d="M${X(1)},${Y(1)} H${X(0)} V${Y(0.99)} C${X(0)},${Y(0.82)} ${X(0.108)},${Y(0.67)} ${X(0.283)},${Y(0.59)} C${X(0.183)},${Y(0.53)} ${X(0.133)},${Y(0.43)} ${X(0.133)},${Y(0.33)} C${X(0.133)},${Y(0.15)} ${X(0.292)},${Y(0)} ${X(0.5)},${Y(0)} C${X(0.7)},${Y(0)} ${X(0.867)},${Y(0.15)} ${X(0.867)},${Y(0.33)} C${X(0.867)},${Y(0.44)} ${X(0.808)},${Y(0.53)} ${X(0.717)},${Y(0.59)} C${X(0.892)},${Y(0.66)} ${X(1)},${Y(0.82)} ${X(1)},${Y(0.99)} V${Y(1)} H${X(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+      )
+      parts.push(
+        `<text x="${f1(cx)}" y="${f1(top + sd + band / 2)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s, FONT_SIZE, sty.leafFill, sty.text)}>${esc2(s.label)}</text>`,
+      )
       continue
     }
 
@@ -1159,46 +1385,43 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
         )
         break
       case 'hexagon': {
-        const i = w * 0.22
+        const i = w * 0.25 // d2 hexagon inset = w/4
         parts.push(
           `<polygon points="${(left + i).toFixed(1)},${top.toFixed(1)} ${(left + w - i).toFixed(1)},${top.toFixed(1)} ${(left + w).toFixed(1)},${cy} ${(left + w - i).toFixed(1)},${(top + h).toFixed(1)} ${(left + i).toFixed(1)},${(top + h).toFixed(1)} ${left.toFixed(1)},${cy}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         break
       }
       case 'cylinder': {
-        const ry = Math.min(h * 0.12, 12)
+        // d2 shape_cylinder: vertical sides + bezier ellipse caps; constant cap depth (arc=24,
+        // defaultArcDepth). Front lip of the top cap drawn on top. Label sits below the top cap.
+        const c = Math.min(24, h * 0.32)
+        const x45 = f1(left + w * 0.45)
+        const x55 = f1(left + w * 0.55)
         parts.push(
-          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)} L${(left + w).toFixed(1)},${(top + h - ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 1 ${left},${(top + h - ry).toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+          `<path d="M${f1(left)},${f1(top + c)} C${f1(left)},${f1(top)} ${x45},${f1(top)} ${f1(cx)},${f1(top)} C${x55},${f1(top)} ${f1(R)},${f1(top)} ${f1(R)},${f1(top + c)} V${f1(B - c)} C${f1(R)},${f1(B)} ${x55},${f1(B)} ${f1(cx)},${f1(B)} C${x45},${f1(B)} ${f1(left)},${f1(B)} ${f1(left)},${f1(B - c)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         parts.push(
-          `<path d="M${left},${(top + ry).toFixed(1)} A${(w / 2).toFixed(1)},${ry.toFixed(1)} 0 0 0 ${(left + w).toFixed(1)},${(top + ry).toFixed(1)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
+          `<path d="M${f1(left)},${f1(top + c)} C${f1(left)},${f1(top + 2 * c)} ${x45},${f1(top + 2 * c)} ${f1(cx)},${f1(top + 2 * c)} C${x55},${f1(top + 2 * c)} ${f1(R)},${f1(top + 2 * c)} ${f1(R)},${f1(top + c)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
         )
+        ly = top + 2 * c + (h - 3 * c) / 2 // d2 inner box: top += 2*arc, height -= 3*arc
         break
       }
       case 'queue': {
-        // D2 queue = a horizontal cylinder: rounded right cap + an inner vertical arc.
-        const rx = Math.min(w * 0.12, 14)
+        // d2 shape_queue: a horizontal cylinder — 1 arc left, 2 arcs right (arc=24). Label sits
+        // in the inner box (x += arc, width -= 3*arc → centre shifts left by arc/2).
+        const c = Math.min(24, w * 0.32)
+        const y45 = f1(top + h * 0.45)
+        const y55 = f1(top + h * 0.55)
+        const Lc = f1(left + c)
+        const Rc = f1(left + w - c)
+        const R2c = f1(left + w - 2 * c)
         parts.push(
-          `<path d="M${left.toFixed(1)},${top.toFixed(1)} L${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 1 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)} L${left.toFixed(1)},${(top + h).toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+          `<path d="M${Lc},${f1(top)} H${Rc} C${f1(R)},${f1(top)} ${f1(R)},${y45} ${f1(R)},${f1(cy)} C${f1(R)},${y55} ${f1(R)},${f1(B)} ${Rc},${f1(B)} H${Lc} C${f1(left)},${f1(B)} ${f1(left)},${y55} ${f1(left)},${f1(cy)} C${f1(left)},${y45} ${f1(left)},${f1(top)} ${Lc},${f1(top)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
         parts.push(
-          `<path d="M${(left + w - rx).toFixed(1)},${top.toFixed(1)} A${rx.toFixed(1)},${(h / 2).toFixed(1)} 0 0 0 ${(left + w - rx).toFixed(1)},${(top + h).toFixed(1)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
+          `<path d="M${Rc},${f1(top)} C${R2c},${f1(top)} ${R2c},${y45} ${R2c},${f1(cy)} C${R2c},${y55} ${R2c},${f1(B)} ${Rc},${f1(B)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
         )
-        break
-      }
-      case 'person': {
-        // Head circle + a shoulders dome (half-ellipse) — a simple, recognizable figure.
-        const hr = Math.min(w, h) * 0.2
-        const hcy = top + hr + h * 0.06
-        const bx1 = left + w * 0.16
-        const bx2 = left + w * 0.84
-        const by = top + h
-        parts.push(
-          `<circle cx="${cx.toFixed(1)}" cy="${hcy.toFixed(1)}" r="${hr.toFixed(1)}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
-        )
-        parts.push(
-          `<path d="M${bx1.toFixed(1)},${by.toFixed(1)} A${((bx2 - bx1) / 2).toFixed(1)},${(by - hcy - hr).toFixed(1)} 0 0 1 ${bx2.toFixed(1)},${by.toFixed(1)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
-        )
+        lx = left + c + (w - 3 * c) / 2
         break
       }
       case 'cloud': {
@@ -1210,13 +1433,80 @@ function toSVG(layout: Layout, palette?: D2Palette): string {
         )
         break
       }
+      case 'parallelogram': {
+        // d2 shape_parallelogram: slanted box, slant = 26px constant.
+        const sl = Math.min(26, w * 0.33)
+        parts.push(
+          `<polygon points="${f1(left + sl)},${f1(top)} ${f1(R)},${f1(top)} ${f1(R - sl)},${f1(B)} ${f1(left)},${f1(B)}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        break
+      }
+      case 'document': {
+        // d2 shape_document: rectangle with a single wavy dip along the bottom (overflows ~5%).
+        const yb = f1(top + h * 0.86)
+        parts.push(
+          `<path d="M${f1(left)},${yb} L${f1(left)},${f1(top)} L${f1(R)},${f1(top)} L${f1(R)},${yb} C${f1(left + w * 0.833)},${f1(top + h * 0.68)} ${f1(left + w * 0.667)},${f1(top + h * 0.68)} ${f1(cx)},${yb} C${f1(left + w * 0.333)},${f1(top + h * 1.05)} ${f1(left + w * 0.167)},${f1(top + h * 1.05)} ${f1(left)},${yb} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        ly = top + h * 0.37 // label centred in the inner box (top 74%)
+        break
+      }
+      case 'page': {
+        // d2 shape_page: rectangle with a folded top-right corner (fold ~20px).
+        const fold = Math.min(20, w * 0.33, h * 0.33)
+        const xf = f1(R - fold)
+        const yf = f1(top + fold)
+        parts.push(
+          `<path d="M${f1(left)},${f1(top)} H${xf} L${f1(R)},${yf} V${f1(B)} H${f1(left)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        parts.push(
+          `<path d="M${xf},${f1(top)} V${yf} H${f1(R)}" fill="none" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 2}"/>`,
+        )
+        break
+      }
+      case 'stored_data': {
+        // d2 shape_stored_data: cylinder on its side — both vertical edges bow right (wedge=15).
+        const wd = Math.min(15, w * 0.3)
+        parts.push(
+          `<path d="M${f1(left + wd)},${f1(top)} H${f1(R)} C${f1(R - 4)},${f1(top)} ${f1(R - wd)},${f1(top + h * 0.27)} ${f1(R - wd)},${f1(cy)} C${f1(R - wd)},${f1(top + h * 0.73)} ${f1(R - 4)},${f1(B)} ${f1(R)},${f1(B)} H${f1(left + wd)} C${f1(left + 4)},${f1(B)} ${f1(left)},${f1(top + h * 0.73)} ${f1(left)},${f1(cy)} C${f1(left)},${f1(top + h * 0.27)} ${f1(left + 4)},${f1(top)} ${f1(left + wd)},${f1(top)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        break
+      }
+      case 'package': {
+        // d2 shape_package: rectangle with a smaller tab on the top-left.
+        const tw = w * 0.5
+        const th = Math.min(Math.max(h * 0.2, 20), 55)
+        parts.push(
+          `<path d="M${f1(left)},${f1(top)} L${f1(left + tw)},${f1(top)} L${f1(left + tw)},${f1(top + th)} L${f1(R)},${f1(top + th)} L${f1(R)},${f1(B)} L${f1(left)},${f1(B)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        ly = top + th + (h - th) / 2 // label below the tab
+        break
+      }
+      case 'step': {
+        // d2 shape_step: chevron/arrow block (wedge=35 on both sides).
+        const wd = Math.min(35, w * 0.4)
+        parts.push(
+          `<polygon points="${f1(left)},${f1(top)} ${f1(R - wd)},${f1(top)} ${f1(R)},${f1(cy)} ${f1(R - wd)},${f1(B)} ${f1(left)},${f1(B)} ${f1(left + wd)},${f1(cy)}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        break
+      }
+      case 'callout': {
+        // d2 shape_callout: speech bubble — body rectangle with a downward tail at bottom-centre.
+        const tipW = Math.min(30, w * 0.3)
+        const tipH = Math.min(45, h * 0.4)
+        const yb = f1(B - tipH)
+        parts.push(
+          `<path d="M${f1(left)},${f1(top)} V${yb} H${f1(cx)} V${f1(B)} L${f1(cx + tipW)},${yb} H${f1(R)} V${f1(top)} Z" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
+        )
+        ly = top + (h - tipH) / 2 // label in the body, above the tail
+        break
+      }
       default:
         parts.push(
           `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.leafFill, sty.leafStroke)}/>`,
         )
     }
     parts.push(
-      `<text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s, FONT_SIZE, sty.leafFill)}>${esc2(s.label)}</text>`,
+      `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s, FONT_SIZE, sty.leafFill, sty.text)}>${esc2(s.label)}</text>`,
     )
   }
   parts.push('</svg>')
@@ -1235,12 +1525,14 @@ function drawGrid(
 ): string {
   const out: string[] = []
   const rx = s.borderRadius || 6
+  // Grid container = a level-0 container fill (d2 B4); cells are leaves (B6).
+  const cfill = sty.mono ? sty.contFill : sty.fills[0]
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, sty.contFill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" ${paintAttrs(s, cfill, sty.contStroke)} fill-opacity="${s.fill ? '1' : sty.contOpacity}"/>`,
   )
   if (s.label)
     out.push(
-      `<text x="${(left + 8).toFixed(1)}" y="${(top + gi.headerH - 6).toFixed(1)}" ${textAttrs(s, FONT_SIZE, sty.contFill)}>${esc2(s.label)}</text>`,
+      `<text x="${(left + 8).toFixed(1)}" y="${(top + gi.headerH - 6).toFixed(1)}" ${textAttrs(s, FONT_SIZE, cfill, sty.text)}>${esc2(s.label)}</text>`,
     )
   const ox = left + 8
   const oy = top + gi.headerH + 8
@@ -1255,7 +1547,7 @@ function drawGrid(
       `<rect x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" width="${cw.toFixed(1)}" height="${ch.toFixed(1)}" rx="${c.borderRadius || 4}" ${paintAttrs(c, sty.leafFill, sty.leafStroke)}/>`,
     )
     out.push(
-      `<text x="${(cx + cw / 2).toFixed(1)}" y="${(cy + ch / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(c, FONT_SIZE, sty.leafFill)}>${esc2(c.label)}</text>`,
+      `<text x="${(cx + cw / 2).toFixed(1)}" y="${(cy + ch / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(c, FONT_SIZE, sty.leafFill, sty.text)}>${esc2(c.label)}</text>`,
     )
   })
   return out.join('\n')
@@ -1269,34 +1561,47 @@ function drawSqlTable(
   top: number,
   w: number,
   h: number,
+  sty: D2Style,
 ): string {
   const out: string[] = []
-  const stroke = s.stroke || 'currentColor'
+  // Faithful d2 sql_table colouring (verified against the binary): NEUTRAL body (N7 fill, N1 border),
+  // a SOLID N1 header with N7 (paper) title text, dividers in N1, and columns name=B2 / type=N2 /
+  // constraint=AA2. In mono there are no fixed colours, so fall back to the original subtle look
+  // (transparent body, currentColor border, faint header tint, currentColor text).
+  const border = s.stroke || (sty.mono ? 'currentColor' : sty.text)
+  const body = s.fill || (sty.mono ? 'transparent' : sty.paper)
+  const headerFill = sty.mono ? 'currentColor' : sty.text
+  const headerOp = sty.mono ? ' fill-opacity="0.12"' : ''
+  const headerText = s.fontColor || (sty.mono ? 'currentColor' : sty.paper)
+  const nameC = sty.mono ? 'currentColor' : sty.accent
+  const typeC = sty.mono ? 'currentColor' : sty.textMuted
+  const consC = sty.mono ? 'currentColor' : sty.accent2
+  const dim = sty.mono ? ' opacity="0.7"' : '' // mono dims type/constraint; themed uses full tokens
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${s.fill || 'transparent'}" stroke="${stroke}" stroke-width="${s.strokeWidth || 2}"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${body}" stroke="${border}" stroke-width="${s.strokeWidth || 2}"/>`,
   )
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${HEADER_H}" rx="4" fill="${stroke}" fill-opacity="0.12"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${HEADER_H}" rx="4" fill="${headerFill}"${headerOp}/>`,
   )
   out.push(
-    `<text x="${(left + w / 2).toFixed(1)}" y="${(top + HEADER_H / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${FONT_SIZE}" font-weight="700" fill="${s.fontColor || 'currentColor'}">${esc2(s.label)}</text>`,
+    `<text x="${(left + w / 2).toFixed(1)}" y="${(top + HEADER_H / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${FONT_SIZE}" font-weight="700" fill="${headerText}">${esc2(s.label)}</text>`,
   )
   ;(s.columns || []).forEach((c, i) => {
     const ry = top + HEADER_H + i * ROW_H
     out.push(
-      `<line x1="${left.toFixed(1)}" y1="${ry.toFixed(1)}" x2="${(left + w).toFixed(1)}" y2="${ry.toFixed(1)}" stroke="${stroke}" stroke-width="1" stroke-opacity="0.3"/>`,
+      `<line x1="${left.toFixed(1)}" y1="${ry.toFixed(1)}" x2="${(left + w).toFixed(1)}" y2="${ry.toFixed(1)}" stroke="${border}" stroke-width="1"${sty.mono ? ' stroke-opacity="0.3"' : ''}/>`,
     )
     const ty = ry + ROW_H / 2
     out.push(
-      `<text x="${(left + CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="currentColor">${esc2(c.name)}</text>`,
+      `<text x="${(left + CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="${nameC}">${esc2(c.name)}</text>`,
     )
     if (c.type)
       out.push(
-        `<text x="${(left + CELL_PAD * 2 + cols[0]).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="currentColor" opacity="0.7">${esc2(c.type)}</text>`,
+        `<text x="${(left + CELL_PAD * 2 + cols[0]).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="${typeC}"${dim}>${esc2(c.type)}</text>`,
       )
     if (c.constraint)
       out.push(
-        `<text x="${(left + w - CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="end" dominant-baseline="central" font-size="${EDGE_FONT_SIZE}" fill="currentColor" opacity="0.7">${esc2(abbr(c.constraint))}</text>`,
+        `<text x="${(left + w - CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="end" dominant-baseline="central" font-size="${EDGE_FONT_SIZE}" fill="${consC}"${dim}>${esc2(abbr(c.constraint))}</text>`,
       )
   })
   return out.join('\n')
@@ -1324,36 +1629,53 @@ function drawClass(
   top: number,
   w: number,
   h: number,
+  sty: D2Style,
 ): string {
   const out: string[] = []
-  const stroke = s.stroke || 'currentColor'
+  // Faithful d2 class colouring: NEUTRAL body (N7 fill, N1 border), SOLID N1 header with N7 title,
+  // and members coloured per token — visibility marker=B2, name=N1, type=AA2 (via tspans). Mono falls
+  // back to the original subtle monochrome look.
+  const border = s.stroke || (sty.mono ? 'currentColor' : sty.text)
+  const body = s.fill || (sty.mono ? 'transparent' : sty.paper)
+  const headerFill = sty.mono ? 'currentColor' : sty.text
+  const headerOp = sty.mono ? ' fill-opacity="0.12"' : ''
+  const headerText = s.fontColor || (sty.mono ? 'currentColor' : sty.paper)
+  const visC = sty.mono ? 'currentColor' : sty.accent // B2
+  const nameC = sty.mono ? 'currentColor' : sty.text // N1
+  const typeC = sty.mono ? 'currentColor' : sty.accent2 // AA2
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${s.fill || 'transparent'}" stroke="${stroke}" stroke-width="${s.strokeWidth || 2}"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="${body}" stroke="${border}" stroke-width="${s.strokeWidth || 2}"/>`,
   )
   out.push(
-    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${HEADER_H}" rx="4" fill="${stroke}" fill-opacity="0.12"/>`,
+    `<rect x="${left.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${HEADER_H}" rx="4" fill="${headerFill}"${headerOp}/>`,
   )
   out.push(
-    `<text x="${(left + w / 2).toFixed(1)}" y="${(top + HEADER_H / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${FONT_SIZE}" font-weight="700" fill="${s.fontColor || 'currentColor'}">${esc2(s.label)}</text>`,
+    `<text x="${(left + w / 2).toFixed(1)}" y="${(top + HEADER_H / 2).toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="${FONT_SIZE}" font-weight="700" fill="${headerText}">${esc2(s.label)}</text>`,
   )
   let i = 0
-  const row = (text: string) => {
+  const row = (
+    visibility: string | undefined,
+    name: string,
+    type: string | undefined,
+    sep: string,
+  ) => {
     const ty = top + HEADER_H + i * ROW_H + ROW_H / 2
+    let spans = `<tspan fill="${visC}">${esc2(vis(visibility))}</tspan> <tspan fill="${nameC}">${esc2(name)}</tspan>`
+    if (type)
+      spans += `<tspan fill="${nameC}">${esc2(sep)}</tspan><tspan fill="${typeC}">${esc2(type)}</tspan>`
     out.push(
-      `<text x="${(left + CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="currentColor">${esc2(text)}</text>`,
+      `<text x="${(left + CELL_PAD).toFixed(1)}" y="${ty.toFixed(1)}" dominant-baseline="central" font-size="${FONT_SIZE}" fill="${nameC}">${spans}</text>`,
     )
     i++
   }
-  for (const f of s.fields || [])
-    row(`${vis(f.visibility)} ${f.name}${f.type ? `: ${f.type}` : ''}`)
+  for (const f of s.fields || []) row(f.visibility, f.name, f.type, ': ')
   if ((s.methods?.length || 0) > 0) {
     const sy = top + HEADER_H + i * ROW_H
     out.push(
-      `<line x1="${left.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${(left + w).toFixed(1)}" y2="${sy.toFixed(1)}" stroke="${stroke}" stroke-width="1" stroke-opacity="0.3"/>`,
+      `<line x1="${left.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${(left + w).toFixed(1)}" y2="${sy.toFixed(1)}" stroke="${border}" stroke-width="1"${sty.mono ? ' stroke-opacity="0.3"' : ''}/>`,
     )
   }
-  for (const m of s.methods || [])
-    row(`${vis(m.visibility)} ${m.name}${m.type ? ` ${m.type}` : ''}`)
+  for (const m of s.methods || []) row(m.visibility, m.name, m.type, ' ')
   return out.join('\n')
 }
 

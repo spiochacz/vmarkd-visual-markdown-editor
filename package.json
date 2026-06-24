@@ -369,6 +369,36 @@
             "default": "elk",
             "description": "Layout engine for D2 diagrams. \"elk\" (the default) gives cleaner orthogonal software-architecture layouts at the cost of a one-time ~1.4 MB engine load (only when a D2 block is rendered); \"dagre\" is a lighter bundled alternative with straight/curved edges."
           },
+          "vmarkd.diagram.d2Theme": {
+            "order": 7,
+            "type": "string",
+            "enum": [
+              "d2-original",
+              "d2-neutral-grey",
+              "d2-cool-classics",
+              "d2-terminal",
+              "d2-dark-mauve",
+              "vscode-light",
+              "vscode-dark",
+              "github-light",
+              "github-dark",
+              "mono"
+            ],
+            "enumDescriptions": [
+              "D2 Neutral default — blue borders/edges, lavender fills, white page (the canonical d2 look).",
+              "D2 Neutral grey — greyscale borders + fills, white page.",
+              "D2 Cool classics — vivid blue palette, white page.",
+              "D2 Terminal — black borders, light fills, white page.",
+              "D2 Dark mauve — dark page (#1E1E2E) with mauve accents (the dark d2 theme).",
+              "VS Code Light — subtle accent-tinted fills on a white page (mermaid-style).",
+              "VS Code Dark — dark page (#121314) with cyan accents (mermaid-style).",
+              "GitHub Light — subtle blue-tinted fills on a white page (mermaid-style).",
+              "GitHub Dark — very dark page (#0d1117) with blue accents (mermaid-style).",
+              "Monochrome — transparent background, lines follow the editor foreground (currentColor)."
+            ],
+            "default": "d2-original",
+            "description": "Color theme for D2 diagrams. The \"d2-*\" themes reproduce d2's own catalog palettes and paint their own page background (so the diagram looks identical on any editor theme). The \"vscode-*\"/\"github-*\" themes blend into that editor environment like mermaid. \"mono\" keeps a transparent background and follows the editor foreground."
+          },
           "vmarkd.theme.highlightHeadings": {
             "order": 5,
             "type": "boolean",

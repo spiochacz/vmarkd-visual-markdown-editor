@@ -528,6 +528,8 @@ function initVditor(msg) {
   // D2 layout engine (vmarkd.diagram.d2Layout) — read by custom-diagrams.ts renderD2 to pick
   // dagre (default) vs ELK. A plain window global keeps custom-diagrams decoupled from main.ts.
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
+  // D2 colour theme (vmarkd.diagram.d2Theme) — read by custom-diagrams.ts → d2Theme(). Same global pattern.
+  ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
   // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
@@ -1135,8 +1137,11 @@ function handleConfigChanged(msg: any) {
     lastInitMsg.options?.echartsTheme !== msg.options?.echartsTheme
   const d2LayoutChanged =
     lastInitMsg && lastInitMsg.options?.d2Layout !== msg.options?.d2Layout
-  // Keep the D2-engine global current so a re-render uses the new engine (set before any re-render).
+  const d2ThemeChanged =
+    lastInitMsg && lastInitMsg.options?.d2Theme !== msg.options?.d2Theme
+  // Keep the D2 globals current so a re-render uses the new engine + theme (set before any re-render).
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
+  ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
   // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
   // its own (so content + code blocks are themed, not VS Code-dark). The host sends
   // the new effective mode in msg.theme; re-theme live so the content follows it.
@@ -1218,9 +1223,10 @@ function handleConfigChanged(msg: any) {
   // reads the SETTLED foreground after the content-theme <link> applies).
   if (contentThemeChanged) reThemeFlowchart()
   if (contentThemeChanged) reThemePlantumlGraphviz()
-  // D2 layout engine switch (dagre↔ELK) — re-render D2 blocks (reThemePlantumlGraphviz only runs
-  // on a content-theme change, so handle the engine switch explicitly).
-  if (d2LayoutChanged) reRenderD2(activeModeElement(window.vditor) ?? undefined)
+  // D2 layout engine switch (dagre↔ELK) or colour-theme switch — re-render D2 blocks
+  // (reThemePlantumlGraphviz only runs on a content-theme change, so handle these explicitly).
+  if (d2LayoutChanged || d2ThemeChanged)
+    reRenderD2(activeModeElement(window.vditor) ?? undefined)
 }
 
 function handleReloadCss(msg: any) {

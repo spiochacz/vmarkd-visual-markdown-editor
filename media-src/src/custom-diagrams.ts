@@ -5,7 +5,12 @@
 // D2: compile-only WASM (compileD2) -> graph JSON -> dagre+Canvas SVG (renderD2Graph),
 // with a LOUD fallback for shapes dagre can't faithfully render (unsupportedReason).
 import { compileD2 } from './d2-wasm'
-import { renderD2Graph, canvasMeasure, unsupportedReason } from './d2-render'
+import {
+  renderD2Graph,
+  canvasMeasure,
+  unsupportedReason,
+  d2Theme,
+} from './d2-render'
 import { renderD2GraphElk } from './elk-layout'
 
 declare const window: Window & {
@@ -309,13 +314,16 @@ export function renderD2(root?: ParentNode): void {
         // Layout engine from the `vmarkd.diagram.d2Layout` setting (window global set by main.ts).
         // ELK gives orthogonal routing; it lazy-loads a separate main-thread bundle (elk-main.js,
         // ~1.4 MB) and returns null if it can't load/lay out, so we fall back to dagre.
+        // Colour theme from `vmarkd.diagram.d2Theme` (window global set by main.ts). Default 'mono'
+        // → monochrome currentColor that follows the editor; named themes paint their own palette+bg.
+        const style = d2Theme((window as any).__vmarkdD2Theme)
         let svgStr: string | null = null
         let engine = 'dagre'
         if ((window as any).__vmarkdD2Layout === 'elk') {
-          svgStr = await renderD2GraphElk(res, canvasMeasure, cdn)
+          svgStr = await renderD2GraphElk(res, canvasMeasure, cdn, style)
           if (svgStr) engine = 'elk'
         }
-        if (!svgStr) svgStr = renderD2Graph(res, canvasMeasure)
+        if (!svgStr) svgStr = renderD2Graph(res, canvasMeasure, style)
         wrapper.innerHTML = svgStr
         // Record which engine actually produced the SVG (elk vs the dagre fallback). Lets the
         // real-VS-Code e2e prove ELK ran in the webview rather than silently falling back.
