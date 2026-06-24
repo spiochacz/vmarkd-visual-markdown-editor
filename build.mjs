@@ -12,6 +12,7 @@ import { promises as fs } from 'node:fs'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { VENDORED_ASSETS } from './media-src/vendor/vendored-assets.mjs'
 
 // node_modules/.bin so `tsc` resolves whether this is run via `npm run build`
 // or directly as `node build.mjs`.
@@ -267,14 +268,15 @@ async function varifyVditorPalette() {
   )
 }
 
-// Overwrite Vditor's bundled lute.min.js with our pinned, vendored Lute build
-// (media-src/vendor/lute, pinned to an explicit 88250/lute commit — see tasks/66).
-// Verifies the vendored file against source.json (tamper/corruption guard) and
-// propagates the Mulan PSL v2 LICENSE + NOTICE into the shipped media/ tree
-// (.vscodeignore excludes media-src/, so the notices must live under media/).
-async function syncLute() {
-  const vendorDir = path.resolve('media-src/vendor/lute')
-  const luteTargetDir = path.resolve('media/vditor/dist/js/lute')
+// VENDORED_ASSETS table (the declarative vendor registry) lives in its own module so a
+// unit test can import it without running this build script. syncVendored() (below) is the engine.
+
+// Sync one vendored asset: sha-gate every file source.json pins, then mkdir + copy the bytes and the
+// license text. Throws (fails the build) on a sha mismatch or a declared-but-missing license file.
+async function syncVendored(entry) {
+  const tag = `[${entry.dir}]`
+  const vendorDir = path.resolve('media-src/vendor', entry.dir)
+  const targetDir = path.resolve('media/vditor/dist/js', entry.dir)
 
   let source
   try {
@@ -282,524 +284,45 @@ async function syncLute() {
       await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
     )
   } catch {
-    // No vendored Lute pinned — fall back to Vditor's bundled copy.
     console.log(
-      '[lute] no vendored pin (media-src/vendor/lute) — using Vditor default',
+      `${tag} no vendored pin (media-src/vendor/${entry.dir}) — ${entry.missingNote || 'skipped'}`,
     )
     return
   }
 
-  const js = await fs.readFile(path.join(vendorDir, 'lute.min.js'))
-  const got = createHash('sha256').update(js).digest('hex')
-  if (got !== source.sha256) {
-    throw new Error(
-      `[lute] vendored lute.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
-        `Re-pin with: node media-src/scripts/fetch-lute.mjs <sha>`,
-    )
+  // source.json pins shas either as a files map ({name:{sha256}}) or, for lute/mermaid/echarts, a
+  // single top-level sha256 covering the primary copied file. Verify every file we know a sha for.
+  const shaMap =
+    source.files ||
+    (source.sha256 && entry.copy[0]
+      ? { [entry.copy[0][0]]: { sha256: source.sha256 } }
+      : {})
+  for (const [name, meta] of Object.entries(shaMap)) {
+    const buf = await fs.readFile(path.join(vendorDir, name))
+    const got = createHash('sha256').update(buf).digest('hex')
+    if (got !== meta.sha256) {
+      throw new Error(
+        `${tag} vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
+      )
+    }
   }
 
-  await fs.mkdir(luteTargetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'lute.min.js'),
-    path.join(luteTargetDir, 'lute.min.js'),
-  )
-  await fs.copyFile(
-    path.join(vendorDir, 'lute.min.js.map'),
-    path.join(luteTargetDir, 'lute.min.js.map'),
-  )
-  // Ship the license + attribution alongside the binary (Mulan PSL v2 §4).
-  for (const f of ['LICENSE', 'NOTICE']) {
+  await fs.mkdir(targetDir, { recursive: true })
+  for (const [src, dst] of entry.copy) {
+    await fs.copyFile(path.join(vendorDir, src), path.join(targetDir, dst))
+  }
+  // Ship the license/notice next to the binary — required for copyleft d2/elk, attribution for all.
+  for (const f of entry.license || []) {
     await fs.copyFile(
       path.join(vendorDir, f),
-      path.join(luteTargetDir, `lute.${f}`),
+      path.join(targetDir, `${entry.dir}.${f}`),
     )
   }
+
+  const ver = (entry.label || ((s) => `v${s.version}`))(source)
   console.log(
-    `[lute] vendored ${source.commit.slice(0, 10)} (${source.goVersion}) verified + installed`,
+    `${tag} vendored ${ver} verified + installed${entry.installedNote ? ` (${entry.installedNote})` : ''}`,
   )
-}
-
-// Overwrite Vditor's bundled mermaid.min.js (11.6.0) with our pinned, vendored
-// newer build (media-src/vendor/mermaid — see tasks/86). Same major, API-compatible
-// (globalThis.mermaid + initialize/render). Verifies sha256 + ships the MIT LICENSE/
-// NOTICE next to the binary (.vscodeignore excludes media-src/, so notices live in media/).
-async function syncMermaid() {
-  const vendorDir = path.resolve('media-src/vendor/mermaid')
-  const targetDir = path.resolve('media/vditor/dist/js/mermaid')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[mermaid] no vendored pin (media-src/vendor/mermaid) — using Vditor default',
-    )
-    return
-  }
-
-  const js = await fs.readFile(path.join(vendorDir, 'mermaid.min.js'))
-  const got = createHash('sha256').update(js).digest('hex')
-  if (got !== source.sha256) {
-    throw new Error(
-      `[mermaid] vendored mermaid.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
-        `Re-pin with: node media-src/scripts/fetch-mermaid.mjs <version>`,
-    )
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'mermaid.min.js'),
-    path.join(targetDir, 'mermaid.min.js'),
-  )
-  for (const f of ['LICENSE', 'NOTICE']) {
-    await fs.copyFile(
-      path.join(vendorDir, f),
-      path.join(targetDir, `mermaid.${f}`),
-    )
-  }
-  console.log(`[mermaid] vendored v${source.version} verified + installed`)
-}
-
-// Overwrite Vditor's bundled echarts.min.js (5.5.1) with our pinned, vendored newer build
-// (media-src/vendor/echarts — see tasks/89). ECharts 6 is a MAJOR bump (fidelity verified at
-// pin time). Same load contract: the global UMD build exposing window.echarts. Verifies sha256
-// + ships the Apache-2.0 LICENSE/NOTICE next to the binary (.vscodeignore excludes media-src/).
-async function syncEcharts() {
-  const vendorDir = path.resolve('media-src/vendor/echarts')
-  const targetDir = path.resolve('media/vditor/dist/js/echarts')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[echarts] no vendored pin (media-src/vendor/echarts) — using Vditor default',
-    )
-    return
-  }
-
-  const js = await fs.readFile(path.join(vendorDir, 'echarts.min.js'))
-  const got = createHash('sha256').update(js).digest('hex')
-  if (got !== source.sha256) {
-    throw new Error(
-      `[echarts] vendored echarts.min.js sha256 mismatch:\n  expected ${source.sha256}\n  got      ${got}\n` +
-        `Re-pin with: node media-src/scripts/fetch-echarts.mjs <version>`,
-    )
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'echarts.min.js'),
-    path.join(targetDir, 'echarts.min.js'),
-  )
-  for (const f of ['LICENSE', 'NOTICE']) {
-    await fs.copyFile(
-      path.join(vendorDir, f),
-      path.join(targetDir, `echarts.${f}`),
-    )
-  }
-  console.log(`[echarts] vendored v${source.version} verified + installed`)
-}
-
-async function syncPlantuml() {
-  const vendorDir = path.resolve('media-src/vendor/plantuml')
-  const targetDir = path.resolve('media/vditor/dist/js/plantuml')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[plantuml] no vendored pin (media-src/vendor/plantuml) — PlantUML offline disabled',
-    )
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[plantuml] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'plantuml.js'),
-    path.join(targetDir, 'plantuml.js'),
-  )
-  await fs.copyFile(
-    path.join(vendorDir, 'viz-global.js'),
-    path.join(targetDir, 'viz-global.js'),
-  )
-  console.log(`[plantuml] vendored v${source.version} verified + installed`)
-}
-
-async function syncAbcjs() {
-  const vendorDir = path.resolve('media-src/vendor/abcjs')
-  const targetDir = path.resolve('media/vditor/dist/js/abcjs')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[abcjs] no vendored pin (media-src/vendor/abcjs) — using Vditor default',
-    )
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[abcjs] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.copyFile(
-    path.join(vendorDir, 'abcjs_basic.min.js'),
-    path.join(targetDir, 'abcjs_basic.min.js'),
-  )
-  console.log(`[abcjs] vendored v${source.version} verified + installed`)
-}
-
-async function syncSmilesDrawer() {
-  const vendorDir = path.resolve('media-src/vendor/smiles-drawer')
-  const targetDir = path.resolve('media/vditor/dist/js/smiles-drawer')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[smiles-drawer] no vendored pin (media-src/vendor/smiles-drawer) — using Vditor default',
-    )
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[smiles-drawer] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.copyFile(
-    path.join(vendorDir, 'smiles-drawer.min.js'),
-    path.join(targetDir, 'smiles-drawer.min.js'),
-  )
-  console.log(
-    `[smiles-drawer] vendored v${source.version} verified + installed`,
-  )
-}
-
-async function syncWavedrom() {
-  const vendorDir = path.resolve('media-src/vendor/wavedrom')
-  const targetDir = path.resolve('media/vditor/dist/js/wavedrom')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[wavedrom] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'wavedrom.min.js'),
-    path.join(targetDir, 'wavedrom.min.js'),
-  )
-  console.log(`[wavedrom] vendored v${source.version} verified + installed`)
-}
-
-async function syncNomnoml() {
-  const vendorDir = path.resolve('media-src/vendor/nomnoml')
-  const targetDir = path.resolve('media/vditor/dist/js/nomnoml')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[nomnoml] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'nomnoml.min.js'),
-    path.join(targetDir, 'nomnoml.min.js'),
-  )
-  console.log(`[nomnoml] vendored v${source.version} verified + installed`)
-}
-
-async function syncLeaflet() {
-  const vendorDir = path.resolve('media-src/vendor/leaflet')
-  const targetDir = path.resolve('media/vditor/dist/js/leaflet')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[leaflet] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'leaflet.js'),
-    path.join(targetDir, 'leaflet.js'),
-  )
-  await fs.copyFile(
-    path.join(vendorDir, 'leaflet.css'),
-    path.join(targetDir, 'leaflet.css'),
-  )
-  console.log(`[leaflet] vendored v${source.version} verified + installed`)
-}
-
-async function syncD2() {
-  const vendorDir = path.resolve('media-src/vendor/d2')
-  const targetDir = path.resolve('media/vditor/dist/js/d2')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[d2] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'd2-compile.wasm'),
-    path.join(targetDir, 'd2-compile.wasm'),
-  )
-  await fs.copyFile(
-    path.join(vendorDir, 'wasm_exec.js'),
-    path.join(targetDir, 'wasm_exec.js'),
-  )
-  console.log(`[d2] vendored v${source.version} verified + installed`)
-}
-
-// elkjs (optional ELK D2 layout engine, vmarkd.diagram.d2Layout=elk). Unlike the other vendored
-// assets, the bytes shipped to media/ are NOT a copy of these sources — esbuild bundles
-// elk-api.js + elk-worker.min.js (via media-src/src/elk-entry.ts) into
-// media/vditor/dist/js/elk/elk-main.js during the webview build. syncElk's job is the sha GATE on
-// those two vendored sources (so an unpinned elkjs update fails the build loudly). See elk-entry.ts
-// for why we bundle the main-thread "fake worker" instead of the stock elk.bundled.js Web Worker.
-async function syncElk() {
-  const vendorDir = path.resolve('media-src/vendor/elk')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[elk] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  console.log(
-    `[elk] vendored v${source.version} verified (bundled to elk-main.js by the webview build)`,
-  )
-}
-
-async function syncTopojson() {
-  const vendorDir = path.resolve('media-src/vendor/topojson')
-  const targetDir = path.resolve('media/vditor/dist/js/topojson')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[topojson] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'topojson-client.min.js'),
-    path.join(targetDir, 'topojson-client.min.js'),
-  )
-  console.log(`[topojson] vendored v${source.version} verified + installed`)
-}
-
-async function syncVega() {
-  const vendorDir = path.resolve('media-src/vendor/vega')
-  const targetDir = path.resolve('media/vditor/dist/js/vega')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[vega] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'vega-embed.min.js'),
-    path.join(targetDir, 'vega-embed.min.js'),
-  )
-  console.log(`[vega] vendored v${source.version} verified + installed`)
-}
-
-async function syncThreejs() {
-  const vendorDir = path.resolve('media-src/vendor/threejs')
-  const targetDir = path.resolve('media/vditor/dist/js/threejs')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const buf = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(buf).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[threejs] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.mkdir(targetDir, { recursive: true })
-  await fs.copyFile(
-    path.join(vendorDir, 'three-stl.min.js'),
-    path.join(targetDir, 'three-stl.min.js'),
-  )
-  console.log(`[threejs] vendored v${source.version} verified + installed`)
-}
-
-async function syncMarkmap() {
-  const vendorDir = path.resolve('media-src/vendor/markmap')
-  const targetDir = path.resolve('media/vditor/dist/js/markmap')
-
-  let source
-  try {
-    source = JSON.parse(
-      await fs.readFile(path.join(vendorDir, 'source.json'), 'utf8'),
-    )
-  } catch {
-    console.log(
-      '[markmap] no vendored pin (media-src/vendor/markmap) — using Vditor default',
-    )
-    return
-  }
-
-  for (const [name, meta] of Object.entries(source.files)) {
-    const js = await fs.readFile(path.join(vendorDir, name))
-    const got = createHash('sha256').update(js).digest('hex')
-    if (got !== meta.sha256) {
-      throw new Error(
-        `[markmap] vendored ${name} sha256 mismatch:\n  expected ${meta.sha256}\n  got      ${got}`,
-      )
-    }
-  }
-
-  await fs.copyFile(
-    path.join(vendorDir, 'markmap.min.js'),
-    path.join(targetDir, 'markmap.min.js'),
-  )
-  console.log(`[markmap] vendored v${source.version} verified + installed`)
 }
 
 // Patch Vditor's OWN CSS at the source (we already patch its TS via esbuild; a Vditor fork is on
@@ -836,21 +359,9 @@ const watch = process.argv.includes('watch')
 await syncVditorAssets()
 await varifyVditorPalette()
 await patchVditorIndexCss()
-await syncLute()
-await syncMermaid()
-await syncEcharts()
-await syncPlantuml()
-await syncAbcjs()
-await syncSmilesDrawer()
-await syncWavedrom()
-await syncNomnoml()
-await syncLeaflet()
-await syncTopojson()
-await syncVega()
-await syncThreejs()
-await syncMarkmap()
-await syncD2()
-await syncElk()
+for (const entry of VENDORED_ASSETS) {
+  await syncVendored(entry)
+}
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

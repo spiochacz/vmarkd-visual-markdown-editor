@@ -3,7 +3,7 @@
   "source": "https://github.com/plantuml/plantuml/releases/tag/snapshot",
   "artifact": "js-plantuml-SNAPSHOT.zip",
   "date": "2026-06-16",
-  "license": "MIT (plantuml-mit), Apache-2.0 (viz-global.js from @viz-js/viz)",
+  "license": "MIT — plantuml.js (plantuml/plantuml-mit, © 2019 plantuml); viz-global.js (@viz-js/viz, © Michael Daines). License texts vendored as LICENSE + viz-global.LICENSE.",
   "files": {
     "plantuml.js": {
       "sha256": "98a6560b8e35aaff399d3a63960fe072d63f8020a7e832be74024445169c5f7b"
