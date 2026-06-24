@@ -1,0 +1,85 @@
+# Task 144 — PlantUML architecture hardening (patch→module, theming robustness)
+
+> **Status:** 📋 TODO — created 2026-06-24 from a software-architecture review of the offline
+> PlantUML pipeline (task 87). Maintainability / robustness, not a feature gap.
+> **Source:** architecture review (2026-06-24).
+> **Value / Risk:** 🟢 removes the biggest maintainability debt + closes two "subtly-wrong" theming
+> traps / low — pure refactor + tests, render output stays identical.
+
+## Context — what was reviewed
+Offline PlantUML (task 87) = pre-built TeaVM JS vendored under `media-src/vendor/plantuml/`
+(`plantuml.js` 7.2M + shared `viz-global.js` 1.4M), sha256-pinned in `source.json`, verified at build
+time by `syncPlantuml()` (`build.mjs:408`). Vditor's `plantumlRender.ts` is rewritten at bundle time
+by `patchPlantumlRender` (`media-src/esbuild-shared.mjs:912`); live re-theme via
+`reRenderPlantuml` (`media-src/src/plantuml-retheme.ts`), wired in `main.ts:1101`
+(`reThemePlantumlGraphviz`). CSP `object-src 'none'` (`src/html-builder.ts:49`) is the boundary that
+killed the original remote `<object>`.
+
+**What's already good (do NOT regress):** sha256 supply-chain pin + fail-loud build verify;
+anchor-asserted patch that throws a named error on Vditor version drift; lazy-load (no main-bundle
+cost); `currentColor` theme-agnostic model; offline/privacy via local inline SVG.
+
+## Findings → work items (by priority)
+
+### 1. 🔴 Extract the patch body from a string into a real TS module
+`patchPlantumlRender` returns a **~75-line JS string** that replaces the entire Vditor function
+(`esbuild-shared.mjs:922-997`). Consequences: not type-checked, not lintable, not unit-testable as
+code; escaped regex (`\\r\\n`) is a footgun; lazy-load + render + theming + error-handling are all
+inlined in one template literal.
+- **Fix:** move the runtime logic to a real `media-src/src/plantuml-render.ts` (exports
+  `plantumlRender` + `themePumlSvg`). The esbuild patch becomes a thin shim that imports and
+  re-exports it — keep the anchor assertion for drift detection. Result: typed, linted, unit-tested.
+- **Graphviz has the IDENTICAL problem** (`patchGraphvizRender`, `esbuild-shared.mjs:786-846`) — apply
+  the same extraction (`graphviz-render.ts`) in this task or a sibling, so the two share the pattern.
+
+### 2. 🟠 Name the skin colours + add a render test (anti "subtly-wrong")
+`themePumlSvg` hardcodes PlantUML's default-skin colours (`#181818 #000000 #E2E2F0 #222222 #00000000`,
+opacity `0.06`) inline (`esbuild-shared.mjs:933-951`). The dep is a **beta snapshot**
+(`1.2026.7beta3`); if PlantUML changes its default skin the diagram still renders but in the **wrong
+colours** — a silent failure, exactly what the faithful-by-construction rule forbids. No test asserts
+the output actually contains `currentColor`.
+- **Fix:** lift the colours to named constants in the new module; add a render test (extends
+  [task 141](141-plantuml-render-tests.md)) asserting the rendered SVG's foreground became
+  `currentColor` and the participant-box fill was flattened.
+
+### 3. 🟠 Replace the `innerHTML` serialize→reparse in theming
+`themePumlSvg` does `container.innerHTML = container.innerHTML.replace(/(fill|stroke)=…/)`
+(`esbuild-shared.mjs:932`) — a full SVG serialize + reparse on every theme pass (costly reflow on
+large diagrams, drops listeners), then switches to DOM-API for `rect`/`text` in the same function.
+- **Fix:** do all of it via DOM walk (`querySelectorAll` + `setAttribute`) — no reparse, one
+  consistent style.
+
+### 4. 🟡 Document / de-race the MutationObserver + 5s fallback
+Theming fires on first `<svg>` via a `MutationObserver`, with a `setTimeout(…, 5000)` fallback
+(`esbuild-shared.mjs:984-989`). If the observer already ran, the timeout re-themes (harmless but
+wasteful); a multi-mutation render could be themed half-built.
+- **Fix:** if the TeaVM `render()` exposes a completion promise, await it instead. If it genuinely
+  doesn't, keep the observer but guard the fallback with a "already themed" flag and **comment why**
+  the magic `5000` exists (per `.claude/rules/ts.md`).
+
+### 5. 🟡 Pin a stable release, not a mutable `snapshot` tag
+`source.json` pins `1.2026.7beta3` from the `snapshot` GitHub tag. sha256 protects integrity but the
+**snapshot tag is mutable** → a rebuild can 404 / drift. Move to a stable PlantUML release tag (keep
+the sha guard).
+
+### 6. 🟡 Relocate the shared `viz-global.js` out of `plantuml/`
+Graphviz loads `…/dist/js/plantuml/viz-global.js` (`esbuild-shared.mjs:800`) — a hidden coupling:
+removing/restructuring PlantUML breaks Graphviz, and the location is misleading. Move the shared
+`@viz-js/viz` asset to a neutral `vendor/viz/` (update both patches + `build.mjs` sync).
+
+## Out of scope (tracked elsewhere)
+- Full **palette pairing** (accent/surface, beyond foreground currentColor) → [task 138](138-plantuml-theme-pairing.md).
+- The standalone render e2e → [task 141](141-plantuml-render-tests.md) (item 2 extends it with a
+  colour assertion).
+
+## Tests (per AGENTS)
+- **unit** — `plantuml-render.ts` `themePumlSvg` over a fixture SVG: asserts `#181818/#000000`→
+  `currentColor`, participant fill flattened, transparent bg rect removed; idempotent on a second pass.
+- **unit** — the existing anchor-drift test still passes (the shim keeps the anchor).
+- **e2e** — extend [task 141](141-plantuml-render-tests.md): the rendered block contains `<svg>` whose
+  foreground is `currentColor` (not raw `#181818`), in the real VS Code webview.
+
+## See also
+- Skill `vmarkd-renderer-theming` (model #3 self-contained SVG; the patch-registry + `data-code`
+  re-render pattern). Task 87 (offline PlantUML/TeaVM), 138 (theme pairing), 141 (render tests).
+- The patch-as-string + extraction concern applies equally to **graphviz** (`patchGraphvizRender`).
