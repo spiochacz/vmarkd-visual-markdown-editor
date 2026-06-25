@@ -16,6 +16,14 @@ Built artifacts (`out/`, `media/dist/`, `media/vditor/dist/`) are generated and
 git-ignored. The Vditor assets the webview needs are synced from
 `media-src/node_modules/vditor` into `media/vditor/` by the build.
 
+**Maintenance tooling — `media-src/scripts/`** (run by hand, not shipped; outside the
+app's lint/typecheck/test surface): `fetch-*.mjs` vendor + sha-pin upstream assets
+(lute, mermaid, echarts); `d2-fixtures/` regenerates the d2-quality CI fixture from its
+`sources/*.d2` (run after `layoutElk`/ELK-config changes — see its header); `d2-render-harness/`
+renders `.d2` through the three layout engines (dagre / raw ELK / vmarkd) to a PNG grid or
+zoomable HTML for by-eye layout/feature checks (`--engine all` to compare). Both d2 tools need
+`node build.mjs` first (they drive a headless browser for the WASM + vendored ELK).
+
 **GitHub rendering themes (task 82):** `media/markdown-themes/github-markdown-light.css`
 and `github-markdown-dark.css` are the **unmodified** upstream files from
 [github-markdown-css](https://github.com/sindresorhus/github-markdown-css) (MIT),
