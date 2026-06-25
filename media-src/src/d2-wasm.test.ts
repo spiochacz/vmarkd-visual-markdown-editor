@@ -117,6 +117,23 @@ describe('d2 compile-only wasm (node smoke)', () => {
     expect(graph.edges[0].dstArrowhead?.shape).toBe('filled-diamond')
   })
 
+  it('marshals connection style: stroke/dash/width/opacity/animated (task 124 #1)', () => {
+    const e = JSON.parse(
+      compile(
+        'a -> b: { style: { stroke: red; stroke-width: 4; stroke-dash: 3; opacity: 0.5; animated: true } }',
+      ).graph,
+    ).edges[0]
+    expect(e.stroke).toBe('red')
+    expect(e.strokeWidth).toBe('4')
+    expect(e.strokeDash).toBe('3')
+    expect(e.opacity).toBe('0.5')
+    expect(e.animated).toBe(true)
+    // an unstyled edge carries none (renderer keeps the theme default)
+    const plain = JSON.parse(compile('a -> b').graph).edges[0]
+    expect(plain.stroke).toBeUndefined()
+    expect(plain.animated).toBeFalsy()
+  })
+
   it('marshals sql_table column FK endpoints as indices (task 133)', () => {
     const graph = JSON.parse(
       compile(

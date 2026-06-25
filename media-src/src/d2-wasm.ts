@@ -64,6 +64,12 @@ export interface D2Edge {
   label?: string
   srcArrow: boolean
   dstArrow: boolean
+  // Connection style (task 124 #1); absent fields → the renderer keeps the theme default.
+  stroke?: string
+  strokeWidth?: string
+  strokeDash?: string
+  opacity?: string
+  animated?: boolean
   srcArrowhead?: D2Arrowhead // task 128
   dstArrowhead?: D2Arrowhead // task 128
   // Column-row endpoints for sql_table FK edges (task 133); d2 computes these at compile time.

@@ -584,6 +584,16 @@ snippet: "func main() {\n  fmt.Println(\"hi\")\n}" { shape: code }
 note -> snippet
 ```
 
+Connection styles (task 124 #1) — `stroke` / `stroke-width` / `stroke-dash` / `opacity` / `animated`;
+an unstyled edge keeps the theme default, and arrowheads follow the edge's stroke colour:
+
+```d2
+a -> b: thick red {style: {stroke: "#e03131"; stroke-width: 4}}
+b -> c: dashed {style.stroke-dash: 4}
+c -> d: animated {style.animated: true}
+a -> d: faint {style.opacity: 0.35}
+```
+
 A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by our dagre/ELK layout, so
 it falls back LOUDLY to the raw source (never a silently-wrong picture):
 

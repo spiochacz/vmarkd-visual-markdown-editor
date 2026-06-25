@@ -33,7 +33,8 @@ else
   TINYGO="$WORK/tinygo"
 fi
 export TINYGOROOT="$TINYGO"
-export GOPATH="$WORK/gopath" GOCACHE="$WORK/gocache"
+# GOCACHE_DIR override = a persistent build cache for fast local rebuilds; default = fresh (clean build).
+export GOPATH="$WORK/gopath" GOCACHE="${GOCACHE_DIR:-$WORK/gocache}"
 export PATH="$TINYGO/bin:$GOROOT/bin:$PATH"
 mkdir -p "$GOPATH" "$GOCACHE"
 

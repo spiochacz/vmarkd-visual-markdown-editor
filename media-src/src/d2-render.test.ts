@@ -807,3 +807,60 @@ describe('shape: text / code (task 124 #2)', () => {
     expect(long.w).toBeGreaterThan(short.w)
   })
 })
+
+describe('connection styles (task 124 #1)', () => {
+  const styledEdge = (style: any, dstArrow = true) =>
+    ({
+      W: 200,
+      H: 200,
+      nodes: [],
+      edges: [
+        {
+          points: [
+            [0, 0],
+            [100, 0],
+          ],
+          srcArrow: false,
+          dstArrow,
+          style,
+        },
+      ],
+      edgeStyle: 'orthogonal',
+    }) as any
+
+  it('applies stroke / width / dash from the edge style', () => {
+    const svg = toSVG(
+      styledEdge({ stroke: 'red', strokeWidth: '4', strokeDash: '3' }),
+    )
+    expect(svg).toContain('stroke="red"')
+    expect(svg).toContain('stroke-width="4"')
+    expect(svg).toContain('stroke-dasharray="3,3"')
+  })
+
+  it('keeps the theme default when the edge sets no style', () => {
+    const svg = toSVG(styledEdge(undefined))
+    expect(svg).toContain('stroke="currentColor"')
+    expect(svg).toContain('stroke-width="2"')
+    expect(svg).not.toContain('d2-anim')
+    expect(svg).not.toContain('@keyframes')
+  })
+
+  it('applies opacity', () => {
+    expect(toSVG(styledEdge({ opacity: '0.5' }))).toContain('opacity="0.5"')
+  })
+
+  it('animated edge marches dashes via a reduced-motion-safe CSS class', () => {
+    const svg = toSVG(styledEdge({ animated: true }))
+    expect(svg).toContain('class="d2-anim"')
+    expect(svg).toContain('@keyframes d2dash')
+    expect(svg).toContain('prefers-reduced-motion')
+    // a march needs a dash pattern even when the source set none
+    expect(svg).toContain('stroke-dasharray="8,4"')
+  })
+
+  it('the arrowhead follows the edge stroke colour', () => {
+    const svg = toSVG(styledEdge({ stroke: 'red' }))
+    expect(svg).toContain('<polygon') // default dst arrowhead = filled triangle
+    expect(svg).toContain('fill="red"')
+  })
+})

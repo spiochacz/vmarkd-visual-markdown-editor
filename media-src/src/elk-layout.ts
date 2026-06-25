@@ -8,6 +8,7 @@
 import type { D2Graph, D2Shape } from './d2-wasm'
 import {
   type D2Style,
+  type EdgeStyle,
   type Layout,
   type PlacedEdge,
   type PlacedNode,
@@ -16,6 +17,7 @@ import {
   buildNearNodes,
   classify,
   computeGridInfo,
+  edgeStyle,
   isNearConstant,
   leafInfo,
   toSVG,
@@ -272,6 +274,7 @@ export async function layoutElk(
     {
       srcArrow: boolean
       dstArrow: boolean
+      style?: EdgeStyle // explicit connection style (task 124 #1)
       // Per-end arrowhead shape/label (task 128), carried through to PlacedEdge for toSVG.
       srcArrowhead?: { shape: string; label?: string }
       dstArrowhead?: { shape: string; label?: string }
@@ -292,6 +295,7 @@ export async function layoutElk(
     edgeMeta.set(id, {
       srcArrow: e.srcArrow,
       dstArrow: e.dstArrow,
+      style: edgeStyle(e), // task 124 #1
       srcArrowhead: e.srcArrowhead, // task 128
       dstArrowhead: e.dstArrowhead,
       srcColumnIndex: e.srcColumnIndex, // task 133
@@ -415,6 +419,7 @@ export async function layoutElk(
           points: pts,
           srcArrow: em.srcArrow,
           dstArrow: em.dstArrow,
+          style: em.style, // task 124 #1
           srcArrowhead: em.srcArrowhead, // task 128
           dstArrowhead: em.dstArrowhead,
           srcColumnIndex: em.srcColumnIndex, // task 133

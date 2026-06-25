@@ -2,7 +2,7 @@ import dagre from '@dagrejs/dagre'
 import { MERMAID_PALETTES, mix } from '../../src/mermaid-palettes'
 // Route-simplification geometry + the Rect obstacle type moved to the shared leaf module (task 123).
 import { type Rect, simplifyRoute, straightenEnds } from './d2-geometry'
-import type { D2Graph, D2Shape } from './d2-wasm'
+import type { D2Edge, D2Graph, D2Shape } from './d2-wasm'
 
 const FONT_SIZE = 16
 export const EDGE_FONT_SIZE = 14
@@ -426,10 +426,32 @@ export interface PlacedNode {
   // and the tight bbox; positioned in toSVG relative to the final drawing bounds. Holds the constant.
   near?: string
 }
+// Explicit connection style (task 124 #1). Absent fields → the renderer keeps the theme default
+// (sty.edge stroke / width 2). `animated` flows the dashes via a reduced-motion-safe CSS class.
+export interface EdgeStyle {
+  stroke?: string
+  strokeWidth?: string
+  strokeDash?: string
+  opacity?: string
+  animated?: boolean
+}
+// Pack a graph edge's explicit style for the renderer; undefined when it set none (keep the default).
+export function edgeStyle(e: D2Edge): EdgeStyle | undefined {
+  if (!e.stroke && !e.strokeWidth && !e.strokeDash && !e.opacity && !e.animated)
+    return undefined
+  return {
+    stroke: e.stroke,
+    strokeWidth: e.strokeWidth,
+    strokeDash: e.strokeDash,
+    opacity: e.opacity,
+    animated: e.animated,
+  }
+}
 export interface PlacedEdge {
   points: [number, number][]
   srcArrow: boolean
   dstArrow: boolean
+  style?: EdgeStyle // explicit connection style (task 124 #1)
   // Per-end arrowhead shape + label (task 128); undefined → fall back to srcArrow/dstArrow (triangle/none).
   srcArrowhead?: { shape: string; label?: string }
   dstArrowhead?: { shape: string; label?: string }
@@ -648,6 +670,7 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
         height: el.h,
         srcArrow: e.srcArrow,
         dstArrow: e.dstArrow,
+        style: edgeStyle(e), // task 124 #1
         srcArrowhead: e.srcArrowhead, // task 128
         dstArrowhead: e.dstArrowhead,
         srcColumnIndex: e.srcColumnIndex, // task 133
@@ -682,6 +705,7 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
       points: e.points.map((p: any) => [p.x, p.y]),
       srcArrow: e.srcArrow,
       dstArrow: e.dstArrow,
+      style: e.style, // task 124 #1
       srcArrowhead: e.srcArrowhead, // task 128
       dstArrowhead: e.dstArrowhead,
       srcColumnIndex: e.srcColumnIndex, // task 133
@@ -1460,6 +1484,7 @@ function toSVG(layout: Layout, style?: D2Style): string {
     )
   }
 
+  let hasAnimated = false // task 124 #1 — inject the marching-dash CSS only when an edge uses it
   for (const { e, route, lpos } of drawn) {
     // Effective arrowhead shape per end (task 128): explicit shape wins, else the legacy boolean.
     const dstShape = endShape(e.dstArrowhead, e.dstArrow !== false)
@@ -1476,8 +1501,19 @@ function toSVG(layout: Layout, style?: D2Style): string {
     }
     const d =
       layout.edgeStyle === 'orthogonal' ? roundedPolyPath(rp) : splinePath(rp)
+    // Connection style (task 124 #1): an explicit source style wins; else keep the theme default
+    // (themeColor / width 2). The arrowheads below follow the same effective stroke colour.
+    const es = e.style
+    const eStroke = es?.stroke || themeColor
+    let edgeAttrs = `stroke="${eStroke}" stroke-width="${es?.strokeWidth ? Number(es.strokeWidth) : 2}"`
+    if (es?.strokeDash && Number(es.strokeDash) > 0)
+      edgeAttrs += ` stroke-dasharray="${es.strokeDash},${es.strokeDash}"`
+    else if (es?.animated) edgeAttrs += ` stroke-dasharray="8,4"` // a march needs a dash pattern; default when unset
+    if (es?.opacity && Number(es.opacity) !== 1)
+      edgeAttrs += ` opacity="${es.opacity}"`
+    if (es?.animated) hasAnimated = true
     parts.push(
-      `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"${maskAttr}/>`,
+      `<path d="${d}" fill="none" ${edgeAttrs}${es?.animated ? ' class="d2-anim"' : ''}${maskAttr}/>`,
     )
     const n = route.length
     if (dstShape !== 'none' && n >= 2) {
@@ -1486,7 +1522,7 @@ function toSVG(layout: Layout, style?: D2Style): string {
         route[n - 1][0] - route[n - 2][0],
       )
       parts.push(
-        arrowhead(dstShape, route[n - 1][0], route[n - 1][1], a, themeColor),
+        arrowhead(dstShape, route[n - 1][0], route[n - 1][1], a, eStroke),
       )
       // Arrowhead label (ER cardinality / role, task 128): small muted text beside the endpoint.
       if (e.dstArrowhead?.label)
@@ -1496,7 +1532,7 @@ function toSVG(layout: Layout, style?: D2Style): string {
     }
     if (srcShape !== 'none' && n >= 2) {
       const a = Math.atan2(route[0][1] - route[1][1], route[0][0] - route[1][0])
-      parts.push(arrowhead(srcShape, route[0][0], route[0][1], a, themeColor))
+      parts.push(arrowhead(srcShape, route[0][0], route[0][1], a, eStroke))
       if (e.srcArrowhead?.label)
         parts.push(
           arrowheadLabel(e.srcArrowhead.label, route[0], route[1], sty),
@@ -1509,6 +1545,13 @@ function toSVG(layout: Layout, style?: D2Style): string {
       )
     }
   }
+
+  // Animated connections (task 124 #1): march the dashes via CSS, disabled under reduced-motion.
+  // Injected once, only when an edge opted in. SVG <style> is global regardless of document position.
+  if (hasAnimated)
+    parts.push(
+      '<style>@keyframes d2dash{to{stroke-dashoffset:-12}}.d2-anim{animation:d2dash .6s linear infinite}@media(prefers-reduced-motion:reduce){.d2-anim{animation:none}}</style>',
+    )
 
   // Foreground pass — leaf shapes (sql/class/basic) ON TOP of the edges (edges trim at their borders,
   // so covering an edge end is correct). Containers + grids were drawn in the background pass above.

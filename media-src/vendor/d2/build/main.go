@@ -68,6 +68,13 @@ type outEdge struct {
 	Label    string `json:"label,omitempty"`
 	SrcArrow bool   `json:"srcArrow"`
 	DstArrow bool   `json:"dstArrow"`
+	// Connection style (task 124 #1) from e.Style. Empty/false = the source set none → the renderer
+	// keeps the theme default (themeColor / width 2). Shapes already carry these; edges didn't.
+	Stroke      string `json:"stroke,omitempty"`
+	StrokeWidth string `json:"strokeWidth,omitempty"`
+	StrokeDash  string `json:"strokeDash,omitempty"`
+	Opacity     string `json:"opacity,omitempty"`
+	Animated    bool   `json:"animated,omitempty"`
 	// Per-end arrowhead shape/label, only when the source set one (task 128). When nil the
 	// renderer falls back to the SrcArrow/DstArrow boolean (default triangle / none).
 	SrcArrowhead *outArrowhead `json:"srcArrowhead,omitempty"`
@@ -164,6 +171,12 @@ func compileToJSON(src string) (string, error) {
 		oe := outEdge{
 			Src: src, Dst: dst, Label: label,
 			SrcArrow: e.SrcArrow, DstArrow: e.DstArrow,
+			// Connection style (task 124 #1); empty when unset → renderer keeps the theme default.
+			Stroke:      styleVal(e.Style.Stroke),
+			StrokeWidth: styleVal(e.Style.StrokeWidth),
+			StrokeDash:  styleVal(e.Style.StrokeDash),
+			Opacity:     styleVal(e.Style.Opacity),
+			Animated:    styleVal(e.Style.Animated) == "true",
 			// d2 sets these to a column row when the edge endpoint is <table>.<col> (task 133).
 			SrcColumnIndex: e.SrcTableColumnIndex,
 			DstColumnIndex: e.DstTableColumnIndex,

@@ -1,13 +1,14 @@
 # Task 124 — D2 feature parity (connection styles, text/code/image, markdown/LaTeX, tooltips/links, multi-board)
 
-> **Status:** 🟡 Phase A DONE (2026-06-25) — `shape: text` (borderless prose) + `shape: code`
-> (monospace panel), both toSVG-only with multi-line `<tspan>` rows (`textShapeBox` sizes them in
-> `leafInfo`). Items #1/#3/#4/#5/#6 still open and need a WASM bump. **Audit note (2026-06-25):** the
-> Phase-B batch (127/128/133/126A) extended the WASM but for a DIFFERENT slice — none of THIS task's
-> own items #1/#3/#4/#5 got their fields, so the "capture EVERY field in one rebuild" premise below was
-> only partially executed; another WASM bump is still needed (cheap now that the WASM is TinyGo). Note
-> arrowhead *shapes* (128) ≠ connection *stroke* styles (#1, still hardcoded). md labels (#4) split to
-> task 154.
+> **Status:** 🟡 IN PROGRESS — #1 + #2 DONE (2026-06-25). **#1 connection styles** (own WASM bump):
+> `outEdge` now marshals `stroke/strokeWidth/strokeDash/opacity/animated`; `toSVG` draws them (explicit
+> wins, else theme default), arrowheads follow the edge stroke, `animated` marches dashes via a
+> reduced-motion-safe CSS class. **#2 `shape: text` / `code`** (toSVG-only): borderless prose / mono
+> panel, multi-line `<tspan>` rows (`textShapeBox` sizes them in `leafInfo`). Still open: #3 image/icons,
+> #4 md/latex labels (md = task 154), #5 tooltips/links, #6 multi-board. **Audit note (2026-06-25):** the
+> Phase-B batch (127/128/133/126A) extended the WASM for a DIFFERENT slice, so the "capture EVERY field
+> in one rebuild" premise below was only partially executed — #3/#4/#5 still need another WASM bump
+> (cheap now the WASM is TinyGo). Arrowhead *shapes* (128) ≠ connection *stroke* styles (#1, now done).
 > Originally 💡 idea / planned (decision-gated) — created 2026-06-24. Catalogs the D2 language
 > features our renderer (task 104) does NOT yet handle, found while auditing the pipeline after the
 > shape + colour-theme work (shapes 1:1 with d2; `sql_table`/`class`; faithful `d2Theme` palettes).
@@ -33,15 +34,17 @@ what it never received. The fixes are mostly "extract field in Go → consume in
 
 ## Items (each: cost + what to do)
 
-### 1. Connection (edge) styles — HIGH ROI
-- **Gap:** every connection is drawn hard-coded `stroke=<theme edge>` `stroke-width="2"`, ignoring the
-  source's `style.stroke` / `stroke-dash` / `stroke-width` / `opacity` / `animated`. (Shapes honour
-  these; edges don't.) Dashed/colored/thick connections are common in real diagrams.
-- **Cost:** WASM (extend `outEdge` with `stroke/strokeWidth/strokeDash/opacity/animated`) + `toSVG`
-  edge draw (the `<path … stroke="${themeColor}" stroke-width="2">` block) reads them; `animated` →
-  an SVG `stroke-dasharray` + `<animate>` dash-offset (respect `prefers-reduced-motion`).
-- **Note:** keep theme colour as the *default* when the edge sets no explicit `style.stroke` (so
-  `d2Theme` still drives un-styled edges).
+### 1. Connection (edge) styles — ✅ DONE (2026-06-25)
+- **Done:** `outEdge` (main.go) now marshals `stroke/strokeWidth/strokeDash/opacity/animated` from
+  `e.Style` (WASM rebuilt, TinyGo). `D2Edge` + a `PlacedEdge.style` object carry them through both
+  engines (`edgeStyle()` helper packs them; threaded in dagre setEdge/readback + ELK edgeMeta/
+  placedEdges). `toSVG` draws stroke (default `themeColor`), width (default 2), dash, opacity; the
+  arrowheads follow the same effective stroke colour. `animated` marches the dashes via a CSS class
+  (`.d2-anim` + `@keyframes`, injected once) guarded by `@media (prefers-reduced-motion: reduce)` —
+  chosen over SMIL `<animate>` so reduced-motion is honourable. Theme colour stays the default for
+  un-styled edges (so `d2Theme` still drives them). Unit tests in `d2-wasm.test.ts` (marshalling) +
+  `d2-render.test.ts` (6, render/animated/default/arrowhead-colour); visual via the render harness;
+  fixture block in `all-renderers.md` §18.
 
 ### 2. `shape: text` / `shape: code` — ✅ DONE (Phase A, 2026-06-25)
 - **Done:** `toSVG` now branches before the shape switch — `text` = borderless, left-aligned prose;
@@ -80,7 +83,12 @@ what it never received. The fixes are mostly "extract field in Go → consume in
 
 ## Recommended phasing
 1. ✅ **Phase A (no WASM) — DONE 2026-06-25:** `shape: text` + `shape: code` basic render in `toSVG` (#2). Cheapest, immediate.
-2. **Phase B (one WASM bump, batched with task 121):** extend `outEdge` (#1) + `outShape` (icon #3, label-type #4, tooltip/link #5) + task-121 effect booleans + the fields tracked in **tasks 127–130, 132, 134, 135** (direction, arrowhead shapes, text styles, explicit width/height, `vars.d2-config`, label/icon positioning, grid-gap/edge-radius) — capture EVERY missing field in ONE Go rebuild (per the task-121 note). Then consume incrementally in `toSVG`. (Task 133 = sql column/FK edges, edge-resolution; task 131 = d2 imports, separate / likely won't-do.)
+2. **Phase B (WASM bumps):** ✅ **#1 connection styles DONE 2026-06-25** (own `outEdge` bump). Still
+   to do in a FUTURE bump (batch with task 121): `outShape` icon #3 + label-type #4 + tooltip/link #5 +
+   task-121 effect booleans + the fields in **tasks 129/130/132/134/135** (text styles, explicit
+   width/height, `vars.d2-config`, label/icon positioning, grid-gap/edge-radius) — capture them in ONE
+   Go rebuild. Then consume in `toSVG`. (127/128/133/126A already landed in the earlier Phase-B batch;
+   task 131 = d2 imports, separate / likely won't-do.)
 3. **Phase C (optional, large):** multi-board (#6) — only if there's demand.
 
 ## Verification (every item)
