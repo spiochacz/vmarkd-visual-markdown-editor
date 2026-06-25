@@ -575,6 +575,15 @@ api -> db
 api -> cache
 ```
 
+`shape: text` renders borderless left-aligned prose; `shape: code` renders a monospace panel. Both are
+toSVG-only (no WASM), and multi-line labels split into `<tspan>` rows (task 124 Phase A):
+
+```d2
+note: "Plain text shape.\nBorderless, multi-line prose." { shape: text }
+snippet: "func main() {\n  fmt.Println(\"hi\")\n}" { shape: code }
+note -> snippet
+```
+
 A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by our dagre/ELK layout, so
 it falls back LOUDLY to the raw source (never a silently-wrong picture):
 

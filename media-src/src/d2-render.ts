@@ -8,6 +8,14 @@ const FONT_SIZE = 16
 export const EDGE_FONT_SIZE = 14
 const INNER_PAD = 5
 const P = 40 // d2 defaultPadding
+// shape:text / shape:code (task 124 #2). Code uses a monospace face, but the injected Sizer can't
+// switch font, so code boxes are sized from the char count at the monospace advance (~0.6em). text and
+// code are the only shapes that render \n-separated multi-line labels (as <tspan> rows).
+const CODE_FONT = 13
+const CODE_CHAR_W = 0.6 // monospace advance per char (em)
+const PROSE_LH = 1.35 // multi-line label line-height factor
+const TEXT_PAD = 4 // borderless text gutter
+const CODE_PAD = 10 // code panel padding
 export type Sizer = (
   text: string,
   fontSize?: number,
@@ -87,6 +95,31 @@ function dimsToFit(
 
 export function shapeBox(shape: string, m: { w: number; h: number }) {
   return dimsToFit(shape, m.w + INNER_PAD, m.h + INNER_PAD)
+}
+
+// Box for a multi-line shape:text / shape:code label (task 124 #2). text → proportional Sizer per
+// line; code → monospace estimate (the Sizer has no mono font). Returns the FINAL padded box and
+// bypasses dimsToFit, whose 40px rectangle padding is wrong for borderless prose / a tight code panel.
+export function textShapeBox(
+  shape: string,
+  label: string,
+  measure: Sizer,
+): { w: number; h: number } {
+  const lines = String(label).split('\n')
+  const isCode = shape === 'code'
+  const fs = isCode ? CODE_FONT : FONT_SIZE
+  const pad = isCode ? CODE_PAD : TEXT_PAD
+  let cw = 0
+  if (isCode) {
+    const cols = lines.reduce((m, l) => Math.max(m, l.length), 1)
+    cw = cols * CODE_CHAR_W * CODE_FONT
+  } else {
+    for (const l of lines) cw = Math.max(cw, measure(l).w)
+  }
+  return {
+    w: ceil(cw + 2 * pad),
+    h: ceil(lines.length * fs * PROSE_LH + 2 * pad),
+  }
 }
 
 // Contrast label colour: with an explicit fill the colour is theme-independent, so pick black/white
@@ -542,6 +575,10 @@ export function leafInfo(
   if (s.shape === 'class') {
     const sz = classSize(s, measure)
     return { w: sz.w, h: sz.h, kind: 'class' }
+  }
+  // text/code carry multi-line prose; size them from line count, not the single-line label box.
+  if (s.shape === 'text' || s.shape === 'code') {
+    return { ...textShapeBox(s.shape, s.label, measure), kind: 'shape' }
   }
   const box = shapeBox(s.shape, measure(s.label))
   return { w: box.w, h: box.h, kind: 'shape' }
@@ -1522,6 +1559,37 @@ function toSVG(layout: Layout, style?: D2Style): string {
     }
 
     const rx = s.borderRadius ? Number(s.borderRadius) : 4
+
+    // shape: text / code (task 124 #2 — no WASM; shape + label already marshalled). text = borderless
+    // left-aligned prose; code = monospace in a subtle panel. Multi-line labels become <tspan> rows
+    // (SVG <text> doesn't wrap on \n). Geometry mirrors leafInfo's textShapeBox. Syntax highlighting
+    // for code needs the block language (not marshalled yet) and is deferred.
+    if (s.shape === 'text' || s.shape === 'code') {
+      const isCode = s.shape === 'code'
+      const fs = isCode ? CODE_FONT : FONT_SIZE
+      const pad = isCode ? CODE_PAD : TEXT_PAD
+      if (isCode)
+        // d2 paints code on its N7 paper fill; an explicit source style still wins.
+        parts.push(
+          `<rect x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" rx="${rx}" fill="${s.fill || sty.paper}" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 1}"${s.opacity && Number(s.opacity) !== 1 ? ` opacity="${s.opacity}"` : ''}/>`,
+        )
+      const fam = isCode
+        ? ' font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"'
+        : ''
+      const tx = f1(left + pad)
+      const tspans = String(s.label)
+        .split('\n')
+        .map(
+          (ln, i) =>
+            `<tspan x="${tx}" y="${f1(top + pad + fs + i * fs * PROSE_LH)}">${esc2(ln)}</tspan>`,
+        )
+        .join('')
+      parts.push(
+        `<text font-size="${fs}"${fam} fill="${s.fontColor || sty.text}">${tspans}</text>`,
+      )
+      continue
+    }
+
     switch (s.shape) {
       case 'circle':
       case 'oval':

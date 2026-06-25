@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { simplifyRoute, straightenEnds } from './d2-geometry'
 import {
   renderD2Graph,
+  textShapeBox,
   toSVG,
   unsupportedReason,
   type Sizer,
@@ -759,5 +760,50 @@ describe('straightenEnds (task 122 — D2 deleteBends source/target S-shape remo
       [70, 100],
     ]
     expect(straightenEnds(sJog, [wide]).length).toBe(4)
+  })
+})
+
+describe('shape: text / code (task 124 #2)', () => {
+  const node = (shape: string, label: string) =>
+    g([{ id: 'n', idVal: 'n', label, shape, special: empty() }])
+
+  it('renders shape:text as borderless prose (no box rect)', () => {
+    const svg = renderD2Graph(node('text', 'hello world'), sizer)
+    expect(svg).toContain('<text')
+    expect(svg).toContain('<tspan')
+    expect(svg).toContain('hello world')
+    // borderless: a lone text shape draws no <rect>
+    expect(svg.match(/<rect/g)).toBeNull()
+  })
+
+  it('renders shape:code as a monospace panel (one rect + mono font)', () => {
+    const svg = renderD2Graph(node('code', 'const x = 1'), sizer)
+    expect((svg.match(/<rect/g) || []).length).toBe(1) // the panel
+    expect(svg).toContain('font-family="ui-monospace')
+    expect(svg).toContain('const x = 1')
+  })
+
+  it('splits a multi-line label into one <tspan> per line', () => {
+    const svg = renderD2Graph(node('code', 'line1\nline2\nline3'), sizer)
+    expect((svg.match(/<tspan/g) || []).length).toBe(3)
+    expect(svg).toContain('line1')
+    expect(svg).toContain('line3')
+  })
+
+  it('text/code are not flagged unsupported', () => {
+    expect(unsupportedReason(node('text', 'a'))).toBeNull()
+    expect(unsupportedReason(node('code', 'a'))).toBeNull()
+  })
+
+  it('textShapeBox grows the box with line count', () => {
+    const one = textShapeBox('code', 'x', sizer)
+    const three = textShapeBox('code', 'x\nx\nx', sizer)
+    expect(three.h).toBeGreaterThan(one.h)
+  })
+
+  it('textShapeBox code width scales with the longest line (monospace estimate)', () => {
+    const short = textShapeBox('code', 'x', sizer)
+    const long = textShapeBox('code', 'x'.repeat(40), sizer)
+    expect(long.w).toBeGreaterThan(short.w)
   })
 })
