@@ -176,3 +176,55 @@ describe('d2 refine layout quality (frozen raw-ELK fixtures)', () => {
     })
   }
 })
+
+// task 123 #4 — the unified per-pass guard contract. Every refine pass now guards crossings AND
+// collinear-overlap AND container-wall, so NO single pass may raise any of those metrics (before, some
+// passes guarded only crossings and a later pass cleaned up the mess by luck — deleteBendsEndpoints left a
+// collinear that rerouteBackEdges happened to fix, deOvershoot hugged a container wall that detourContainers
+// happened to undo). This replays the pipeline through refineLayout's `__refineTrace` seam and asserts the
+// invariant pass-by-pass. (Guards the per-pass *property*; the per-diagram final values are above.)
+describe('d2 refine per-pass guard invariant (task 123 #4)', () => {
+  for (const id of Object.keys(EXPECT)) {
+    it(`${id}: no pass raises crossings / edge-on-box / edge-on-edge`, () => {
+      const layout = JSON.parse(JSON.stringify(fixtures[id])) as Layout
+      const rows: { name: string; cross: number; box: number; line: number }[] =
+        [
+          {
+            name: '(raw)',
+            cross: countCrossings(layout),
+            box: lineOnBox(layout),
+            line: lineOnLine(layout),
+          },
+        ]
+      const g = globalThis as { __refineTrace?: (n: string, l: Layout) => void }
+      g.__refineTrace = (name, l) =>
+        rows.push({
+          name,
+          cross: countCrossings(l),
+          box: lineOnBox(l),
+          line: lineOnLine(l),
+        })
+      try {
+        refineLayout(layout)
+      } finally {
+        g.__refineTrace = undefined
+      }
+      for (let i = 1; i < rows.length; i++) {
+        const cur = rows[i]
+        const prev = rows[i - 1]
+        expect(
+          cur.cross,
+          `${cur.name} must not raise crossings`,
+        ).toBeLessThanOrEqual(prev.cross)
+        expect(
+          cur.box,
+          `${cur.name} must not raise edge-on-box`,
+        ).toBeLessThanOrEqual(prev.box)
+        expect(
+          cur.line,
+          `${cur.name} must not raise edge-on-edge`,
+        ).toBeLessThanOrEqual(prev.line)
+      }
+    })
+  }
+})

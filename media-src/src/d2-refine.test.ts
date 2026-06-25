@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { __test } from './d2-refine'
 import type { Layout, PlacedEdge, PlacedNode } from './d2-render'
 
-const { deOvershoot, bundleSiblings, rerouteBackEdges } = __test
+const { deOvershoot, deleteBendsEndpoints, bundleSiblings, rerouteBackEdges } =
+  __test
 
 // Minimal Layout factory — only the fields the passes read (nodes: id/x/y/w/h/kind; edges: points +
 // src/dst/label). Casts keep the synthetic shapes terse while matching the real Layout shape.
@@ -201,5 +202,78 @@ describe('rerouteBackEdges (task 122 — A* the middle, preserve both stubs)', (
     const snap = e.points.map((p) => [...p])
     rerouteBackEdges(lay)
     expect(e.points).toEqual(snap)
+  })
+})
+
+// task 123 #4 — deleteBendsEndpoints gained a collinear guard. It removes a removable ladder bend only if
+// the straightened segment does not land collinear-and-overlapping on ANOTHER edge's line (before, it
+// guarded only box-hit + crossing, so a deletion could drop the route onto another edge → edge-on-edge).
+describe('deleteBendsEndpoints collinear guard (task 123 #4)', () => {
+  // start→corner is vertical (x=0); the removable bend straightens to a new horizontal at y=40.
+  const ladder = (): PlacedEdge[] => [
+    edge(
+      [
+        [-40, 40], // before  (horizontal into start)
+        [0, 40], // start
+        [0, 80], // corner   (start→corner vertical)
+        [40, 80], // end
+        [40, 140], // after
+        [40, 200], // last
+      ],
+      { src: 'a', dst: 'b' }, // distinct endpoints — else `src === dst` skips the edge
+    ),
+  ]
+
+  it('removes the bend when the straightened segment is clear', () => {
+    const [e] = ladder()
+    deleteBendsEndpoints(layout([], [e]))
+    expect(e.points.length).toBeLessThan(6) // bend removed
+  })
+
+  it('refuses to remove the bend when the result would lie on another edge', () => {
+    const [e] = ladder()
+    // F runs horizontally along y=40, overlapping the x-range of the straightened segment → collinear.
+    const f = edge(
+      [
+        [0, 40],
+        [60, 40],
+      ],
+      { src: 'c', dst: 'd' },
+    )
+    const snap = e.points.map((p) => [...p])
+    deleteBendsEndpoints(layout([], [e, f]))
+    expect(e.points).toEqual(snap) // bend kept — collinear guard refused the straighten
+  })
+})
+
+// task 123 #4 — deOvershoot gained a container-wall guard. Its old hitsBox tested LEAF interiors only, so a
+// collapse could run the new segment collinear along a CONTAINER wall (the "container-wall run slipped" bug).
+describe('deOvershoot container-wall guard (task 123 #4)', () => {
+  // An opposite-direction H-V-H bump whose only collapse is a straight vertical at x=100.
+  const bump = (): PlacedEdge[] => [
+    edge([
+      [100, 0],
+      [100, 100],
+      [300, 100],
+      [300, 200],
+      [100, 200],
+      [100, 400],
+    ]),
+  ]
+
+  it('collapses the bump when no container wall is in the way', () => {
+    const [e] = bump()
+    const before = e.points.length
+    deOvershoot(layout([], [e]))
+    expect(e.points.length).toBeLessThan(before)
+  })
+
+  it('refuses the collapse when it would hug a container wall', () => {
+    const [e] = bump()
+    // container whose RIGHT wall sits at x=100 — the collapsed vertical would run along it
+    const c = node('box', 0, 0, 100, 400, 'container')
+    const snap = e.points.map((p) => [...p])
+    deOvershoot(layout([c], [e]))
+    expect(e.points).toEqual(snap) // bump kept — wall guard refused the collapse
   })
 })

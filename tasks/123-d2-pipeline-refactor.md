@@ -1,10 +1,13 @@
 # Task 123 — D2 layout pipeline: architecture refactor (decouple + slim)
 
-> **Status:** 🟡 PARTIAL (2026-06-23). Came out of an architecture review of the D2 render pipeline
-> (`d2-wasm → d2-render/elk-layout → d2-refine → toSVG`). The cheap, high-ROI steps are **done**; the
-> larger module split is **planned** behind the now-committed quality net. Every step must keep the
-> rendered SVG **byte-identical** across the 8 `tmp/d2-compare/gen/*.d2` diagrams (capture a baseline,
-> diff after each change) and keep `d2-quality.test.ts` / typecheck / lint:ci / `npm test` green.
+> **Status:** 🟢 DONE (2026-06-25). Came out of an architecture review of the D2 render pipeline
+> (`d2-wasm → d2-render/elk-layout → d2-refine → toSVG`). All planned work is complete: the cheap high-ROI
+> steps, the **Variant B module split** (d2-geometry + astar, byte-identical-verified), and **#4 (unified
+> per-pass guard metric set)** — done pass-by-pass and eval'd by eye (it intentionally shifts 3 diagrams:
+> microservices / dataplatform / oauth, all improvements or an accepted overlap-vs-crossing tradeoff). The
+> full `d2-render` God-module split stays **deferred** (see below). `npm test` (840) / typecheck / lint:ci
+> (exit 0) / `node build.mjs` all green. One reviewable **follow-up** remains: the stale `d2-quality` fixture
+> (see #4). Nothing committed — awaiting the user's git call.
 
 ## Why
 
@@ -39,25 +42,60 @@ and only escalate to the heavy God-module split if `d2-render` actually starts t
 
 ## Planned — the "rest of the refactor"
 
-### Variant B — slim `d2-refine` by extracting two modules (+2 files, no `d2-render` split)
-- [ ] **`d2-geometry.ts`** — shared axis-aligned primitives currently duplicated/split between
-  `d2-render` (`simplifyRoute`, `straightenEnds`) and `d2-refine` (`dccw`, `segsCross`, `parDist`,
-  `boxDist`, `wallDist`, `segHitsABox`). One home, imported by both refine and the SVG serializer.
-- [ ] **`astar.ts`** — the back-edge router (`astar` + binary heap + Hanan grid + `edgeSegs` spatial
-  index + `ABox`/constants). ~280 LOC out of `d2-refine` (1816 → ~1300), router becomes independently
-  testable.
-  - ⚠️ **Dependency caution:** `astar.ts` needs the geometry primitives from `d2-geometry.ts`, NOT from
-    `d2-refine` — otherwise `rerouteBackEdges` (in d2-refine) → `astar` → d2-refine reintroduces a cycle.
-    So the two extractions go together (geometry first).
-- [ ] Verify byte-identical (baseline+diff) + `d2-quality.test` + typecheck/lint/tests after each move.
+### Variant B — slim `d2-refine` by extracting two modules (+2 files, no `d2-render` split) ✅ DONE (2026-06-24)
+- [x] **`d2-geometry.ts`** (277 LOC, leaf) — shared axis-aligned primitives that were duplicated/split
+  between `d2-render` (`simplifyRoute`, `straightenEnds` + private helpers `dedupeCollinear`,
+  `segHitsRect`, `pointSegDist`, `endpointBox`, `Rect`) and `d2-refine` (`dccw`, `segsCross`, `parDist`,
+  `boxDist`, `wallDist`, `segHitsABox`, `ABox`, `ASTAR_M`, `Pt`). The two `segsCross` copies were
+  byte-identical → consolidated to one `Pt`-typed export. Imported by both the SVG serializer and refine.
+- [x] **`astar.ts`** (305 LOC) — the back-edge router (`astar` + binary heap + Hanan grid + `edgeSegs`
+  spatial index + `ANode` + cost constants `COMFORT/COMFW/EDGECLR/ASTAR_PAD/ASTAR_STEP`) lifted out of
+  `d2-refine`. `rerouteBackEdges` stays in refine and imports `astar`.
+  - ✅ **Dependency caution honoured:** `astar.ts` imports its geometry primitives from `d2-geometry.ts`,
+    NOT from `d2-refine` — so `rerouteBackEdges` (refine) → `astar` → `d2-geometry` stays acyclic.
+    Geometry was extracted first. `boxDist`/`parDist` turned out to be used by `compactBackRings` too (not
+    only astar) — confirms they're genuinely shared, correctly homed in geometry.
+  - Result: `d2-refine.ts` 1940 → 1571, `d2-render.ts` 1716 → 1518. New flow:
+    `d2-geometry ← astar ← d2-refine`, `d2-geometry ← d2-render`, `d2-refine → d2-render` (types) — acyclic.
+- [x] Verified byte-identical (baseline+diff over all 8 `gen/*.d2`) + `d2-quality.test` (55 d2 tests) +
+  typecheck + `lint:ci` (exit 0) + `node build.mjs` after each move. `d2-render.test.ts` import of
+  `simplifyRoute`/`straightenEnds` repointed to `./d2-geometry`.
 
-### #4 — standardize the per-pass guard contract
-- [ ] Introduce a higher-order `guarded(layout, metrics, mutate)` that snapshots the chosen quality
-  metrics, runs the mutation, and reverts if ANY worsens. Today each pass hand-rolls snapshot/guard/revert
-  and they're **inconsistent** (some guard only `countCrossings`, some also `collinearOverlapCount`, some
-  revert per-edge vs whole-pass). This was the root of real bugs this session (bundleSourceSiblings needed
-  a collinear guard added; the container-wall run slipped because no guard modelled walls). Unify the
-  metric set: crossings + collinear-overlap + on-wall + label-overlap.
+### #4 — unify the per-pass guard metric set — ✅ DONE (2026-06-25, pass-by-pass, eval'd by eye)
+Done as targeted per-move guards (NOT a single higher-order `guarded()` helper — keeping each pass's own
+per-move revert granularity is safer than a coarse whole-pass snapshot, and gives the same metric coverage).
+Diagnosed with a per-pass metric trace (`tmp/d2-compare/trace-metrics.mjs` over the 4 frozen fixtures, then
+`trace8.mjs` over all 8 via the live WASM pipeline using refineLayout's `__refineTrace` seam): each pass now
+guards crossings **and** collinear-overlap **and** container-wall, where before some guarded only crossings.
+
+- [x] **`deleteBendsEndpoints` + collinear guard** — it guarded box (`objIntersects`) + crossings
+  (`edgeCross`) per-move but not collinear, so a bend deletion dropped a route onto another edge's line
+  (oauth: `line 0→2`, only cleaned 6 passes later by luck in `rerouteBackEdges`). Added `edgeCollinear`
+  per-move guard (same tolerance as the d2-quality `lineOnLine` metric). Eval'd by eye: **microservices
+  improved** (route/read separated), oauth neutral. User: keep.
+- [x] **`deOvershoot` + container-wall guard** — its `hitsBox` tested leaf interiors only, so a collapse
+  could run a segment collinear along a *container* wall (dataplatform: `box 0→1`, the "container-wall run
+  slipped" bug; was only undone next pass by `detourContainers`). Added `hugsCont` per-move guard (same
+  tolerance as the d2-quality lineOnBox wall branch). Eval'd by eye: **dataplatform improved** (snapshot/
+  archive pushed off the container wall onto a clean lane), rest unchanged. User: keep.
+- [x] **`rerouteBackEdges` + collinear guard** — its greedy accept watched only `countCrossings`, so it
+  accepted a reroute that lowered crossings while creating an edge-on-edge overlap. The **live** microservices
+  render shipped with this overlap (`line=2` pre-task, `line=1` after the deleteBends guard); the frozen
+  quality fixture never caught it because it had drifted from the live ELK output. Added a
+  `collinearOverlapCount` term to the accept test. Eval'd by eye: a real **tradeoff** — microservices
+  `crossings 2→3` but `edge-on-edge 1→0`; an unreadable overlap is worse than a clean crossing
+  ("lower crossings ≠ better diagram"). User: keep AFTER.
+- [x] Verified: `trace8.mjs` now reports **no pass raises any metric on any of the 8 diagrams**;
+  `npm test` (840), typecheck, `lint:ci` (exit 0), `node build.mjs` all green. #4 footprint vs the original
+  pre-task render: only microservices / dataplatform / oauth changed (all improvements/accepted tradeoff);
+  the other 5 byte-identical.
+
+> **Follow-up (separate, not done): the `d2-quality.test` fixture is STALE.** The frozen
+> `__fixtures__/d2-raw-layouts.json` (microservices at least) has drifted from current `layoutElk` output, so
+> the CI net exercises geometry the live webview no longer produces — which is exactly why it missed the
+> microservices edge-on-edge above. Regenerate via `tmp/d2-compare/dump-layouts.mjs` and re-baseline the
+> `EXPECT` crossing counts so the net guards live behaviour (it will then assert zero overlaps on the real
+> geometry, catching this whole class). Left as a deliberate, reviewable change.
 
 ## Deferred — NOT planned now
 

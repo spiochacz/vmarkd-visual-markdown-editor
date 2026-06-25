@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { simplifyRoute, straightenEnds } from './d2-geometry'
 import {
   renderD2Graph,
-  simplifyRoute,
-  straightenEnds,
   toSVG,
   unsupportedReason,
   type Sizer,
