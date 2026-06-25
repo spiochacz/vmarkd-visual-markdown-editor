@@ -390,14 +390,18 @@ export async function renderD2GraphElk(
   measure: Sizer,
   cdn: string,
   style?: D2Style,
+  // `refine` distinguishes the two ELK-based engines exposed by vmarkd.diagram.d2Layout: 'vmarkd' (true,
+  // the default) runs our refinement pipeline on top of ELK; 'elk' (false) returns the raw ELK layout.
+  refine = true,
 ): Promise<string | null> {
   try {
     const elk = await bootElk(cdn)
     if (!elk) return null
     const layout = await layoutElk(graph, measure, elk)
     // Full post-process pipeline (task 122): row alignment, adaptive gaps, channel/bend cleanup, back-edge
-    // A* reroute, label placement. See d2-refine.ts for the exact ordering and rationale.
-    refineLayout(layout)
+    // A* reroute, label placement. See d2-refine.ts for the exact ordering and rationale. Skipped for the
+    // raw 'elk' engine so users can compare/debug against our embellished 'vmarkd' output.
+    if (refine) refineLayout(layout)
     return toSVG(layout, style)
   } catch {
     // ELK can fail in the webview (e.g. blob-worker / CSP). NEVER let that break D2 rendering —

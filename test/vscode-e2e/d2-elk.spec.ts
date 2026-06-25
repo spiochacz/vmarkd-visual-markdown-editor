@@ -1,12 +1,14 @@
-// ELK D2 layout engine (vmarkd.diagram.d2Layout=elk) — real-VS-Code only.
+// ELK D2 layout engine (vmarkd.diagram.d2Layout=vmarkd, the default) — real-VS-Code only.
 //
 // The whole point of this suite: the stock elk.bundled.js spawns a blob Web Worker that
-// `elk.layout()` REJECTS under the VS Code webview, so selecting `elk` used to silently fall back
+// `elk.layout()` REJECTS under the VS Code webview, so an ELK-based engine used to silently fall back
 // to dagre. We now bundle elkjs as a MAIN-THREAD instance (elk-main.js → window.__vmarkdElk, no
 // Worker). This proves (a) that instance boots in the real webview, (b) elk.layout() actually
-// resolves there, and (c) its orthogonal output reaches the rendered D2 SVG (data-d2-engine=elk),
-// not the dagre fallback. None of this reproduces in the Playwright harness (no real resource-URI
-// pipeline for the lazy-loaded bundle, no real config plumbing).
+// resolves there, and (c) its output reaches the rendered D2 SVG (data-d2-engine=vmarkd), not the
+// dagre fallback. We exercise the default `vmarkd` engine (ELK + our refinement pipeline); the raw
+// `elk` engine shares the identical boot/layout path (just skips refineLayout). None of this
+// reproduces in the Playwright harness (no real resource-URI pipeline for the lazy-loaded bundle,
+// no real config plumbing).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -24,10 +26,11 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      // Select the ELK layout engine BEFORE opening (collectConfigOptions reads it at open).
+      // Select the vmarkd layout engine (default: ELK + refinement) BEFORE opening
+      // (collectConfigOptions reads it at open).
       await vscode.workspace
         .getConfiguration('vmarkd')
-        .update('diagram.d2Layout', 'elk', true)
+        .update('diagram.d2Layout', 'vmarkd', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',
@@ -44,7 +47,7 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   // wrapper to be STAMPED data-d2-engine=elk — the deterministic signal that the whole chain ran
   // (replaces a fixed sleep, which flaked on cold VS Code starts where 9 s wasn't enough).
   await frame
-    .locator('.language-d2[data-d2-engine="elk"]')
+    .locator('.language-d2[data-d2-engine="vmarkd"]')
     .first()
     .waitFor({ timeout: 60_000 })
 
@@ -55,7 +58,7 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   }))
   // eslint-disable-next-line no-console
   console.log(`[d2-elk] boot: ${JSON.stringify(boot)}`)
-  expect(boot.d2Layout).toBe('elk')
+  expect(boot.d2Layout).toBe('vmarkd')
   expect(boot.hasElk).toBe(true)
 
   // (3) elk.layout() RESOLVES in the webview — the exact call that rejected with the blob Worker.
@@ -98,7 +101,7 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   expect(layout.hasSections).toBe(true)
   expect(layout.h).toBeGreaterThan(layout.w) // DOWN-stacked a→b→c is taller than wide
 
-  // (4) ELK's output reached the rendered D2 SVG — at least one block stamped data-d2-engine=elk,
+  // (4) ELK's output reached the rendered D2 SVG — at least one block stamped data-d2-engine=vmarkd,
   // NOT the dagre fallback. The fixture's sequence_diagram block still falls back to raw source.
   const render = await frame.locator('body').evaluate(() => {
     const wrappers = Array.from(
@@ -107,12 +110,12 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
     const engines = wrappers.map((w) => w.getAttribute('data-d2-engine'))
     const elkSvg = wrappers.find(
       (w) =>
-        w.getAttribute('data-d2-engine') === 'elk' && w.querySelector('svg'),
+        w.getAttribute('data-d2-engine') === 'vmarkd' && w.querySelector('svg'),
     )
     return {
       count: wrappers.length,
       engines,
-      anyElk: engines.includes('elk'),
+      anyElk: engines.includes('vmarkd'),
       elkHasSvg: !!elkSvg,
     }
   })
@@ -121,7 +124,7 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   expect(render.anyElk).toBe(true)
   expect(render.elkHasSvg).toBe(true)
 
-  // Reset the setting so other specs see the default (dagre).
+  // Reset the setting so other specs see the default (vmarkd).
   await evaluateInVSCode(async (vscode) => {
     await vscode.workspace
       .getConfiguration('vmarkd')

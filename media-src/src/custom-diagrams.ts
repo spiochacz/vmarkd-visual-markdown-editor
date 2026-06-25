@@ -319,9 +319,20 @@ export function renderD2(root?: ParentNode): void {
         const style = d2Theme((window as any).__vmarkdD2Theme)
         let svgStr: string | null = null
         let engine = 'dagre'
-        if ((window as any).__vmarkdD2Layout === 'elk') {
-          svgStr = await renderD2GraphElk(res, canvasMeasure, cdn, style)
-          if (svgStr) engine = 'elk'
+        // Three engines (vmarkd.diagram.d2Layout): 'vmarkd' = ELK + our refinement pipeline (default),
+        // 'elk' = raw ELK (refine off), 'dagre' = the bundled fallback. ELK lazy-loads elk-main.js and
+        // returns null if it can't load/lay out → we always fall back to dagre.
+        const layout = (window as any).__vmarkdD2Layout
+        if (layout === 'vmarkd' || layout === 'elk') {
+          const refine = layout === 'vmarkd'
+          svgStr = await renderD2GraphElk(
+            res,
+            canvasMeasure,
+            cdn,
+            style,
+            refine,
+          )
+          if (svgStr) engine = layout
         }
         if (!svgStr) svgStr = renderD2Graph(res, canvasMeasure, style)
         wrapper.innerHTML = svgStr
