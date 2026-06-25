@@ -389,11 +389,17 @@ export interface PlacedNode {
   kind: NodeKind
   sqlCols?: number[]
   grid?: GridInfo
+  // Viewport-pinned `near: <constant>` shape (task 126A): excluded from the layout engine, obstacles
+  // and the tight bbox; positioned in toSVG relative to the final drawing bounds. Holds the constant.
+  near?: string
 }
 export interface PlacedEdge {
   points: [number, number][]
   srcArrow: boolean
   dstArrow: boolean
+  // Per-end arrowhead shape + label (task 128); undefined → fall back to srcArrow/dstArrow (triangle/none).
+  srcArrowhead?: { shape: string; label?: string }
+  dstArrowhead?: { shape: string; label?: string }
   label?: string
   lx?: number
   ly?: number
@@ -401,6 +407,10 @@ export interface PlacedEdge {
   lh?: number
   src?: string // endpoint node ids — lets toSVG spot parallel/antiparallel pairs (task 122)
   dst?: string
+  // sql_table column-row endpoints (task 133); when set, toSVG attaches the edge end to that
+  // column's row of the table node instead of the node-box centre.
+  srcColumnIndex?: number
+  dstColumnIndex?: number
 }
 export interface Layout {
   W: number
@@ -424,6 +434,50 @@ export function classify(graph: D2Graph) {
   for (const id of parents) if (!gridIds.has(id)) containers.add(id)
   const inGrid = (s: D2Shape) => !!s.container && gridIds.has(s.container)
   return { byId, parents, gridIds, containers, inGrid }
+}
+
+// The 8 viewport-constant `near:` keys (task 126A). A shape pinned to one of these is pulled OUT of
+// the layout flow and placed relative to the final drawing bounds. Any OTHER nearKey is a shape id
+// (the relative "near another shape" form) — still unsupported (Phase B), so it stays a fallback.
+const NEAR_CONSTANTS = new Set([
+  'top-left',
+  'top-center',
+  'top-right',
+  'center-left',
+  'center-right',
+  'bottom-left',
+  'bottom-center',
+  'bottom-right',
+])
+export function isNearConstant(key?: string): boolean {
+  return !!key && NEAR_CONSTANTS.has(key)
+}
+
+// Build the PlacedNodes for viewport-pinned `near:` shapes (task 126A): sized like normal leaves but
+// flagged `near` (= the constant) with x/y left at 0 — toSVG positions them once the drawing bounds
+// are known. Shared by both layout engines so the two paths stay in sync.
+export function buildNearNodes(
+  graph: D2Graph,
+  measure: Sizer,
+  gridInfo: Map<string, GridInfo>,
+): PlacedNode[] {
+  const out: PlacedNode[] = []
+  for (const s of graph.shapes) {
+    if (!isNearConstant(s.special.nearKey)) continue
+    const li = leafInfo(s, measure, gridInfo)
+    out.push({
+      s,
+      x: 0,
+      y: 0,
+      w: li.w,
+      h: li.h,
+      kind: li.kind,
+      sqlCols: li.sqlCols,
+      grid: li.grid,
+      near: s.special.nearKey,
+    })
+  }
+  return out
 }
 
 export function computeGridInfo(
@@ -502,7 +556,14 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
     multigraph: true,
   })
   g.setGraph({
-    rankdir: 'TB',
+    // Root direction (task 127): d2 down/up/right/left → dagre TB/BT/LR/RL.
+    rankdir:
+      (
+        { down: 'TB', up: 'BT', right: 'LR', left: 'RL' } as Record<
+          string,
+          string
+        >
+      )[graph.direction || 'down'] ?? 'TB',
     nodesep: 60,
     ranksep: 100,
     edgesep: 20,
@@ -513,6 +574,7 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
 
   for (const s of graph.shapes) {
     if (inGrid(s)) continue
+    if (isNearConstant(s.special.nearKey)) continue // pinned out of layout (task 126A)
     if (containers.has(s.id)) {
       g.setNode(s.id, {
         src: s,
@@ -549,6 +611,10 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
         height: el.h,
         srcArrow: e.srcArrow,
         dstArrow: e.dstArrow,
+        srcArrowhead: e.srcArrowhead, // task 128
+        dstArrowhead: e.dstArrowhead,
+        srcColumnIndex: e.srcColumnIndex, // task 133
+        dstColumnIndex: e.dstColumnIndex,
       },
       `e${ei++}`,
     )
@@ -570,6 +636,8 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
       grid: n.grid,
     })
   }
+  // Viewport-pinned near shapes — positioned by toSVG, not the engine (task 126A).
+  nodes.push(...buildNearNodes(graph, measure, gridInfo))
   const edges: PlacedEdge[] = []
   for (const eo of g.edges()) {
     const e = g.edge(eo)
@@ -577,6 +645,10 @@ function layoutDagre(graph: D2Graph, measure: Sizer): Layout {
       points: e.points.map((p: any) => [p.x, p.y]),
       srcArrow: e.srcArrow,
       dstArrow: e.dstArrow,
+      srcArrowhead: e.srcArrowhead, // task 128
+      dstArrowhead: e.dstArrowhead,
+      srcColumnIndex: e.srcColumnIndex, // task 133
+      dstColumnIndex: e.dstColumnIndex,
       label: e.label,
       lx: e.x,
       ly: e.y,
@@ -669,15 +741,170 @@ function roundedPolyPath(pts: number[][], r = CORNER_R): string {
   return d
 }
 
-function arrow(x: number, y: number, angle: number, color: string): string {
-  const len = 10
-  const a1 = angle + Math.PI - 0.4
-  const a2 = angle + Math.PI + 0.4
-  const x1 = x + len * Math.cos(a1)
-  const y1 = y + len * Math.sin(a1)
-  const x2 = x + len * Math.cos(a2)
-  const y2 = y + len * Math.sin(a2)
-  return `<polygon points="${x},${y} ${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}" fill="${color}"/>`
+// How far to retract the connection stroke from its endpoint so it meets the arrowhead base cleanly
+// instead of poking through the glyph (task 128). Per shape, because a diamond is longer than a
+// triangle and a crow's-foot "many" stops at its apex while "one" lets the line run to the entity.
+function arrowheadDepth(shape: string): number {
+  switch (shape) {
+    case 'none':
+    case 'line':
+      return 1
+    case 'diamond':
+    case 'filled-diamond':
+      return 16
+    case 'circle':
+    case 'filled-circle':
+    case 'box':
+    case 'filled-box':
+      return 12
+    case 'cross':
+    case 'cf-one':
+    case 'cf-one-required':
+      return 2 // the bar(s) cross the line at the entity; stroke runs to the border
+    case 'cf-many':
+    case 'cf-many-required':
+      return 14 // line stops at the foot's apex
+    default:
+      return 9 // triangle / unfilled-triangle / arrow
+  }
+}
+
+// arrowhead: draw the d2 arrowhead `shape` at endpoint (x,y), with the connection arriving along
+// `angle` (radians, pointing TOWARD the endpoint). Returns SVG (task 128). Unfilled variants use
+// fill="none" — safe because the stroke is retracted (arrowheadDepth) so no line shows through. The
+// crow's-foot glyphs (cf-*) draw ER cardinality notation as short strokes at the entity border.
+function arrowhead(
+  shape: string,
+  x: number,
+  y: number,
+  angle: number,
+  color: string,
+): string {
+  const bx = -Math.cos(angle) // back along the line, away from the node
+  const by = -Math.sin(angle)
+  const px = -Math.sin(angle) // perpendicular (≈ the entity border tangent)
+  const py = Math.cos(angle)
+  // point at (back*b + perp*p) from the endpoint, formatted "x,y"
+  const at = (b: number, p: number) =>
+    `${(x + bx * b + px * p).toFixed(1)},${(y + by * b + py * p).toFixed(1)}`
+  switch (shape) {
+    case 'none':
+    case 'line':
+      return ''
+    case 'arrow': {
+      // open barbed V (two strokes, no fill)
+      const len = 11
+      const a1 = angle + Math.PI - 0.4
+      const a2 = angle + Math.PI + 0.4
+      return `<path d="M${(x + len * Math.cos(a1)).toFixed(1)},${(y + len * Math.sin(a1)).toFixed(1)} L${x.toFixed(1)},${y.toFixed(1)} L${(x + len * Math.cos(a2)).toFixed(1)},${(y + len * Math.sin(a2)).toFixed(1)}" fill="none" stroke="${color}" stroke-width="2"/>`
+    }
+    case 'unfilled-triangle':
+    case 'triangle': {
+      const len = 10
+      const a1 = angle + Math.PI - 0.4
+      const a2 = angle + Math.PI + 0.4
+      const pts = `${x.toFixed(1)},${y.toFixed(1)} ${(x + len * Math.cos(a1)).toFixed(1)},${(y + len * Math.sin(a1)).toFixed(1)} ${(x + len * Math.cos(a2)).toFixed(1)},${(y + len * Math.sin(a2)).toFixed(1)}`
+      return shape === 'triangle'
+        ? `<polygon points="${pts}" fill="${color}"/>`
+        : `<polygon points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/>`
+    }
+    case 'diamond':
+    case 'filled-diamond': {
+      const L = 16
+      const W = 6
+      const pts = `${at(0, 0)} ${at(L / 2, W)} ${at(L, 0)} ${at(L / 2, -W)}`
+      const fill = shape === 'filled-diamond' ? color : 'none'
+      return `<polygon points="${pts}" fill="${fill}" stroke="${color}" stroke-width="1.5"/>`
+    }
+    case 'circle':
+    case 'filled-circle': {
+      const r = 5.5
+      const cx = x + bx * r
+      const cy = y + by * r
+      const fill = shape === 'filled-circle' ? color : 'none'
+      return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}" stroke="${color}" stroke-width="1.5"/>`
+    }
+    case 'box':
+    case 'filled-box': {
+      const S = 11
+      const h = S / 2
+      const pts = `${at(0, h)} ${at(0, -h)} ${at(S, -h)} ${at(S, h)}`
+      const fill = shape === 'filled-box' ? color : 'none'
+      return `<polygon points="${pts}" fill="${fill}" stroke="${color}" stroke-width="1.5"/>`
+    }
+    case 'cross': {
+      // an X straddling the line near the entity (two diagonal ticks)
+      const D = 8
+      const W = 5
+      return (
+        `<line x1="${(x + bx * (D - W) + px * W).toFixed(1)}" y1="${(y + by * (D - W) + py * W).toFixed(1)}" x2="${(x + bx * (D + W) - px * W).toFixed(1)}" y2="${(y + by * (D + W) - py * W).toFixed(1)}" stroke="${color}" stroke-width="2"/>` +
+        `<line x1="${(x + bx * (D - W) - px * W).toFixed(1)}" y1="${(y + by * (D - W) - py * W).toFixed(1)}" x2="${(x + bx * (D + W) + px * W).toFixed(1)}" y2="${(y + by * (D + W) + py * W).toFixed(1)}" stroke="${color}" stroke-width="2"/>`
+      )
+    }
+    case 'cf-one':
+      // a single perpendicular tick across the line near the entity (ER "one")
+      return `<line x1="${(x + bx * 11 + px * 7).toFixed(1)}" y1="${(y + by * 11 + py * 7).toFixed(1)}" x2="${(x + bx * 11 - px * 7).toFixed(1)}" y2="${(y + by * 11 - py * 7).toFixed(1)}" stroke="${color}" stroke-width="2"/>`
+    case 'cf-one-required':
+      // two parallel ticks (ER "exactly one")
+      return [9, 15]
+        .map(
+          (d) =>
+            `<line x1="${(x + bx * d + px * 7).toFixed(1)}" y1="${(y + by * d + py * 7).toFixed(1)}" x2="${(x + bx * d - px * 7).toFixed(1)}" y2="${(y + by * d - py * 7).toFixed(1)}" stroke="${color}" stroke-width="2"/>`,
+        )
+        .join('')
+    case 'cf-many':
+    case 'cf-many-required': {
+      // crow's foot: three prongs fanning from an apex (back along the line) to the entity border
+      const foot = 14
+      const w = 7
+      const apexX = x + bx * foot
+      const apexY = y + by * foot
+      const prong = (dp: number) =>
+        `<line x1="${apexX.toFixed(1)}" y1="${apexY.toFixed(1)}" x2="${(x + px * dp).toFixed(1)}" y2="${(y + py * dp).toFixed(1)}" stroke="${color}" stroke-width="2"/>`
+      let g = prong(0) + prong(w) + prong(-w)
+      if (shape === 'cf-many-required')
+        // a bar behind the foot (ER "one or many")
+        g += `<line x1="${(apexX + bx * 5 + px * 7).toFixed(1)}" y1="${(apexY + by * 5 + py * 7).toFixed(1)}" x2="${(apexX + bx * 5 - px * 7).toFixed(1)}" y2="${(apexY + by * 5 - py * 7).toFixed(1)}" stroke="${color}" stroke-width="2"/>`
+      return g
+    }
+    default: {
+      // unknown → default filled triangle
+      const len = 10
+      const a1 = angle + Math.PI - 0.4
+      const a2 = angle + Math.PI + 0.4
+      return `<polygon points="${x.toFixed(1)},${y.toFixed(1)} ${(x + len * Math.cos(a1)).toFixed(1)},${(y + len * Math.sin(a1)).toFixed(1)} ${(x + len * Math.cos(a2)).toFixed(1)},${(y + len * Math.sin(a2)).toFixed(1)}" fill="${color}"/>`
+    }
+  }
+}
+
+// Resolve the effective arrowhead shape for one end of an edge (task 128): an explicit shape from the
+// source wins; otherwise fall back to the legacy boolean (present → triangle, absent → none).
+function endShape(
+  head: { shape: string } | undefined,
+  hasArrow: boolean,
+): string {
+  if (head?.shape) return head.shape
+  return hasArrow ? 'triangle' : 'none'
+}
+
+// arrowheadLabel: ER cardinality / role text (e.g. "1", "*", a role name) beside an arrowhead (task
+// 128). Placed just back from the endpoint `p` and offset PERPENDICULAR to the incoming segment
+// (p→neighbour `q`) so it sits beside the line rather than on it. Muted, like edge labels.
+function arrowheadLabel(
+  text: string,
+  p: number[],
+  q: number[],
+  sty: D2Style,
+): string {
+  const dx = p[0] - q[0]
+  const dy = p[1] - q[1]
+  const len = Math.hypot(dx, dy) || 1
+  const ux = dx / len
+  const uy = dy / len
+  // back 16px from the endpoint along the line, then 11px to the side (perpendicular = (-uy,ux))
+  const bx = p[0] - ux * 16 - uy * 11
+  const by = p[1] - uy * 16 + ux * 11
+  return `<text x="${bx.toFixed(1)}" y="${by.toFixed(1)}" font-size="${EDGE_FONT_SIZE}" text-anchor="middle" dominant-baseline="middle" fill="${sty.textMuted}">${esc2(text)}</text>`
 }
 
 // (route simplification — simplifyRoute / straightenEnds + helpers — moved to d2-geometry.ts, task 123)
@@ -812,8 +1039,63 @@ function toSVG(layout: Layout, style?: D2Style): string {
   // Simplify each route (collinear cleanup + interior staircase → L, obstacle-guarded — mirrors D2's
   // deleteBends). Leaf nodes are obstacles; containers/grids are NOT (edges legitimately enter them).
   const obstacles: Rect[] = layout.nodes
-    .filter((n) => n.kind !== 'container' && n.kind !== 'grid')
+    .filter((n) => n.kind !== 'container' && n.kind !== 'grid' && !n.near)
     .map((n) => ({ x: n.x + OFF, y: n.y + OFF, w: n.w, h: n.h }))
+
+  // Placed-node boxes (OFF-adjusted) keyed by id — used to attach sql_table FK edges to a column row
+  // (task 133) instead of the table-box centre.
+  const nodeBoxById = new Map(
+    layout.nodes.map((n) => [
+      n.s.id,
+      { x: n.x + OFF, y: n.y + OFF, w: n.w, h: n.h, kind: n.kind },
+    ]),
+  )
+  // A clean orthogonal connector between two sql_table column ROWS (task 133). d2 emits FK edges with
+  // table-node endpoints + a column index each; we route row→row here, exiting/entering each table on
+  // the side facing the other so the line never crosses its own tables. Returns null when neither end
+  // is a column endpoint (the edge keeps its normal routed path).
+  const columnFKRoute = (e: PlacedEdge): number[][] | null => {
+    if (e.srcColumnIndex == null && e.dstColumnIndex == null) return null
+    const sb = e.src ? nodeBoxById.get(e.src) : undefined
+    const db = e.dst ? nodeBoxById.get(e.dst) : undefined
+    if (!sb || !db || sb.kind !== 'sql' || db.kind !== 'sql') return null
+    const rowY = (b: { y: number }, i: number | undefined, fallback: number) =>
+      i == null ? fallback : b.y + HEADER_H + i * ROW_H + ROW_H / 2
+    const sy = rowY(sb, e.srcColumnIndex, sb.y + sb.h / 2)
+    const dy = rowY(db, e.dstColumnIndex, db.y + db.h / 2)
+    const STUB = 20
+    // Side selection: when the tables' x-ranges OVERLAP (vertically stacked) exit BOTH on the same
+    // side with the riser clear to that side — a tidy C. Otherwise (side by side) each exits the side
+    // FACING the other, riser midway between — a Z. (A naïve "face each other" criss-crosses stacked
+    // tables through their own centres.)
+    const overlapX = sb.x < db.x + db.w && db.x < sb.x + sb.w
+    let sx: number
+    let dx: number
+    let riserX: number
+    if (overlapX) {
+      const right = sb.x + sb.w >= db.x + db.w // exit on the side with the table that reaches furthest
+      sx = right ? sb.x + sb.w : sb.x
+      dx = right ? db.x + db.w : db.x
+      riserX = right
+        ? Math.max(sb.x + sb.w, db.x + db.w) + STUB
+        : Math.min(sb.x, db.x) - STUB
+    } else if (db.x >= sb.x + sb.w) {
+      sx = sb.x + sb.w // dst is to the right → src exits right, dst enters left
+      dx = db.x
+      riserX = (sx + dx) / 2
+    } else {
+      sx = sb.x // dst is to the left → src exits left, dst enters right
+      dx = db.x + db.w
+      riserX = (sx + dx) / 2
+    }
+    // [row, riser at riserX, row] — a clean orthogonal C (stacked) or Z (side by side).
+    return [
+      [sx, sy],
+      [riserX, sy],
+      [riserX, dy],
+      [dx, dy],
+    ]
+  }
   // Node-pairs carrying MORE THAN ONE edge (parallel/antiparallel, e.g. d1_pipeline ci↔test run+report).
   // ELK routes each such edge through its own side channel so the two inline labels don't collide; the
   // anchor-guard below preserves those channels. A lone edge (e.g. notify) needs no channel — guarding it
@@ -849,15 +1131,20 @@ function toSVG(layout: Layout, style?: D2Style): string {
     const otherSegs: number[][][] = []
     for (let j = 0; j < rawSegs.length; j++)
       if (j !== ei) for (const s of rawSegs[j]) otherSegs.push(s)
-    const route = straightenEnds(
-      simplifyRoute(
-        e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
+    // sql_table FK edges get a purpose-built row→row connector (task 133) instead of the engine's
+    // table→table route; everything else uses the simplified, obstacle-guarded route.
+    const fk = columnFKRoute(e)
+    const route =
+      fk ??
+      straightenEnds(
+        simplifyRoute(
+          e.points.map((p) => [p[0] + OFF, p[1] + OFF]),
+          obstacles,
+          anchor,
+          otherSegs,
+        ),
         obstacles,
-        anchor,
-        otherSegs,
-      ),
-      obstacles,
-    )
+      )
     // `anchor` (placeLabels' lx/ly) is used ABOVE only to guard simplifyRoute (preserve the channel under a
     // parallel pair's label). The final label POSITION for every labelled edge — parallel or lone — is
     // chosen by the deconfliction pass below on the simplified route, so it is bend-clear AND non-overlapping.
@@ -1027,6 +1314,7 @@ function toSVG(layout: Layout, style?: D2Style): string {
     if (y > gMaxY) gMaxY = y
   }
   for (const n of layout.nodes) {
+    if (n.near) continue // near shapes are placed relative to the tight bbox below (task 126A)
     grow(n.x + OFF, n.y + OFF)
     grow(n.x + OFF + n.w, n.y + OFF + n.h)
   }
@@ -1040,6 +1328,50 @@ function toSVG(layout: Layout, style?: D2Style): string {
     gMinY = 0
     gMaxX = W
     gMaxY = H
+  }
+
+  // Position viewport-pinned near shapes relative to the TIGHT content bbox (task 126A), then grow the
+  // bbox to include them. Each constant maps to a band (top/center/bottom × left/center/right); the
+  // shape sits just OUTSIDE the content on its edge with a uniform margin. center-left/right go to the
+  // sides; everything else above/below. Multiple shapes in the same region stack downward.
+  const nearNodes = layout.nodes.filter((n) => n.near)
+  if (nearNodes.length) {
+    const cMinX = gMinX
+    const cMinY = gMinY
+    const cMaxX = gMaxX
+    const cMaxY = gMaxY
+    const ccx = (cMinX + cMaxX) / 2
+    const ccy = (cMinY + cMaxY) / 2
+    const NM = 24 // margin between the content and a pinned shape
+    const stack = new Map<string, number>() // per-region vertical offset for stacking
+    for (const n of nearNodes) {
+      const key = n.near as string
+      const [vert, horiz] = key.split('-')
+      let left: number
+      let top: number
+      // center-left / center-right pin to the SIDES (outside horizontally); all else above/below.
+      if (vert === 'center' && horiz !== 'center') {
+        left = horiz === 'left' ? cMinX - NM - n.w : cMaxX + NM
+        top = ccy - n.h / 2
+      } else {
+        left =
+          horiz === 'left'
+            ? cMinX
+            : horiz === 'right'
+              ? cMaxX - n.w
+              : ccx - n.w / 2
+        top = vert === 'top' ? cMinY - NM - n.h : cMaxY + NM
+        if (vert === 'center') top = ccy - n.h / 2
+      }
+      const off = stack.get(key) || 0
+      top += off
+      stack.set(key, off + n.h + 8)
+      // store layout coords (the draw passes add OFF back)
+      n.x = left - OFF
+      n.y = top - OFF
+      grow(left, top)
+      grow(left + n.w, top + n.h)
+    }
   }
   const VBMARGIN = OFF
   const vbX = Math.floor(gMinX) - VBMARGIN
@@ -1092,13 +1424,18 @@ function toSVG(layout: Layout, style?: D2Style): string {
   }
 
   for (const { e, route, lpos } of drawn) {
+    // Effective arrowhead shape per end (task 128): explicit shape wins, else the legacy boolean.
+    const dstShape = endShape(e.dstArrowhead, e.dstArrow !== false)
+    const srcShape = endShape(e.srcArrowhead, e.srcArrow === true)
     // Retract the line ends so the stroke meets the arrowhead base / border, not the node centre
     // (mirrors D2's getArrowheadAdjustments); the arrowhead itself stays at the original endpoint.
+    // Depth varies per shape — a diamond is longer than a triangle, a crow's-foot "many" stops at
+    // its apex (task 128).
     const rp = route.map((p) => [p[0], p[1]])
     if (rp.length >= 2) {
       const last = rp.length - 1
-      rp[last] = towards(rp[last], rp[last - 1], e.dstArrow !== false ? 9 : 1)
-      rp[0] = towards(rp[0], rp[1], e.srcArrow === true ? 9 : 1)
+      rp[last] = towards(rp[last], rp[last - 1], arrowheadDepth(dstShape))
+      rp[0] = towards(rp[0], rp[1], arrowheadDepth(srcShape))
     }
     const d =
       layout.edgeStyle === 'orthogonal' ? roundedPolyPath(rp) : splinePath(rp)
@@ -1106,16 +1443,27 @@ function toSVG(layout: Layout, style?: D2Style): string {
       `<path d="${d}" fill="none" stroke="${themeColor}" stroke-width="2"${maskAttr}/>`,
     )
     const n = route.length
-    if (e.dstArrow !== false && n >= 2) {
+    if (dstShape !== 'none' && n >= 2) {
       const a = Math.atan2(
         route[n - 1][1] - route[n - 2][1],
         route[n - 1][0] - route[n - 2][0],
       )
-      parts.push(arrow(route[n - 1][0], route[n - 1][1], a, themeColor))
+      parts.push(
+        arrowhead(dstShape, route[n - 1][0], route[n - 1][1], a, themeColor),
+      )
+      // Arrowhead label (ER cardinality / role, task 128): small muted text beside the endpoint.
+      if (e.dstArrowhead?.label)
+        parts.push(
+          arrowheadLabel(e.dstArrowhead.label, route[n - 1], route[n - 2], sty),
+        )
     }
-    if (e.srcArrow === true && n >= 2) {
+    if (srcShape !== 'none' && n >= 2) {
       const a = Math.atan2(route[0][1] - route[1][1], route[0][0] - route[1][0])
-      parts.push(arrow(route[0][0], route[0][1], a, themeColor))
+      parts.push(arrowhead(srcShape, route[0][0], route[0][1], a, themeColor))
+      if (e.srcArrowhead?.label)
+        parts.push(
+          arrowheadLabel(e.srcArrowhead.label, route[0], route[1], sty),
+        )
     }
     if (e.label && lpos) {
       // d2 draws connection labels in N2 (muted), italic — not the connection's own colour.
@@ -1512,7 +1860,10 @@ export function unsupportedReason(graph: D2Graph): string | null {
   if (graph.sequence) return 'sequence_diagram (use ```mermaid)'
   for (const s of graph.shapes) {
     if (s.special.isSequence) return 'sequence_diagram (use ```mermaid)'
-    if (s.special.nearKey) return 'near positioning'
+    // Viewport-constant near (top-center, …) is now supported (task 126A); only the relative
+    // "near: <shape-id>" form (Phase B) still falls back to raw source.
+    if (s.special.nearKey && !isNearConstant(s.special.nearKey))
+      return 'near positioning (relative to a shape)'
   }
   return null
 }

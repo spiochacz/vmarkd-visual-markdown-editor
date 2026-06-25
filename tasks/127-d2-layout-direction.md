@@ -1,8 +1,14 @@
 # Task 127 — D2 `direction` (up / down / left / right layout)
 
-> **Status:** 💡 idea / planned (decision-gated) — created 2026-06-24. One of the untasked D2 feature
-> gaps found auditing `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B
-> (one rebuild). Builds on task 104 (renderer) + 122 (layout pipeline).
+> **Status:** 🟢 DONE (root direction) — 2026-06-25, shipped in the Phase B WASM batch (with 128/133/126A).
+> WASM marshals root `direction` (`g.Root.Direction`) + per-container `o.Direction`; ELK maps it to
+> `elk.direction` with axis-aware ports (`elkDirectionConfig`), dagre to `rankdir`. Per the decision
+> gates: scope = root-only (per-container deferred); horizontal (LEFT/RIGHT) uses the reduced pipeline
+> (refine skipped) — option (b). Built on task 104 (renderer) + 122 (layout pipeline).
+>
+> **Decided/deferred:** per-container direction (the WASM field IS emitted on each shape, but ELK/dagre
+> only consume the root); axis-aware refine generalisation for horizontal (currently skipped, not
+> generalised). Follow-ups if there's demand.
 
 ## Problem
 D2's `direction: up | down | left | right` sets the layout flow (per scope — root and/or each
@@ -31,11 +37,16 @@ LEFT`; dagre `rankdir` = `TB/BT/LR/RL`) — we just hard-wire DOWN.
 - Horizontal refine: generalise vs reduced-pipeline. Pick before implementing LR/RL.
 
 ## Acceptance / tests
-- Unit: a graph with root `direction: right` lays out left-to-right (node x-order follows edges); `up`
-  flips the y-order vs `down`.
-- e2e (real-VS-Code): a `direction: right` D2 block renders horizontally; existing top-down diagrams
-  unchanged (byte-stable on the 8 samples — none set direction).
-- Keep `d2-quality.test.ts` / typecheck / lint green.
+- [x] Unit: a graph with root `direction: right` lays out left-to-right (node x-order follows edges) —
+  `elk-layout.test.ts` (real ELK engine, `right` chain horizontal vs `down` vertical); `up` flips the
+  y-order vs `down` — `d2-render.test.ts` (dagre rankdir). Pure mapping pinned by
+  `elkDirectionConfig` unit tests.
+- [x] WASM contract: `d2-wasm.test.ts` asserts root + per-container `direction` marshalled.
+- [~] e2e (real-VS-Code): NOT re-run here (no xvfb). Covered automatically by the node-side real-ELK
+  test; the real-VS-Code `d2-elk.spec` (default vmarkd) is unaffected. Byte-stability of DOWN proven
+  via `d2-quality.test.ts` (frozen-layout refine+toSVG counts unchanged) + the provably-identical
+  port refactor for `isHoriz=false`.
+- [x] `d2-quality.test.ts` / typecheck / lint green (892 unit tests pass).
 
 ## Related
 Tasks 104, 122 (refine pipeline this touches), 121/124 (the shared WASM bump). `elk-layout.ts`

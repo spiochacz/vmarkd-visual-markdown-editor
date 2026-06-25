@@ -1,9 +1,11 @@
 # Task 126 — D2 `near` positioning (viewport-pinned titles/legends + near-shape annotations)
 
-> **Status:** 💡 idea / planned (decision-gated) — created 2026-06-24. Splits the "near positioning"
-> item out of task 124 (was out-of-scope/keep-fallback). Builds on task 104 (D2 renderer) + the
-> layout pipeline (task 122). Recommended phasing: ship the cheap **viewport-constant** form first
-> (no WASM, high value), defer the **near-shape** form.
+> **Status:** 🟢 Phase A DONE / 🟡 Phase B deferred — 2026-06-25, shipped Phase A in the batch (with
+> 127/128/133). Viewport-constant near (the 8 keys) is now placed by `toSVG` (excluded from layout +
+> obstacles + the tight bbox, then pinned relative to the final content bounds + the bbox grown);
+> `unsupportedReason` only flags the relative `near: <shape-id>` form now. No WASM change (the `NearKey`
+> was already marshalled). Phase B (near-another-shape) intentionally deferred — still falls back.
+> Built on 104 + 122.
 
 ## Problem
 D2's `near` keyword positions a shape OUTSIDE the normal layout flow — pinned either to a viewport
@@ -60,12 +62,15 @@ OR a target shape id). So the DATA is present; we just (a) treat its presence as
   can't place yet) rather than dropping the shape silently.
 
 ## Acceptance / tests
-- Unit: a graph with `{near: top-center}` → that shape excluded from layout bounds and placed in the
-  top-centre of the final `viewBox`; `unsupportedReason` no longer flags the constant form.
-- e2e (real-VS-Code): a titled/legended D2 block renders the diagram WITH the pinned title/legend in
-  the right corner; a `near: <shape>` block still falls back to raw source (until Phase B).
-- Keep `d2-quality.test.ts` / typecheck / lint green; verify byte-stable output on the 8 sample diagrams
-  (none use `near`, so they must be unaffected).
+- [x] Unit: a graph with `{near: top-center}` renders WITH the pinned shape, placed ABOVE the laid-out
+  nodes (smaller y) — `d2-render.test.ts`; `unsupportedReason` returns null for the constant form and
+  still flags the relative form — `d2-render.test.ts`. ELK excludes it from layout but returns it flagged
+  `near` — `elk-layout.test.ts`.
+- [x] Visual: title pinned top-center + legend pinned bottom-right (core graph undisturbed) verified by
+  eye via the render harness.
+- [~] e2e (real-VS-Code): not re-run here (no xvfb); node-side tests cover the exclusion + placement.
+  Relative `near: <shape>` still falls back (Phase B). Sample diagrams unaffected (none use `near`).
+- [x] `d2-quality.test.ts` / typecheck / lint green.
 
 ## Related
 - Task 124 (other feature-parity gaps; this was the "near" item). Task 104 (renderer), 122 (layout +

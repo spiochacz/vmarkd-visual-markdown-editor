@@ -527,6 +527,54 @@ searchsvc -> search_idx: index
 notifsvc -> usersvc: lookup
 ```
 
+Per-end arrowhead shapes — the common set (triangle / arrow / (filled-)diamond / (filled-)circle /
+box) plus the crow's-foot ER family — and arrowhead cardinality labels (task 128):
+
+```d2
+a -> b: { target-arrowhead.shape: triangle }
+c -> d: { target-arrowhead.shape: arrow }
+e -> f: { target-arrowhead.shape: diamond }
+g -> h: { target-arrowhead: { shape: diamond; style.filled: true } }
+i -> j: { target-arrowhead.shape: circle }
+k -> l: { target-arrowhead.shape: box }
+m -> n: {
+  source-arrowhead: 1 { shape: cf-one }
+  target-arrowhead: * { shape: cf-many }
+}
+```
+
+Column-level foreign-key edges in `sql_table`, drawn row→row with crow's-foot cardinality — a real
+ER diagram (tasks 133 + 128). The endpoints `orders.user_id` / `users.id` attach to the exact rows:
+
+```d2
+users: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  name: string
+}
+orders: {
+  shape: sql_table
+  id: int {constraint: primary_key}
+  user_id: int {constraint: foreign_key}
+}
+orders.user_id -> users.id: {
+  source-arrowhead: * { shape: cf-many }
+  target-arrowhead: 1 { shape: cf-one }
+}
+```
+
+`near` pins a shape to a viewport region (the idiom for titles / legends) OUTSIDE the layout flow.
+The 8 viewport constants are placed relative to the drawing bounds; the relative `near: <shape-id>`
+form still falls back to source (Phase B, task 126A):
+
+```d2
+title: System Architecture {near: top-center}
+legend: Services in blue {near: bottom-right}
+web -> api
+api -> db
+api -> cache
+```
+
 A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by our dagre/ELK layout, so
 it falls back LOUDLY to the raw source (never a silently-wrong picture):
 

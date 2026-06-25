@@ -1,8 +1,11 @@
 # Task 133 — D2 column-level / foreign-key connections in `sql_table` (ER edges)
 
-> **Status:** 💡 idea / planned (decision-gated) — created 2026-06-24. Untasked D2 gap found
-> re-auditing the code. **High value for ER diagrams**; pairs with task 128 (crow's-foot arrowheads).
-> Builds on task 104. Likely needs a WASM/edge change → coordinate with the 121/124 Phase B bump.
+> **Status:** 🟢 DONE — 2026-06-25, shipped in the Phase B WASM batch (with 127/128/126A). Resolved the
+> decision gate: d2 ALREADY computes `Edge.SrcTableColumnIndex`/`DstTableColumnIndex` at compile time
+> (no `table.col` string parsing needed) — WASM just marshals the two ints; the edge endpoints stay the
+> TABLE nodes (so ELK/dagre route them fine). `toSVG` adds `columnFKRoute`: a clean orthogonal row→row
+> connector (C when tables are stacked / Z when side-by-side) attaching each end to
+> `header + colIndex·ROW_H + ROW_H/2` on the side facing the other table. Pairs with 128 for full ER.
 
 ## Problem
 D2 connects specific table columns for foreign keys:
@@ -39,11 +42,14 @@ Columns aren't graph nodes, and the edge endpoint id (`table.column`) doesn't ma
   new crossings/overlaps on an ER sample.
 
 ## Acceptance / tests
-- Unit: `orders.user_id -> users.id` produces a drawn connection (not dropped) whose endpoints sit at
-  the correct column rows of each table.
-- e2e: an ER D2 block (2–3 sql_tables + FK edges) renders the FK lines to the right rows; non-column
-  edges unaffected (byte-stable on the 8 samples).
-- Keep `d2-quality.test.ts` / typecheck / lint green.
+- [x] Unit: `orders.user_id -> users.id` produces a drawn connection whose endpoints sit at the correct
+  column-row Y (header + index·ROW_H + ROW_H/2), NOT the table-box centre — `d2-render.test.ts` (hand-
+  built Layout, exact-coordinate assertion). WASM emits `srcColumnIndex=1`/`dstColumnIndex=0` —
+  `d2-wasm.test.ts`; ELK threads them — `elk-layout.test.ts`.
+- [x] Visual: a 4-table ER block + crow's-foot (with 128) verified by eye via the render harness.
+- [~] e2e (real-VS-Code): not re-run here (no xvfb); node-side real-ELK/WASM tests cover it. Non-column
+  edges unaffected (the route override is guarded on `srcColumnIndex/dstColumnIndex` being set).
+- [x] `d2-quality.test.ts` / typecheck / lint green.
 
 ## Related
 Tasks 104, 128 (crow's-foot — do together), 121/124 (WASM bump if needed). The edge-skip guard +

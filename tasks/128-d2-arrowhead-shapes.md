@@ -1,8 +1,11 @@
 # Task 128 — D2 arrowhead shapes (ER crow's-foot, diamond, circle, …) + arrowhead labels
 
-> **Status:** 💡 idea / planned (decision-gated) — created 2026-06-24. Untasked D2 gap found auditing
-> `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B. Builds on task 104
-> (renderer) + 122 (connection drawing). **High value for ER + UML diagrams.**
+> **Status:** 🟢 DONE — 2026-06-25, shipped in the Phase B WASM batch (with 127/133/126A). WASM extends
+> `outEdge` with `srcArrowhead`/`dstArrowhead` = `{shape,label}` via `e.SrcArrowhead.ToArrowhead()`
+> (resolves the `filled-*` variants from `style.filled`). `toSVG` replaces the single triangle with an
+> `arrowhead()` dispatcher (triangle/arrow/(filled-)diamond/(filled-)circle/box/cross + the four
+> crow's-foot glyphs + none) + per-shape `arrowheadDepth` retraction + `arrowheadLabel` (cardinality).
+> Did the WHOLE set in one bump (decision gate). Pairs with 133 for full ER. Built on 104 + 122.
 
 ## Problem
 D2 connections can set `source-arrowhead` / `target-arrowhead` with a **shape** and a **label**:
@@ -40,11 +43,15 @@ hard-coded triangle path.
 - Arrowhead labels add to the label-placement load; verify they don't regress edge-label routing.
 
 ## Acceptance / tests
-- Unit: each arrowhead `shape` emits its distinct path; `none` emits no glyph; an ER edge with
-  `cf-many`/`cf-one` renders crow's-foot glyphs at the right ends.
-- e2e: an ER-style D2 block (sql_tables + crow's-foot connections) renders the notation; existing
-  diagrams' plain triangles are byte-stable.
-- Keep `d2-quality.test.ts` / typecheck / lint green.
+- [x] Unit: each arrowhead `shape` emits its distinct glyph (`<circle>` for circle, ≥3 `<line>` for
+  cf-many, etc.); `none` emits no glyph; default falls back to the filled triangle — `d2-render.test.ts`.
+  Arrowhead cardinality label rendered. WASM marshalling (incl. `filled-diamond` from `style.filled`)
+  pinned in `d2-wasm.test.ts`; ELK threading in `elk-layout.test.ts`.
+- [x] Visual: all 12 shapes + an ER (crow's-foot, 1/* labels) + UML (hollow/filled diamond) verified
+  by eye via the render harness (`media-src/scripts/d2-render-harness/`, shown to the user).
+- [~] e2e (real-VS-Code): not re-run here (no xvfb); the node-side real-ELK + real-WASM tests cover the
+  pipeline. Plain triangles byte-stable (default edges carry no arrowhead object → triangle fallback).
+- [x] `d2-quality.test.ts` / typecheck / lint green.
 
 ## Related
 Tasks 104, 122 (connection + label drawing), 121/124 (shared WASM bump). `arrow()` +

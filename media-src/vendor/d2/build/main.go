@@ -29,7 +29,9 @@ type outShape struct {
 	Columns      []outColumn `json:"columns,omitempty"` // sql_table
 	Fields       []outMember `json:"fields,omitempty"`  // class fields
 	Methods      []outMember `json:"methods,omitempty"` // class methods
-	Special      special     `json:"special"`
+	// Per-container layout direction (up|down|left|right), task 127. Empty = inherit.
+	Direction string  `json:"direction,omitempty"`
+	Special   special `json:"special"`
 }
 
 type outColumn struct {
@@ -52,18 +54,37 @@ type special struct {
 	NearKey     string `json:"nearKey,omitempty"`
 }
 
+// outArrowhead = the shape + optional label of one end of an edge (task 128). Shape is the
+// d2-resolved arrowhead string (triangle, diamond, filled-diamond, cf-many, …); label is the
+// crow's-foot cardinality / role text (e.g. "1", "*", a role name).
+type outArrowhead struct {
+	Shape string `json:"shape"`
+	Label string `json:"label,omitempty"`
+}
+
 type outEdge struct {
 	Src      string `json:"src"`
 	Dst      string `json:"dst"`
 	Label    string `json:"label,omitempty"`
 	SrcArrow bool   `json:"srcArrow"`
 	DstArrow bool   `json:"dstArrow"`
+	// Per-end arrowhead shape/label, only when the source set one (task 128). When nil the
+	// renderer falls back to the SrcArrow/DstArrow boolean (default triangle / none).
+	SrcArrowhead *outArrowhead `json:"srcArrowhead,omitempty"`
+	DstArrowhead *outArrowhead `json:"dstArrowhead,omitempty"`
+	// Column-level (sql_table) endpoints, task 133. When set, the edge attaches to that column's
+	// row of the table node (d2 computes these indices at compile time; nil = a whole-node edge).
+	SrcColumnIndex *int `json:"srcColumnIndex,omitempty"`
+	DstColumnIndex *int `json:"dstColumnIndex,omitempty"`
 }
 
 type outGraph struct {
 	Shapes   []outShape `json:"shapes"`
 	Edges    []outEdge  `json:"edges"`
 	Sequence bool       `json:"sequence"` // top-level OR nested sequence_diagram (root isn't in g.Objects)
+	// Root layout direction (up|down|left|right), task 127. Empty = default (down). The root
+	// object isn't in g.Objects, so this graph-level field carries the top-level `direction:`.
+	Direction string `json:"direction,omitempty"`
 }
 
 func styleVal(s *d2graph.Scalar) string {
@@ -108,6 +129,7 @@ func compileToJSON(src string) (string, error) {
 			BorderRadius: styleVal(o.Style.BorderRadius),
 			Bold:         styleVal(o.Style.Bold) == "true",
 			Italic:       styleVal(o.Style.Italic) == "true",
+			Direction:    o.Direction.Value, // per-container direction (task 127)
 			Special:      sp,
 		}
 		// sql_table columns + class fields/methods (for the bespoke JS renderers)
@@ -139,10 +161,25 @@ func compileToJSON(src string) (string, error) {
 			dst = e.Dst.AbsID()
 		}
 		label = e.Label.Value
-		og.Edges = append(og.Edges, outEdge{
+		oe := outEdge{
 			Src: src, Dst: dst, Label: label,
 			SrcArrow: e.SrcArrow, DstArrow: e.DstArrow,
-		})
+			// d2 sets these to a column row when the edge endpoint is <table>.<col> (task 133).
+			SrcColumnIndex: e.SrcTableColumnIndex,
+			DstColumnIndex: e.DstTableColumnIndex,
+		}
+		// ToArrowhead() resolves the shape string incl. filled-* variants (task 128).
+		if e.SrcArrowhead != nil {
+			oe.SrcArrowhead = &outArrowhead{Shape: string(e.SrcArrowhead.ToArrowhead()), Label: e.SrcArrowhead.Label.Value}
+		}
+		if e.DstArrowhead != nil {
+			oe.DstArrowhead = &outArrowhead{Shape: string(e.DstArrowhead.ToArrowhead()), Label: e.DstArrowhead.Label.Value}
+		}
+		og.Edges = append(og.Edges, oe)
+	}
+	// Root-level `direction:` lives on g.Root (not in g.Objects), task 127.
+	if g.Root != nil {
+		og.Direction = g.Root.Direction.Value
 	}
 	// A top-level `shape: sequence_diagram` lives on the ROOT object, which is NOT in
 	// g.Objects — so per-shape isSequence misses it. Walk each object's ancestor chain

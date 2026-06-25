@@ -35,6 +35,7 @@ export interface D2Shape {
   borderRadius?: string
   bold?: boolean
   italic?: boolean
+  direction?: string // per-container layout direction up|down|left|right (task 127)
   columns?: D2Column[] // sql_table
   fields?: D2Member[] // class fields
   methods?: D2Member[] // class methods
@@ -46,18 +47,34 @@ export interface D2Shape {
     nearKey?: string
   }
 }
+// One end of an edge's arrowhead: the d2-resolved shape string + optional cardinality/role
+// label (task 128). Absent when the source didn't customise that end (fall back to the
+// srcArrow/dstArrow boolean → default triangle / none).
+export interface D2Arrowhead {
+  shape: string // triangle | arrow | diamond | filled-diamond | circle | cf-many | … | none
+  label?: string
+}
+export interface D2Edge {
+  src: string
+  dst: string
+  label?: string
+  srcArrow: boolean
+  dstArrow: boolean
+  srcArrowhead?: D2Arrowhead // task 128
+  dstArrowhead?: D2Arrowhead // task 128
+  // Column-row endpoints for sql_table FK edges (task 133); d2 computes these at compile time.
+  // When set, the edge attaches to that column's row of the table node (a port), not the node box.
+  srcColumnIndex?: number
+  dstColumnIndex?: number
+}
 export interface D2Graph {
   shapes: D2Shape[]
-  edges: Array<{
-    src: string
-    dst: string
-    label?: string
-    srcArrow: boolean
-    dstArrow: boolean
-  }>
+  edges: D2Edge[]
   // A top-level `shape: sequence_diagram` lives on the ROOT object (not in shapes), so the
   // Go side sets this graph-level flag for both the top-level and named-container forms.
   sequence: boolean
+  // Root layout direction up|down|left|right (task 127); empty/undefined = default (down).
+  direction?: string
 }
 
 // Cache-buster: MUST equal media-src/vendor/d2/source.json "version" (bump both on a D2 update).

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { createRequire } from 'node:module'
-import { layoutElk } from './elk-layout'
+import { elkDirectionConfig, layoutElk } from './elk-layout'
 import { alignRows, spreadCrampedRows } from './d2-refine'
 import type { D2Graph } from './d2-wasm'
 import type { Sizer } from './d2-render'
@@ -175,6 +175,127 @@ describe('elk-layout (main-thread fake worker)', () => {
     expect(typeof e.lx).toBe('number')
     expect(typeof e.ly).toBe('number')
   })
+
+  // task 127: a `direction: right` graph lays a→b→c out LEFT-TO-RIGHT (x increases along the chain,
+  // shared row), vs the default DOWN where y increases. Exercised through the real ELK engine.
+  it('lays a right-direction chain out horizontally (task 127)', async () => {
+    const chain = (direction?: string) =>
+      ({
+        ...g(
+          [
+            {
+              id: 'a',
+              idVal: 'a',
+              label: 'A',
+              shape: 'rectangle',
+              special: empty(),
+            },
+            {
+              id: 'b',
+              idVal: 'b',
+              label: 'B',
+              shape: 'rectangle',
+              special: empty(),
+            },
+            {
+              id: 'c',
+              idVal: 'c',
+              label: 'C',
+              shape: 'rectangle',
+              special: empty(),
+            },
+          ],
+          [
+            { src: 'a', dst: 'b', srcArrow: false, dstArrow: true },
+            { src: 'b', dst: 'c', srcArrow: false, dstArrow: true },
+          ],
+          false,
+        ),
+        direction,
+      }) as D2Graph
+    const down = await layoutElk(chain('down'), sizer, elk)
+    const right = await layoutElk(chain('right'), sizer, elk)
+    const at = (l: any, id: string) => l.nodes.find((n: any) => n.s.id === id)!
+    // DOWN: a above c (y grows). RIGHT: a left of c (x grows), roughly same row.
+    expect(at(down, 'a').y).toBeLessThan(at(down, 'c').y)
+    expect(at(right, 'a').x).toBeLessThan(at(right, 'c').x)
+    expect(Math.abs(at(right, 'a').y - at(right, 'c').y)).toBeLessThan(20)
+  })
+
+  // task 128 / 133: the per-end arrowhead shape/label + sql column indices ride the ELK path through
+  // to the PlacedEdge so toSVG can draw the right glyph / attach to a row.
+  it('threads arrowhead shapes + column indices through the ELK edge (tasks 128/133)', async () => {
+    const graph = g(
+      [
+        {
+          id: 'a',
+          idVal: 'a',
+          label: 'A',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'b',
+          idVal: 'b',
+          label: 'B',
+          shape: 'rectangle',
+          special: empty(),
+        },
+      ],
+      [
+        {
+          src: 'a',
+          dst: 'b',
+          srcArrow: false,
+          dstArrow: true,
+          dstArrowhead: { shape: 'cf-many', label: '*' },
+          srcColumnIndex: 2,
+          dstColumnIndex: 1,
+        },
+      ],
+    )
+    const layout = await layoutElk(graph, sizer, elk)
+    const e = layout.edges.find((x: any) => x.src === 'a')!
+    expect(e.dstArrowhead).toEqual({ shape: 'cf-many', label: '*' })
+    expect(e.srcColumnIndex).toBe(2)
+    expect(e.dstColumnIndex).toBe(1)
+  })
+
+  // task 126A: a viewport-pinned near shape is excluded from the ELK layout but still returned as a
+  // PlacedNode (flagged `near`) for toSVG to position.
+  it('excludes near-constant shapes from layout but returns them flagged (task 126A)', async () => {
+    const graph = g(
+      [
+        {
+          id: 'a',
+          idVal: 'a',
+          label: 'A',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'b',
+          idVal: 'b',
+          label: 'B',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'title',
+          idVal: 'title',
+          label: 'Title',
+          shape: 'rectangle',
+          special: { isSequence: false, isGrid: false, nearKey: 'top-center' },
+        },
+      ],
+      [{ src: 'a', dst: 'b', srcArrow: false, dstArrow: true }],
+    )
+    const layout = await layoutElk(graph, sizer, elk)
+    const title = layout.nodes.find((n: any) => n.s.id === 'title')!
+    expect(title.near).toBe('top-center')
+    expect(title.x).toBe(0) // not positioned by ELK (toSVG places it)
+    expect(title.y).toBe(0)
+  })
 })
 
 describe('alignRows (task 122 — snap mixed-height rows to a common centre-Y)', () => {
@@ -313,5 +434,52 @@ describe('spreadCrampedRows (task 122 — push rows apart for a jammed horizonta
     const box = layout.nodes.find((n: any) => n.s.id === 'box')
     expect(box.y).toBe(80) // top above the boundary → not shifted
     expect(box.h).toBe(114) // grown by 14 to keep wrapping the moved child
+  })
+})
+
+describe('elkDirectionConfig (task 127 — direction → ELK ports)', () => {
+  it('defaults to DOWN for missing/unknown direction (out SOUTH / in NORTH)', () => {
+    for (const d of [undefined, 'down', 'bogus']) {
+      expect(elkDirectionConfig(d)).toEqual({
+        DIR: 'DOWN',
+        isHoriz: false,
+        outSide: 'SOUTH',
+        inSide: 'NORTH',
+      })
+    }
+  })
+
+  it('maps up/right/left to flipped axes', () => {
+    expect(elkDirectionConfig('up')).toMatchObject({
+      DIR: 'UP',
+      isHoriz: false,
+      outSide: 'NORTH',
+      inSide: 'SOUTH',
+    })
+    expect(elkDirectionConfig('right')).toMatchObject({
+      DIR: 'RIGHT',
+      isHoriz: true,
+      outSide: 'EAST',
+      inSide: 'WEST',
+    })
+    expect(elkDirectionConfig('left')).toMatchObject({
+      DIR: 'LEFT',
+      isHoriz: true,
+      outSide: 'WEST',
+      inSide: 'EAST',
+    })
+  })
+
+  it('out and in are always opposite sides (an edge spans the node)', () => {
+    const opp: Record<string, string> = {
+      NORTH: 'SOUTH',
+      SOUTH: 'NORTH',
+      EAST: 'WEST',
+      WEST: 'EAST',
+    }
+    for (const d of ['down', 'up', 'left', 'right']) {
+      const c = elkDirectionConfig(d)
+      expect(opp[c.outSide]).toBe(c.inSide)
+    }
   })
 })

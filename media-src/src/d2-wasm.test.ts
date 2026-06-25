@@ -74,4 +74,55 @@ describe('d2 compile-only wasm (node smoke)', () => {
     const out = compile('a ->')
     expect(out.error).toBeTruthy()
   })
+
+  it('marshals root + per-container direction (task 127)', () => {
+    const graph = JSON.parse(
+      compile('direction: right\na -> b\nc: {\n  direction: up\n  x -> y\n}')
+        .graph,
+    )
+    expect(graph.direction).toBe('right')
+    expect(graph.shapes.find((s: any) => s.id === 'c')?.direction).toBe('up')
+    // a plain graph emits no direction field (omitempty)
+    expect(JSON.parse(compile('a -> b').graph).direction).toBeUndefined()
+  })
+
+  it('marshals arrowhead shapes + labels per end (task 128)', () => {
+    const graph = JSON.parse(
+      compile(
+        'a -> b: {\n  source-arrowhead: 1 { shape: cf-one }\n  target-arrowhead: * { shape: cf-many }\n}\np -> q: { target-arrowhead.shape: diamond }\nm -> n',
+      ).graph,
+    )
+    const ab = graph.edges.find((e: any) => e.src === 'a')
+    expect(ab.srcArrowhead).toEqual({ shape: 'cf-one', label: '1' })
+    expect(ab.dstArrowhead).toEqual({ shape: 'cf-many', label: '*' })
+    const pq = graph.edges.find((e: any) => e.src === 'p')
+    expect(pq.dstArrowhead?.shape).toBe('diamond')
+    expect(pq.srcArrowhead).toBeUndefined()
+    // a plain edge carries no arrowhead objects (falls back to the booleans)
+    const mn = graph.edges.find((e: any) => e.src === 'm')
+    expect(mn.srcArrowhead).toBeUndefined()
+    expect(mn.dstArrowhead).toBeUndefined()
+  })
+
+  it('resolves the filled-* arrowhead variant from style.filled (task 128)', () => {
+    const graph = JSON.parse(
+      compile(
+        'a -> b: { target-arrowhead: { shape: diamond; style.filled: true } }',
+      ).graph,
+    )
+    expect(graph.edges[0].dstArrowhead?.shape).toBe('filled-diamond')
+  })
+
+  it('marshals sql_table column FK endpoints as indices (task 133)', () => {
+    const graph = JSON.parse(
+      compile(
+        'users: { shape: sql_table; id: int {constraint: primary_key}; name: string }\norders: { shape: sql_table; id: int; user_id: int {constraint: foreign_key} }\norders.user_id -> users.id',
+      ).graph,
+    )
+    const fk = graph.edges[0]
+    expect(fk.src).toBe('orders') // endpoint is the TABLE node, not orders.user_id
+    expect(fk.dst).toBe('users')
+    expect(fk.srcColumnIndex).toBe(1) // user_id is the 2nd column of orders
+    expect(fk.dstColumnIndex).toBe(0) // id is the 1st column of users
+  })
 })

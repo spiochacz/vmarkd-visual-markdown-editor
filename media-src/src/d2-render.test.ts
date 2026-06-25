@@ -322,7 +322,8 @@ describe('unsupportedReason (faithful-by-construction guard)', () => {
     ).toBeNull()
   })
 
-  it('detects near positioning', () => {
+  it('supports viewport-constant near, flags only relative near (task 126A)', () => {
+    // A viewport constant (top-center, …) is now placed by toSVG → no longer unsupported.
     expect(
       unsupportedReason(
         g([
@@ -336,6 +337,20 @@ describe('unsupportedReason (faithful-by-construction guard)', () => {
               isGrid: false,
               nearKey: 'top-center',
             },
+          },
+        ]),
+      ),
+    ).toBeNull()
+    // The relative form (near: <shape-id>) is still Phase B → falls back to raw source.
+    expect(
+      unsupportedReason(
+        g([
+          {
+            id: 'n',
+            idVal: 'n',
+            label: 'n',
+            shape: 'rectangle',
+            special: { isSequence: false, isGrid: false, nearKey: 'someShape' },
           },
         ]),
       ),
@@ -415,6 +430,220 @@ describe('toSVG connection rendering (task 122 — rounded corners + endpoint tr
     expect(svg).toMatch(
       /<path d="[^"]+" fill="none"[^>]*mask="url\(#vmarkd-d2lbl-/,
     )
+  })
+})
+
+describe('arrowhead shapes (task 128)', () => {
+  const edge = (head: any, dstArrow = true) =>
+    ({
+      W: 200,
+      H: 200,
+      nodes: [],
+      edges: [
+        {
+          points: [
+            [0, 0],
+            [100, 0],
+          ],
+          srcArrow: false,
+          dstArrow,
+          dstArrowhead: head,
+        },
+      ],
+      edgeStyle: 'orthogonal',
+    }) as any
+
+  it('default (no arrowhead object) draws a filled triangle polygon', () => {
+    const svg = toSVG(edge(undefined))
+    expect(svg).toContain('<polygon')
+    expect(svg).toContain('fill="currentColor"')
+  })
+
+  it('circle arrowhead draws a <circle> glyph', () => {
+    const svg = toSVG(edge({ shape: 'circle' }))
+    expect(svg).toContain('<circle')
+  })
+
+  it("crow's-foot (cf-many) draws fan <line> strokes, not a triangle", () => {
+    const svg = toSVG(edge({ shape: 'cf-many' }))
+    expect((svg.match(/<line /g) || []).length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('shape: none draws no arrowhead glyph', () => {
+    // dstArrow true but arrowhead explicitly none → nothing drawn at the end
+    const svg = toSVG(edge({ shape: 'none' }))
+    expect(svg).not.toContain('<polygon')
+    expect(svg).not.toContain('<circle')
+  })
+
+  it('renders the arrowhead cardinality label beside the endpoint', () => {
+    const svg = toSVG(edge({ shape: 'cf-many', label: '*' }))
+    expect(svg).toContain('>*<')
+  })
+})
+
+describe('sql_table column FK routing (task 133)', () => {
+  // Two side-by-side sql tables; an edge from users.col0 → orders.col1. toSVG must attach the route
+  // to the COLUMN ROWS (header + index·rowH + rowH/2), not the table-box centre.
+  const sqlNode = (id: string, x: number, cols: string[]) =>
+    ({
+      s: {
+        id,
+        idVal: id,
+        label: id,
+        shape: 'sql_table',
+        columns: cols.map((name) => ({ name, type: 'int' })),
+        special: { isSequence: false, isGrid: false },
+      },
+      x,
+      y: 0,
+      w: 150,
+      h: 32 + cols.length * 26,
+      kind: 'sql',
+      sqlCols: [40, 40, 20],
+    }) as any
+
+  const layout = {
+    W: 500,
+    H: 200,
+    nodes: [
+      sqlNode('users', 0, ['id', 'name']),
+      sqlNode('orders', 300, ['id', 'user_id']),
+    ],
+    edges: [
+      {
+        points: [
+          [75, 50],
+          [375, 50],
+        ],
+        srcArrow: false,
+        dstArrow: true,
+        src: 'users',
+        dst: 'orders',
+        srcColumnIndex: 0,
+        dstColumnIndex: 1,
+      },
+    ],
+    edgeStyle: 'orthogonal',
+  } as any
+
+  it('routes the FK edge to the destination column row Y (not the box centre)', () => {
+    const svg = toSVG(layout)
+    const pathD = svg.match(/<path d="([^"]+)" fill="none"/)?.[1] ?? ''
+    // orders col1 row centre = y(0)+OFF(10) + HEADER_H(32) + 1*ROW_H(26) + ROW_H/2(13) = 81
+    expect(pathD).toContain(',81.0')
+    // users col0 row centre = 10 + 32 + 0 + 13 = 55
+    expect(pathD).toContain(',55.0')
+    // NOT the table-box centre (y = 10 + h/2 = 52 for users / 53 for orders)
+    expect(pathD).not.toContain(',52.0')
+  })
+})
+
+describe('near viewport-constant placement (task 126A)', () => {
+  const base = (nearKey: string) =>
+    ({
+      shapes: [
+        {
+          id: 'a',
+          idVal: 'a',
+          label: 'a',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'b',
+          idVal: 'b',
+          label: 'b',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'title',
+          idVal: 'title',
+          label: 'Title',
+          shape: 'rectangle',
+          special: { isSequence: false, isGrid: false, nearKey },
+        },
+      ],
+      edges: [{ src: 'a', dst: 'b', srcArrow: false, dstArrow: true }],
+      sequence: false,
+    }) as D2Graph
+
+  it('renders the diagram WITH the pinned shape (no unsupported fallback)', () => {
+    const svg = renderD2Graph(base('top-center'), sizer)
+    expect(svg).toContain('<svg')
+    expect(svg).toContain('Title') // the pinned shape is drawn
+    expect(svg).toContain('<path') // the a→b edge still drawn
+  })
+
+  it('pins a top-center shape ABOVE the laid-out graph', () => {
+    // The title must sit at a smaller y than both laid-out nodes (it is excluded from layout and
+    // placed above the content bbox).
+    const svg = renderD2Graph(base('top-center'), sizer)
+    const titleY = Number(
+      svg.match(/<text x="-?[\d.]+" y="(-?[\d.]+)"[^>]*>Title</)?.[1] ?? 'NaN',
+    )
+    const otherYs = [
+      ...svg.matchAll(/<text x="-?[\d.]+" y="(-?[\d.]+)"[^>]*>[ab]</g),
+    ].map((m) => Number(m[1]))
+    expect(Number.isFinite(titleY)).toBe(true)
+    expect(otherYs.length).toBeGreaterThan(0)
+    expect(titleY).toBeLessThan(Math.min(...otherYs))
+  })
+})
+
+describe('layout direction (task 127)', () => {
+  const chain = (direction?: string) =>
+    ({
+      shapes: [
+        {
+          id: 'a',
+          idVal: 'a',
+          label: 'a',
+          shape: 'rectangle',
+          special: empty(),
+        },
+        {
+          id: 'b',
+          idVal: 'b',
+          label: 'b',
+          shape: 'rectangle',
+          special: empty(),
+        },
+      ],
+      edges: [{ src: 'a', dst: 'b', srcArrow: false, dstArrow: true }],
+      sequence: false,
+      direction,
+    }) as D2Graph
+
+  // dagre path is synchronous + deterministic → assert the relative node geometry flips with direction.
+  const centre = (svg: string, id: string) => {
+    const m = svg.match(
+      new RegExp(`<text x="(-?[\\d.]+)" y="(-?[\\d.]+)"[^>]*>${id}<`),
+    )
+    return m ? { x: Number(m[1]), y: Number(m[2]) } : null
+  }
+
+  it('down (default) stacks a above b vertically', () => {
+    const svg = renderD2Graph(chain('down'), sizer)
+    const a = centre(svg, 'a')!
+    const b = centre(svg, 'b')!
+    expect(a.y).toBeLessThan(b.y)
+  })
+
+  it('right lays a left of b horizontally (rankdir LR)', () => {
+    const svg = renderD2Graph(chain('right'), sizer)
+    const a = centre(svg, 'a')!
+    const b = centre(svg, 'b')!
+    expect(a.x).toBeLessThan(b.x)
+    expect(Math.abs(a.y - b.y)).toBeLessThan(10) // same row
+  })
+
+  it('up flips the vertical order (a below b, rankdir BT)', () => {
+    const svg = renderD2Graph(chain('up'), sizer)
+    const a = centre(svg, 'a')!
+    const b = centre(svg, 'b')!
+    expect(a.y).toBeGreaterThan(b.y)
   })
 })
 

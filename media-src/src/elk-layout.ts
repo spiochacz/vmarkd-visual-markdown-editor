@@ -13,8 +13,10 @@ import {
   type PlacedNode,
   type Sizer,
   EDGE_FONT_SIZE,
+  buildNearNodes,
   classify,
   computeGridInfo,
+  isNearConstant,
   leafInfo,
   toSVG,
 } from './d2-render'
@@ -50,6 +52,44 @@ export function bootElk(cdn: string): Promise<any> {
   return bootPromise
 }
 
+// Map the d2 root direction keyword (task 127) → ELK direction + the side an edge LEAVES (out) /
+// ENTERS (in) a node + whether the flow is horizontal. DOWN/UP keep the vertical flow (ports spread
+// along WIDTH); LEFT/RIGHT flip to horizontal (ports spread along HEIGHT). Pure + exported so the
+// port-side flipping (the risky part of 127) is unit-tested without booting the ELK engine.
+export function elkDirectionConfig(direction?: string): {
+  DIR: string
+  isHoriz: boolean
+  outSide: string
+  inSide: string
+} {
+  const DIR =
+    (
+      { down: 'DOWN', up: 'UP', right: 'RIGHT', left: 'LEFT' } as Record<
+        string,
+        string
+      >
+    )[direction || 'down'] ?? 'DOWN'
+  const isHoriz = DIR === 'LEFT' || DIR === 'RIGHT'
+  // out/in are opposite sides on the flow axis: DOWN out=SOUTH/in=NORTH, RIGHT out=EAST/in=WEST, etc.
+  const outSide =
+    DIR === 'DOWN'
+      ? 'SOUTH'
+      : DIR === 'UP'
+        ? 'NORTH'
+        : DIR === 'RIGHT'
+          ? 'EAST'
+          : 'WEST'
+  const inSide =
+    DIR === 'DOWN'
+      ? 'NORTH'
+      : DIR === 'UP'
+        ? 'SOUTH'
+        : DIR === 'RIGHT'
+          ? 'WEST'
+          : 'EAST'
+  return { DIR, isHoriz, outSide, inSide }
+}
+
 // Build an ELK graph (hierarchy for non-grid containers; fixed-size leaves for grid/sql/class/shape).
 // `extraOptions` merges into (and overrides) the root layoutOptions — used by the render harness to
 // trial alternate ELK option sets (aspectRatio/wrapping/algorithm/direction); the shipped path
@@ -63,10 +103,17 @@ export async function layoutElk(
   const { containers, gridIds, inGrid } = classify(graph)
   const gridInfo = computeGridInfo(graph, measure, gridIds)
 
+  // Root layout direction (task 127). Per-container direction is deferred.
+  const { DIR, isHoriz, outSide, inSide } = elkDirectionConfig(graph.direction)
+
   // Grid children are absorbed into the grid leaf (drawn by drawGrid), so they are NOT ELK nodes —
   // an edge touching one must be dropped, else ELK references a non-existent node.
+  // Viewport-pinned near shapes (task 126A) are NOT ELK nodes — they're placed by toSVG, so exclude
+  // them here (and below) so ELK never sees them and edges touching them are dropped like grid kids.
   const elkNodeIds = new Set(
-    graph.shapes.filter((s) => !inGrid(s)).map((s) => s.id),
+    graph.shapes
+      .filter((s) => !inGrid(s) && !isNearConstant(s.special.nearKey))
+      .map((s) => s.id),
   )
 
   // Port distribution along the NATURAL width (task 122): give each leaf its own ELK port per edge,
@@ -104,7 +151,9 @@ export async function layoutElk(
     if (containers.has(s.id)) {
       meta.set(s.id, { s, kind: 'container' })
       const kids = graph.shapes
-        .filter((c) => c.container === s.id)
+        .filter(
+          (c) => c.container === s.id && !isNearConstant(c.special.nearKey),
+        )
         .map(buildNode)
       // Per-container edge↔edge spacing (task 122): tightens the routing LANES so an edge crossing a
       // container's interior sits 24px from the next lane (matches D2's container lanes). Baked from the
@@ -141,29 +190,46 @@ export async function layoutElk(
     const ins = inList.get(s.id) || []
     const nPorts = Math.max(outs.length, ins.length)
     // D2's EXACT node-widening rule (d2elklayout/layout.go, task 122): a node with ≥2 ports on either side
-    // widens to max(natural, max(in,out)*40) so its ports (and thus the lines leaving/entering) spread
-    // ~40px apart instead of bunching on a narrow box. Baked from the validated harness path.
+    // grows along the SPREAD axis to max(natural, max(in,out)*40) so its ports (and thus the lines
+    // leaving/entering) spread ~40px apart instead of bunching. Vertical flow spreads ports across the
+    // width; horizontal flow (task 127) spreads them down the height — grow that axis instead.
     let w = li.w
-    if (outs.length >= 2 || ins.length >= 2) w = Math.max(li.w, nPorts * 40)
-    // Ports spread evenly across the border: k-th of n at w*(k+1)/(n+1) → 1 edge centred.
+    let h = li.h
+    if (outs.length >= 2 || ins.length >= 2) {
+      if (isHoriz) h = Math.max(li.h, nPorts * 40)
+      else w = Math.max(li.w, nPorts * 40)
+    }
+    // Ports spread evenly across the assigned side: k-th of n at dim*(k+1)/(n+1) → 1 edge centred.
+    // The spread runs along height for EAST/WEST sides, width for NORTH/SOUTH (task 127).
+    const portPos = (side: string, k: number, n: number) => {
+      const t = ((isHoriz ? h : w) * (k + 1)) / (n + 1)
+      switch (side) {
+        case 'SOUTH':
+          return { x: t, y: h }
+        case 'NORTH':
+          return { x: t, y: 0 }
+        case 'EAST':
+          return { x: w, y: t }
+        default: // WEST
+          return { x: 0, y: t }
+      }
+    }
     const ports = [
       ...outs.map((gi, k) => ({
         id: portId(s.id, 'o', gi),
-        x: (w * (k + 1)) / (outs.length + 1),
-        y: li.h,
-        layoutOptions: { 'elk.port.side': 'SOUTH' },
+        ...portPos(outSide, k, outs.length),
+        layoutOptions: { 'elk.port.side': outSide },
       })),
       ...ins.map((gi, k) => ({
         id: portId(s.id, 'i', gi),
-        x: (w * (k + 1)) / (ins.length + 1),
-        y: 0,
-        layoutOptions: { 'elk.port.side': 'NORTH' },
+        ...portPos(inSide, k, ins.length),
+        layoutOptions: { 'elk.port.side': inSide },
       })),
     ]
     const node: any = {
       id: s.id,
       width: w,
-      height: li.h,
+      height: h,
       labels: [{ text: s.label }],
     }
     if (ports.length) {
@@ -176,7 +242,9 @@ export async function layoutElk(
     return node
   }
 
-  const roots = graph.shapes.filter((s) => !s.container).map(buildNode)
+  const roots = graph.shapes
+    .filter((s) => !s.container && !isNearConstant(s.special.nearKey))
+    .map(buildNode)
 
   // The container chain above a shape (nearest first), used to find an edge's owning container.
   const parentOf = new Map<string, string | undefined>()
@@ -204,6 +272,11 @@ export async function layoutElk(
     {
       srcArrow: boolean
       dstArrow: boolean
+      // Per-end arrowhead shape/label (task 128), carried through to PlacedEdge for toSVG.
+      srcArrowhead?: { shape: string; label?: string }
+      dstArrowhead?: { shape: string; label?: string }
+      srcColumnIndex?: number // sql_table column-row endpoints (task 133)
+      dstColumnIndex?: number
       label?: string
       src: string
       dst: string
@@ -219,6 +292,10 @@ export async function layoutElk(
     edgeMeta.set(id, {
       srcArrow: e.srcArrow,
       dstArrow: e.dstArrow,
+      srcArrowhead: e.srcArrowhead, // task 128
+      dstArrowhead: e.dstArrowhead,
+      srcColumnIndex: e.srcColumnIndex, // task 133
+      dstColumnIndex: e.dstColumnIndex,
       label: e.label,
       src: e.src,
       dst: e.dst,
@@ -254,7 +331,7 @@ export async function layoutElk(
     id: 'root',
     layoutOptions: {
       'elk.algorithm': 'layered',
-      'elk.direction': 'DOWN', // matches D2's default + the dagre rankdir:TB path
+      'elk.direction': DIR, // root layout direction (task 127); DOWN matches D2's default
       'elk.edgeRouting': 'ORTHOGONAL',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       // Layout tuning ported from D2's own d2elklayout config (source-verified, task 113/122): balanced
@@ -338,6 +415,10 @@ export async function layoutElk(
           points: pts,
           srcArrow: em.srcArrow,
           dstArrow: em.dstArrow,
+          srcArrowhead: em.srcArrowhead, // task 128
+          dstArrowhead: em.dstArrowhead,
+          srcColumnIndex: em.srcColumnIndex, // task 133
+          dstColumnIndex: em.dstColumnIndex,
           label: withLabel ? em.label : undefined,
           lx: withLabel ? lp?.[0] : undefined,
           ly: withLabel ? lp?.[1] : undefined,
@@ -373,6 +454,9 @@ export async function layoutElk(
   collectEdges(res, 0, 0) // root-level edges are relative to (0,0)
   for (const c of res.children || []) walk(c, 0, 0)
 
+  // Viewport-pinned near shapes — positioned by toSVG, not ELK (task 126A).
+  nodes.push(...buildNearNodes(graph, measure, gridInfo))
+
   return {
     W: Math.ceil(res.width || 0),
     H: Math.ceil(res.height || 0),
@@ -401,7 +485,18 @@ export async function renderD2GraphElk(
     // Full post-process pipeline (task 122): row alignment, adaptive gaps, channel/bend cleanup, back-edge
     // A* reroute, label placement. See d2-refine.ts for the exact ordering and rationale. Skipped for the
     // raw 'elk' engine so users can compare/debug against our embellished 'vmarkd' output.
-    if (refine) refineLayout(layout)
+    // The refine passes assume a VERTICAL flow (row alignment, vertical band compaction, the A* grid),
+    // so they're skipped for LEFT/RIGHT layouts (task 127, decision-gate option b — reduced pipeline);
+    // UP/DOWN share the same axis and refine fine. Per-axis refine generalisation is a follow-up.
+    const horiz = graph.direction === 'left' || graph.direction === 'right'
+    if (refine && !horiz) {
+      // Viewport-pinned near shapes (task 126A) sit at (0,0) until toSVG places them — hide them from
+      // refine so its row/gap passes don't treat the phantom (0,0) node as real geometry, then re-add.
+      const near = layout.nodes.filter((n) => n.near)
+      layout.nodes = layout.nodes.filter((n) => !n.near)
+      refineLayout(layout)
+      layout.nodes.push(...near)
+    }
     return toSVG(layout, style)
   } catch {
     // ELK can fail in the webview (e.g. blob-worker / CSP). NEVER let that break D2 rendering —
