@@ -1,10 +1,14 @@
-// Lazy loader for the vendored compile-only D2 WASM. Boots Go's runtime once,
+// Lazy loader for the vendored compile-only D2 WASM. Boots the TinyGo runtime once,
 // caches the global window.d2compile, and exposes compileD2(src) -> graph object.
 //
-// CSP: wasm_exec.js uses Function() to instantiate the module, so it needs
-// script-src 'unsafe-eval' (already shipped). Per W3C, 'unsafe-eval' also authorizes
-// WebAssembly.instantiate — but VERIFY in the real webview and add 'wasm-unsafe-eval'
-// to html-builder.ts if the WASM fails to boot (the vmarkd-renderer-theming skill flags this).
+// The wasm is built with TinyGo (~6x smaller than stock Go); we ship TinyGo's wasm_exec.js.
+// Its `Go` class is API-compatible with Go's (new Go() / go.importObject / go.run(instance)) and
+// registers window.d2compile the same way, so this boot needs NO TinyGo-specific changes (verified
+// rendering in headless chromium via the d2-render-harness). See media-src/vendor/d2/build/.
+//
+// CSP: instantiation goes through WebAssembly.instantiate, authorized by script-src 'unsafe-eval'
+// (already shipped — the stock-Go wasm booted under the same CSP). If a future wasm fails to boot,
+// add 'wasm-unsafe-eval' to html-builder.ts (the vmarkd-renderer-theming skill flags this).
 //
 // This module OWNS the D2Graph contract: the Go entrypoint (media-src/vendor/d2/build/main.go)
 // emits JSON that MUST match this interface — keep them in sync (verified by d2-wasm.test.ts).

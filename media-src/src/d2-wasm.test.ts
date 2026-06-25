@@ -26,6 +26,10 @@ function bootCompile(): (src: string) => any {
     WebAssembly,
   }
   ctx.globalThis = ctx
+  // TinyGo's wasm_exec.js exports `Go` onto `global`/`window`/`self` (it predates the globalThis
+  // convention Go's own wasm_exec uses), so the isolated vm context must expose one — point `global`
+  // at the context. Without it the loader throws "cannot export Go".
+  ctx.global = ctx
   vm.createContext(ctx)
   vm.runInContext(wasmExec, ctx)
   const go = new ctx.Go()
