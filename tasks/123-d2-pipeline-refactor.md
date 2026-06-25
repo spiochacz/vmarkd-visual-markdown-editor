@@ -90,12 +90,16 @@ guards crossings **and** collinear-overlap **and** container-wall, where before 
   pre-task render: only microservices / dataplatform / oauth changed (all improvements/accepted tradeoff);
   the other 5 byte-identical.
 
-> **Follow-up (separate, not done): the `d2-quality.test` fixture is STALE.** The frozen
-> `__fixtures__/d2-raw-layouts.json` (microservices at least) has drifted from current `layoutElk` output, so
-> the CI net exercises geometry the live webview no longer produces — which is exactly why it missed the
-> microservices edge-on-edge above. Regenerate via `tmp/d2-compare/dump-layouts.mjs` and re-baseline the
-> `EXPECT` crossing counts so the net guards live behaviour (it will then assert zero overlaps on the real
-> geometry, catching this whole class). Left as a deliberate, reviewable change.
+- [x] **Follow-up — refreshed the stale `d2-quality` fixture + promoted its generator into the repo
+  (2026-06-25).** The frozen `__fixtures__/d2-raw-layouts.json` had drifted from current `layoutElk` output,
+  so the CI net exercised geometry the live webview no longer produces — exactly why it missed the
+  microservices edge-on-edge. Regenerated it from the live pipeline; `EXPECT` values were unchanged but are
+  now load-bearing (verified by re-removing the `rerouteBackEdges` guard → the test now FAILS:
+  `drawn crossings expected 2 to be 3` + `rerouteBackEdges must not raise edge-on-edge`). The generator
+  (was `tmp/d2-compare/dump-layouts.mjs`, gitignored) is now version-controlled at
+  `media-src/scripts/d2-fixtures/` (`gen.mjs` + `gen.entry.ts` + `sources/*.d2`) so the fixture is
+  reproducible on a clean checkout; the test header comment points there. typecheck / lint:ci / `npm test`
+  (871) / build green.
 
 ## Deferred — NOT planned now
 

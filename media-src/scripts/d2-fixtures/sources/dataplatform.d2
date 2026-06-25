@@ -1,0 +1,34 @@
+src: Sources {
+  app: App Events
+  cdc: DB CDC {shape: cylinder}
+  ext: 3rd-party API {shape: cloud}
+}
+kafka: Kafka {shape: queue}
+
+stream: Stream Processing {
+  enrich: Enricher
+  agg: Aggregator
+  dq: Quality Check
+}
+
+lake: Data Lake {shape: cylinder}
+dw: Warehouse {shape: cylinder}
+bi: BI / Dashboards {shape: hexagon}
+ml: ML Training
+
+src.app -> kafka: produce
+src.cdc -> kafka: produce
+src.ext -> kafka: produce
+kafka -> stream.enrich: consume
+kafka -> stream.dq: consume
+stream.dq -> stream.enrich: gate
+stream.enrich -> stream.agg: feed
+stream.agg -> dw: load
+stream.enrich -> lake: archive
+src.cdc -> lake: snapshot
+lake -> dw: batch
+lake -> ml: train
+dw -> bi: query
+dw -> ml: features
+ml -> dw: scores
+bi -> dw: drilldown

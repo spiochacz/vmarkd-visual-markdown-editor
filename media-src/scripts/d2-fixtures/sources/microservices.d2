@@ -1,0 +1,38 @@
+client: Client {shape: person}
+gw: API Gateway {shape: hexagon}
+auth: Auth Service
+mq: Message Broker {shape: queue}
+cache: Redis {shape: cylinder}
+
+svc: Services {
+  orders: Order Service
+  inventory: Inventory Service
+  payment: Payment Service
+  shipping: Shipping Service
+  notify: Notification Service
+}
+
+db: Data Stores {
+  ordersdb: Orders DB {shape: cylinder}
+  invdb: Inventory DB {shape: cylinder}
+  paydb: Payments DB {shape: cylinder}
+}
+
+client -> gw: request
+gw -> auth: verify
+gw -> svc.orders: route
+gw -> svc.inventory: route
+svc.orders -> svc.inventory: reserve
+svc.orders -> svc.payment: charge
+svc.payment -> mq: payment.ok
+svc.orders -> mq: order.created
+mq -> svc.shipping: ship
+mq -> svc.notify: notify
+svc.orders -> db.ordersdb: persist
+svc.inventory -> db.invdb: persist
+svc.payment -> db.paydb: persist
+svc.orders -> cache: read
+svc.inventory -> cache: read
+auth -> cache: session
+svc.shipping -> svc.orders: status
+svc.notify -> client: email

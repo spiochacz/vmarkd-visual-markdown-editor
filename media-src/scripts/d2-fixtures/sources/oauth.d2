@@ -1,0 +1,19 @@
+user: User {shape: person}
+app: Web App
+authz: Authorization Server {shape: hexagon}
+api: Resource API
+udb: User DB {shape: cylinder}
+tok: Token Store {shape: cylinder}
+
+user -> app: login
+app -> authz: redirect
+authz -> user: consent
+user -> authz: approve
+authz -> tok: issue
+authz -> app: auth code
+app -> authz: exchange
+authz -> app: access token
+app -> api: request + token
+api -> tok: validate
+api -> udb: query
+api -> app: data

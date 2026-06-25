@@ -5,7 +5,12 @@
 // label-on-box, edge-through/along-box, edge-on-edge). This is the safety net for ANY future refactor of
 // the refine passes — it catches a quality regression in CI instead of by inspecting renders.
 //
-// Regenerating the fixture (only when layoutElk/elk config itself changes): run tmp/d2-compare/dump-layouts.mjs.
+// Regenerating the fixture (only when layoutElk/elk config itself changes):
+//   node build.mjs && node media-src/scripts/d2-fixtures/gen.mjs
+// (sources live in media-src/scripts/d2-fixtures/sources/*.d2). Then update EXPECT below if a crossing
+// count legitimately moved. The fixture is a real raw-ELK snapshot of the live pipeline, so these EXPECT
+// values are load-bearing — e.g. microservices=3 holds because rerouteBackEdges' collinear guard (task 123
+// #4) refuses the crossings-2 reroute that would draw an edge-on-edge.
 import { describe, expect, it } from 'vitest'
 import { __test, refineLayout } from './d2-refine'
 import type { Layout, PlacedNode } from './d2-render'

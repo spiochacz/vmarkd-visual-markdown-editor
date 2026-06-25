@@ -1,0 +1,24 @@
+lb: Load Balancer {shape: hexagon}
+ingress: Ingress Controller
+
+mesh: Service Mesh {
+  a: Service A
+  b: Service B
+  c: Service C
+}
+
+data: Stateful {
+  pg: Postgres {shape: cylinder}
+  kafka: Kafka {shape: queue}
+}
+
+lb -> ingress: tls
+ingress -> mesh.a: route
+ingress -> mesh.b: route
+mesh.a -> mesh.b: call
+mesh.a -> mesh.c: call
+mesh.b -> mesh.c: call
+mesh.a -> data.pg: write
+mesh.b -> data.pg: read
+mesh.c -> data.kafka: publish
+data.kafka -> mesh.a: consume
