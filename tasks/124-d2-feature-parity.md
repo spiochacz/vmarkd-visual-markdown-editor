@@ -5,7 +5,7 @@
 > wins, else theme default), arrowheads follow the edge stroke, `animated` marches dashes via a
 > reduced-motion-safe CSS class. **#2 `shape: text` / `code`** (toSVG-only): borderless prose / mono
 > panel, multi-line `<tspan>` rows (`textShapeBox` sizes them in `leafInfo`). Still open: #3 image/icons,
-> #4 md/latex labels (md = task 154), #5 tooltips/links, #6 multi-board. **Audit note (2026-06-25):** the
+> #4 md/latex labels (md = task 154), #5 tooltips/links, #6 multi-board (= task 155). **Audit note (2026-06-25):** the
 > Phase-B batch (127/128/133/126A) extended the WASM for a DIFFERENT slice, so the "capture EVERY field
 > in one rebuild" premise below was only partially executed — #3/#4/#5 still need another WASM bump
 > (cheap now the WASM is TinyGo). Arrowhead *shapes* (128) ≠ connection *stroke* styles (#1, now done).
@@ -74,12 +74,11 @@ what it never received. The fixes are mostly "extract field in Go → consume in
   `<a>` (link). Link clicks must go through the webview's existing link-open policy
   (`link-open-policy.ts`) — internal `.md`/wiki vs external, same as body links. Not offline-blocking.
 
-### 6. Multi-board composition: `layers` / `scenarios` / `steps` — LARGE
+### 6. Multi-board composition: `layers` / `scenarios` / `steps` — LARGE → split to **task 155**
 - **Gap:** d2 can define multiple boards (composition / animated walkthroughs); we render only the root
-  board.
-- **Cost:** WASM (emit the board tree, not just the root graph) + a webview board switcher UI + layout
-  per board. Significant; likely its own task if pursued. List the dropped boards LOUDLY (a note) so a
-  multi-board `.d2` doesn't silently show only page 1.
+  board, silently dropping the rest.
+- **Moved:** spec + phasing now live in **task 155** (loud-fallback first, then static switcher, then
+  interactive drill-down / step player). Significant enough for its own task; on-demand.
 
 ## Recommended phasing
 1. ✅ **Phase A (no WASM) — DONE 2026-06-25:** `shape: text` + `shape: code` basic render in `toSVG` (#2). Cheapest, immediate.
@@ -89,7 +88,7 @@ what it never received. The fixes are mostly "extract field in Go → consume in
    width/height, `vars.d2-config`, label/icon positioning, grid-gap/edge-radius) — capture them in ONE
    Go rebuild. Then consume in `toSVG`. (127/128/133/126A already landed in the earlier Phase-B batch;
    task 131 = d2 imports, separate / likely won't-do.)
-3. **Phase C (optional, large):** multi-board (#6) — only if there's demand.
+3. **Phase C (optional, large):** multi-board (#6) — **split to task 155**; only if there's demand.
 
 ## Verification (every item)
 - Render the feature through the production pipeline (`tmp/d2-compare` harness / real-VS-Code suite) and
