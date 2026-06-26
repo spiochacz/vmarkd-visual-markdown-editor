@@ -39,6 +39,11 @@ export interface D2Shape {
   borderRadius?: string
   bold?: boolean
   italic?: boolean
+  // Interaction + media (task 124 #3/#5). tooltip → <title>; link → clickable <a>; icon = image URL
+  // (the picture for shape:image, or a decorative icon on any other shape).
+  tooltip?: string
+  link?: string
+  icon?: string
   direction?: string // per-container layout direction up|down|left|right (task 127)
   columns?: D2Column[] // sql_table
   fields?: D2Member[] // class fields

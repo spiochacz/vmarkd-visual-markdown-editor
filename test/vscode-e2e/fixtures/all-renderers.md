@@ -594,6 +594,20 @@ c -> d: animated {style.animated: true}
 a -> d: faint {style.opacity: 0.35}
 ```
 
+Shape `tooltip` (hover `<title>`), `link` (clickable `<a>`, routed by the webview link policy), and
+`icon` / `shape: image` (task 124 #3/#5). Remote URLs need `image.allowRemoteImages`; `data:` always
+works:
+
+```d2
+api: API Server {
+  icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%234c6ef5'/%3E%3C/svg%3E"
+  tooltip: The main API server
+  link: https://example.com/docs
+}
+db: Database { shape: cylinder; tooltip: Postgres 16 }
+api -> db
+```
+
 A bespoke-layout shape (`sequence_diagram`) is NOT faithfully renderable by our dagre/ELK layout, so
 it falls back LOUDLY to the raw source (never a silently-wrong picture):
 

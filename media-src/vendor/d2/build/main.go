@@ -26,6 +26,11 @@ type outShape struct {
 	BorderRadius string      `json:"borderRadius,omitempty"`
 	Bold         bool        `json:"bold,omitempty"`
 	Italic       bool        `json:"italic,omitempty"`
+	// Interaction + media (task 124 #3/#5). Tooltip/Link from o.Tooltip/o.Link; Icon = the image URL
+	// (o.Icon) used as the picture for shape:image, or a decorative icon on any other shape.
+	Tooltip      string      `json:"tooltip,omitempty"`
+	Link         string      `json:"link,omitempty"`
+	Icon         string      `json:"icon,omitempty"`
 	Columns      []outColumn `json:"columns,omitempty"` // sql_table
 	Fields       []outMember `json:"fields,omitempty"`  // class fields
 	Methods      []outMember `json:"methods,omitempty"` // class methods
@@ -121,6 +126,10 @@ func compileToJSON(src string) (string, error) {
 		if o.NearKey != nil {
 			sp.NearKey = strings.Join(d2graph.Key(o.NearKey), ".")
 		}
+		icon := "" // o.Icon is a *url.URL — the image for shape:image, or a decorative icon (task 124 #3)
+		if o.Icon != nil {
+			icon = o.Icon.String()
+		}
 		sh := outShape{
 			ID:           o.AbsID(),
 			IDVal:        o.IDVal,
@@ -136,7 +145,10 @@ func compileToJSON(src string) (string, error) {
 			BorderRadius: styleVal(o.Style.BorderRadius),
 			Bold:         styleVal(o.Style.Bold) == "true",
 			Italic:       styleVal(o.Style.Italic) == "true",
-			Direction:    o.Direction.Value, // per-container direction (task 127)
+			Tooltip:      styleVal(o.Tooltip), // task 124 #5
+			Link:         styleVal(o.Link),    // task 124 #5
+			Icon:         icon,                // task 124 #3
+			Direction:    o.Direction.Value,   // per-container direction (task 127)
 			Special:      sp,
 		}
 		// sql_table columns + class fields/methods (for the bespoke JS renderers)

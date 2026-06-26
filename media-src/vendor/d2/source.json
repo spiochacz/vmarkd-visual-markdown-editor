@@ -4,7 +4,7 @@
   "description": "Compile-only D2 Go->WASM (d2compiler->graph JSON incl. styles + sql_table/class members; fonts+mathjax stubbed + lib/textmeasure replaced to sever goquery/net-http+freetype). Built via build/build-d2-wasm.sh (TinyGo 0.41.1, -opt=z); ~6x smaller than stock Go, byte-identical output.",
   "origin": "https://github.com/terrastruct/d2 (MPL-2.0)",
   "files": {
-    "d2-compile.wasm": { "sha256": "241df1b56dee237a7b34248db0ee1fc411ee04d8825314b731ddf2d0a61a8252" },
+    "d2-compile.wasm": { "sha256": "58a40f9509b4be72ca39aa38c57c2a5e4a160afea32ff657babacfff13cc738b" },
     "wasm_exec.js": { "sha256": "5994ca6b7da5cca65668ae88db354b240758499856a90379008dde56d702037d" }
   }
 }

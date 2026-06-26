@@ -243,11 +243,19 @@ export function fixLinkClick() {
     // About/Info dialog and other tips, toolbar, panels — are not editable text, so
     // they open on a plain click. Wiki links above are unaffected.
     const linkElement = target?.closest<HTMLAnchorElement>('a[href]')
-    if (linkElement?.href) {
-      e.preventDefault()
-      e.stopPropagation()
-      if (!isEditorContentLink(linkElement) || shouldOpenLink(e)) {
-        openLink(linkElement.href)
+    if (linkElement) {
+      // HTML <a>.href is a resolved string; an SVG <a> (d2 shape/connection links, task 124 #5)
+      // exposes href as an SVGAnimatedString, so fall back to the raw attribute.
+      const href =
+        typeof linkElement.href === 'string'
+          ? linkElement.href
+          : linkElement.getAttribute('href') || ''
+      if (href) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!isEditorContentLink(linkElement) || shouldOpenLink(e)) {
+          openLink(href)
+        }
       }
     }
   })

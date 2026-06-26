@@ -1,14 +1,16 @@
 # Task 124 — D2 feature parity (connection styles, text/code/image, markdown/LaTeX, tooltips/links, multi-board)
 
-> **Status:** 🟡 IN PROGRESS — #1 + #2 DONE (2026-06-25). **#1 connection styles** (own WASM bump):
-> `outEdge` now marshals `stroke/strokeWidth/strokeDash/opacity/animated`; `toSVG` draws them (explicit
-> wins, else theme default), arrowheads follow the edge stroke, `animated` marches dashes via a
-> reduced-motion-safe CSS class. **#2 `shape: text` / `code`** (toSVG-only): borderless prose / mono
-> panel, multi-line `<tspan>` rows (`textShapeBox` sizes them in `leafInfo`). Still open: #3 image/icons,
-> #4 md/latex labels (md = task 154), #5 tooltips/links, #6 multi-board (= task 155). **Audit note (2026-06-25):** the
-> Phase-B batch (127/128/133/126A) extended the WASM for a DIFFERENT slice, so the "capture EVERY field
-> in one rebuild" premise below was only partially executed — #3/#4/#5 still need another WASM bump
-> (cheap now the WASM is TinyGo). Arrowhead *shapes* (128) ≠ connection *stroke* styles (#1, now done).
+> **Status:** 🟢 DONE (2026-06-25) — all directly-scoped items shipped: **#1** connection styles
+> (`outEdge` stroke/width/dash/opacity/animated; reduced-motion-safe marching dashes; arrowheads follow
+> the stroke), **#2** `shape: text`/`code` (borderless prose / mono panel, multi-line `<tspan>`), **#3**
+> `shape: image` + decorative icons (`<image>`, CSP-gated), **#5** tooltips/links (`<title>` + `<a>` hit-
+> rect, SVG-anchor routing fixed in `fixLinkClick`, scheme-guarded). **#4** md/latex labels → **task 154**
+> (md via foreignObject+Lute; latex via KaTeX). **#6** multi-board → **task 155**. Three WASM bumps over
+> the session (all TinyGo). Each item unit-tested + visual (render harness) + fixture §18, and the whole
+> set is **verified in the real VS Code webview** (`test/vscode-e2e/d2-feature-parity.spec.ts`: text/code,
+> connection styles + reduced-motion animation, image/icon, tooltip, and the SVG-link click intercept).
+> Audit note: the earlier Phase-B batch (127/128/133/126A) was a SEPARATE slice — arrowhead *shapes*
+> (128) ≠ connection *stroke* styles (#1).
 > Originally 💡 idea / planned (decision-gated) — created 2026-06-24. Catalogs the D2 language
 > features our renderer (task 104) does NOT yet handle, found while auditing the pipeline after the
 > shape + colour-theme work (shapes 1:1 with d2; `sql_table`/`class`; faithful `d2Theme` palettes).
@@ -56,11 +58,13 @@ what it never received. The fixes are mostly "extract field in Go → consume in
 - **Left (deferred):** syntax highlighting for `code` needs the block's **language** (not marshalled)
   → folds into the Phase-B WASM bump; reuse the highlight.js path. Markdown labels = task 154.
 
-### 3. `shape: image` + icons (`icon: <url>`) — MEDIUM (needs WASM + CSP)
-- **Gap:** image shapes / shape icons are not rendered.
-- **Cost:** WASM (extract `icon`/image URL); `toSVG` emits `<image href>`. **CSP:** `img-src` already
-  allows `data:`/`blob:` but NOT arbitrary remote hosts — offline-first means only `data:` URIs (or a
-  vendored set) render; remote `icon:` URLs are blocked by design (document it, mirror PlantUML's note).
+### 3. `shape: image` + icons (`icon: <url>`) — ✅ DONE (2026-06-25)
+- **Done:** `outShape` marshals `icon` (= `o.Icon.String()`). `toSVG`: `shape: image` draws a full
+  `<image>` filling the box (pre-switch branch; `leafInfo` floors it to a 96×72 picture box); a
+  non-image shape with an `icon` gets a small decorative `<image>` badge (top-left) in the decorations
+  post-pass. **CSP** is the gate (unchanged): `img-src` allows `data:`/`blob:` always and `https:` only
+  when `image.allowRemoteImages` is on — so offline diagrams use `data:` URIs; remote icons need the
+  opt-in (documented). Precise icon placement (`icon.near` / position) = task 134.
 
 ### 4. Markdown / LaTeX labels (`|md …|`, `|latex …|`) — MEDIUM
 - **Gap:** rendered as plain text.
@@ -68,11 +72,14 @@ what it never received. The fixes are mostly "extract field in Go → consume in
   render into a `<foreignObject>`; latex → reuse the KaTeX path. `<foreignObject>` sizing must feed back
   into `dimsToFit` so layout reserves the right box.
 
-### 5. Tooltips & links (`tooltip:` / `link:`) — LOW-MEDIUM (interactive)
-- **Gap:** not wired. d2 shapes can carry a hover tooltip and a click-through link.
-- **Cost:** WASM (extract `tooltip`/`link`); `toSVG` adds `<title>` (tooltip) + wraps the shape in
-  `<a>` (link). Link clicks must go through the webview's existing link-open policy
-  (`link-open-policy.ts`) — internal `.md`/wiki vs external, same as body links. Not offline-blocking.
+### 5. Tooltips & links (`tooltip:` / `link:`) — ✅ DONE (2026-06-25)
+- **Done:** `outShape` marshals `tooltip` + `link`. The decorations post-pass draws a transparent
+  hit-rect ON TOP of each node carrying a `<title>` (hover tooltip) and/or an `<a href>` (click). Links
+  go through the webview link policy: `fixLinkClick` (utils.ts) now reads the href robustly for SVG
+  `<a>` (its `.href` is an `SVGAnimatedString`, not a string) → routed like any body link. `safeLinkHref`
+  blocks `javascript:`/`vbscript:`/`data:`/`file:` schemes (defense in depth). Unit-tested + **verified in
+  real VS Code** (`test/vscode-e2e/d2-feature-parity.spec.ts` — the SVG `<a>` click is intercepted by
+  `fixLinkClick`, `defaultPrevented`).
 
 ### 6. Multi-board composition: `layers` / `scenarios` / `steps` — LARGE → split to **task 155**
 - **Gap:** d2 can define multiple boards (composition / animated walkthroughs); we render only the root

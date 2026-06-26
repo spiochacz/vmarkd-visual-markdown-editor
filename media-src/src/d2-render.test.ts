@@ -864,3 +864,54 @@ describe('connection styles (task 124 #1)', () => {
     expect(svg).toContain('fill="red"')
   })
 })
+
+describe('shape tooltip / link / icon / image (task 124 #3 + #5)', () => {
+  const node = (extra: any) =>
+    g([
+      {
+        id: 'n',
+        idVal: 'n',
+        label: 'n',
+        shape: 'rectangle',
+        special: empty(),
+        ...extra,
+      },
+    ])
+
+  it('renders a <title> tooltip', () => {
+    expect(renderD2Graph(node({ tooltip: 'hello tip' }), sizer)).toContain(
+      '<title>hello tip</title>',
+    )
+  })
+
+  it('wraps a node in <a href> for a safe link', () => {
+    expect(
+      renderD2Graph(node({ link: 'https://example.com' }), sizer),
+    ).toContain('<a href="https://example.com">')
+  })
+
+  it('does NOT make a node clickable for a javascript: link (sanitized)', () => {
+    const svg = renderD2Graph(node({ link: 'javascript:alert(1)' }), sizer)
+    expect(svg).not.toContain('<a ')
+    expect(svg).not.toContain('javascript:')
+  })
+
+  it('renders shape:image as a full <image> (no box rect)', () => {
+    const svg = renderD2Graph(
+      node({ shape: 'image', icon: 'data:image/png;base64,AAAA' }),
+      sizer,
+    )
+    expect(svg).toContain('<image')
+    expect(svg).toContain('data:image/png;base64,AAAA')
+    expect(svg.match(/<rect/g)).toBeNull()
+  })
+
+  it('renders a decorative icon on top of a non-image shape', () => {
+    const svg = renderD2Graph(
+      node({ icon: 'data:image/png;base64,BBBB' }),
+      sizer,
+    )
+    expect(svg).toContain('data:image/png;base64,BBBB')
+    expect(svg).toContain('<rect') // the shape itself still drew; icon is decorative
+  })
+})

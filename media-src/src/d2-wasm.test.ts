@@ -134,6 +134,20 @@ describe('d2 compile-only wasm (node smoke)', () => {
     expect(plain.animated).toBeFalsy()
   })
 
+  it('marshals tooltip / link / icon (task 124 #3/#5)', () => {
+    const graph = JSON.parse(
+      compile(
+        'a: { tooltip: hi there; link: https://x.com }\nb: { shape: image; icon: https://x.com/i.png }',
+      ).graph,
+    )
+    const a = graph.shapes.find((s: any) => s.id === 'a')
+    expect(a.tooltip).toBe('hi there')
+    expect(a.link).toBe('https://x.com')
+    const b = graph.shapes.find((s: any) => s.id === 'b')
+    expect(b.shape).toBe('image')
+    expect(b.icon).toBe('https://x.com/i.png')
+  })
+
   it('marshals sql_table column FK endpoints as indices (task 133)', () => {
     const graph = JSON.parse(
       compile(

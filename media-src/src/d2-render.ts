@@ -26,6 +26,43 @@ const SQRT2 = Math.SQRT2
 const esc = (s: unknown) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+// task 124 #5 — only make a node clickable for safe link schemes (http/https/mailto, a relative path,
+// or an in-doc #/wiki ref). Blocks javascript:/vbscript:/data:/file: (defense in depth; the webview
+// link handler + CSP are the other layers). Returns the trimmed href or null.
+function safeLinkHref(link?: string): string | null {
+  if (!link) return null
+  const t = link.trim()
+  if (!t || /^(javascript|vbscript|data|file):/i.test(t)) return null
+  return t
+}
+// task 124 #3 — a small decorative icon badge (top-left). Precise icon placement = task 134. CSP gates
+// the URL: data:/blob: always, https only when image.allowRemoteImages is on (else it just won't load).
+function nodeIconImage(
+  icon: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): string {
+  const s = Math.min(24, w * 0.5, h * 0.5)
+  return `<image href="${esc(icon)}" x="${(x + 4).toFixed(1)}" y="${(y + 4).toFixed(1)}" width="${s.toFixed(1)}" height="${s.toFixed(1)}" preserveAspectRatio="xMidYMid meet"/>`
+}
+// task 124 #5 — a transparent hit-rect carrying the <title> tooltip and/or the <a> link, drawn ON TOP
+// of a node (post-pass) so hover/click beat the shape's own fill. SVG <a> routes via fixLinkClick.
+function nodeHitOverlay(
+  s: Partial<D2Shape>,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): string | null {
+  const tip = s.tooltip ? `<title>${esc(s.tooltip)}</title>` : ''
+  const href = safeLinkHref(s.link)
+  if (!tip && !href) return null
+  const rect = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="transparent" pointer-events="all"${href ? ' style="cursor:pointer"' : ''}>${tip}</rect>`
+  return href ? `<a href="${esc(href)}">${rect}</a>` : rect
+}
+
 // Faithful D2 lib/shape GetDimensionsToFit. (w,h) = labelDims + INNER_PAD already applied.
 function dimsToFit(
   shape: string,
@@ -601,6 +638,11 @@ export function leafInfo(
   // text/code carry multi-line prose; size them from line count, not the single-line label box.
   if (s.shape === 'text' || s.shape === 'code') {
     return { ...textShapeBox(s.shape, s.label, measure), kind: 'shape' }
+  }
+  // image has no text to size from (label is usually just the id) — floor to a default picture box.
+  if (s.shape === 'image') {
+    const b = shapeBox(s.shape, measure(s.label))
+    return { w: Math.max(b.w, 96), h: Math.max(b.h, 72), kind: 'shape' }
   }
   const box = shapeBox(s.shape, measure(s.label))
   return { w: box.w, h: box.h, kind: 'shape' }
@@ -1603,6 +1645,16 @@ function toSVG(layout: Layout, style?: D2Style): string {
 
     const rx = s.borderRadius ? Number(s.borderRadius) : 4
 
+    // shape: image (task 124 #3) — the node IS the picture (s.icon = the URL); fills the box. CSP
+    // gates the URL (data:/blob: always, https only with image.allowRemoteImages). A tooltip/link, if
+    // any, is added by the decorations post-pass below.
+    if (s.shape === 'image' && s.icon) {
+      parts.push(
+        `<image href="${esc2(s.icon)}" x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" preserveAspectRatio="xMidYMid meet"/>`,
+      )
+      continue
+    }
+
     // shape: text / code (task 124 #2 — no WASM; shape + label already marshalled). text = borderless
     // left-aligned prose; code = monospace in a subtle panel. Multi-line labels become <tspan> rows
     // (SVG <text> doesn't wrap on \n). Geometry mirrors leafInfo's textShapeBox. Syntax highlighting
@@ -1770,6 +1822,21 @@ function toSVG(layout: Layout, style?: D2Style): string {
       `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="central" ${textAttrs(s, FONT_SIZE, sty.leafFill, sty.text)}>${esc2(s.label)}</text>`,
     )
   }
+
+  // Decorations pass (task 124 #3/#5) — ON TOP of every node so icons show and the tooltip/link
+  // hit-rect beats the shape's fill for hover/click. shape:image draws its own picture above (skip its
+  // icon here). Covers containers + leaves; grids manage their own children.
+  for (const n of layout.nodes) {
+    if (n.kind === 'grid') continue
+    const s = n.s
+    const left = n.x + OFF
+    const top = n.y + OFF
+    if (s.icon && s.shape !== 'image')
+      parts.push(nodeIconImage(s.icon, left, top, n.w, n.h))
+    const ov = nodeHitOverlay(s, left, top, n.w, n.h)
+    if (ov) parts.push(ov)
+  }
+
   parts.push('</svg>')
   return parts.join('\n')
 }
