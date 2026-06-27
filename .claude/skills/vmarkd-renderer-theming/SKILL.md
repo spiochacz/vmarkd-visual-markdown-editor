@@ -30,13 +30,19 @@ theming mechanism — that's the #1 source of mistakes.
 |---|---|---|---|
 | `mermaid` | Mermaid (vendored 11.15.0) | `initialize({theme, themeVariables})` | ✅ full palette pairing (task 86) |
 | `echarts` | Apache ECharts 6.1.0 (vendored) | `registerTheme()` + `init(el, name)` | ✅ full palette pairing + `vmarkd.theme.echarts` gallery themes (task 89/90) |
+| `d2` | D2 (WASM compile + dagre/ELK layout) | `D2_THEMES` / `d2Catalog` + `pairedTheme` (auto) | ✅ full palette-paired + `vmarkd.theme.d2` (auto/native/paired) (task 119); re-renders on flip |
 | `mindmap` | ECharts tree | `init(el, theme)` + hardcoded colors | ◑ partial (some colors baked) |
 | `smiles` | smiles-drawer | `draw(code, id, 'dark'\|undefined)` | ◑ binary dark/light |
-| `markmap` | markmap | none | ❌ baked palette |
-| `flowchart` | flowchart.js | `drawSVG(el, {line/element/font-color, fill})` | ✅ foreground-paired (task 91) |
-| `graphviz` | Viz.js | none (DOT defaults) | ❌ baked |
-| `abc` | abc.js | none | ❌ baked (black) |
-| `plantuml` | plantuml-encoder | remote `<object>` | ⛔ **blocked by CSP `object-src 'none'`** (task 87 = TeaVM offline) |
+| `markmap` | markmap | none | ❌ baked palette (the ONE that doesn't re-render on flip) |
+| `flowchart` | flowchart.js | `drawSVG(el, {line/element/font-color, fill})` | ✅ foreground-paired, poll on flip (task 91) |
+| `vega` `vega-lite` | vega-embed | colours from `getComputedStyle(wrapper).color` | ✅ foreground-paired, poll on flip (task 102) |
+| `graphviz` | Viz.js | SVG post-process #000→currentColor | ✅ foreground-monochrome; re-renders on flip |
+| `abc` | abcjs | SVG post-process → currentColor | ✅ foreground-monochrome; re-renders on flip |
+| `wavedrom` | WaveDrom | embedded `<style>` skin recolour → currentColor | ✅ foreground-monochrome; re-renders on flip |
+| `nomnoml` | nomnoml | SVG post-process → currentColor | ✅ foreground-monochrome; re-renders on flip |
+| `geojson` `topojson` | Leaflet | SVG geometry → currentColor (+ opt-in remote tiles, task 99) | ✅ foreground-monochrome; re-renders on flip |
+| `plantuml` | TeaVM offline (vendored) → SVG | SVG post-process → currentColor | ✅ offline + foreground-monochrome (task 87 shipped — NOT CSP-blocked any more) |
+| `stl` | three.js | fixed neutral material (theme-independent) | ◑ material fixed `#9aa0a6` (lighting needs a mid base); re-renders on flip but colour ~constant |
 | `$…$` `$$…$$` | KaTeX | none (currentColor) | ✅ inherits CSS |
 
 `previewRender.ts` threads `mergedOptions.mode` (the editor dark/light) to the renderers
@@ -52,8 +58,8 @@ renders BLACK** — so pass an EXPLICIT colour (the themed foreground from `getC
 an rgb() string Raphael parses fine) for line/element/font + `fill:"none"` for transparent boxes. One
 foreground suffices (monochrome line-art — no palette mapping needed). esbuild `patchFlowchartTheme`
 rewrites the bare call; `flowchart-retheme.ts` `reRenderFlowchart` re-renders on a live flip, scheduled
-by `reThemeFlowchart` (main.ts) which POLLS until the foreground settles (the content-theme `<link>`
-applies LATE — a fixed-delay re-render bakes a stale colour).
+by `reThemeFlowchart` (`diagram-retheme.ts`) which POLLS until the foreground settles (the content-theme
+`<link>` applies LATE — a fixed-delay re-render bakes a stale colour).
 
 ## How mermaid theming actually works — THREE distinct layers (don't conflate them)
 
@@ -116,12 +122,21 @@ Mirrors mermaid's 3 layers but with ECharts gotchas:
   `style-src 'unsafe-inline'` (so inline SVG `<style>` works), `script-src 'unsafe-eval'`
   (+ `wasm-unsafe-eval` would be needed for any WASM engine). No external host is allowed —
   any CDN-loading engine (e.g. CheerpJ → `leaningtech.com`) breaks offline + needs a CSP hole.
-- **Only mermaid re-renders on a LIVE theme flip.** `reRenderMermaid` (task 59,
-  `media-src/src/mermaid-retheme.ts`) renders OFFSCREEN then swaps the SVG in atomically (an
-  in-place re-render collapses the diagram to source text → shrinks the doc → scrolls to top,
-  the reported bug). Every other renderer paints once; a VS Code dark↔light flip leaves it
-  stale until reopen. Wiring lives in `main.ts` `handleSetTheme` + `handleConfigChanged`
-  (re-render on BOTH `mermaidThemeChanged` and `contentThemeChanged`).
+- **~15 renderers re-render on a LIVE theme flip — through ONE authority.** `rethemeDiagrams()`
+  (`media-src/src/diagram-retheme.ts`, task 152 item 3) is the single re-theme entry both flip sites
+  route through: `handleSetTheme` (a VS Code mode flip → every flag on) and `handleConfigChanged` (the
+  changed-flag subset). It drives code/hljs (stylesheet swap), mermaid + echarts (palette + offscreen
+  re-render), flowchart + vega (foreground-poll — they bake colour from `getComputedStyle`, which
+  settles late, so it polls for ~2s and re-renders on change), the monochrome SVG group
+  (plantuml/graphviz/abc/wavedrom/nomnoml/geojson/topojson/stl) + D2 (deferred rAF+400ms; D2 deduped to
+  ONE fire so a content+layout change can't double-render it), and smiles (bg-luminance). The flip
+  wiring used to live inline in `handleConfigChanged` + a misnamed `reThemePlantumlGraphviz`; it now
+  lives in `diagram-retheme.ts` (main.ts injects `lastInitMsg` options/cdn + the code-theme applier via
+  `configureDiagramRetheme`). `reRenderMermaid` (task 59, `mermaid-retheme.ts`) renders OFFSCREEN then
+  swaps the SVG in atomically (an in-place re-render collapses the diagram to source text → shrinks the
+  doc → scrolls to top, the reported bug); that offscreen-swap pattern is now SHARED by the other
+  re-render helpers. Only **markmap** stays baked (paints once, stale until reopen). (This skill
+  previously claimed "only mermaid re-renders" — false since the offline-renderer set landed.)
 - **The mermaid e2e harness calls the functions directly**, not via the host message path
   (`media-src/e2e/mermaid-harness.ts` exposes `__applyTheme`/`__reTheme`). So `handleConfigChanged`
   wiring is covered by unit + code inspection, not e2e. Don't claim message-path e2e coverage.
@@ -230,11 +245,22 @@ render's theming, so editing a block can look completely different from its rend
 
 ## When adding theming to a new diagram renderer
 
-1. Identify its model (almost always #3 — self-contained, baked).
-2. Reuse layer 1 (registry palette mapping) + `MERMAID_PALETTES` data.
+**Policy (ADR-0006):** a new renderer SHOULD be **palette-paired** (full colour from the content
+theme). Foreground-monochrome (`currentColor`) is the accepted fallback ONLY for engines whose output
+can't be palette-mapped without disproportionate per-engine work — and when you take it, **record why**
+(in the task + the table above). Add a `vmarkd.theme.<engine>` picker ONLY if the engine ships several
+first-class theme families worth choosing (echarts gallery, D2 native); otherwise follow the content
+theme implicitly. Two palette data models coexist deliberately — mermaid-family uses 5-field
+`MERMAID_PALETTES`, D2 uses its richer token catalog; don't unify them (ADR-0006 §3).
+
+1. Identify its model (#1 CSS-inherit, #2 swapped stylesheet, #3 self-contained SVG/canvas).
+2. **Prefer palette-pairing:** reuse layer 1 (`pairedPalette`) + `MERMAID_PALETTES` data. Only fall
+   back to monochrome `currentColor` post-processing if the engine genuinely can't be palette-mapped.
 3. Write a per-engine translation (palette → that engine's theme format).
 4. Apply it the engine's way (init param / register API) — patch Vditor's `*Render.ts` via
    esbuild if it hardcodes the theme.
-5. Wire a live re-render (mirror `reRenderMermaid`'s offscreen-swap) into `handleSetTheme` +
-   `handleConfigChanged`.
+5. Wire a live re-render into the single authority **`rethemeDiagrams()` (`diagram-retheme.ts`)** —
+   add a flag for it, gate on `contentThemeChanged` (+ its own setting if it has one), and mirror
+   `reRenderMermaid`'s offscreen-swap. Both flip sites (`handleSetTheme` / `handleConfigChanged`) route
+   through that one function — do NOT add wiring at the call sites (task 152 item 3).
 6. Test: unit (mapping + translation) + e2e (renders with the palette colors; reacts to a flip).

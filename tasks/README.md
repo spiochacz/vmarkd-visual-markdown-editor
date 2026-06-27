@@ -122,6 +122,7 @@ Cluster from the d2/TALA dig: TALA's look (compact 2D packing **+** clean edge r
 - [x] [45 — Build toolchain (drop foy/ts-node)](45-build-toolchain.md) — landed on plain Node + npm: `build.mjs` run by `node`, no `foy`/`ts-node`/Bun (tried Bun, reverted to minimise tooling)
 - [x] [49 — Adopt Biome (lint + format)](49-biome-lint-format.md) — single-tool lint+format, tuned to existing style, wired into CI (`biome ci`)
 - [x] [80 — Bump GitHub Actions off Node 20](80-actions-node24-bump.md) — ✅ `checkout@v4`/`setup-node@v4` → `@v5` in all 3 workflows (run on Node 24); `cache@v4` left (not in the warning). Done ahead of the 2026-06-16 force-to-Node-24 date.
+- [x] [146 — Diagram theming coherence (policy + dedup the two palette systems)](146-theming-coherence.md) — ✅ a stated theming policy in [ADR-0006](../docs/adr/0006-diagram-theming-policy.md): palette-pairing is the default, foreground-monochrome the documented fallback (§1); a `vmarkd.theme.<engine>` picker only for multi-theme-family engines (§2); **two palette models kept** (mermaid-family 5-field vs D2's richer token catalog) with a documented boundary, not unified (§3); mindmap/smiles accepted as deliberate partials (§5). `vmarkd-renderer-theming` skill refreshed (flip-coverage + per-renderer table corrected — was "only mermaid re-renders"). Doc/decision only, no code churn.
 
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)

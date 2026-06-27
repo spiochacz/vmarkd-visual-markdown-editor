@@ -1,11 +1,24 @@
 # Task 146 — Diagram theming coherence (policy + dedup the two palette systems)
 
-> **Status:** 📋 TODO — created 2026-06-24 from a theming-coherence audit across all renderers.
-> Architecture / consistency, not a feature.
+> **Status:** ✅ DONE 2026-06-27 — the deliverable is a written policy + an honest skill, both shipped.
+> All six findings resolved as **decisions recorded in [ADR-0006](../docs/adr/0006-diagram-theming-policy.md)**
+> + a refreshed `vmarkd-renderer-theming` skill (no code churn — any unification stays opt-in):
+> - **#1 policy:** palette-pairing is the default; foreground-monochrome is the documented fallback for
+>   engines that can't be palette-mapped without disproportionate work (ADR-0006 §1).
+> - **#2 settings:** expose a `vmarkd.theme.<engine>` picker ONLY for multi-theme-family engines
+>   (echarts gallery, D2 native); else follow the content theme. Existing two pass (ADR §2).
+> - **#3 palette models:** **decision (a)** — accept TWO models (mermaid-family 5-field
+>   `MERMAID_PALETTES`; D2's richer token catalog), document the boundary, do NOT unify (ADR §3).
+> - **#4 skill:** flip-coverage + per-renderer "Reacts to theme?" table corrected (was "only mermaid
+>   re-renders"; now ~15 via `rethemeDiagrams`); graphviz/abc/plantuml rows fixed, offline renderers
+>   added, new-renderer checklist points at ADR-0006 + `diagram-retheme.ts`.
+> - **#5 partials:** mindmap (◑) + smiles (binary) accepted as deliberate, not debt (ADR §5).
+> - **#6 markmap:** the one fully-baked renderer, tracked near task 95 — no work (ADR §6).
+>
 > **Source:** architecture review (2026-06-24), measured against `main.ts` flip-wiring +
 > `theme-registry.ts` + each renderer's theming code.
-> **Value / Risk:** 🟢 a stated policy + one palette model + an honest skill / low — mostly
-> doc + a decision; any code unification is opt-in per renderer.
+> **Value / Risk:** 🟢 a stated policy + a documented boundary + an honest skill / low — doc + a
+> decision; any code unification is opt-in per renderer.
 
 ## Measured map (2026-06-24) — model per renderer
 | Model | Renderers | Follows palette? | Re-renders on flip? |
