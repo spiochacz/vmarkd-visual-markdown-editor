@@ -8,17 +8,21 @@
 // the host can't diverge (task 84). Re-exported so existing importers/tests are
 // unchanged — the old duplicate definition is gone.
 import { resolveFontSize } from '../../src/theme-registry'
+import type { VmarkdConfigOptions } from '../../src/protocol'
 export { resolveFontSize }
 
-export interface BodyOptions {
-  useVscodeThemeColor?: boolean
-  contentTheme?: string
-  enableFullWidth?: boolean
-  highlightHeadings?: boolean
-  showHeadingMarkers?: boolean
-  outlineWidth?: number
-  fontSize?: string | number
-}
+// Derived from the shared config type (task 151 item 4) so a renamed setting key
+// propagates as a compile error here instead of silently reading `undefined`.
+// `fontSize` is widened to also accept a number (resolveFontSize handles both).
+export type BodyOptions = Pick<
+  VmarkdConfigOptions,
+  | 'useVscodeThemeColor'
+  | 'contentTheme'
+  | 'enableFullWidth'
+  | 'highlightHeadings'
+  | 'showHeadingMarkers'
+  | 'outlineWidth'
+> & { fontSize?: string | number }
 
 // Rendering theme (task 82): apply a markdown content theme by toggling the
 // `markdown-body` class on <body> (the class the vendored theme stylesheets target)

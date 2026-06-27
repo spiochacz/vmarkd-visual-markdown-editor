@@ -1,5 +1,6 @@
 import './preload'
-import type { HostMessage } from './protocol'
+import type { HostMessage } from '../../src/protocol'
+import { logToHost, reportError } from './webview-log'
 
 import {
   fileToBase64,
@@ -131,7 +132,12 @@ let invalidateIncrementalIr: () => void = () => {}
 let reportDocMode: () => void = () => {}
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
-let lastInitMsg: any = null
+// The init/re-init payload: the `update` message's body minus the discriminant
+// (initVditor is also called with a synthesised `{content}` fallback and a merged
+// re-init object, neither of which carries `command`). Typing this propagates an
+// options/wiki rename as a compile error through every reader (task 151 item 4).
+type InitPayload = Omit<Extract<HostMessage, { command: 'update' }>, 'command'>
+let lastInitMsg: InitPayload | null = null
 // Disposer for the active callouts MutationObserver (task 106); torn down + replaced on re-init.
 let disposeCallouts: (() => void) | null = null
 let disposePreviewCallouts: (() => void) | null = null
@@ -530,7 +536,7 @@ function runFinishInit(msg: any): void {
   reportDocMode()
 }
 
-function initVditor(msg) {
+function initVditor(msg: InitPayload) {
   lastInitMsg = msg
   // D2 layout engine (vmarkd.diagram.d2Layout) — read by custom-diagrams.ts renderD2 to pick
   // dagre (default) vs ELK. A plain window global keeps custom-diagrams decoupled from main.ts.
@@ -707,7 +713,7 @@ function initVditor(msg) {
         const incremental = incrementalIr.update(irTopBlocks(incrEl))
         const authoritative = vditor.getValue()
         if (incremental !== authoritative) {
-          console.warn(
+          logToHost(
             '[task69] incremental IR markdown drifted from full serialize on save; using authoritative + resyncing',
           )
           incrementalIr.invalidate()
@@ -945,7 +951,9 @@ function initVditor(msg) {
         const fileInfos = await Promise.all(
           files.map(async (f) => {
             const { blob, name } = await convertForUpload(f, {
-              format: opts.imageFormat,
+              // imageFormat is the raw setting string; convertForUpload treats any
+              // non-'webp' value as 'original' (safe degrade), so the cast is sound.
+              format: opts.imageFormat as 'original' | 'webp' | undefined,
               quality: opts.imageQuality,
               maxWidth: opts.imageMaxWidth,
             })
@@ -982,7 +990,7 @@ function initVditor(msg) {
 // owns one command and reads the shared module state directly, exactly as the
 // previous switch cases did.
 
-function handleUpdate(msg: any) {
+function handleUpdate(msg: Extract<HostMessage, { command: 'update' }>) {
   if (msg.type === 'init') {
     // A fresh editor: drop any stale gutter bars from a previous instance.
     lastDiffChanges = []
@@ -992,12 +1000,12 @@ function handleUpdate(msg: any) {
     try {
       initVditor(msg)
     } catch (error) {
-      // reset options when error
-      console.error(error)
+      // Init failed with the saved options — log it to the Output channel (not the
+      // hidden webview console, task 151 item 3) and retry with content only.
+      reportError(error, 'initVditor failed; retrying with content only')
       initVditor({ content: msg.content })
       saveVditorOptions()
     }
-    console.log('initVditor')
   } else if (streaming) {
     // A large doc is still streaming in; getValue() is partial. Don't diff/setValue
     // against it (would clobber the stream with a monolithic re-render). The content
@@ -1025,7 +1033,7 @@ function handleUpdate(msg: any) {
   }
 }
 
-function handleSetTheme(msg: any) {
+function handleSetTheme(msg: Extract<HostMessage, { command: 'set-theme' }>) {
   // Live re-theme without re-initialising (keeps cursor/scroll). Chrome colors
   // already follow via --vscode-* CSS vars.
   const theme = msg.theme === 'dark' ? 'dark' : 'light'
@@ -1159,7 +1167,9 @@ function reThemePlantumlGraphviz(): void {
   window.setTimeout(run, 400)
 }
 
-function handleConfigChanged(msg: any) {
+function handleConfigChanged(
+  msg: Extract<HostMessage, { command: 'config-changed' }>,
+) {
   // Live config reload (task 26): body-attr / CSS-var options apply without
   // touching Vditor. Constructor-only options (toolbar, word count, …) can't
   // — re-init Vditor with the merged options, preserving the current content.
@@ -1277,13 +1287,15 @@ function handleConfigChanged(msg: any) {
     reRenderD2(activeModeElement(window.vditor) ?? undefined)
 }
 
-function handleReloadCss(msg: any) {
+function handleReloadCss(msg: Extract<HostMessage, { command: 'reload-css' }>) {
   // Live CSS swap (tasks 12/26): replace the customCss or external-CSS <style>
   // node in place.
   swapStyle(msg.id, msg.css)
 }
 
-function handleGetCursorOffset(_msg: any) {
+function handleGetCursorOffset(
+  _msg: Extract<HostMessage, { command: 'get-cursor-offset' }>,
+) {
   // Reveal-in-Source (task 16): report the caret position so the host can select
   // the matching line. Restore the last in-editor caret first (the toolbar button
   // blurs the iframe and collapses the live selection). Reply with the line number
@@ -1305,13 +1317,13 @@ function handleGetCursorOffset(_msg: any) {
   vscode.postMessage({ command: 'cursor-offset', line, lineText })
 }
 
-function handleDiffInfo(msg: any) {
+function handleDiffInfo(msg: Extract<HostMessage, { command: 'diff-info' }>) {
   // Git gutters (task 17): stash + render the change bars.
   lastDiffChanges = (msg.changes || []) as DiffChange[]
   if (window.vditor) renderDiffMarkers(window.vditor, lastDiffChanges)
 }
 
-function handleUploaded(msg: any) {
+function handleUploaded(msg: Extract<HostMessage, { command: 'uploaded' }>) {
   msg.files.forEach((f: string) => {
     if (f.endsWith('.wav')) {
       vditor.insertValue(
@@ -1326,7 +1338,9 @@ function handleUploaded(msg: any) {
 // Scroll the webview to the Nth heading (the native-outline tree click, task 78).
 // Headings render in document order across IR/WYSIWYG/SV, so the source-parsed
 // ordinal lines up with the Nth <h1-6> in the active editor element.
-function handleScrollToHeading(msg: any) {
+function handleScrollToHeading(
+  msg: Extract<HostMessage, { command: 'scroll-to-heading' }>,
+) {
   const el = activeModeElement(window.vditor)
   if (!el) return
   const headings = el.querySelectorAll('h1, h2, h3, h4, h5, h6')
@@ -1337,7 +1351,17 @@ function handleScrollToHeading(msg: any) {
   setTimeout(() => target.classList.remove(FLASH_CLASS), 1400)
 }
 
-const messageHandlers: Record<string, (msg: HostMessage) => void> = {
+// One handler per command, keyed by the HostMessage discriminant so adding a
+// command is a compile error until a handler exists (exhaustive) and each handler
+// receives its narrowed variant — no `any`, so a field rename in protocol.ts
+// breaks here at compile time (task 151).
+type HostMessageHandlers = {
+  [K in HostMessage['command']]: (
+    msg: Extract<HostMessage, { command: K }>,
+  ) => void
+}
+
+const messageHandlers: HostMessageHandlers = {
   update: handleUpdate,
   'set-theme': handleSetTheme,
   'config-changed': handleConfigChanged,
@@ -1346,21 +1370,31 @@ const messageHandlers: Record<string, (msg: HostMessage) => void> = {
   'diff-info': handleDiffInfo,
   uploaded: handleUploaded,
   'scroll-to-heading': handleScrollToHeading,
-  'wiki-update': (msg: any) => {
+  'wiki-update': (msg) => {
     if (!Array.isArray(msg.pageKeys)) return
     wikiKnownPages.clear()
-    for (const k of msg.pageKeys as string[]) wikiKnownPages.add(k)
+    for (const k of msg.pageKeys) wikiKnownPages.add(k)
     wikiDisplayNames.clear()
     if (Array.isArray(msg.displayNames)) {
-      for (const n of msg.displayNames as string[]) wikiDisplayNames.add(n)
+      for (const n of msg.displayNames) wikiDisplayNames.add(n)
     }
   },
 }
 
 window.addEventListener('message', (e) => {
-  const msg = e.data
-  // console.log('msg from vscode', msg)
-  messageHandlers[msg?.command]?.(msg)
+  const msg = e.data as HostMessage | undefined
+  if (!msg || typeof msg.command !== 'string') return
+  // Indexed through a string record because TS can't prove `handler` matches
+  // `msg` once the discriminant is a runtime string — the map type above already
+  // guarantees each entry is sound, so the per-call narrowing is safe to bridge.
+  const handler = (
+    messageHandlers as Record<string, ((m: HostMessage) => void) | undefined>
+  )[msg.command]
+  if (!handler) {
+    logToHost(`[main] unhandled host message: ${msg.command}`)
+    return
+  }
+  handler(msg)
 })
 
 fixLinkClick()

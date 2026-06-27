@@ -6,6 +6,41 @@
 > **Source:** architecture review (2026-06-24), types/errors/state lanes, adversarially verified.
 > **Value / Risk:** 🟠 turns silent cross-seam breakage into compile/CI/Output-channel signals / low —
 > typing + error-routing, behaviour-preserving for the happy path.
+>
+> **🟢 In progress 2026-06-27 — items 1, 2, 3, 4, 7 DONE (with tests, all gates green):**
+> - **1 (typed protocol):** SSOT moved to `src/protocol.ts` (host imports `./protocol`, webview
+>   `../../src/protocol` — same cross-tree pattern as `mermaid-palettes`). Completed `HostMessage`
+>   (`config-changed.theme`, `wiki-update.displayNames`) + new `WebviewMessage` union + `VsCodeApi`.
+>   Both dispatch maps are keyed by the discriminant (`Extract<>` per command), every handler dropped
+>   `any`, both dispatchers log an unhandled command. `copy-html`/`copy-markdown` declared as the
+>   host side of planned task 53 (kept, not deleted).
+> - **2 (fail-loud write-back):** `syncToEditor` checks `applyEdit`'s boolean — on `false` it does NOT
+>   advance `lastSyncedContent`, clears `pendingWebviewContent`, `debug()`s + `showError`s.
+>   `onDidReceiveMessage` wrapped in try/catch → Output channel + showError. `document.save()` guarded.
+> - **3 (observability pipe):** `media-src/src/webview-log.ts` (`logToHost`/`reportError`) posts
+>   `{command:'log'|'error'}`; wired at the init-failure catch, the task-69 drift warn, the dispatch
+>   else-branch, and the faithful-fallback helper (replacing `console.*`).
+> - **4 (shared config type):** `VmarkdConfigOptions` in protocol.ts; `collectConfigOptions` annotated;
+>   `lastInitMsg`/`initVditor` typed (`InitPayload`); `live-config.BodyOptions` derived via `Pick<>`.
+> - **7 (faithful fallback):** `media-src/src/faithful-render.ts` (`faithfulRender`) renders into an
+>   offscreen-attached stage and swaps into the wrapper ONLY on success; on failure keeps raw source +
+>   stamps `data-<lang>-error` + logs. Applied to wavedrom + vega (were clear-before-render → blanked
+>   on a throw). Tests: `faithful-render.test.ts` (3), `webview-log.test.ts` (4).
+>
+> **🟢 Item 5 DONE 2026-06-27:** elkjs ships NO `.d.ts`, so hand-wrote the minimal ELK JSON-graph
+> interfaces (`ElkNode`/`ElkEdge`/`ElkPort`/`ElkLabel`/`ElkEdgeSection`/`ElkPoint`/`ElkInstance`) in
+> `elk-layout.ts` and replaced every `any` in the graph build/walk; typed `d2-wasm.ts`'s window
+> boundary (`Go`/`d2compile`) + the compile result (`D2CompileFn`/`D2CompileResult`). `d2-render.ts`
+> was already `any`-free (cleared by the earlier typecheck pass). All three d2 files now carry zero
+> `any` types; `any` survives only at the (narrowed-on-read) window global. Typecheck + build + 929
+> unit + lint all green.
+>
+> **⏳ Remaining — item 6 only:**
+> - **6 (strict flags) — BLOCKED as written:** flipping `strictNullChecks`+`noImplicitAny` on the
+>   media-src program yields **~1688 errors of which ~1550 are in Vditor's own source** (`vditor/src/index`
+>   is imported AS SOURCE, so it gets checked). Our files only have ~25-30. So a global flip is
+>   impractical; needs a design decision (a scoped sub-config that stubs the Vditor import, or
+>   opportunistic per-file fixes without the global flag). Deferred pending that decision.
 
 ## Findings → work items
 

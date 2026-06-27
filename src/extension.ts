@@ -26,6 +26,7 @@ import {
   invalidateCache,
 } from './wiki-cache'
 import { buildWebviewHtml, sanitizeCss } from './html-builder'
+import type { VmarkdConfigOptions, WebviewMessage } from './protocol'
 import {
   resolveContentTheme,
   resolveFontSize,
@@ -744,7 +745,21 @@ export class EditorSession {
     try {
       const edit = new vscode.WorkspaceEdit()
       edit.replace(this.activeUri, this.documentRange(document), toWrite)
-      await vscode.workspace.applyEdit(edit)
+      // applyEdit RESOLVES `false` (it does not throw) when the doc changed under
+      // us — advancing lastSyncedContent on a failed write would mark the webview
+      // and disk as reconciled while disk still holds the old text, and the
+      // change listener would never re-push (data-loss class, task 151 item 2).
+      const applied = await vscode.workspace.applyEdit(edit)
+      if (!applied) {
+        this.pendingWebviewContent = undefined
+        debug('syncToEditor: applyEdit returned false — write not applied', {
+          uri: this.activeUri.toString(),
+        })
+        showError(
+          'vMarkd: could not write your edit (the document changed underneath). Your change is still in the editor — save again.',
+        )
+        return
+      }
       this.lastSyncedContent = document.getText()
     } finally {
       this.applyingWebviewEdit = false
@@ -901,25 +916,33 @@ export class EditorSession {
     })
   }
 
-  private async onSaveOptions(message: any) {
+  private async onSaveOptions(
+    message: Extract<WebviewMessage, { command: 'save-options' }>,
+  ) {
     await this.context.globalState.update(
       KeyVditorOptions,
       MarkdownEditorProvider.sanitizeVditorOptions(message.options),
     )
   }
 
-  private onInfo(message: any) {
+  private onInfo(message: Extract<WebviewMessage, { command: 'info' }>) {
     vscode.window.showInformationMessage(message.content)
   }
 
-  private onError(message: any) {
+  private onError(message: Extract<WebviewMessage, { command: 'error' }>) {
     showError(message.content)
   }
 
   // Copy HTML / Markdown via the host clipboard (task 53 #1). The webview posts the
   // content and we write it with vscode.env.clipboard — rock-solid regardless of
   // iframe focus/permissions, unlike navigator.clipboard inside the webview.
-  private async onCopyToClipboard(message: any, label: string) {
+  private async onCopyToClipboard(
+    message: Extract<
+      WebviewMessage,
+      { command: 'copy-html' | 'copy-markdown' }
+    >,
+    label: string,
+  ) {
     try {
       await vscode.env.clipboard.writeText(String(message.content ?? ''))
       vscode.window.showInformationMessage(`Copy ${label} successfully!`)
@@ -928,14 +951,14 @@ export class EditorSession {
     }
   }
 
-  private async onEdit(message: any) {
+  private async onEdit(message: Extract<WebviewMessage, { command: 'edit' }>) {
     await this.syncToEditor(message.content)
   }
 
   // The webview reports which large-document helpers are active (content-visibility,
   // streaming, incremental serialization). Store per-uri and refresh the status-bar
   // marker, whose tooltip lists the active ones.
-  private onDocMode(message: any) {
+  private onDocMode(message: Extract<WebviewMessage, { command: 'docMode' }>) {
     docLargeMode.set(this.activeUri.toString(), {
       blocks: Number(message.blocks) || 0,
       chars: Number(message.chars) || 0,
@@ -946,9 +969,17 @@ export class EditorSession {
     refreshStatusBarMarker()
   }
 
-  private async onSave(message: any) {
+  private async onSave(message: Extract<WebviewMessage, { command: 'save' }>) {
     await this.syncToEditor(message.content)
-    await this.document.save()
+    // Guard the save: a failed disk write must surface, not vanish (task 151 item 2).
+    try {
+      await this.document.save()
+    } catch (error) {
+      debug('onSave: document.save() failed', error)
+      showError(
+        `vMarkd: save failed — ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   private async onEditInVscode() {
@@ -996,7 +1027,9 @@ export class EditorSession {
     }
   }
 
-  private async onUpload(message: any) {
+  private async onUpload(
+    message: Extract<WebviewMessage, { command: 'upload' }>,
+  ) {
     if (!ensureCanWriteFiles(this.activeUri)) {
       return
     }
@@ -1028,7 +1061,9 @@ export class EditorSession {
     })
   }
 
-  private async onOpenLink(message: any) {
+  private async onOpenLink(
+    message: Extract<WebviewMessage, { command: 'open-link' }>,
+  ) {
     const href = String(message.href)
     if (/^https?:/i.test(href)) {
       // External URL → the OS default browser. env.openExternal is the canonical
@@ -1041,7 +1076,9 @@ export class EditorSession {
     await vscode.commands.executeCommand('vscode.open', vscode.Uri.parse(local))
   }
 
-  private async onOpenWikilink(message: any) {
+  private async onOpenWikilink(
+    message: Extract<WebviewMessage, { command: 'open-wikilink' }>,
+  ) {
     const root = getWikiRoot(this.document.uri)
     if (!root) {
       showError(
@@ -1172,7 +1209,13 @@ export class EditorSession {
     // this.syncToEditor, …). Adding a command means adding an entry, not editing a
     // central switch (Open/Closed). Step 4 will promote these into on<Command>
     // methods; for now they stay inline.
-    const messageHandlers: Record<string, (message: any) => unknown> = {
+    // Keyed by the WebviewMessage discriminant so each handler receives its
+    // narrowed variant and a renamed command/field is a compile error (task 151).
+    const messageHandlers: {
+      [K in WebviewMessage['command']]?: (
+        message: Extract<WebviewMessage, { command: K }>,
+      ) => unknown
+    } = {
       ready: () => this.onReady(),
       'save-options': (message) => this.onSaveOptions(message),
       info: (message) => this.onInfo(message),
@@ -1297,11 +1340,36 @@ export class EditorSession {
         // Markdown Outline tree (task 78) when this panel becomes active/inactive.
         refreshOutline()
       }),
-      webviewPanel.webview.onDidReceiveMessage(async (message) => {
-        debug('msg from webview review', message, webviewPanel.active)
-
-        await messageHandlers[message.command]?.(message)
-      }),
+      webviewPanel.webview.onDidReceiveMessage(
+        async (message: WebviewMessage) => {
+          debug('msg from webview review', message, webviewPanel.active)
+          // The map type guarantees each entry matches its command; bridge the
+          // runtime-string index the same way the webview dispatcher does.
+          const handler = (
+            messageHandlers as Record<
+              string,
+              ((m: WebviewMessage) => unknown) | undefined
+            >
+          )[message?.command]
+          if (!handler) {
+            debug('unhandled webview message', message?.command)
+            return
+          }
+          // Error boundary (task 151 item 2): a throwing handler used to reject the
+          // onDidReceiveMessage promise silently — route it to the Output channel +
+          // surface it instead of swallowing it across the seam.
+          try {
+            await handler(message)
+          } catch (error) {
+            debug('webview message handler failed', message?.command, error)
+            showError(
+              `vMarkd: handling "${message?.command}" failed — ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            )
+          }
+        },
+      ),
       webviewPanel.onDidDispose(() => {
         this.pendingWebviewContent = undefined
         docLargeMode.delete(this.activeUri.toString())
@@ -1480,7 +1548,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
   // Both the initial `update`/init payload and the live `config-changed` push send
   // exactly these keys (init additionally spreads the saved Vditor options on top),
   // so adding a setting means touching only this list.
-  static collectConfigOptions() {
+  static collectConfigOptions(): VmarkdConfigOptions {
     const c = MarkdownEditorProvider.config
     // Rendering theme (task 82): `auto` keeps the VS Code-colour look (the old
     // useVscodeColors=true path); github-light/github-dark force a GitHub palette

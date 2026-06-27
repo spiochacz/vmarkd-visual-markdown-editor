@@ -12,6 +12,7 @@ import {
   d2Theme,
 } from './d2-render'
 import { renderD2GraphElk } from './elk-layout'
+import { faithfulRender } from './faithful-render'
 
 declare const window: Window & {
   vditor?: { options?: { cdn?: string } }
@@ -223,23 +224,21 @@ export function renderWavedrom(root?: ParentNode): void {
 
     let seq = 0
     blocks.forEach(({ wrapper, code }) => {
-      try {
+      const index = seq++
+      // faithfulRender swaps in the result only on success, so a JSON parse error
+      // OR a renderWaveForm throw leaves the raw source visible (was: blanked).
+      void faithfulRender(wrapper, 'wavedrom', (stage) => {
         const parsed = JSON.parse(code)
         // renderWaveForm(index, source, idPrefix) renders into
-        // document.getElementById(idPrefix + index).
-        const id = `__vmarkd_wd_${seq}`
+        // document.getElementById(idPrefix + index) — so the target div must be in
+        // the document (the stage is), with a matching id.
         const div = document.createElement('div')
-        div.id = id
-        wrapper.innerHTML = ''
-        wrapper.appendChild(div)
-        wd.renderWaveForm(seq, parsed, '__vmarkd_wd_')
-        seq++
-        const svg = wrapper.querySelector('svg')
+        div.id = `__vmarkd_wd_${index}`
+        stage.appendChild(div)
+        wd.renderWaveForm(index, parsed, '__vmarkd_wd_')
+        const svg = stage.querySelector('svg')
         if (svg) themeWavedromSvg(svg)
-        wrapper.setAttribute('data-processed', 'true')
-      } catch {
-        // Invalid JSON or render error — leave the source visible
-      }
+      })
     })
   })
 }
@@ -255,6 +254,7 @@ export function reRenderWavedrom(root?: ParentNode): void {
       ),
     )) {
       el.removeAttribute('data-processed')
+      el.removeAttribute('data-wavedrom-error')
       el.innerHTML = ''
     }
   }
@@ -585,20 +585,20 @@ function renderVegaBlock(
   if (!ve) return
 
   blocks.forEach(({ wrapper, code }) => {
-    try {
+    const fg = getComputedStyle(wrapper).color || '#333'
+    // faithfulRender keeps the raw source on a JSON parse error OR a failed embed
+    // (was: source cleared first, so a bad spec blanked the block).
+    void faithfulRender(wrapper, 'vega', async (stage) => {
       // Offline/security: only inline data.values renders; stripRemoteData recursively removes any
       // remote `url` (top-level, data arrays, nested layers/transforms) so nothing fetches.
       const spec = stripRemoteData(JSON.parse(code))
       const div = document.createElement('div')
-      wrapper.innerHTML = ''
-      wrapper.appendChild(div)
-      const fg = getComputedStyle(wrapper).color || '#333'
-      const bg = 'transparent'
-      ve(div, spec, {
+      stage.appendChild(div)
+      await ve(div, spec, {
         renderer: 'svg',
         actions: false,
         config: {
-          background: bg,
+          background: 'transparent',
           axis: {
             labelColor: fg,
             titleColor: fg,
@@ -612,13 +612,7 @@ function renderVegaBlock(
           view: { stroke: 'transparent' },
         },
       })
-        .then(() => {
-          wrapper.setAttribute('data-processed', 'true')
-        })
-        .catch(() => {})
-    } catch {
-      // Invalid JSON — leave source visible
-    }
+    })
   })
 }
 
@@ -660,6 +654,7 @@ export function reRenderVega(root?: ParentNode): void {
       ),
     )) {
       el.removeAttribute('data-processed')
+      el.removeAttribute('data-vega-error')
       el.innerHTML = ''
     }
   }

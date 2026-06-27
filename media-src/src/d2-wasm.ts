@@ -12,7 +12,23 @@
 //
 // This module OWNS the D2Graph contract: the Go entrypoint (media-src/vendor/d2/build/main.go)
 // emits JSON that MUST match this interface — keep them in sync (verified by d2-wasm.test.ts).
-declare const window: any
+
+// The (Tiny)Go wasm_exec runtime handle + the synchronous compile entrypoint it registers.
+// Typed so the window-global boundary is narrowed immediately on read (task 151 item 5).
+interface GoRuntime {
+  importObject: WebAssembly.Imports
+  run(instance: WebAssembly.Instance): void
+}
+// d2compile returns EITHER an error string OR a JSON `graph` string (parsed to D2Graph).
+interface D2CompileResult {
+  error?: string
+  graph?: string
+}
+type D2CompileFn = (src: string) => D2CompileResult
+declare const window: Window & {
+  Go?: new () => GoRuntime
+  d2compile?: D2CompileFn
+}
 
 export interface D2Column {
   name: string
@@ -95,7 +111,7 @@ export interface D2Graph {
 // Cache-buster: MUST equal media-src/vendor/d2/source.json "version" (bump both on a D2 update).
 const D2_VER = '0.1.33'
 
-let bootPromise: Promise<((src: string) => any) | null> | null = null
+let bootPromise: Promise<D2CompileFn | null> | null = null
 
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve) => {
@@ -109,7 +125,7 @@ function loadScript(src: string, id: string): Promise<void> {
   })
 }
 
-export function bootD2(cdn: string): Promise<((src: string) => any) | null> {
+export function bootD2(cdn: string): Promise<D2CompileFn | null> {
   if (bootPromise) return bootPromise
   bootPromise = (async () => {
     await loadScript(

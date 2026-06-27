@@ -5,6 +5,9 @@ import { shouldOpenLink, isEditorContentLink } from './link-open-policy'
 // which depends on ambient globals not loaded here. main.ts constructs from source and
 // casts the assignment to bridge the two identities.
 import type Vditor from 'vditor'
+// Typed VS Code webview API handle so every `vscode.postMessage` is checked against
+// the WebviewMessage union — a bad command/field is now a compile error (task 151).
+import type { VsCodeApi } from '../../src/protocol'
 window.vscode = (window as any).acquireVsCodeApi?.()
 ;(window as any).global = window
 
@@ -12,10 +15,10 @@ let responsiveTableCleanup: (() => void) | null = null
 
 declare global {
   export const vditor: Vditor
-  export const vscode: any
+  export const vscode: VsCodeApi
   interface Window {
     vditor: Vditor
-    vscode: any
+    vscode: VsCodeApi
     global: Window
   }
 }
@@ -64,12 +67,17 @@ export function fixPanelHover() {
       })
     })
 }
-// 文件转base64用于传输
-export const fileToBase64 = async (file) => {
-  return new Promise((res, rej) => {
+// 文件转base64用于传输 — strip the `data:*;base64,` prefix, returning just the payload.
+export const fileToBase64 = async (file: Blob): Promise<string> => {
+  return new Promise<string>((res, rej) => {
     const reader = new FileReader()
     reader.onload = (evt) => {
-      res(evt.target.result.toString().split(',')[1])
+      const result = evt.target?.result
+      if (typeof result !== 'string') {
+        rej(new Error('fileToBase64: unexpected non-string FileReader result'))
+        return
+      }
+      res(result.split(',')[1] ?? '')
     }
     reader.onerror = rej
     reader.readAsDataURL(file)

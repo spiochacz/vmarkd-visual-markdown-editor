@@ -24,10 +24,73 @@ import {
 } from './d2-render'
 import { refineLayout } from './d2-refine'
 
-declare const window: any
+declare const window: Window & { __vmarkdElk?: ElkInstance }
 
-let elkInstance: any = null
-let bootPromise: Promise<any> | null = null
+// Minimal hand-written types for the ELK JSON graph API (task 151 item 5). elkjs
+// ships no .d.ts, so model just the subset we build/read — the most x↔y-error-prone
+// seam, now compiler-checked. Shapes mirror the documented ELK JSON format
+// (https://eclipse.dev/elk/documentation/tooldevelopers/graphdatastructure/jsonformat.html):
+// every layout field is optional because ELK fills geometry in on the OUTPUT graph.
+type ElkLayoutOptions = Record<string, string>
+
+interface ElkPoint {
+  x: number
+  y: number
+}
+
+interface ElkLabel {
+  text?: string
+  width?: number
+  height?: number
+  x?: number
+  y?: number
+  layoutOptions?: ElkLayoutOptions
+}
+
+interface ElkPort {
+  id: string
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  layoutOptions?: ElkLayoutOptions
+}
+
+interface ElkEdgeSection {
+  startPoint: ElkPoint
+  endPoint: ElkPoint
+  bendPoints?: ElkPoint[]
+}
+
+interface ElkEdge {
+  id: string
+  sources: string[]
+  targets: string[]
+  labels?: ElkLabel[]
+  sections?: ElkEdgeSection[]
+  layoutOptions?: ElkLayoutOptions
+}
+
+interface ElkNode {
+  id: string
+  width?: number
+  height?: number
+  x?: number
+  y?: number
+  children?: ElkNode[]
+  edges?: ElkEdge[]
+  ports?: ElkPort[]
+  labels?: ElkLabel[]
+  layoutOptions?: ElkLayoutOptions
+}
+
+// The main-thread ELK instance exposed by elk-main.js as window.__vmarkdElk.
+interface ElkInstance {
+  layout(graph: ElkNode): Promise<ElkNode>
+}
+
+let elkInstance: ElkInstance | null = null
+let bootPromise: Promise<ElkInstance | null> | null = null
 
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve) => {
@@ -43,11 +106,12 @@ function loadScript(src: string, id: string): Promise<void> {
 
 // Lazy-load elk-main.js (constructs a main-thread ELK instance → window.__vmarkdElk) and cache it.
 // Returns null if the engine can't be loaded (caller then falls back to dagre).
-export function bootElk(cdn: string): Promise<any> {
+export function bootElk(cdn: string): Promise<ElkInstance | null> {
   if (elkInstance) return Promise.resolve(elkInstance)
   if (bootPromise) return bootPromise
   bootPromise = (async () => {
     await loadScript(`${cdn}/dist/js/elk/elk-main.js`, 'vditorElkScript')
+    // Narrow the untyped window global to ElkInstance immediately at the boundary.
     elkInstance = window.__vmarkdElk ?? null
     return elkInstance
   })()
@@ -99,7 +163,7 @@ export function elkDirectionConfig(direction?: string): {
 export async function layoutElk(
   graph: D2Graph,
   measure: Sizer,
-  elk: any,
+  elk: ElkInstance,
   extraOptions: Record<string, string> = {},
 ): Promise<Layout> {
   const { containers, gridIds, inGrid } = classify(graph)
@@ -143,13 +207,18 @@ export async function layoutElk(
   // id -> kind/size, so we can rebuild PlacedNodes after ELK assigns positions.
   const meta = new Map<
     string,
-    { s: D2Shape; kind: PlacedNode['kind']; sqlCols?: number[]; grid?: any }
+    {
+      s: D2Shape
+      kind: PlacedNode['kind']
+      sqlCols?: number[]
+      grid?: PlacedNode['grid']
+    }
   >()
 
   // Keep a handle on every built ELK node so edges can be attached to their least-common-ancestor
   // container (see below) rather than all dumped on root.
-  const nodeById = new Map<string, any>()
-  const buildNode = (s: D2Shape): any => {
+  const nodeById = new Map<string, ElkNode>()
+  const buildNode = (s: D2Shape): ElkNode => {
     if (containers.has(s.id)) {
       meta.set(s.id, { s, kind: 'container' })
       const kids = graph.shapes
@@ -174,7 +243,7 @@ export async function layoutElk(
         id: s.id,
         labels: [{ text: s.label }],
         children: kids,
-        edges: [] as any[],
+        edges: [] as ElkEdge[],
         layoutOptions: {
           'elk.padding': pad,
           'elk.spacing.edgeEdge': String(ee),
@@ -228,7 +297,7 @@ export async function layoutElk(
         layoutOptions: { 'elk.port.side': inSide },
       })),
     ]
-    const node: any = {
+    const node: ElkNode = {
       id: s.id,
       width: w,
       height: h,
@@ -285,7 +354,7 @@ export async function layoutElk(
       dst: string
     }
   >()
-  const rootEdges: any[] = []
+  const rootEdges: ElkEdge[] = []
   let ei = 0
   let gi = -1 // absolute graph.edges index (matches the port pre-pass keys)
   for (const e of graph.edges) {
@@ -308,7 +377,7 @@ export async function layoutElk(
     // Use the per-edge port when the endpoint is a leaf with ports; else the node id (containers).
     const srcRef = outList.has(e.src) ? portId(e.src, 'o', gi) : e.src
     const dstRef = inList.has(e.dst) ? portId(e.dst, 'i', gi) : e.dst
-    const elkEdge: any = { id, sources: [srcRef], targets: [dstRef] }
+    const elkEdge: ElkEdge = { id, sources: [srcRef], targets: [dstRef] }
     // Hand ELK the SIZED label so its layered pass reserves a gap for it (a "label dummy node") and
     // routes around it — instead of us dropping the text on the raw route midpoint where it collides
     // with lines/boxes (task 122). Measure with the SAME sizer + edge font size toSVG draws with, or
@@ -382,7 +451,7 @@ export async function layoutElk(
   // node, so an intra-container edge (e.g. spa→ssr) lives on the container with container-relative
   // coords — NOT on root. Reading only res.edges left those edges (and their labels) stranded at the
   // origin (top-left). So collect edges at EVERY level, offset by that node's absolute origin.
-  const collectEdges = (node: any, ax: number, ay: number) => {
+  const collectEdges = (node: ElkNode, ax: number, ay: number) => {
     for (const e of node.edges || []) {
       // Fallback matches edgeMeta's value type (src/dst required) so em.label/src/dst type-check; it is
       // effectively dead since every collected edge id was registered in edgeMeta above.
@@ -409,7 +478,7 @@ export async function layoutElk(
           sec.startPoint,
           ...(sec.bendPoints || []),
           sec.endPoint,
-        ].map((p: any) => [p.x + ax, p.y + ay])
+        ].map((p: ElkPoint) => [p.x + ax, p.y + ay])
         // An edge can have several sections — draw the label on the FIRST only, at ELK's reserved
         // position (else the section midpoint).
         const mid = pts[Math.floor(pts.length / 2)]
@@ -437,7 +506,7 @@ export async function layoutElk(
     }
   }
 
-  const walk = (n: any, ox: number, oy: number) => {
+  const walk = (n: ElkNode, ox: number, oy: number) => {
     const x = ox + (n.x || 0)
     const y = oy + (n.y || 0)
     const m = meta.get(n.id)
