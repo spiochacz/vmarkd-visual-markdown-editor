@@ -205,6 +205,17 @@ With `config` — `hscale` stretches the time axis (a non-default `skin` silentl
 [Ship] -> [Treasure]
 ```
 
+Nested containers (exercises nomnoml's per-depth fill shades — must follow the theme at every level):
+
+```nomnoml
+[Outer|
+  [Middle|
+    [Inner|x: Int]
+  ]
+]
+[Outer] -> [Sibling]
+```
+
 ---
 
 ## 14. GeoJSON — interactive map, offline / no tiles (task 99)

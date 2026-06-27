@@ -3,6 +3,17 @@
 > **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderNomnoml` is wired in `custom-diagrams.ts`
 > (nomnoml 1.7.0 vendored); status below is stale. Verify-first: theming — do `#fill`/`#stroke`
 > directives + default colours follow / clash with the content theme? Mark done once theming verified.
+>
+> **✅ Verify 2026-06-27 (103b):** theming CONFIRMED complete — `themeNomnomlSvg` recolors nomnoml's
+> baked palette (text/stroke `#33322e` → currentColor; node fill `#eee8d5`/`#fdf6e3` → currentColor @
+> 0.06) on `fill`/`stroke` ATTRIBUTES. A probe on github-dark showed every nomnoml SVG colour resolves
+> to `currentColor`/`transparent`/`none` — including a NESTED-container example (depth 3) added to the
+> fixture: nomnoml uses only those 2 baked colours at every nesting level (NO per-depth shade array, so
+> the suspected "deep-nested beige on dark" gap does NOT exist — no code change needed). Custom
+> `#fill`/`#stroke` colours aren't in the recolor lists, so they survive as-authored (respected). The
+> theming was previously UNASSERTED (e2e only logged colours); now locked by
+> `test/vscode-e2e/nomnoml-theme.spec.ts` (flat + nested, no baked colour survives on dark). No
+> `media-src` change — render + theming were already correct; this round is test + docs only.
 
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```nomnoml ` fenced blocks as UML diagrams. nomnoml is a tiny, pure-JS UML language —
