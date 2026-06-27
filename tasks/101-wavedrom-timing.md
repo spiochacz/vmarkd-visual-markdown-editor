@@ -3,6 +3,14 @@
 > **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderWavedrom` is wired in `custom-diagrams.ts`
 > (wavedrom 3.6.1 vendored), themed via `themeWavedromSvg` (signal colours kept, black→currentColor);
 > status below is stale. Verify-first: `reg`/`assign` skins + `config` honoured. Mark done once verified.
+>
+> **🐛 Fix 2026-06-27:** the wave LINES were black/invisible on dark (user report). `themeWavedromSvg`
+> only recoloured INLINE styles, but WaveDrom's wave lines (`.s1/.s2`), dashes (`.s3/.s4`) and hatch
+> (`.s6`) get their colour from CLASSES in an embedded `<style>` skin (`stroke/fill/color:#000`). Now
+> also rewrite that skin CSS: black → currentColor (incl. `color:#000`, which would otherwise pin
+> currentColor itself to black), white fill → transparent; the pastel data fills (`.s8–.s14`) and the
+> `#0041c4` arrows are left untouched. Test: `test/vscode-e2e/wavedrom-theme.spec.ts` (on github-dark a
+> wave path resolves to the themed foreground, and the skin no longer hard-codes black).
 
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```wavedrom ` fenced blocks as digital **timing diagrams** (WaveJSON). Popular in

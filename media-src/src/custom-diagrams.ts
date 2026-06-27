@@ -86,6 +86,26 @@ function themeSvg(svg: SVGElement): void {
 function themeWavedromSvg(svg: SVGElement): void {
   svg.style.maxWidth = '100%'
   svg.style.height = 'auto'
+  // The wave LINES (.s1/.s2), dashes (.s3/.s4) and hatch (.s6) get their colour from CLASSES in an
+  // embedded <style> skin (stroke/fill/color:#000), NOT inline attrs — so the inline pass below misses
+  // them and they stay black (invisible on dark; reported). Rewrite the skin CSS: black → currentColor
+  // (incl. `color:#000`, which would otherwise pin currentColor itself to black so even recoloured
+  // strokes render black), white fill → transparent. The pastel data-value fills (.s8–.s14) and the
+  // #0041c4 signal arrows are intentional data colours — their hexes don't match these patterns, so
+  // they're left untouched.
+  svg.querySelectorAll('style').forEach((styleEl) => {
+    const css = styleEl.textContent
+    if (!css) return
+    const next = css
+      .replace(
+        /(stroke|fill|color)\s*:\s*#0{3}(?:0{3})?\b/gi,
+        '$1:currentColor',
+      )
+      .replace(/(stroke|fill|color)\s*:\s*black\b/gi, '$1:currentColor')
+      .replace(/fill\s*:\s*#f{3}(?:f{3})?\b/gi, 'fill:transparent')
+      .replace(/fill\s*:\s*white\b/gi, 'fill:transparent')
+    if (next !== css) styleEl.textContent = next
+  })
   const WHITE = ['white', '#fff', '#ffffff', '#FFF', '#ffffffcc']
   const BLACK = ['#000', 'black', '#000000']
   svg.querySelectorAll('*').forEach((el) => {
@@ -592,6 +612,14 @@ export function reRenderVega(root?: ParentNode): void {
 
 // --- STL 3D models (three.js) ---
 
+// A shaded 3D solid can't follow the theme foreground (currentColor) the way our line-art SVG
+// diagrams do: three.js lighting MULTIPLIES the base colour, so a near-black foreground — every light
+// content theme, e.g. github-light — collapses the model into an all-black, formless blob (reported
+// bug). Use a fixed, theme-INDEPENDENT neutral mid-grey instead; the directional lights then render
+// clear 3D shading on BOTH light and dark backgrounds. Kept mid-tone (luminance ~0.35) so neither the
+// lit nor the shadowed faces clip to white/black. Exported + asserted in stl-material.test.ts.
+export const STL_MATERIAL_COLOR = '#9aa0a6'
+
 function initStlViewer(wrapper: HTMLElement, stlText: string): void {
   const T = window.__threeSTL
   if (!T) return
@@ -617,12 +645,15 @@ function initStlViewer(wrapper: HTMLElement, stlText: string): void {
 
   const geom = new T.STLLoader().parse(stlText)
   geom.computeVertexNormals()
-  const fg = getComputedStyle(wrapper).color || '#888888'
+  // Theme-independent neutral material (see STL_MATERIAL_COLOR) — NOT the wrapper's foreground, which
+  // turned the model all-black on every light theme. data-stl-material records the applied colour so
+  // the real-VS-Code e2e can verify the fix without a flaky WebGL pixel read-back.
   const mat = new T.MeshPhongMaterial({
-    color: new T.Color(fg),
+    color: new T.Color(STL_MATERIAL_COLOR),
     shininess: 60,
     specular: new T.Color(0x444444),
   })
+  canvas.dataset.stlMaterial = STL_MATERIAL_COLOR
   const mesh = new T.Mesh(geom, mat)
   scene.add(mesh)
 

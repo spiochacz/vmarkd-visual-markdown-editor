@@ -3,6 +3,17 @@
 > **🔎 Audit 2026-06-24 (task 142):** IMPLEMENTED — `renderStl` is wired in `custom-diagrams.ts`
 > (three.js 0.184 vendored); status below is stale. Verify-first: orbit controls, lighting, and perf on
 > large meshes. Mark done for the render once verified.
+>
+> **🐛 Fix 2026-06-27:** the model used the theme **foreground** (`currentColor`) as its material
+> colour, so on every light content theme (e.g. github-light) the near-black foreground × three.js
+> lighting rendered an **all-black, formless blob** (user report). Replaced with a fixed, theme-
+> INDEPENDENT neutral mid-grey (`STL_MATERIAL_COLOR = #9aa0a6` in `custom-diagrams.ts`) — directional
+> lighting now conveys 3D form on both light and dark. This supersedes the planned "material from the
+> palette + live re-theme on flip" below: a shaded solid can't follow `currentColor` the way line-art
+> SVG does (lighting MULTIPLIES the base; a near-black base can't be lit), so a neutral material is the
+> correct, theme-agnostic choice and no live re-theme is needed. Tests: `media-src/src/stl-material.
+> test.ts` (unit: mid-tone invariant) + `test/vscode-e2e/stl-material.spec.ts` (real-VS-Code: the
+> canvas carries `data-stl-material="#9aa0a6"`; robust where the headless host has no WebGL context).
 
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```stl ` fenced blocks as interactive 3D models — a **GitHub-native** Markdown feature

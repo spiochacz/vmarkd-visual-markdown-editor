@@ -639,7 +639,7 @@ bob -> alice: hey
 | geojson | ✅ | Leaflet style color from computed style (task 99) |
 | topojson | ✅ | same as geojson (task 99) |
 | vega / vega-lite | ✅ | vega-embed config (axis/label/title colors from computed style, task 102) |
-| stl | ✅ | MeshPhongMaterial color from computed style (task 100) |
+| stl | ✅ | MeshPhongMaterial fixed neutral mid-grey, theme-independent (task 100) |
 | d2 | ✅ | compile-only WASM + dagre + `currentColor` SVG (task 104) |
 
 ---
