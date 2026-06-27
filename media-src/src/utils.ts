@@ -83,16 +83,18 @@ export const fileToBase64 = async (file: Blob): Promise<string> => {
     reader.readAsDataURL(file)
   })
 }
-// 保存 vditor 配置到 vscode 同步存储
+// Persist Vditor state across reopens. ALLOW-LIST = only genuinely user-chosen,
+// non-config-derived state (task 152 item 4): the editor `mode` (ir/wysiwyg/sv) the
+// user toggles at runtime. The whole `preview` blob + top-level `theme` used to be
+// persisted, but every key in them is config-derived and re-applied authoritatively
+// in buildVditorOptions — so saving them only created a stale shadow that fought live
+// config (the lineNumber-stuck-on / stale-code-style one-way-switch bugs, memory:
+// saved-Vditor-options-override-settings). Persisting just `mode` is the structural
+// fix; buildVditorOptions' re-merge stays as belt-and-suspenders for old saved blobs.
 export function saveVditorOptions() {
-  const vditorOptions = {
-    theme: vditor.vditor.options.theme,
-    mode: vditor.vditor.currentMode,
-    preview: vditor.vditor.options.preview,
-  }
   vscode.postMessage({
     command: 'save-options',
-    options: vditorOptions,
+    options: { mode: vditor.vditor.currentMode },
   })
 }
 // toolbar 点击时保存配置

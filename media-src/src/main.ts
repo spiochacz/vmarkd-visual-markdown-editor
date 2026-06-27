@@ -1,6 +1,7 @@
 import './preload'
 import type { HostMessage } from '../../src/protocol'
 import { logToHost, reportError } from './webview-log'
+import { setD2Config } from './d2-config'
 
 import {
   fileToBase64,
@@ -538,16 +539,16 @@ function runFinishInit(msg: any): void {
 
 function initVditor(msg: InitPayload) {
   lastInitMsg = msg
-  // D2 layout engine (vmarkd.diagram.d2Layout) — read by custom-diagrams.ts renderD2 to pick
-  // dagre (default) vs ELK. A plain window global keeps custom-diagrams decoupled from main.ts.
-  ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
-  // D2 colour theme (vmarkd.theme.d2) — read by custom-diagrams.ts → d2Theme(). Same global pattern.
-  ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  // D2 render config (layout/theme/contentTheme/mode) — the typed owner (d2-config.ts)
+  // is the single channel custom-diagrams.ts renderD2/reRenderD2 read (task 152 item 5).
+  setD2Config({
+    layout: msg.options?.d2Layout,
+    theme: msg.options?.d2Theme,
+    contentTheme: msg.options?.contentTheme,
+    mode: msg.theme === 'dark' ? 'dark' : 'light',
+  })
   // Whether remote basemap tiles may load on geojson/topojson maps (task 99) — read by initLeafletMap.
   ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
-  // Content theme + editor mode — only consumed by the D2 'auto' theme (pairs to the content palette).
-  ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
-  ;(window as any).__vmarkdMode = msg.theme === 'dark' ? 'dark' : 'light'
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
   // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
@@ -1037,52 +1038,21 @@ function handleSetTheme(msg: Extract<HostMessage, { command: 'set-theme' }>) {
   // Live re-theme without re-initialising (keeps cursor/scroll). Chrome colors
   // already follow via --vscode-* CSS vars.
   const theme = msg.theme === 'dark' ? 'dark' : 'light'
-  // Keep the mode global current so the D2 'auto' theme picks the right light/dark palette when the
-  // D2 re-render fires (via reThemePlantumlGraphviz below). Set BEFORE any re-render.
-  ;(window as any).__vmarkdMode = theme
-  applyVditorTheme(theme)
-  // Mermaid doesn't re-theme on setTheme — re-render existing diagrams (task 59).
-  // reRenderMermaid renders offscreen and swaps the SVG in atomically, so the live DOM
-  // never collapses (no scroll jump, no flash).
-  applyMermaidTheme(
-    window,
-    resolveMermaidInit(
-      lastInitMsg?.options?.mermaidTheme,
-      lastInitMsg?.options?.contentTheme,
-      theme,
-    ),
-  )
-  const el = (window.vditor as any)?.vditor?.[window.vditor.getCurrentMode()]
-    ?.element as HTMLElement | undefined
-  reRenderMermaid(
-    el,
-    lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
+  // Keep the mode current so the D2 'auto' theme picks the right light/dark palette when D2
+  // re-renders below. Set BEFORE rethemeDiagrams.
+  setD2Config({ mode: theme })
+  // A VS Code theme flip re-themes EVERYTHING — route through the single authority with all flags on.
+  rethemeDiagrams({
     theme,
-  )
-  // ECharts likewise paints once — re-render in the new theme (task 90).
-  applyEchartsTheme(
-    window,
-    resolveEchartsTheme(
-      lastInitMsg?.options?.echartsTheme,
-      lastInitMsg?.options?.contentTheme,
-      theme,
-      readVscodePalette(window),
-    ),
-  )
-  reRenderEcharts(window, el, theme)
-  // flowchart.js bakes its colours (no currentColor) → re-render in the new theme's foreground
-  // (deferred so it reads the SETTLED colour after the content-theme <link> applies).
-  reThemeFlowchart()
-  // Vega bakes axis/label colours from getComputedStyle too → same foreground-settle polling.
-  reThemeVega()
-  // PlantUML bakes dark/light at render time → re-render with the new mode.
-  // Graphviz uses currentColor but a re-render guarantees a fresh SVG.
-  reThemePlantumlGraphviz()
-  // SMILES picks its palette from the page BACKGROUND luminance (bgIsDark), not the editor mode —
-  // and a theme flip changes that background via CSS WITHOUT mutating the #app subtree, so
-  // observeSmiles' MutationObserver never fires. Re-run repairSmiles explicitly. (No-op when the
-  // background's darkness didn't change — it's idempotent per bg darkness.)
-  reThemeSmiles()
+    code: true,
+    mermaid: true,
+    echarts: true,
+    smiles: true,
+    flowchart: true,
+    vega: true,
+    monoGroup: true,
+    d2: true,
+  })
 }
 
 /** Re-evaluate every smiles preview's palette after a theme flip. The new background CSS (and the
@@ -1142,29 +1112,86 @@ function reThemeVega(): void {
   )
 }
 
-/** Re-render PlantUML (dark/light palette) + Graphviz (currentColor) after a theme flip.
- *  Deferred so the content-theme `<link>` and vditor--dark class have settled. */
-function reThemePlantumlGraphviz(): void {
+/** Re-render the baked/currentColor SVG renderers after a theme flip — deferred (rAF + 400ms) so the
+ *  content-theme `<link>` and the `vditor--dark` class have settled before the re-render reads colours.
+ *  `mono` covers plantuml/graphviz/abc/wavedrom/nomnoml/geojson/topojson/stl; `d2` is SEPARATE so the
+ *  single authority (rethemeDiagrams) decides D2's grouping once — D2 can re-render for a layout/theme
+ *  change with no content flip, where the mono group must NOT re-render. */
+function reThemeMonochromeGroup(opts: { mono: boolean; d2: boolean }): void {
+  if (!opts.mono && !opts.d2) return
   const cdn = lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || ''
   const run = () => {
     const el = activeModeElement(window.vditor) ?? undefined
-    reRenderPlantuml(el, cdn)
-    reRenderGraphviz(el, cdn)
-    reRenderAbc(el, cdn)
-    reRenderWavedrom(el ?? undefined)
-    reRenderNomnoml(el ?? undefined)
-    reRenderGeojson(el ?? undefined)
-    reRenderTopojson(el ?? undefined)
-    // Vega is re-themed via reThemeVega() (foreground polling) instead — its axis/label colours come
-    // from getComputedStyle, which settles too late for this fixed 400ms delay (the old colour stuck).
-    reRenderStl(el ?? undefined)
-    // One edit covers BOTH theme-flip sites: reThemePlantumlGraphviz() runs from
-    // handleSetTheme AND handleConfigChanged, so D2 re-renders on a content-theme flip
-    // and a config change alike (D2 SVG bakes currentColor, so a flip needs a re-render).
-    reRenderD2(el ?? undefined)
+    if (opts.mono) {
+      reRenderPlantuml(el, cdn)
+      reRenderGraphviz(el, cdn)
+      reRenderAbc(el, cdn)
+      reRenderWavedrom(el ?? undefined)
+      reRenderNomnoml(el ?? undefined)
+      reRenderGeojson(el ?? undefined)
+      reRenderTopojson(el ?? undefined)
+      // Vega is re-themed via reThemeVega() (foreground polling) — its axis/label colours come from
+      // getComputedStyle, which settles too late for this fixed 400ms delay (the old colour stuck).
+      reRenderStl(el ?? undefined)
+    }
+    // D2 SVG bakes currentColor, so a flip needs a re-render. It rides the same deferral.
+    if (opts.d2) reRenderD2(el ?? undefined)
   }
   requestAnimationFrame(run)
   window.setTimeout(run, 400)
+}
+
+/** THE single re-theme authority (task 152 item 3). Both theme-flip sites route through this:
+ *  handleSetTheme passes everything (a mode flip re-themes all), handleConfigChanged passes the
+ *  changed-flag subset. D2's grouping lives ONLY here — it fires once when the mono SVG group
+ *  re-themes (content flip) OR its own layout/theme changed, so the two sites can no longer
+ *  double-render D2 or drift. `theme` is the effective light/dark mode the renderers paint with. */
+function rethemeDiagrams(f: {
+  theme: 'dark' | 'light'
+  code: boolean
+  mermaid: boolean
+  echarts: boolean
+  smiles: boolean
+  flowchart: boolean
+  vega: boolean
+  monoGroup: boolean
+  d2: boolean
+}): void {
+  const el = activeModeElement(window.vditor) ?? undefined
+  const cdn = lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || ''
+  // Code-block + content theme: swap the hljs stylesheet + UI mode (no re-init, keeps cursor).
+  if (f.code) applyVditorTheme(f.theme)
+  // Mermaid/ECharts paint once → apply the theme wrapper + offscreen re-render (tasks 59/86/90).
+  if (f.mermaid) {
+    applyMermaidTheme(
+      window,
+      resolveMermaidInit(
+        lastInitMsg?.options?.mermaidTheme,
+        lastInitMsg?.options?.contentTheme,
+        f.theme,
+      ),
+    )
+    reRenderMermaid(el, cdn, f.theme)
+  }
+  if (f.echarts) {
+    applyEchartsTheme(
+      window,
+      resolveEchartsTheme(
+        lastInitMsg?.options?.echartsTheme,
+        lastInitMsg?.options?.contentTheme,
+        f.theme,
+        readVscodePalette(window),
+      ),
+    )
+    reRenderEcharts(window, el, f.theme)
+  }
+  // flowchart.js + vega bake their foreground from getComputedStyle → poll the settled colour.
+  if (f.flowchart) reThemeFlowchart()
+  if (f.vega) reThemeVega()
+  // Baked/currentColor SVG group + D2 (deferred); D2 deduped to a single fire here.
+  reThemeMonochromeGroup({ mono: f.monoGroup, d2: f.d2 })
+  // SMILES follows the page-background luminance — a flip changes it outside #app, so re-run explicitly.
+  if (f.smiles) reThemeSmiles()
 }
 
 function handleConfigChanged(
@@ -1188,15 +1215,17 @@ function handleConfigChanged(
     lastInitMsg && lastInitMsg.options?.d2Layout !== msg.options?.d2Layout
   const d2ThemeChanged =
     lastInitMsg && lastInitMsg.options?.d2Theme !== msg.options?.d2Theme
-  // Keep the D2 globals current so a re-render uses the new engine + theme (set before any re-render).
-  ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
-  ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  // Keep the D2 config current so a re-render uses the new engine + theme (set before any re-render).
+  setD2Config({
+    layout: msg.options?.d2Layout,
+    theme: msg.options?.d2Theme,
+    contentTheme: msg.options?.contentTheme,
+  })
   ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
-  ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
   // Mode only rides on a config message when the content theme pins a new light/dark; leave the
-  // existing global otherwise (a non-theme config change carries no msg.theme).
+  // existing value otherwise (a non-theme config change carries no msg.theme).
   if (typeof msg.theme === 'string')
-    (window as any).__vmarkdMode = msg.theme === 'dark' ? 'dark' : 'light'
+    setD2Config({ mode: msg.theme === 'dark' ? 'dark' : 'light' })
   // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
   // its own (so content + code blocks are themed, not VS Code-dark). The host sends
   // the new effective mode in msg.theme; re-theme live so the content follows it.
@@ -1230,61 +1259,22 @@ function handleConfigChanged(
   if (contentThemeChanged && typeof msg.theme === 'string') {
     lastInitMsg.theme = msg.theme
   }
-  // Code-block + content theme aren't constructor-only options — apply live via
-  // setTheme (swaps the hljs stylesheet + UI mode) without re-init, keeping cursor.
-  if (codeThemeChanged || contentThemeChanged) {
-    applyVditorTheme(lastInitMsg.theme === 'dark' ? 'dark' : 'light')
-  }
-  // Mermaid theme: apply LIVE via the task-59 offscreen re-render (used to re-init, which
-  // scrolled big docs to the top — the reported bug). applyMermaidTheme updates the
-  // mermaid.initialize wrapper; reRenderMermaid swaps each diagram's SVG in place. A
-  // content-theme switch can change the paired palette / effective mode, so re-render on
-  // that too (task 86 — previously mermaid stayed stale until a VS Code theme flip).
-  if (mermaidThemeChanged || contentThemeChanged) {
-    const mode = lastInitMsg.theme === 'dark' ? 'dark' : 'light'
-    applyMermaidTheme(
-      window,
-      resolveMermaidInit(
-        lastInitMsg.options?.mermaidTheme,
-        lastInitMsg.options?.contentTheme,
-        mode,
-      ),
-    )
-    reRenderMermaid(
-      activeModeElement(window.vditor) ?? undefined,
-      lastInitMsg?.cdn || (window.vditor as any)?.options?.cdn || '',
-      mode,
-    )
-  }
-  // ECharts: re-theme live when its own setting changes OR the content theme it pairs with
-  // (`auto`) changes (task 90).
-  if (echartsThemeChanged || contentThemeChanged) {
-    const mode = lastInitMsg.theme === 'dark' ? 'dark' : 'light'
-    applyEchartsTheme(
-      window,
-      resolveEchartsTheme(
-        lastInitMsg.options?.echartsTheme,
-        lastInitMsg.options?.contentTheme,
-        mode,
-        readVscodePalette(window),
-      ),
-    )
-    reRenderEcharts(window, activeModeElement(window.vditor) ?? undefined, mode)
-  }
-  // SMILES follows the page background luminance — a content-theme switch flips that background, so
-  // re-theme it too (same reason as handleSetTheme: the bg change doesn't mutate #app).
-  if (contentThemeChanged) reThemeSmiles()
-  // flowchart.js bakes its foreground colour → re-render on a content-theme switch (deferred so it
-  // reads the SETTLED foreground after the content-theme <link> applies).
-  if (contentThemeChanged) reThemeFlowchart()
-  // Vega axis/label colours come from getComputedStyle → poll the settled foreground (same as flowchart).
-  if (contentThemeChanged) reThemeVega()
-  if (contentThemeChanged) reThemePlantumlGraphviz()
-  // D2 layout engine switch (dagre↔ELK) or colour-theme switch — re-render D2 blocks. (A content-theme
-  // change already re-renders D2 via reThemePlantumlGraphviz above — which is what the 'auto' D2 theme
-  // needs to follow the content palette — so it's not repeated here.)
-  if (d2LayoutChanged || d2ThemeChanged)
-    reRenderD2(activeModeElement(window.vditor) ?? undefined)
+  // Live re-theme through the single authority (task 152 item 3) — each renderer gated by what
+  // actually changed. Code/mermaid/echarts re-theme on their own setting OR a content-theme switch
+  // (which can flip the paired palette / effective mode, task 86/90); the foreground-baked +
+  // monochrome SVG renderers re-theme on a content switch; D2 fires once for a content switch OR its
+  // own layout/theme change (was a separate reRenderD2 that could double-fire with the group).
+  rethemeDiagrams({
+    theme: lastInitMsg.theme === 'dark' ? 'dark' : 'light',
+    code: codeThemeChanged || contentThemeChanged,
+    mermaid: mermaidThemeChanged || contentThemeChanged,
+    echarts: echartsThemeChanged || contentThemeChanged,
+    smiles: contentThemeChanged,
+    flowchart: contentThemeChanged,
+    vega: contentThemeChanged,
+    monoGroup: contentThemeChanged,
+    d2: contentThemeChanged || d2LayoutChanged || d2ThemeChanged,
+  })
 }
 
 function handleReloadCss(msg: Extract<HostMessage, { command: 'reload-css' }>) {

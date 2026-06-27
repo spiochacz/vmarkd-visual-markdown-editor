@@ -13,6 +13,7 @@ import {
 } from './d2-render'
 import { renderD2GraphElk } from './elk-layout'
 import { faithfulRender } from './faithful-render'
+import { getD2Config } from './d2-config'
 
 declare const window: Window & {
   vditor?: { options?: { cdn?: string } }
@@ -351,20 +352,17 @@ export function renderD2(root?: ParentNode): void {
         // Layout engine from the `vmarkd.diagram.d2Layout` setting (window global set by main.ts).
         // ELK gives orthogonal routing; it lazy-loads a separate main-thread bundle (elk-main.js,
         // ~1.4 MB) and returns null if it can't load/lay out, so we fall back to dagre.
-        // Colour theme from `vmarkd.theme.d2` (window global set by main.ts). 'auto' pairs the
-        // palette to the content theme + editor mode (also globals); named themes paint their own
-        // palette (+bg for d2-*); 'mono'/undefined → monochrome currentColor that follows the editor.
-        const style = d2Theme(
-          (window as any).__vmarkdD2Theme,
-          (window as any).__vmarkdContentTheme,
-          (window as any).__vmarkdMode,
-        )
+        // Render config from the typed owner (d2-config.ts; set by main.ts). 'auto' theme pairs the
+        // palette to the content theme + editor mode; named themes paint their own palette (+bg for
+        // d2-*); 'mono'/undefined → monochrome currentColor that follows the editor.
+        const cfg = getD2Config()
+        const style = d2Theme(cfg.theme, cfg.contentTheme, cfg.mode)
         let svgStr: string | null = null
         let engine = 'dagre'
         // Three engines (vmarkd.diagram.d2Layout): 'vmarkd' = ELK + our refinement pipeline (default),
         // 'elk' = raw ELK (refine off), 'dagre' = the bundled fallback. ELK lazy-loads elk-main.js and
         // returns null if it can't load/lay out → we always fall back to dagre.
-        const layout = (window as any).__vmarkdD2Layout
+        const layout = cfg.layout
         if (layout === 'vmarkd' || layout === 'elk') {
           const refine = layout === 'vmarkd'
           svgStr = await renderD2GraphElk(
@@ -430,8 +428,7 @@ function initLeafletMap(wrapper: HTMLElement, geojson: any): void {
   // geometry — light/dark variant per the editor mode. The CSP only allows `https:` images when
   // `image.allowRemoteImages` is on, so without the opt-in these tiles can't (and won't) be requested.
   if ((window as any).__vmarkdAllowRemoteImages) {
-    const variant =
-      (window as any).__vmarkdMode === 'dark' ? 'dark_all' : 'light_all'
+    const variant = getD2Config().mode === 'dark' ? 'dark_all' : 'light_all'
     L.tileLayer(
       `https://{s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}{r}.png`,
       {

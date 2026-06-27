@@ -6,6 +6,27 @@
 > **Source:** architecture review (2026-06-24), webview-orchestrator + state-dataflow lanes, verified.
 > **Value / Risk:** 🟡 cohesion + state ownership + fewer merge conflicts / medium — large mechanical
 > refactor; the leaf logic is already well-factored, so this is moving, not rewriting.
+>
+> **🟢 Items 3, 4, 5 DONE 2026-06-27 (the contained, correctness-relevant ones; tests + real-VS-Code):**
+> - **3 (re-theme authority):** one `rethemeDiagrams(flags)` in main.ts now owns the live re-theme;
+>   `handleSetTheme` passes all-true, `handleConfigChanged` passes the changed-flag subset. Split D2
+>   out of the old `reThemePlantumlGraphviz` → `reThemeMonochromeGroup({mono,d2})`, so D2 fires ONCE
+>   for `content || d2Layout || d2Theme` — killing the double-fire when a content + d2 change coincided
+>   (the drift evidence). Verified: 14 real-VS-Code theme-flip specs green (d2/wavedrom/nomnoml/
+>   flowchart/vega/echarts+mindmap live flip/graphviz/smiles).
+> - **4 (persistence allow-list):** `saveVditorOptions` now persists ONLY `{mode}` (the user-chosen
+>   editor mode) — dropped the whole config-derived `preview` blob + top-level `theme` that shadowed
+>   live config (the lineNumber-stuck / stale-code-style class). buildVditorOptions' authoritative
+>   re-merge stays as belt-and-suspenders for old saved blobs. Test: `save-vditor-options.test.ts`.
+> - **5 (typed D2 globals owner):** `d2-config.ts` (`getD2Config`/`setD2Config`, typed window) replaces
+>   the raw `(window as any).__vmarkd*` channel at main.ts (init + both flip sites) + custom-diagrams.ts
+>   (renderD2 + geojson basemap). Hoisted the byte-identical `loadScript` into `load-script.ts` (used by
+>   elk-layout + d2-wasm). Test: `d2-config.test.ts`.
+>
+> **⏳ Deferred — items 1, 2, 6, 7 (the large mechanical decomposition):** splitting main.ts's
+> god-module into cohesive modules + the per-init session object (1, 2), the host extension.ts
+> extraction (6), and the dead-code nits (7). These are pure maintainability moves (the task's "lowest
+> urgency"), high-churn + webview-regression-risky, and best done as their own focused pass.
 
 ## Findings → work items
 

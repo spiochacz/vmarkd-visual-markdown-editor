@@ -23,6 +23,7 @@ import {
   toSVG,
 } from './d2-render'
 import { refineLayout } from './d2-refine'
+import { loadScript } from './load-script'
 
 declare const window: Window & { __vmarkdElk?: ElkInstance }
 
@@ -91,18 +92,6 @@ interface ElkInstance {
 
 let elkInstance: ElkInstance | null = null
 let bootPromise: Promise<ElkInstance | null> | null = null
-
-function loadScript(src: string, id: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (document.getElementById(id)) return resolve()
-    const s = document.createElement('script')
-    s.id = id
-    s.src = src
-    s.onload = () => resolve()
-    s.onerror = () => resolve()
-    document.head.appendChild(s)
-  })
-}
 
 // Lazy-load elk-main.js (constructs a main-thread ELK instance → window.__vmarkdElk) and cache it.
 // Returns null if the engine can't be loaded (caller then falls back to dagre).

@@ -13,6 +13,8 @@
 // This module OWNS the D2Graph contract: the Go entrypoint (media-src/vendor/d2/build/main.go)
 // emits JSON that MUST match this interface — keep them in sync (verified by d2-wasm.test.ts).
 
+import { loadScript } from './load-script'
+
 // The (Tiny)Go wasm_exec runtime handle + the synchronous compile entrypoint it registers.
 // Typed so the window-global boundary is narrowed immediately on read (task 151 item 5).
 interface GoRuntime {
@@ -112,18 +114,6 @@ export interface D2Graph {
 const D2_VER = '0.1.33'
 
 let bootPromise: Promise<D2CompileFn | null> | null = null
-
-function loadScript(src: string, id: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (document.getElementById(id)) return resolve()
-    const s = document.createElement('script')
-    s.id = id
-    s.src = src
-    s.onload = () => resolve()
-    s.onerror = () => resolve()
-    document.head.appendChild(s)
-  })
-}
 
 export function bootD2(cdn: string): Promise<D2CompileFn | null> {
   if (bootPromise) return bootPromise
