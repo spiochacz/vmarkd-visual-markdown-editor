@@ -404,6 +404,51 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   ) {
   background: transparent !important;
 }
+/* Inline zoom/pan ⛶ fullscreen button (diagram-zoom.ts adds it + sets the wrapper position:relative).
+   Top-right of the diagram; fades in on hover/focus so it doesn't clutter the diagram at rest. Colours
+   follow the editor via --vscode-* with a subtle backdrop so it reads on any diagram fill. */
+.vmarkd-diagram-fs {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+  background: var(--vscode-editorWidget-background, rgba(128, 128, 128, 0.15));
+  color: var(--vscode-editorWidget-foreground, currentColor);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+[data-vmarkd-zoom]:hover > .vmarkd-diagram-fs,
+.vmarkd-diagram-fs:focus-visible {
+  opacity: 1;
+}
+/* In native fullscreen the transparent diagram would sit on the browser's default black — give it the
+   editor background so paired/transparent themes stay legible (task 157 will replace this with a proper
+   overlay preview). */
+[data-vmarkd-zoom]:fullscreen {
+  background: var(--vscode-editor-background, #1e1e1e);
+}
+[data-vmarkd-zoom]:fullscreen > .vmarkd-diagram-fs {
+  opacity: 1;
+}
+/* In the IR + WYSIWYG edit surfaces a click on a rendered diagram opens its source for editing, so
+   text selection on the diagram is pointless (and fought the Ctrl-drag pan). Disable it there. The
+   full Preview pane (.vditor-preview) is read-only → selection stays allowed. Scoped to our
+   zoom-decorated diagrams so it never touches surrounding prose. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview) [data-vmarkd-zoom],
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview) [data-vmarkd-zoom] * {
+  user-select: none;
+}
 /* SMILES is the one diagram Lute wraps in a `<code class="language-smiles">` (the others are `<div>`),
    so it ALSO inherits the inline-code panel: a gray `--vmarkd-code-bg` box with padding + 3px radius
    around the molecule (visible on dark — "smiles nie bierze tła z motywu"; the SVG + the preview pre

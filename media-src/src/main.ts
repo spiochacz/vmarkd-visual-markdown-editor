@@ -53,6 +53,7 @@ import {
   reRenderAbc,
 } from './plantuml-retheme'
 import { installDiagramZoomGate } from './diagram-zoom-gate'
+import { observeDiagramZoom } from './diagram-zoom'
 import { installEchartsResize } from './echarts-fit'
 import { calloutWysiwygToolbar, observeCallouts } from './callouts'
 import { observeCodeSource } from './code-source'
@@ -141,6 +142,7 @@ let disposeSmiles: (() => void) | null = null
 let disposeHtmlComments: (() => void) | null = null
 let disposePreviewHtmlComments: (() => void) | null = null
 let disposeAbc: (() => void) | null = null
+let disposeDiagramZoom: (() => void) | null = null
 let disposeCustomDiagrams: (() => void) | null = null
 let disposeMindmap: (() => void) | null = null
 
@@ -451,6 +453,11 @@ function runFinishInit(msg: any): void {
   // HTML comments (`<!-- ... -->`): the browser-invisible preview is replaced with visible
   // styled text (html-comment.ts). Bound to #app (same rationale as callouts — survives mode
   // switches). Preview pane gets its own walker (Comment nodes, not data-type wrappers).
+  // Inline zoom/pan + ⛶ fullscreen button on rendered static-SVG diagrams (d2/mermaid/flowchart/
+  // graphviz/abc/smiles). Bound to #app (survives mode switches + async/per-keystroke rebuilds), same
+  // pattern as callouts. markmap/mindmap have their own zoom (diagram-zoom-gate.ts) and are excluded.
+  disposeDiagramZoom?.()
+  disposeDiagramZoom = observeDiagramZoom(document.getElementById('app'))
   disposeHtmlComments?.()
   disposeHtmlComments = observeHtmlComments(document.getElementById('app'))
   disposePreviewHtmlComments?.()
@@ -528,8 +535,11 @@ function initVditor(msg) {
   // D2 layout engine (vmarkd.diagram.d2Layout) — read by custom-diagrams.ts renderD2 to pick
   // dagre (default) vs ELK. A plain window global keeps custom-diagrams decoupled from main.ts.
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
-  // D2 colour theme (vmarkd.diagram.d2Theme) — read by custom-diagrams.ts → d2Theme(). Same global pattern.
+  // D2 colour theme (vmarkd.theme.d2) — read by custom-diagrams.ts → d2Theme(). Same global pattern.
   ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  // Content theme + editor mode — only consumed by the D2 'auto' theme (pairs to the content palette).
+  ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
+  ;(window as any).__vmarkdMode = msg.theme === 'dark' ? 'dark' : 'light'
   // Gate content-visibility (main.css) to docs ≥ 100 KB (see CSS comment). Below
   // that the O(n) layout cost is negligible and the `contain-intrinsic-size` on
   // contenteditable blocks triggered blank-screen bugs in Chromium 148, so leave
@@ -1017,6 +1027,9 @@ function handleSetTheme(msg: any) {
   // Live re-theme without re-initialising (keeps cursor/scroll). Chrome colors
   // already follow via --vscode-* CSS vars.
   const theme = msg.theme === 'dark' ? 'dark' : 'light'
+  // Keep the mode global current so the D2 'auto' theme picks the right light/dark palette when the
+  // D2 re-render fires (via reThemePlantumlGraphviz below). Set BEFORE any re-render.
+  ;(window as any).__vmarkdMode = theme
   applyVditorTheme(theme)
   // Mermaid doesn't re-theme on setTheme — re-render existing diagrams (task 59).
   // reRenderMermaid renders offscreen and swaps the SVG in atomically, so the live DOM
@@ -1142,6 +1155,11 @@ function handleConfigChanged(msg: any) {
   // Keep the D2 globals current so a re-render uses the new engine + theme (set before any re-render).
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
   ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
+  // Mode only rides on a config message when the content theme pins a new light/dark; leave the
+  // existing global otherwise (a non-theme config change carries no msg.theme).
+  if (typeof msg.theme === 'string')
+    (window as any).__vmarkdMode = msg.theme === 'dark' ? 'dark' : 'light'
   // Rendering theme (task 82): a GitHub theme pins the editor's light/dark mode to
   // its own (so content + code blocks are themed, not VS Code-dark). The host sends
   // the new effective mode in msg.theme; re-theme live so the content follows it.
@@ -1223,8 +1241,9 @@ function handleConfigChanged(msg: any) {
   // reads the SETTLED foreground after the content-theme <link> applies).
   if (contentThemeChanged) reThemeFlowchart()
   if (contentThemeChanged) reThemePlantumlGraphviz()
-  // D2 layout engine switch (dagre↔ELK) or colour-theme switch — re-render D2 blocks
-  // (reThemePlantumlGraphviz only runs on a content-theme change, so handle these explicitly).
+  // D2 layout engine switch (dagre↔ELK) or colour-theme switch — re-render D2 blocks. (A content-theme
+  // change already re-renders D2 via reThemePlantumlGraphviz above — which is what the 'auto' D2 theme
+  // needs to follow the content palette — so it's not repeated here.)
   if (d2LayoutChanged || d2ThemeChanged)
     reRenderD2(activeModeElement(window.vditor) ?? undefined)
 }
