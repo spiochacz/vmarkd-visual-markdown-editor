@@ -35,7 +35,9 @@ interface ZoomState {
   tx: number
   ty: number
 }
-const stateOf = new WeakMap<SVGElement, ZoomState>()
+// Keyed by the WRAPPER, not the <svg>: the wrapper persists across a re-render (reRenderD2 swaps
+// wrapper.innerHTML on a theme switch), the <svg> does not — so zoom/pan state must outlive the svg.
+const stateOf = new WeakMap<HTMLElement, ZoomState>()
 
 function apply(svg: SVGElement, st: ZoomState): void {
   svg.style.transform = `translate(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px) scale(${st.k.toFixed(4)})`
@@ -50,30 +52,34 @@ function reset(svg: SVGElement, st: ZoomState): void {
 
 // A diagram is a rendered static-SVG block inside a preview pane (not the editable source).
 function decorate(wrapper: HTMLElement): void {
-  if (wrapper.dataset.vmarkdZoom === '1') return
   const svg = wrapper.querySelector('svg')
   if (!svg) return // D2/async renderers attach the <svg> later — the observer will retry then.
-  wrapper.dataset.vmarkdZoom = '1'
 
-  // The wrapper clips the zoomed/panned svg; the svg transforms from its top-left.
+  // The wrapper clips the zoomed/panned svg; the svg transforms from its top-left. Re-apply on EVERY
+  // pass: a re-render (reRenderD2 on a theme switch) replaces the svg, and we must re-style + re-apply
+  // the saved transform to the new one. State is per-wrapper so zoom/pan survives the re-render.
+  svg.style.transformOrigin = '0 0'
+  const existing = stateOf.get(wrapper)
+  const st: ZoomState = existing ?? { k: 1, tx: 0, ty: 0 }
+  if (!existing) stateOf.set(wrapper, st)
+  apply(svg, st)
+
+  if (wrapper.dataset.vmarkdZoom === '1') return // handlers already bound — don't duplicate
+  wrapper.dataset.vmarkdZoom = '1'
   wrapper.style.position ||= 'relative'
   wrapper.style.overflow = 'hidden'
-  svg.style.transformOrigin = '0 0'
-  // No 'grab' cursor at rest — panning needs Ctrl/Cmd, so a grab cursor would wrongly imply plain-drag.
-  // Defeat the diagram-fill-width max-height clamp only while interacting? No — keep the box; pan/zoom
-  // moves content within it. The clamp stays so the inline footprint is unchanged at rest.
 
-  const st: ZoomState = { k: 1, tx: 0, ty: 0 }
-  stateOf.set(svg, st)
-
-  // Ctrl/Cmd + wheel = zoom toward the cursor. A PLAIN wheel is left alone so the page scrolls — without
-  // this the diagram "grabs" the wheel the moment the pointer is over it while scrolling the page
-  // ("przy dojechaniu do diagramu zaczyna zmieniać rozmiar"). Same gesture as markmap/mindmap
-  // (diagram-zoom-gate.ts): Ctrl+wheel zooms, plain wheel scrolls.
+  // Handlers resolve the CURRENT svg via wrapper.querySelector (NOT a closure) — a re-render swaps the
+  // svg out, and a stale closure would transform the detached old node (the reported "pan stops working
+  // after a D2 theme reload"). The wrapper + its `st` persist, so the gestures keep working.
+  // Ctrl/Cmd + wheel = zoom toward the cursor; a PLAIN wheel is left alone so the page scrolls (no
+  // hijack — "przy dojechaniu do diagramu zaczyna zmieniać rozmiar"). Same model as markmap/mindmap.
   wrapper.addEventListener(
     'wheel',
     (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return // plain wheel → page scrolls (don't hijack)
+      const cur = wrapper.querySelector('svg')
+      if (!cur) return
       e.preventDefault()
       const rect = wrapper.getBoundingClientRect()
       const px = e.clientX - rect.left
@@ -86,13 +92,12 @@ function decorate(wrapper: HTMLElement): void {
       st.tx = px - (px - st.tx) * ratio
       st.ty = py - (py - st.ty) * ratio
       st.k = newK
-      apply(svg, st)
+      apply(cur, st)
     },
     { passive: false },
   )
 
-  // Ctrl/Cmd + left-drag = pan. A plain drag is left alone (text selection / normal behaviour) — same
-  // Ctrl-to-interact model as the wheel zoom and markmap/mindmap (diagram-zoom-gate.ts).
+  // Ctrl/Cmd + left-drag = pan. A plain drag is left alone (text selection / normal behaviour).
   let dragging = false
   let sx = 0
   let sy = 0
@@ -101,19 +106,23 @@ function decorate(wrapper: HTMLElement): void {
     dragging = true
     sx = e.clientX - st.tx
     sy = e.clientY - st.ty
-    svg.style.cursor = 'grabbing'
+    const cur = wrapper.querySelector('svg')
+    if (cur) cur.style.cursor = 'grabbing'
     wrapper.setPointerCapture(e.pointerId)
   })
   wrapper.addEventListener('pointermove', (e: PointerEvent) => {
     if (!dragging) return
+    const cur = wrapper.querySelector('svg')
+    if (!cur) return
     st.tx = e.clientX - sx
     st.ty = e.clientY - sy
-    apply(svg, st)
+    apply(cur, st)
   })
   const endDrag = (e: PointerEvent) => {
     if (!dragging) return
     dragging = false
-    svg.style.cursor = ''
+    const cur = wrapper.querySelector('svg')
+    if (cur) cur.style.cursor = ''
     try {
       wrapper.releasePointerCapture(e.pointerId)
     } catch {
@@ -126,7 +135,8 @@ function decorate(wrapper: HTMLElement): void {
   // Double-click = reset to the fit-width view.
   wrapper.addEventListener('dblclick', (e) => {
     e.preventDefault()
-    reset(svg, st)
+    const cur = wrapper.querySelector('svg')
+    if (cur) reset(cur, st)
   })
 
   // ⛶ fullscreen button (top-right). data-render="1" keeps it out of any Lute serialization (defense

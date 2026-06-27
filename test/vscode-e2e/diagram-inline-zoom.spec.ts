@@ -165,9 +165,78 @@ test('rendered static-SVG diagrams get inline wheel/drag zoom+pan (⛶ gated off
   expect(info.decoratedCount).toBeGreaterThan(0)
   expect(info.fsButtons).toBe(0) // ⛶ disabled until task 157 (FULLSCREEN_BUTTON=false)
   expect(info.userSelectIR).toBe('none') // no text selection on a diagram in IR (click opens edit)
-  expect(info.transformAfterPlainWheel).toBe('') // plain wheel did NOT zoom (page scrolls)
+  expect(info.transformAfterPlainWheel).toMatch(/scale\(1(\.0+)?\)/) // plain wheel did NOT zoom (still 1:1; page scrolls)
   expect(info.scaleAfterWheel).toBeGreaterThan(1) // Ctrl+wheel zoomed in
   expect(info.transformAfterPlainDrag).toBe(info.transformAfterWheel) // plain drag did NOT pan
   expect(info.transformAfterPan).not.toBe(info.transformAfterWheel) // Ctrl+drag panned it
   expect(info.transformAfterReset).toMatch(/scale\(1(\.0+)?\)/) // reset to 1
+
+  // Regression: a re-render (reRenderD2 on a theme switch) swaps wrapper.innerHTML for a fresh <svg>.
+  // Zoom/pan must survive — state is per-wrapper + handlers resolve the current svg — not break (the
+  // reported "pan stops working after a D2 style reload").
+  const reload = await frame.locator('body').evaluate(async () => {
+    const wrap = document.querySelector(
+      '.language-d2[data-vmarkd-zoom="1"]',
+    ) as HTMLElement
+    const svg0 = wrap.querySelector('svg') as SVGElement
+    const rect = wrap.getBoundingClientRect()
+    const at = (dx: number, dy: number) => ({
+      clientX: rect.left + dx,
+      clientY: rect.top + dy,
+    })
+    // zoom in so there's a non-identity state to preserve
+    wrap.dispatchEvent(
+      new WheelEvent('wheel', {
+        deltaY: -120,
+        ctrlKey: true,
+        ...at(50, 40),
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    // simulate reRenderD2: replace with a FRESH svg (no inline transform/style)
+    const fresh = svg0.outerHTML
+      .replace(/\stransform="[^"]*"/, '')
+      .replace(/\sstyle="[^"]*"/, '')
+    wrap.innerHTML = fresh
+    // let the rAF-debounced observer re-decorate the new svg
+    await new Promise((r) => setTimeout(r, 150))
+    const svg1 = wrap.querySelector('svg') as SVGElement
+    const reappliedTransform = svg1.style.transform // observer re-applied saved zoom to the new svg
+    // pan the NEW svg
+    wrap.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        button: 0,
+        ctrlKey: true,
+        pointerId: 5,
+        ...at(50, 40),
+        bubbles: true,
+      }),
+    )
+    wrap.dispatchEvent(
+      new PointerEvent('pointermove', {
+        pointerId: 5,
+        ...at(90, 70),
+        bubbles: true,
+      }),
+    )
+    wrap.dispatchEvent(
+      new PointerEvent('pointerup', {
+        pointerId: 5,
+        ...at(90, 70),
+        bubbles: true,
+      }),
+    )
+    return {
+      svgReplaced: svg0 !== svg1,
+      reappliedTransform,
+      transformAfterPanOnNew: svg1.style.transform,
+    }
+  })
+  // eslint-disable-next-line no-console
+  console.log(`[diagram-inline-zoom] reload: ${JSON.stringify(reload)}`)
+
+  expect(reload.svgReplaced).toBe(true) // the svg really was swapped (re-render simulated)
+  expect(reload.reappliedTransform).toMatch(/scale\(1\.12/) // zoom state survived the re-render
+  expect(reload.transformAfterPanOnNew).not.toBe(reload.reappliedTransform) // pan works on the new svg
 })
