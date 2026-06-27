@@ -250,6 +250,10 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ## 16. Vega / Vega-Lite — declarative data-viz (task 102)
 
+> Offline only: charts must use **inline `data.values`**. A remote `data.url` (top-level, in a
+> `data: [...]` array, or nested in a layer/transform) is **stripped** before rendering — nothing is
+> fetched (offline + anti-tracking, like `image.allowRemoteImages`).
+
 Vega-Lite (high-level grammar):
 
 ```vega-lite

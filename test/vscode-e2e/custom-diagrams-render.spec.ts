@@ -123,7 +123,8 @@ test('custom diagrams render in the real VS Code webview', async ({
   expect(info.topojson.hasLeaflet).toBe(true)
 
   expect(info['vega-lite'].found).toBeGreaterThan(0)
-  expect(info['vega-lite'].processed).toBe(1)
+  // The fixture has TWO vega-lite fences (a bar chart + an hconcat of 3) — both render.
+  expect(info['vega-lite'].processed).toBe(2)
   expect(info['vega-lite'].hasSvg).toBe(true)
 
   expect(info.stl.processed).toBe(1)

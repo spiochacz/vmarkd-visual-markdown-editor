@@ -521,6 +521,27 @@ export function reRenderTopojson(root?: ParentNode): void {
 
 // --- Vega / Vega-Lite ---
 
+// Strip remote data sources for offline rendering + security. Vega/Vega-Lite load external data via a
+// `url` on a `data` object — at the top level, inside `data: [...]` arrays, or nested in layers /
+// transforms / lookups. Only inline `data.values` works offline, and a remote fetch is a tracking /
+// exfiltration channel (same policy as image.allowRemoteImages). CSP already blocks the request; this
+// recursively deletes EVERY `url` so no spec even ATTEMPTS a fetch (no failed-fetch error; defense in
+// depth). Mutates in place — the caller passes a freshly JSON.parsed spec — and returns it for chaining.
+// `$schema` (its key isn't `url`) and inline `values` are untouched.
+export function stripRemoteData<T>(spec: T): T {
+  const walk = (v: unknown): void => {
+    if (Array.isArray(v)) {
+      for (const item of v) walk(item)
+    } else if (v && typeof v === 'object') {
+      const obj = v as Record<string, unknown>
+      if (typeof obj.url === 'string') delete obj.url
+      for (const k of Object.keys(obj)) walk(obj[k])
+    }
+  }
+  walk(spec)
+  return spec
+}
+
 function renderVegaBlock(
   blocks: { wrapper: HTMLElement; code: string }[],
 ): void {
@@ -529,9 +550,9 @@ function renderVegaBlock(
 
   blocks.forEach(({ wrapper, code }) => {
     try {
-      const spec = JSON.parse(code)
-      // Block remote data URLs for offline/security — only inline data.values works
-      if (spec.data?.url) delete spec.data.url
+      // Offline/security: only inline data.values renders; stripRemoteData recursively removes any
+      // remote `url` (top-level, data arrays, nested layers/transforms) so nothing fetches.
+      const spec = stripRemoteData(JSON.parse(code))
       const div = document.createElement('div')
       wrapper.innerHTML = ''
       wrapper.appendChild(div)

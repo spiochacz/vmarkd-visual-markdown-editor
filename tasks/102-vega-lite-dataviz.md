@@ -13,8 +13,19 @@
 > `reThemeFlowchart` + new `reThemeVega`), wired into `handleSetTheme` + `handleConfigChanged`
 > (contentThemeChanged). Test: `test/vscode-e2e/vega-theme.spec.ts` (axis `<text>` fill tracks a live
 > github-dark→github-light flip).
+>
+> **📝 Offline limitation (documented 2026-06-27):** only **inline `data.values`** renders. Any remote
+> `data.url` is **stripped** before render by `stripRemoteData` (`custom-diagrams.ts`) — now RECURSIVE
+> (top-level, `data: [...]` arrays, and nested `layer`/`transform`/`lookup` sources; the old check only
+> caught top-level). This is offline + anti-tracking parity with `image.allowRemoteImages` (CSP blocks
+> the fetch anyway; the strip avoids a failed-fetch error and can't leak even if CSP changes). Unit:
+> `media-src/src/vega-strip.test.ts`. Also fixed the stale `processed===1`→`2` assertion in
+> `custom-diagrams-render.spec.ts` (the fixture has two vega-lite fences).
 
-> **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
+> **Status:** 🟢 DONE — 2026-06-27. Inline-data render + axis/label theming + live re-theme on flip
+> (foreground poll) + responsive sizing + recursive offline `data.url` strip — all tested (unit
+> `vega-strip.test.ts`; real-VS-Code `vega-theme.spec.ts` + `custom-diagrams-render.spec.ts`). Reuses
+> the task 99 renderer pass ([task 99](99-geojson-topojson-maps.md)).
 > Render ` ```vega ` / ` ```vega-lite ` fenced blocks (JSON spec) as charts. Vega is a richer
 > data-viz grammar than ECharts for declarative/statistical plots; supported by Kroki + Jupyter +
 > Observable. Pure-JS, offline.
