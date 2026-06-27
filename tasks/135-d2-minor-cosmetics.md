@@ -2,7 +2,7 @@
 
 > **Status:** 💡 idea / backlog (LOW priority) — created 2026-06-24. A catch-all for the small D2
 > knobs we don't honour, found auditing the language surface. None are individually worth a task; each
-> needs the same Go+WASM extraction, so fold into the task 121/124 Phase B bump and consume opportunistically.
+> needs the same Go+WASM extraction, so fold into the task 121/124 Phase B bump (export now owned by [task 159](159-d2-wasm-export-batch.md)) and consume opportunistically.
 > Builds on task 104.
 
 ## Items

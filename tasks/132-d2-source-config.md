@@ -2,7 +2,7 @@
 
 > **Status:** 💡 idea / planned (decision-gated) — created 2026-06-24. Untasked D2 feature found
 > re-auditing the docs + code. Needs WASM/compile-side extraction → coordinate with the task 121/124
-> Phase B bump. Builds on tasks 104, 119 (themes), 120 (sketch), 127 (direction).
+> Phase B bump (export now owned by [task 159](159-d2-wasm-export-batch.md)). Builds on tasks 104, 119 (themes), 120 (sketch), 127 (direction).
 
 ## Problem
 A D2 diagram can configure ITS OWN rendering in source via `vars.d2-config`:

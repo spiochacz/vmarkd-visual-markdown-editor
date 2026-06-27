@@ -1,7 +1,7 @@
 # Task 129 — D2 extra text styles (font-size, font, underline, text-transform)
 
 > **Status:** 💡 idea / planned (low priority) — created 2026-06-24. Untasked D2 gap found auditing
-> `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B. Builds on task 104.
+> `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B (export now owned by [task 159](159-d2-wasm-export-batch.md); edge-LABEL font styling is folded in there too). Builds on task 104.
 
 ## Problem
 D2 supports per-shape/edge text styling: `style.font-size`, `style.font` (font family),

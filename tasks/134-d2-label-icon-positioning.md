@@ -1,7 +1,7 @@
 # Task 134 — D2 label / icon positioning (`label.near` / `icon.near`)
 
 > **Status:** 💡 idea / planned (low-medium) — created 2026-06-24. Untasked D2 gap (a distinct docs
-> section). Needs a Go+WASM field extraction → batch with task 121/124 Phase B. Builds on task 104 and
+> section). Needs a Go+WASM field extraction → batch with task 121/124 Phase B (export now owned by [task 159](159-d2-wasm-export-batch.md)). Builds on task 104 and
 > the icon work (task 124 item 3).
 
 ## Problem

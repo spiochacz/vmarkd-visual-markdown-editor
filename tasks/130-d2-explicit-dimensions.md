@@ -1,7 +1,7 @@
 # Task 130 — D2 explicit `width` / `height` on shapes
 
 > **Status:** 💡 idea / planned (low priority) — created 2026-06-24. Untasked D2 gap found auditing
-> `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B. Builds on task 104.
+> `main.go`. Needs a Go+WASM field extraction → batch with task 121/124 Phase B (export now owned by [task 159](159-d2-wasm-export-batch.md)). Builds on task 104.
 
 ## Problem
 D2 lets a shape pin its size: `x: { width: 200; height: 80 }` (and images REQUIRE an explicit size).

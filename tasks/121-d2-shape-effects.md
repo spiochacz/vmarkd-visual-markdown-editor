@@ -4,7 +4,7 @@
 > (palettes) and 120 (sketch), this one needs a Go + WASM rebuild** — the effects are driven by D2
 > `style.*` booleans our WASM does NOT currently extract. Builds on task 104. Decision gate: is it
 > worth pulling in the Go toolchain for cosmetic effects? Recommendation: **yes, but batch** — bump
-> the WASM ONCE and capture every missing style field.
+> the WASM ONCE and capture every missing style field — **that export bump is now [task 159](159-d2-wasm-export-batch.md)**; this task owns the RENDERING of the effects.
 
 ## Problem
 Real D2 renders `style.shadow`, `style.3d`, `style.multiple`, `style.double-border` (and
