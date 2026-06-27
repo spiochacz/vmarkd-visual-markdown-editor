@@ -1,6 +1,8 @@
 # Task 152 — Decompose the webview orchestrator + harden state ownership
 
-> **Status:** 📋 TODO — created 2026-06-24 from a multi-agent whole-system architecture review.
+> **Status:** 🟡 IN PROGRESS — items 1-5 done (leaf decomposition + re-theme/persistence/D2-config);
+> message-handlers split + full session object (1/2 tail) + items 6/7 deferred. Created 2026-06-24 from
+> a multi-agent whole-system architecture review.
 > Maintainability / merge-contention debt — NOT a correctness landmine. Lowest urgency of the four
 > review tasks; partly already underway (host side + D2 under [task 123](123-d2-pipeline-refactor.md)).
 > **Source:** architecture review (2026-06-24), webview-orchestrator + state-dataflow lanes, verified.
@@ -23,14 +25,32 @@
 >   (renderD2 + geojson basemap). Hoisted the byte-identical `loadScript` into `load-script.ts` (used by
 >   elk-layout + d2-wasm). Test: `d2-config.test.ts`.
 >
-> **⏳ Deferred — items 1, 2, 6, 7 (the large mechanical decomposition):** splitting main.ts's
-> god-module into cohesive modules + the per-init session object (1, 2), the host extension.ts
-> extraction (6), and the dead-code nits (7). These are pure maintainability moves (the task's "lowest
-> urgency"), high-churn + webview-regression-risky, and best done as their own focused pass.
+> **🟢 Items 1 + 2 DONE 2026-06-27 (the leaf decomposition; tests + 15 real-VS-Code specs):**
+> `main.ts` 1417 → 779 LOC (−45%). Eight modules extracted, each a clean cohesive unit; `main.ts` is
+> now thin wiring + the message-handler/initVditor controller layer:
+> - **1 (cohesive modules):** `editor-caret.ts` (caret snapshot/restore), `prerender-overlay.ts`
+>   (instant-paint overlay + streaming spinner + prepaint-scroll bridge), `diagram-retheme.ts` (the 6
+>   re-theme fns + `rethemeDiagrams`, deps injected via `configureDiagramRetheme`), `edit-sync.ts`
+>   (`createEditSync` factory — incremental-IR serialize / busy-cursor idle / save flush / doc-mode),
+>   `finish-init.ts` (`runFinishInit` — the ~12 post-init observers), `init-payload.ts` (shared type).
+> - **2 (lifecycle ownership):** `disposables.ts` `Disposables` registry — the 12 hand-written
+>   `disposeX?.(); disposeX = observeX(...)` module-global pairs collapsed to `observers.set(key, …)`
+>   (set disposes the previous); `inner-vditor.ts` `innerVditor()` typed accessor — the 11
+>   `(window.vditor as any).vditor.<x>` reaches behind one documented surface. The remaining per-init
+>   mutables (`lastInitMsg`/`editSync`/suppression flags/`lastDiffChanges`) stay in main.ts.
+> - Tests: `disposables.test.ts` (4). Gates: typecheck + 942 unit + lint:ci + build green; real-VS-Code
+>   d2/echarts/flowchart/nomnoml/vega/wavedrom-theme + callouts-mode + trailing + webview (15 specs).
+>
+> **⏳ Deferred — the `message-handlers` module (item 1) + the full per-init session object (item 2),
+> plus items 6, 7:** the 8 host→webview handlers + initVditor are the controller layer that coordinates
+> the remaining shared state; extracting them needs either ~12 injected deps or a big-bang state move —
+> deliberately NOT done (it's "moving, not improving" — handlers holding the state they coordinate is
+> arguably the right design, not debt). Item 6 (host extension.ts extraction) + item 7 (dead-code nits)
+> remain pure maintainability moves, lowest urgency, best as their own focused pass.
 
 ## Findings → work items
 
-### 1. 🟠 `main.ts` is a god-module (~12 responsibilities, 1344 LOC, 0 exports, 55 imports)
+### 1. 🟢 `main.ts` is a god-module (~12 responsibilities, 1344 LOC, 0 exports, 55 imports) — MOSTLY DONE (2026-06-27): 779 LOC; leaf subsystems extracted (see status block). `message-handlers` module deliberately not split out.
 `initVditor` spans `526-966` (config gating, serialize pipeline `582-620`, pending-edit drift-audit
 `664-708`, wiki autocomplete, upload, a ~100-line `after()` hook `815-916`); `runFinishInit`
 (`406-524`) repeats `disposeX?.(); disposeX = observeX(...)` **11 times**; module mutables
@@ -42,7 +62,7 @@ internals not covered by the patch-drift tests.
   serialize/pending-edit subsystem (`582-708`) into a `createEditSync` factory and the
   wiki-hint/upload closures into `vditor-options`.
 
-### 2. 🟠 Per-instance lifecycle lives in ~19 module-global mutables + 13 deep Vditor reaches
+### 2. 🟢 Per-instance lifecycle lives in ~19 module-global mutables + 13 deep Vditor reaches — MOSTLY DONE (2026-06-27): `Disposables` registry (12 dispose pairs) + `innerVditor()` accessor (11 reaches) done; full session object for the remaining mutables deliberately deferred.
 - **Fix:** collect the 19 mutables + the 11 dispose/reassign pairs into one **per-init session
   object** with a `Disposables` registry (re-init = `new session`, `oldSession.dispose()`);
   centralize the 13 `(window.vditor as any).vditor` reaches behind a typed `innerVditor()` accessor.
