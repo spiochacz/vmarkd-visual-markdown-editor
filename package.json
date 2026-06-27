@@ -401,7 +401,7 @@
               "Monochrome — transparent background, lines follow the editor foreground (currentColor)."
             ],
             "default": "auto",
-            "description": "Color theme for D2 diagrams. \"auto\" (default) pairs the palette to the active content theme and editor light/dark with a transparent background, like mermaid/echarts. The \"d2-*\" themes reproduce d2's own catalog palettes and paint their own page background (so the diagram looks identical on any editor theme). The \"vscode-*\"/\"github-*\" themes use coloured fills but keep a transparent background, so they blend into that editor environment like mermaid. \"mono\" keeps a transparent background and follows the editor foreground."
+            "description": "Color theme for D2 diagrams. \"auto\" (default) follows the rendering theme like Mermaid; the \"d2-*\" themes use d2's own palettes with a baked background; \"vscode-*\"/\"github-*\" are coloured but transparent; \"mono\" follows the editor foreground."
           },
           "vmarkd.theme.highlightHeadings": {
             "order": 6,
