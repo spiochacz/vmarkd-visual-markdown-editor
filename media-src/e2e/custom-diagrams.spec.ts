@@ -24,14 +24,13 @@ test.beforeEach(async ({ page }) => {
   }
 })
 
-// Vditor doesn't put .language-* classes on preview code elements for UNKNOWN languages
-// (wavedrom/nomnoml/geojson/topojson) — they render via our observer in the real webview
-// but the harness IR/WYSIWYG DOM doesn't expose the class selectors the tests look for.
-// Rendering confirmed by DOM snapshot (Leaflet zoom buttons visible, nomnoml text rendered).
-// TODO: fix selectors or use a Preview-mode harness.
-test.fixme('wavedrom renders an SVG from a timing diagram JSON', async ({
-  page,
-}) => {
+// Render gate (task 150 item 1a): these were ALL `test.fixme` on a stale assumption that the
+// WYSIWYG harness doesn't expose `.language-*` for unknown langs. Empirically it DOES — the observer
+// renders into the block and the selectors resolve — so they're now real CI assertions that catch a
+// renderer silently emitting no SVG/canvas (the gap this task exists to close). STL/D2 run too:
+// Playwright's chromium has a (swiftshader) WebGL context + boots the D2 WASM, unlike the VS Code
+// Electron host under xvfb — so the headless harness actually covers MORE than the real-VS-Code suite.
+test('wavedrom renders an SVG from a timing diagram JSON', async ({ page }) => {
   await page.waitForSelector('.language-wavedrom svg', { timeout: 30000 })
   const info = await page.evaluate(() => {
     const svg = document.querySelector('.language-wavedrom svg')
@@ -46,7 +45,7 @@ test.fixme('wavedrom renders an SVG from a timing diagram JSON', async ({
   expect(info.height).toBeGreaterThan(20)
 })
 
-test.fixme('nomnoml renders an SVG from a UML source', async ({ page }) => {
+test('nomnoml renders an SVG from a UML source', async ({ page }) => {
   await page.waitForSelector('.language-nomnoml svg', { timeout: 30000 })
   const info = await page.evaluate(() => {
     const svg = document.querySelector('.language-nomnoml svg')
@@ -63,18 +62,40 @@ test.fixme('nomnoml renders an SVG from a UML source', async ({ page }) => {
   expect(info.hasText).toBe(true)
 })
 
-test.fixme('nomnoml SVG text uses currentColor (themed)', async ({ page }) => {
+test('nomnoml SVG is themed via currentColor (no baked palette colors)', async ({
+  page,
+}) => {
+  // nomnoml paints text by inheriting `fill` from a parent <g>, not on the <text> itself, so the old
+  // `text.fill === 'currentColor'` check read "" and was wrong. Assert the real contract instead:
+  // themeNomnomlSvg replaced EVERY baked palette colour with currentColor (follows the theme fg).
   await page.waitForSelector('.language-nomnoml svg text', { timeout: 30000 })
-  const fill = await page.evaluate(() => {
-    const text = document.querySelector('.language-nomnoml svg text')
-    return text?.getAttribute('fill') ?? ''
+  const info = await page.evaluate(() => {
+    const svg = document.querySelector('.language-nomnoml svg')!
+    const baked = ['#33322e', '#eee8d5', '#fdf6e3']
+    const els = [...svg.querySelectorAll('*')]
+    const norm = (v: string | null) => (v ?? '').trim().toLowerCase()
+    return {
+      hasBaked: els.some(
+        (el) =>
+          baked.includes(norm(el.getAttribute('fill'))) ||
+          baked.includes(norm(el.getAttribute('stroke'))),
+      ),
+      hasCurrentColor: els.some(
+        (el) =>
+          el.getAttribute('fill') === 'currentColor' ||
+          el.getAttribute('stroke') === 'currentColor',
+      ),
+      textCount: svg.querySelectorAll('text').length,
+    }
   })
-  expect(fill).toBe('currentColor')
+  expect(info.hasBaked).toBe(false) // every baked nomnoml palette colour recoloured
+  expect(info.hasCurrentColor).toBe(true) // → currentColor, so it follows the theme foreground
+  expect(info.textCount).toBeGreaterThan(0)
 })
 
 // --- GeoJSON (Leaflet) ---
 
-test.fixme('geojson renders an interactive Leaflet map', async ({ page }) => {
+test('geojson renders an interactive Leaflet map', async ({ page }) => {
   await page.waitForSelector('.language-geojson .leaflet-container', {
     timeout: 30000,
   })
@@ -120,7 +141,7 @@ test('geojson map makes no remote tile requests (offline)', async ({
 
 // --- TopoJSON ---
 
-test.fixme('topojson converts and renders a Leaflet map', async ({ page }) => {
+test('topojson converts and renders a Leaflet map', async ({ page }) => {
   await page.waitForSelector('.language-topojson .leaflet-container', {
     timeout: 30000,
   })
@@ -139,7 +160,7 @@ test.fixme('topojson converts and renders a Leaflet map', async ({ page }) => {
 
 // --- STL 3D (three.js) ---
 
-test.fixme('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
+test('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
   await page.waitForSelector('.language-stl canvas', { timeout: 30000 })
   const info = await page.evaluate(() => {
     const canvas = document.querySelector(
@@ -157,9 +178,7 @@ test.fixme('stl renders a WebGL canvas from ASCII STL', async ({ page }) => {
   expect(info.height).toBeGreaterThanOrEqual(280)
 })
 
-test.fixme('stl canvas makes no remote requests (offline)', async ({
-  page,
-}) => {
+test('stl canvas makes no remote requests (offline)', async ({ page }) => {
   const remoteRequests: string[] = []
   page.on('request', (req) => {
     const url = req.url()
@@ -173,12 +192,10 @@ test.fixme('stl canvas makes no remote requests (offline)', async ({
   expect(remoteRequests).toHaveLength(0)
 })
 
-// Task 104 — D2 (compile-only WASM + dagre + currentColor SVG). Same harness limitation as the
-// other unknown languages (Vditor doesn't expose .language-d2 in the harness WYSIWYG DOM), so the
-// render assertion is fixme. The WASM contract + renderer are covered by node + unit tests
-// (d2-wasm.test.ts, d2-render.test.ts) and the live render by the real-VS-Code suite
-// (test/vscode-e2e/custom-diagrams-render.spec.ts).
-test.fixme('d2 renders a themed SVG from a compile-only WASM graph', async ({
+// Task 104 — D2 (compile-only WASM + dagre + currentColor SVG). The D2 WASM boots in Playwright's
+// chromium, so this now asserts the real render here (in addition to the WASM contract / renderer unit
+// tests d2-wasm.test.ts + d2-render.test.ts, and the real-VS-Code suite custom-diagrams-render.spec.ts).
+test('d2 renders a themed SVG from a compile-only WASM graph', async ({
   page,
 }) => {
   await page.waitForSelector('.language-d2 svg', { timeout: 30000 })

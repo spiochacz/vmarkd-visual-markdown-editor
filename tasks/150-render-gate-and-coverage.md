@@ -1,10 +1,33 @@
 # Task 150 — Automated render gate for the offline diagram renderers + coverage tooling
 
-> **Status:** 📋 TODO — created 2026-06-24 from a multi-agent whole-system architecture review.
+> **Status:** ✅ DONE (2026-06-27 — all three items; see the completion note below).
+> Created 2026-06-24 from a multi-agent whole-system architecture review.
 > **The render-gate gap is ship-class for this branch.**
 > **Source:** architecture review (2026-06-24), test-arch lane, adversarially verified.
 > **Value / Risk:** 🔴 the flagship feature can silently stop rendering with green CI / medium —
 > harness-fidelity work + a nightly job; no product code change.
+>
+> **🟢 DONE 2026-06-27 — all three items:**
+> - **1a (render gate):** the 8 `test.fixme()` in `media-src/e2e/custom-diagrams.spec.ts` are now real
+>   CI assertions. The "WYSIWYG harness doesn't expose `.language-*`" premise was STALE — empirically it
+>   does, so no Preview-mode harness was needed. All 10 pass (3× repeat, stable), INCLUDING stl (chromium
+>   has a swiftshader WebGL ctx) and d2 (the WASM boots) — so the headless harness covers MORE than the
+>   real-VS-Code suite here. Fixed the one genuinely-wrong assertion (nomnoml text fill: nomnoml paints
+>   via an inherited parent `<g>`, so assert "no baked palette colour survives + currentColor present").
+> - **1b (nightly):** `.github/workflows/nightly.yml` runs the full real-VS-Code suite (`test/vscode-e2e/`,
+>   incl. d2-elk + custom-diagrams-render) under xvfb on schedule + `workflow_dispatch` + `v*` tags, with
+>   the VS Code download cached + pinned via `VMARKD_VSCODE_VERSION` (`playwright.config.ts` now reads it).
+>   Documented release-blocking in DEVELOPMENT.md.
+> - **2 (coverage allowlist drift):** one SSOT `media-src/e2e/harness-entries.mjs` now drives serve.mjs's
+>   esbuild entryPoints + HTML routes (293→99 LOC, was 4 parallel ~31-item lists) AND coverage-options.ts's
+>   entryFilter. Meta-test `test/backend/harness-registry.test.ts` locks it. The 9 dropped bundles are
+>   back — `custom-diagrams.ts` now reports **88%** coverage (was 0/uncovered). The registry bug it caught:
+>   the entry's default ts was `custom-diagrams-harness-harness.ts`.
+> - **3 (coverage thresholds):** `test/vitest.config.ts` has non-regression `thresholds` (56/51/54/56,
+>   baseline ~59/55/57/60); `ci.yml` runs `npm run test:coverage` so a drop fails the build; e2e coverage
+>   documented as intentionally out-of-CI with a manual release-checklist check in DEVELOPMENT.md.
+> Gates: typecheck + 934 unit (+ thresholds) + lint + full e2e (339 pass; 1 pre-existing local-xvfb
+> auto-scroll flake that also fails at pre-session HEAD~2) all green.
 
 ## Why this exists
 The fork's headline feature is the **offline diagram renderers**. The whole-system pass found they

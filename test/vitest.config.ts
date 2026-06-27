@@ -34,6 +34,17 @@ export default defineConfig({
         'media-src/src/preload.ts',
         'media-src/src/types.ts',
       ],
+      // NON-REGRESSION floor, not an aspiration (task 150 item 3). Baseline at
+      // introduction was ~59/55/57/60 (stmts/branch/funcs/lines); these sit a few
+      // points below so a real coverage DROP fails `npm run test:coverage` (run in
+      // CI) while normal fluctuation doesn't. RAISE them as coverage grows; never
+      // lower to make a red build green — add tests instead.
+      thresholds: {
+        statements: 56,
+        branches: 51,
+        functions: 54,
+        lines: 56,
+      },
     },
   },
 })

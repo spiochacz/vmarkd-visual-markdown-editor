@@ -31,7 +31,9 @@ export default defineConfig<VSCodeTestOptions, VSCodeWorkerOptions>({
   reporter: [['list']],
   use: {
     extensionDevelopmentPath: repoRoot,
-    // A recent stable VS Code (extension engines require ^1.110.0).
-    vscodeVersion: 'stable',
+    // A recent stable VS Code (extension engines require ^1.110.0). The nightly job
+    // (task 150 item 1b) PINS this via VMARKD_VSCODE_VERSION so its download cache key
+    // is stable and runs are reproducible; local/ad-hoc runs default to 'stable'.
+    vscodeVersion: process.env.VMARKD_VSCODE_VERSION || 'stable',
   },
 })

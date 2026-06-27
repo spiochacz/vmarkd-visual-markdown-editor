@@ -340,27 +340,40 @@ How it works (`monocart-coverage-reports`):
   per test (chromium V8), feeds entries to monocart.
 - `coverage-setup.ts` / `coverage-teardown.ts` — Playwright global setup/teardown
   clean the cache and generate the final report.
-- `coverage-options.ts` — shared config: the `entryFilter` keeps the behavioural
-  bundles (`harness`/`behaviors`/`outline`; **add new harness bundles here**) and
-  drops vditor scripts + the `bench` benchmark; the `sourceFilter` keeps sources
-  under `media-src/src/**` (drops node_modules and the harness files). V8 coverage
-  is mapped back to the original TypeScript via the inline source map esbuild
-  embeds.
+- `coverage-options.ts` — shared config: the `entryFilter` is now **derived from
+  the harness registry** (`harness-entries.mjs`), so it can't drift from the served
+  bundles — **add a new harness to `harness-entries.mjs`, not here** (that single
+  list also drives `serve.mjs`'s esbuild entryPoints + HTML routes). It drops vditor
+  scripts + the `bench` benchmark; the `sourceFilter` keeps sources under
+  `media-src/src/**`. V8 coverage maps back to the original TypeScript via the inline
+  source map esbuild embeds. A meta-test (`test/backend/harness-registry.test.ts`)
+  asserts every coverage-counted bundle is matched (task 150 item 2).
 
 All four `coverage-*.ts` files are no-ops unless `E2E_COVERAGE` is set.
+
+**Unit coverage is gated** (task 150 item 3): `test/vitest.config.ts` sets
+non-regression `thresholds`, and CI runs `npm run test:coverage` so a coverage drop
+fails the build. Raise the thresholds as coverage grows; never lower them to go green.
 
 ---
 
 ## CI
 
-Three GitHub Actions workflows (`.github/workflows/`):
+Four GitHub Actions workflows (`.github/workflows/`):
 
 - **`ci.yml`** — the gate, on every PR and push to `main`. Installs root +
   `media-src`, then in order: `npm audit --audit-level=moderate` (both trees) →
   `npm run lint:ci` (Biome, whole tree) → `node build.mjs` (compiles the host with
-  `tsc` + bundles the webview) → `npm test` (unit) → `npm --prefix media-src run
-  test:e2e` (Playwright chromium, browser binaries cached). **E2e now runs in CI**
-  — keep it green locally.
+  `tsc` + bundles the webview) → `npm run test:coverage` (unit + the coverage
+  threshold gate) → `npm --prefix media-src run test:e2e` (Playwright chromium,
+  browser binaries cached — the e2e suite includes the per-renderer **render gate**
+  in `custom-diagrams.spec.ts`). **E2e now runs in CI** — keep it green locally.
+- **`nightly.yml`** ("Nightly (real-VS-Code render gate)", task 150 item 1b) — the
+  full **real-VS-Code** suite (`test/vscode-e2e/`, incl. `d2-elk` +
+  `custom-diagrams-render`) under xvfb, on a nightly schedule + `workflow_dispatch` +
+  any `v*` tag. Catches webview-only classes the harness can't (e.g. ELK's
+  worker-rejection → silent dagre fallback). Downloads VS Code (pinned via
+  `VMARKD_VSCODE_VERSION`, cached). Treat a red nightly as **release-blocking**.
 - **`release.yml`** ("Release") — the one-click cut button: a manual *Run workflow*
   with a `patch` / `minor` / `major` choice. Bumps `package.json` + lock, commits and
   tags `vX.Y.Z` on `main`, then calls `publish.yml`. Use this for 1.0.1 onward.
@@ -391,6 +404,16 @@ With no token the run still produces the GitHub Release — so you can ship the 
 first, add a token later, and **re-run** publishing for that tag (Actions → **Publish**
 → *Run workflow* → enter the tag) to push it to a registry. The release step is
 idempotent (create-or-update), so re-runs are safe.
+
+**Before you tag (release checklist):**
+
+- The latest **`nightly.yml`** run is green (the real-VS-Code render gate — pushing a
+  `v*` tag also triggers it; don't publish over a red one).
+- `npm run test:coverage` is green locally (the threshold gate) and you've eyeballed
+  the **e2e coverage** report (`npm --prefix media-src run test:e2e:coverage` →
+  `media-src/coverage/e2e/index.html`) — e2e coverage is intentionally **out of the
+  CI gate**, so this is the manual check that keeps it honest (task 150 item 3).
+- `CHANGELOG.md`'s top heading is set to the version you're shipping.
 
 **Routine releases (1.0.1+) — one click, no local steps:** Actions → **Release** →
 *Run workflow* → pick `patch` / `minor` / `major`. It bumps the version, commits and

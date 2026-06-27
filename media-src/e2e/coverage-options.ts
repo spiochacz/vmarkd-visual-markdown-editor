@@ -9,6 +9,18 @@
  * V8 coverage from Chromium is mapped back to the original TypeScript via the
  * inline source map esbuild embeds in the served harness bundle.
  */
+import { COVERAGE_KEYS } from './harness-entries.mjs'
+
+// Match `/<key>.js` for every coverage-counted harness bundle. DERIVED from the
+// shared registry (task 150 item 2) — the old hand-maintained regex had drifted,
+// silently dropping 9 bundles (incl. custom-diagrams) from coverage. A meta-test
+// (harness-registry.test.ts) locks this against the registry.
+const entryPattern = new RegExp(
+  `/(${COVERAGE_KEYS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(
+    '|',
+  )})\\.js`,
+)
+
 const coverageOptions = {
   name: 'vMark webview — E2E coverage',
   // Resolved relative to the cwd Playwright runs in (media-src/).
@@ -17,10 +29,7 @@ const coverageOptions = {
 
   // Keep only our harness bundles (drop separately-loaded vditor scripts like
   // lute.min.js / i18n that Chromium also reports).
-  entryFilter: (entry: { url: string }) =>
-    /\/(harness|behaviors|outline|link|list|math|save-flush|incremental-md|wysiwyg-input|tab|stream|keybugs|scrolljump|mermaid|image-convert|width|wiki|split-scroll|prerender|code-linenumber|config-apply)\.js/.test(
-      entry.url,
-    ),
+  entryFilter: (entry: { url: string }) => entryPattern.test(entry.url),
 
   // From the unpacked source map, keep only the webview source modules under
   // `src/`. Drops node_modules (vditor) and the e2e harness itself

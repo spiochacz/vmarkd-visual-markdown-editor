@@ -1,0 +1,71 @@
+# Real-VS-Code render gate (task 150 item 1b).
+#
+# The fast CI (ci.yml) runs the Playwright HARNESS, which can't reproduce the
+# webview-only bug classes — e.g. ELK's worker rejection → silent dagre fallback
+# (test/vscode-e2e/d2-elk.spec.ts) only shows up in a real VS Code webview. This
+# job runs the full real-VS-Code suite (test/vscode-e2e/, incl. d2-elk +
+# custom-diagrams-render) under xvfb so those classes have a signal. It is SLOW
+# (downloads VS Code) so it runs nightly + on demand + on a release tag, NOT on
+# every PR. Treat a failure here as RELEASE-BLOCKING — do not publish a red nightly.
+name: Nightly (real-VS-Code render gate)
+
+on:
+  schedule:
+    # 03:17 UTC daily (odd minute to avoid the top-of-hour scheduler stampede).
+    - cron: '17 3 * * *'
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'v*' # pre-release gate: the real-webview suite must be green before publish
+
+# Pinned so the .vscode-test download cache key is stable and runs are reproducible.
+# BUMP periodically to track the VS Code stable channel (was 1.126.0 at introduction).
+env:
+  VMARKD_VSCODE_VERSION: '1.126.0'
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-vscode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install (root)
+        run: npm ci --no-fund --no-audit
+      - name: Install (media-src)
+        run: npm --prefix media-src ci --no-fund --no-audit
+      - name: Install (vscode-e2e harness)
+        run: npm --prefix test/vscode-e2e install --no-fund --no-audit
+
+      # The suite loads out/ + media/ via extensionDevelopmentPath, so build first.
+      - name: Build
+        run: node build.mjs
+
+      # Cache the downloaded VS Code (keyed by the pinned version) so it downloads once.
+      - name: Cache VS Code download
+        uses: actions/cache@v4
+        with:
+          path: test/vscode-e2e/.vscode-test
+          key: vscode-test-${{ runner.os }}-${{ env.VMARKD_VSCODE_VERSION }}
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-vscode-${{ runner.os }}-${{ hashFiles('test/vscode-e2e/package.json') }}
+
+      # --with-deps pulls the GUI/OS libraries the downloaded VS Code Electron needs too.
+      - name: Install Playwright + Electron deps
+        run: npm --prefix test/vscode-e2e exec -- playwright install --with-deps chromium
+
+      # Electron needs a display; xvfb-run provides a headless one (no GUI windows).
+      - name: Real-VS-Code suite (xvfb)
+        run: xvfb-run -a npm run test:vscode

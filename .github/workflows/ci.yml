@@ -44,8 +44,11 @@ jobs:
       - name: Type-check (webview)
         run: npm run typecheck
 
-      - name: Unit tests
-        run: npm test
+      # Run with coverage so the non-regression thresholds in test/vitest.config.ts
+      # are enforced (task 150 item 3) — a coverage drop fails the build, not just
+      # a failing assertion. Same test set as `npm test`, plus the v8 report.
+      - name: Unit tests (+ coverage gate)
+        run: npm run test:coverage
 
       # Cache the browser binaries (~290 MB) so they download once. The GitHub
       # ubuntu runner already ships Playwright's OS libs (only fonts would be new
