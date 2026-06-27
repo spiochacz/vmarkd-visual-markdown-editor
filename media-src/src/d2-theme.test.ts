@@ -1,4 +1,4 @@
-// Unit coverage for the D2 colour themes (vmarkd.diagram.d2Theme). Asserts the theme registry resolves
+// Unit coverage for the D2 colour themes (vmarkd.theme.d2). Asserts the theme registry resolves
 // to the right styles (mono fallback, d2-catalog exact tokens, editor-paired backgrounds) and that toSVG
 // actually paints them — a page-background rect + themed edge stroke for a colour theme, and neither
 // (transparent canvas, currentColor edges) for mono. Pure node: reuses a frozen layout fixture.
@@ -44,18 +44,50 @@ describe('d2Theme resolution', () => {
     expect(d2Theme('d2-cool-classics').edge).toBe('#000536')
   })
 
-  it('editor-paired themes use the editor background', () => {
-    expect(d2Theme('github-dark').bg).toBe('#0d1117')
-    expect(d2Theme('github-light').bg).toBe('#ffffff')
-    expect(d2Theme('vscode-dark').bg).toBe('#121314')
-    expect(d2Theme('vscode-dark').mono).toBe(false)
+  it('editor-paired themes keep a TRANSPARENT page (no baked bg) but stay coloured', () => {
+    // They sit on the transparent webview body = the editor's own background, so no page rect.
+    for (const name of [
+      'github-dark',
+      'github-light',
+      'vscode-dark',
+      'vscode-light',
+    ]) {
+      expect(d2Theme(name).bg).toBeUndefined()
+      expect(d2Theme(name).mono).toBe(false) // still coloured fills/edges (not monochrome)
+    }
+    // The palette bg still drives the tinted fills even though no page rect is painted.
+    expect(d2Theme('github-dark').leafFill).not.toBe('transparent')
+    expect(d2Theme('github-dark').edge).not.toBe('currentColor')
+  })
+
+  it('auto pairs to the content theme (same palette as the explicit editor-paired theme)', () => {
+    // 'auto' resolves via pairedPalette(contentTheme) → the SAME MERMAID_PALETTES entry the explicit
+    // vscode-*/github-* themes use, so it must produce an identical (transparent) style.
+    expect(d2Theme('auto', 'github-dark')).toEqual(d2Theme('github-dark'))
+    expect(d2Theme('auto', 'github-light')).toEqual(d2Theme('github-light'))
+    expect(d2Theme('auto', 'vscode-dark-2026')).toEqual(d2Theme('vscode-dark'))
+    // Coloured + transparent, never monochrome.
+    expect(d2Theme('auto', 'github-dark').bg).toBeUndefined()
+    expect(d2Theme('auto', 'github-dark').mono).toBe(false)
+  })
+
+  it('auto falls back to a neutral zinc ramp by mode when the content theme has no palette', () => {
+    // contentTheme 'auto' (or undefined) pins no palette → fall back to zinc by editor light/dark.
+    const dark = d2Theme('auto', 'auto', 'dark')
+    const light = d2Theme('auto', 'auto', 'light')
+    expect(dark.bg).toBeUndefined()
+    expect(light.bg).toBeUndefined()
+    expect(dark.mono).toBe(false)
+    expect(dark).not.toEqual(light) // dark vs light differ
+    expect(d2Theme('auto', undefined, 'light')).toEqual(light) // undefined contentTheme == 'auto'
   })
 })
 
 describe('toSVG applies the theme', () => {
-  it('a colour theme paints a background rect + themed edge stroke', () => {
+  it('a d2-catalog theme paints a page-bg rect + themed edge stroke', () => {
     const svg = toSVG(oauth, d2Theme('d2-original'))
-    expect(svg).toContain('fill="#FFFFFF"') // page background rect
+    expect(svg).toContain('data-d2-page-bg="1"') // baked page background rect
+    expect(svg).toContain('fill="#FFFFFF"') // …filled with the catalog page colour
     expect(svg).toContain('stroke="#0D32B2"') // themed connection lines
     expect(svg).not.toContain('stroke="currentColor"')
   })
@@ -63,7 +95,17 @@ describe('toSVG applies the theme', () => {
   it('mono keeps a transparent canvas and currentColor edges', () => {
     const svg = toSVG(oauth)
     expect(svg).toContain('stroke="currentColor"')
-    expect(svg).not.toContain('fill="#FFFFFF"') // no page background rect in mono
+    expect(svg).not.toContain('data-d2-page-bg') // no page background rect in mono
+  })
+
+  it('editor-paired theme paints NO page rect but still colours the diagram', () => {
+    const sty = d2Theme('github-dark')
+    const svg = toSVG(oauth, sty)
+    // No page-background rect: bg is undefined → transparent canvas that follows the editor.
+    expect(svg).not.toContain('data-d2-page-bg')
+    // …but the diagram is still themed (coloured edges, not monochrome).
+    expect(svg).toContain(`stroke="${sty.edge}"`)
+    expect(svg).not.toContain('stroke="currentColor"')
   })
 })
 

@@ -1,9 +1,36 @@
 # Task 119 — D2 theme palettes (auto-colour shapes like real D2)
 
-> **Status:** 💡 idea / planned (decision-gated, spike-friendly) — proposed 2026-06-21. Recommended
-> phasing: **Phase A** = content-theme-paired auto-palette (cheap, theme-aware) first; **Phase B**
-> = optional `vmarkd.diagram.d2Theme` picker with a few ported D2 named themes. Builds on task 104
-> (our D2 renderer) and the task 86/90/94 pairing pattern.
+> **Status:** 🟢 DONE — core shipped 2026-06-25 in commit `de174a4` ("faithful Go shapes + color
+> themes for offline D2"); the `auto` content-paired default, the transparent-bg fix for the
+> editor-paired themes, and the real-VS-Code e2e landed 2026-06-26.
+>
+> **What shipped:** a `vmarkd.theme.d2` picker (default **`auto`**) with `D2Style`/`D2_THEMES`
+> in `d2-render.ts`, threaded through `paintAttrs`/`textAttrs` + ALL bespoke drawers (`drawSqlTable`/
+> `drawClass`/`drawGrid`) and the full nesting cascade (`contFillAt`, d2 `B4→B5→B6→N7`). 11 themes:
+> **`auto`** (Phase A — pairs the palette to the active content theme via `pairedPalette` →
+> `MERMAID_PALETTES`, falling back to a neutral zinc ramp by editor light/dark, exactly like
+> mermaid/echarts; transparent page bg), **5 faithful d2 catalog** ports (`d2-original`/`-neutral-grey`/
+> `-cool-classics`/`-terminal`/`-dark-mauve`, token sets verified vs the real binary — these BAKE their
+> own page bg so they look identical on any editor), **4 editor-paired** (`vscode-light/dark`,
+> `github-light/dark` — explicit versions of what `auto` picks, **TRANSPARENT page bg**), and `mono`
+> (monochrome). Full wiring: `extension.ts collectConfigOptions` → `__vmarkdD2Theme`/`__vmarkdContentTheme`/
+> `__vmarkdMode` globals → `custom-diagrams.ts d2Theme()` → `toSVG`; **live re-theme** on a d2Theme switch
+> (`d2ThemeChanged` → `reRenderD2`), a content-theme switch, AND a VS Code light↔dark flip (both via
+> `reThemePlantumlGraphviz` → `reRenderD2`, with the mode/content globals updated first). Tests:
+> `d2-theme.test.ts` (resolution incl. auto-pairing + zinc fallback + toSVG bg/edge + sql/class) and
+> **real-VS-Code `test/vscode-e2e/d2-theme.spec.ts`** (editor-paired + auto = coloured but NO
+> `data-d2-page-bg` rect; d2-catalog = baked rect present).
+>
+> **Both phases delivered** (originally planned A then B): Phase A = `auto` content-pairing (now the
+> default), Phase B = the named-theme picker (catalog + explicit editor-paired). Original plan below
+> for reference.
+>
+> **2026-06-26 follow-ups:** (1) setting moved `vmarkd.diagram.d2Theme` → **`vmarkd.theme.d2`** (the
+> `theme.*` namespace, beside echarts/mermaid; `d2Layout` stays under `diagram.*`). (2) `paletteStyle`
+> now **mirrors mermaid's `paletteToThemeVariables`** so D2 + mermaid render the SAME content palette
+> identically — neutral `bg+fg` surface fills + `line`-coloured borders/edges, `accent` reserved for
+> emphasis (sql/class). Was accent-tinted fills + accent borders, which diverged (purple D2 boxes vs
+> mermaid grey on material/one-dark). Verified side-by-side against real mermaid.
 
 ## Problem
 Our D2 uses **compile-only WASM + our OWN `toSVG()`** (task 104) — we do not use D2's official
@@ -44,7 +71,7 @@ DOT defaults).
    mermaid (task 59 offscreen-swap pattern).
 
 ## Phase B — optional config picker (mirror `vmarkd.theme.echarts`)
-New `vmarkd.diagram.d2Theme` enum: `auto` (content-paired, **default**) + a curated subset of D2
+New `vmarkd.theme.d2` enum: `auto` (content-paired, **default**) + a curated subset of D2
 themes (`neutral-default`, `cool-classics`, `mixed-berry-blue`, `terminal`, `dark-mauve`, …) +
 `none` (keep today's monochrome). Plumb through `collectConfigOptions()` (`src/extension.ts:~1496`,
 beside `d2Layout`) → message → `main.ts` global. Mark each named theme's intended mode (light/dark)

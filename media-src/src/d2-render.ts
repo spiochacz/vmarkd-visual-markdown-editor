@@ -1,5 +1,6 @@
 import dagre from '@dagrejs/dagre'
-import { MERMAID_PALETTES, mix } from '../../src/mermaid-palettes'
+import { MERMAID_PALETTES, luminance, mix } from '../../src/mermaid-palettes'
+import { pairedPalette } from '../../src/theme-registry'
 // Route-simplification geometry + the Rect obstacle type moved to the shared leaf module (task 123).
 import { type Rect, simplifyRoute, straightenEnds } from './d2-geometry'
 import type { D2Edge, D2Graph, D2Shape } from './d2-wasm'
@@ -235,27 +236,33 @@ export function paletteStyle(p?: D2Palette): D2Style {
       accent2: 'currentColor',
       fills: ['transparent', 'transparent', 'transparent', 'transparent'],
     }
+  // Mirror mermaid's palette→theme mapping (paletteToThemeVariables in mermaid-palettes.ts) so D2 and
+  // mermaid render the SAME content palette IDENTICALLY on the same editor theme: NEUTRAL surface fills
+  // (bg+fg mix) + LINE-coloured borders/edges, with the saturated `accent` reserved for emphasis
+  // (sql_table/class accents — mermaid likewise uses accent only for notes). Previously D2 used
+  // accent-tinted fills + accent borders, which diverged from mermaid (e.g. purple boxes on
+  // material/one-dark where mermaid draws grey). `bg`/`paper` stay the palette bg (pairedTheme sets
+  // bg:undefined → transparent; paper still fills sql_table/class bodies).
   const accent = p.accent || p.line || p.fg
+  const line = p.line ?? mix(p.bg, p.fg, 0.35)
+  const dark = luminance(p.bg) < 0.5
+  const surface = mix(p.bg, p.fg, dark ? 0.1 : 0.05) // node fill   (mermaid primaryColor / mainBkg)
+  const surface2 = mix(p.bg, p.fg, dark ? 0.16 : 0.09) // container (mermaid clusterBkg / secondBkg)
   return {
-    leafFill: mix(p.bg, accent, 0.1), // subtle accent-tinted surface
-    leafStroke: accent, // coloured border, D2-like
-    contFill: mix(p.bg, p.fg, 0.05), // muted container surface
-    contStroke: mix(p.fg, accent, 0.4),
+    leafFill: surface,
+    leafStroke: line,
+    contFill: surface2,
+    contStroke: line,
     contOpacity: '1',
-    edge: p.line || accent,
-    bg: p.bg, // paint the editor background so the paired theme blends into that environment
+    edge: line,
+    bg: p.bg, // paint the editor background (pairedTheme overrides to undefined = transparent)
     mono: false,
     text: p.fg,
     textMuted: mix(p.bg, p.fg, 0.6),
     paper: p.bg,
     accent,
     accent2: accent,
-    fills: [
-      mix(p.bg, p.fg, 0.1),
-      mix(p.bg, p.fg, 0.06),
-      mix(p.bg, p.fg, 0.03),
-      p.bg,
-    ],
+    fills: [surface2, surface, mix(p.bg, p.fg, dark ? 0.06 : 0.03), p.bg],
   }
 }
 
@@ -293,9 +300,16 @@ const d2Catalog = (t: {
 })
 
 // Editor-paired themes (vscode/github light+dark) — mirror the mermaid palette look: SUBTLE accent-
-// tinted fills (not d2's saturated tokens), accent borders + edges, page bg = the editor's own
-// background, so the diagram blends into that environment like mermaid does. Reuses MERMAID_PALETTES.
-const pairedTheme = (id: string): D2Style => paletteStyle(MERMAID_PALETTES[id])
+// tinted fills (not d2's saturated tokens), accent borders + edges. Reuses MERMAID_PALETTES.
+// NO page background (bg: undefined): these themes sit on the TRANSPARENT webview body, which already
+// shows the editor's own background — so painting an opaque page rect in the palette's *assumed* bg
+// would clash whenever the user's actual VS Code / content theme differs from it. The palette bg still
+// drives the tinted fills (leafFill/contFill/fills/paper); only the page rect is dropped. Contrast:
+// the d2-* catalog themes DO bake a page bg on purpose (so they look identical on any editor).
+const pairedTheme = (id: string): D2Style => ({
+  ...paletteStyle(MERMAID_PALETTES[id]),
+  bg: undefined,
+})
 
 const D2_THEMES: Record<string, D2Style> = {
   // d2 catalog — full token sets pulled verbatim from `d2 --theme=<id>` (v0.7.1).
@@ -361,9 +375,30 @@ const D2_THEMES: Record<string, D2Style> = {
   'github-dark': pairedTheme('github-dark'),
 }
 
-// Resolve a theme NAME to its style. Unknown / 'mono' / undefined → the monochrome currentColor style
-// (today's default), so existing diagrams are unchanged unless a colour theme is explicitly selected.
-export function d2Theme(name?: string): D2Style {
+// 'auto' theme: pair the palette to the active CONTENT theme — the same layer-1 mapping mermaid/echarts
+// use (pairedPalette → MERMAID_PALETTES) — so D2 follows the editor environment. When the content theme
+// is itself 'auto' (no pinned palette) we fall back to a neutral zinc ramp by the editor's light/dark
+// mode, mirroring resolveEchartsTheme. Page bg stays transparent (editor-paired) so it blends in.
+function autoPairedStyle(
+  contentTheme?: string,
+  mode: 'dark' | 'light' = 'light',
+): D2Style {
+  const fallback = mode === 'dark' ? 'zinc-dark' : 'zinc-light'
+  const pal =
+    MERMAID_PALETTES[pairedPalette(contentTheme) ?? fallback] ??
+    MERMAID_PALETTES[fallback]
+  return { ...paletteStyle(pal), bg: undefined }
+}
+
+// Resolve a theme NAME to its style. 'auto' → content-theme-paired (needs contentTheme/mode). Unknown /
+// 'mono' / undefined → the monochrome currentColor style, so existing diagrams are unchanged unless a
+// colour theme is explicitly selected.
+export function d2Theme(
+  name?: string,
+  contentTheme?: string,
+  mode?: 'dark' | 'light',
+): D2Style {
+  if (name === 'auto') return autoPairedStyle(contentTheme, mode)
   return (name && D2_THEMES[name]) || paletteStyle()
 }
 
@@ -1495,12 +1530,14 @@ function toSVG(layout: Layout, style?: D2Style): string {
     )
   }
 
-  // Page background (colour themes only). A self-contained light/dark card behind everything so the
-  // diagram reads identically regardless of the VS Code editor background. Mono theme has no bg →
-  // transparent canvas that follows the editor (today's behaviour). Drawn first = furthest back.
+  // Page background — d2-* catalog themes ONLY. A self-contained card behind everything so those
+  // themes read identically regardless of the VS Code editor background. Mono AND the editor-paired
+  // (vscode/github) themes have no bg → transparent canvas that follows the editor. Drawn first = back.
   if (sty.bg)
+    // data-d2-page-bg marks THE page-background rect (vs. shape/container fills) so tests can assert
+    // its presence (d2-* catalog) / absence (mono + editor-paired transparent themes) unambiguously.
     parts.push(
-      `<rect x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${sty.bg}"/>`,
+      `<rect data-d2-page-bg="1" x="${vbX}" y="${vbY}" width="${vbW}" height="${vbH}" fill="${sty.bg}"/>`,
     )
 
   // Background pass — containers + grids FIRST so their fills sit BEHIND the edges. With task 119
@@ -1667,6 +1704,14 @@ function toSVG(layout: Layout, style?: D2Style): string {
         // d2 paints code on its N7 paper fill; an explicit source style still wins.
         parts.push(
           `<rect x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" rx="${rx}" fill="${s.fill || sty.paper}" stroke="${s.stroke || sty.leafStroke}" stroke-width="${s.strokeWidth || 1}"${s.opacity && Number(s.opacity) !== 1 ? ` opacity="${s.opacity}"` : ''}/>`,
+        )
+      else if (s.fill || s.stroke || s.borderRadius)
+        // d2 assigns shape:text to any |md|/|latex|/plain-text label with no explicit shape. A BARE
+        // text shape is borderless, but an explicit fill/stroke/border means the user wants a box —
+        // real d2 paints one. Without this the class/style fill was dropped, so md-label nodes were
+        // invisible (only text) on a dark theme. Stroke only when given (bare fill = no border).
+        parts.push(
+          `<rect x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" rx="${rx}" fill="${s.fill || 'transparent'}"${s.stroke ? ` stroke="${s.stroke}" stroke-width="${s.strokeWidth || 1}"` : ''}${s.opacity && Number(s.opacity) !== 1 ? ` opacity="${s.opacity}"` : ''}/>`,
         )
       const fam = isCode
         ? ' font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"'

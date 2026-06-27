@@ -314,9 +314,14 @@ export function renderD2(root?: ParentNode): void {
         // Layout engine from the `vmarkd.diagram.d2Layout` setting (window global set by main.ts).
         // ELK gives orthogonal routing; it lazy-loads a separate main-thread bundle (elk-main.js,
         // ~1.4 MB) and returns null if it can't load/lay out, so we fall back to dagre.
-        // Colour theme from `vmarkd.diagram.d2Theme` (window global set by main.ts). Default 'mono'
-        // → monochrome currentColor that follows the editor; named themes paint their own palette+bg.
-        const style = d2Theme((window as any).__vmarkdD2Theme)
+        // Colour theme from `vmarkd.theme.d2` (window global set by main.ts). 'auto' pairs the
+        // palette to the content theme + editor mode (also globals); named themes paint their own
+        // palette (+bg for d2-*); 'mono'/undefined → monochrome currentColor that follows the editor.
+        const style = d2Theme(
+          (window as any).__vmarkdD2Theme,
+          (window as any).__vmarkdContentTheme,
+          (window as any).__vmarkdMode,
+        )
         let svgStr: string | null = null
         let engine = 'dagre'
         // Three engines (vmarkd.diagram.d2Layout): 'vmarkd' = ELK + our refinement pipeline (default),

@@ -73,10 +73,10 @@ engine-neutral `Layout` IR → SVG). Shape geometry + sizing are a **faithful po
 `lib/shape`** (person silhouette, deep cylinder/queue caps, stored_data/package/step/callout/
 document/page/parallelogram). **Colour themes** live in a `D2_THEMES` registry resolved by
 `d2Theme(name)`: d2-catalog palettes (token map leaf=B4/stroke B1, container=B5/B1, edge=B1, page=N7)
-paint their own page background; editor-paired themes (vscode/github light+dark) reuse
-`MERMAID_PALETTES` with subtle tints; `mono` (transparent, currentColor) is the legacy default.
-Engine + theme are selected via `vmarkd.diagram.d2Layout` / `vmarkd.diagram.d2Theme`, threaded
-host→webview as `window.__vmarkdD2Layout` / `__vmarkdD2Theme`.
+paint their own page background; `auto` (default) + the editor-paired themes (vscode/github
+light+dark) reuse `MERMAID_PALETTES` with subtle tints on a transparent page; `mono` is the legacy
+monochrome (transparent, currentColor). Engine + theme are selected via `vmarkd.diagram.d2Layout` /
+`vmarkd.theme.d2`, threaded host→webview as `window.__vmarkdD2Layout` / `__vmarkdD2Theme`.
 
 ### Patterns
 

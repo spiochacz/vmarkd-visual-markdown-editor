@@ -581,7 +581,9 @@ toSVG-only (no WASM), and multi-line labels split into `<tspan>` rows (task 124 
 ```d2
 note: "Plain text shape.\nBorderless, multi-line prose." { shape: text }
 snippet: "func main() {\n  fmt.Println(\"hi\")\n}" { shape: code }
+boxed: |md **Styled text box** | { style: { fill: "#2bd4a8"; stroke: "#0d7a5f" } }
 note -> snippet
+note -> boxed
 ```
 
 Connection styles (task 124 #1) — `stroke` / `stroke-width` / `stroke-dash` / `opacity` / `animated`;

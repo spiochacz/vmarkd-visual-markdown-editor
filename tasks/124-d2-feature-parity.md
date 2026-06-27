@@ -55,8 +55,17 @@ what it never received. The fixes are mostly "extract field in Go → consume in
   in `leafInfo` (shared by dagre + ELK): proportional Sizer per line for text; monospace char-count
   estimate for code (the Sizer has no mono font). Unit tests in `d2-render.test.ts` (6); visual via the
   render harness; fixture block in `all-renderers.md` §18 for the real-VS-Code suite. No WASM needed.
+- **Fix 2026-06-26 (styled text shapes):** d2 assigns `shape: text` to any `|md|`/`|latex|`/plain-text
+  label with no explicit shape, and `toSVG`'s text branch was unconditionally borderless — so an
+  explicit `fill`/`stroke`/`border-radius` (e.g. a `class` style) was DROPPED. Real d2 paints a box in
+  that case; we didn't, so md-label nodes rendered as text-only → invisible on a dark theme (reported on
+  a C4 diagram whose `system`/`focus`/`external` classes set fills). Now the text branch paints a rect
+  when the shape is styled (bare text stays borderless). Unit (`d2-render.test.ts` styled-text-box) +
+  real-VS-Code e2e (`d2-feature-parity.spec.ts` `hasStyledTextBox`, fixture §18 `boxed` node).
 - **Left (deferred):** syntax highlighting for `code` needs the block's **language** (not marshalled)
-  → folds into the Phase-B WASM bump; reuse the highlight.js path. Markdown labels = task 154.
+  → folds into the Phase-B WASM bump; reuse the highlight.js path. Markdown labels rendered as FORMATTED
+  markdown (bold/headings/etc. instead of raw `**text**`) = task 154 — this fix only restores the node
+  box, not md formatting of the label content.
 
 ### 3. `shape: image` + icons (`icon: <url>`) — ✅ DONE (2026-06-25)
 - **Done:** `outShape` marshals `icon` (= `o.Icon.String()`). `toSVG`: `shape: image` draws a full

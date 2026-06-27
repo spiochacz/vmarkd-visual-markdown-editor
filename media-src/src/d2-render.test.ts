@@ -776,6 +776,28 @@ describe('shape: text / code (task 124 #2)', () => {
     expect(svg.match(/<rect/g)).toBeNull()
   })
 
+  it('renders a STYLED text shape with a box (real-d2 parity, not borderless)', () => {
+    // d2 assigns shape:text to |md|/text labels with no explicit shape; a bare one is borderless,
+    // but an explicit fill/stroke means the user wants a box (real d2 paints one). Regression: md-label
+    // nodes with a class fill rendered as text only → invisible on a dark theme.
+    const styled = g([
+      {
+        id: 'n',
+        idVal: 'n',
+        label: 'x',
+        shape: 'text',
+        fill: '#abcdef',
+        stroke: '#123456',
+        special: empty(),
+      },
+    ])
+    const svg = renderD2Graph(styled, sizer)
+    expect((svg.match(/<rect/g) || []).length).toBe(1) // a box behind the text
+    expect(svg).toContain('fill="#abcdef"')
+    expect(svg).toContain('stroke="#123456"')
+    expect(svg).toContain('<tspan') // …text still drawn on top
+  })
+
   it('renders shape:code as a monospace panel (one rect + mono font)', () => {
     const svg = renderD2Graph(node('code', 'const x = 1'), sizer)
     expect((svg.match(/<rect/g) || []).length).toBe(1) // the panel

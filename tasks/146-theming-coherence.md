@@ -33,9 +33,11 @@ documents the *mechanism* but not the *should*.
   why." This turns the organic split into an intentional one and guides every future renderer.
 
 ### 2. 🟠 Inconsistent per-renderer theme SETTINGS
-echarts exposes `vmarkd.theme.echarts` (auto + gallery); D2 exposes `vmarkd.diagram.d2Theme`
-(mono + d2-native + paired); mermaid/graphviz/plantuml expose nothing (implicit content-theme). No
-policy for which renderers get an explicit theme-override picker.
+echarts exposes `vmarkd.theme.echarts` (auto + gallery); D2 exposes `vmarkd.theme.d2` (auto +
+d2-native + paired) — **moved 2026-06-26 from `vmarkd.diagram.d2Theme` into the `theme.*` namespace
+for consistency with echarts/mermaid; `d2Layout` stays under `diagram.*` as it's an engine, not a
+theme**; mermaid/graphviz/plantuml expose nothing (implicit content-theme). No policy for which
+renderers get an explicit theme-override picker.
 - **Fix:** decide + document the rule (e.g. "expose an explicit picker only where the engine ships
   multiple first-class theme families worth choosing — echarts gallery, d2 native; everything else
   follows the content theme"). Audit the existing two against it; don't necessarily add more.

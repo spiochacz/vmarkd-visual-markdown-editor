@@ -48,6 +48,9 @@ test('D2 feature parity renders in the real VS Code webview', async ({
       // shape:text / code (task 124 #2)
       hasTspan: /<tspan/.test(html),
       hasMonoFont: /font-family="ui-monospace/.test(html),
+      // a STYLED text shape (|md| / text label + explicit fill) paints a box — real-d2 parity, not
+      // borderless; regression: md-label nodes with a class fill were invisible on a dark theme.
+      hasStyledTextBox: /fill="#2bd4a8"/.test(html),
       // connection styles (task 124 #1)
       hasRedStroke: /stroke="#e03131"/.test(html),
       hasDash: /stroke-dasharray=/.test(html),
@@ -70,6 +73,7 @@ test('D2 feature parity renders in the real VS Code webview', async ({
   // #2 text/code
   expect(d2.hasTspan).toBe(true)
   expect(d2.hasMonoFont).toBe(true)
+  expect(d2.hasStyledTextBox).toBe(true)
   // #1 connection styles + accessible animation
   expect(d2.hasRedStroke).toBe(true)
   expect(d2.hasDash).toBe(true)
