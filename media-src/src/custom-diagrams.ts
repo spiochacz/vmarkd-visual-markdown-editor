@@ -425,6 +425,25 @@ function initLeafletMap(wrapper: HTMLElement, geojson: any): void {
     scrollWheelZoom: false,
   })
 
+  // Optional remote basemap (task 99): default is geometry-only on a transparent canvas (fully
+  // offline). When the user has opted into remote images, add CARTO's no-key basemap UNDER the
+  // geometry — light/dark variant per the editor mode. The CSP only allows `https:` images when
+  // `image.allowRemoteImages` is on, so without the opt-in these tiles can't (and won't) be requested.
+  if ((window as any).__vmarkdAllowRemoteImages) {
+    const variant =
+      (window as any).__vmarkdMode === 'dark' ? 'dark_all' : 'light_all'
+    L.tileLayer(
+      `https://{s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}{r}.png`,
+      {
+        subdomains: 'abcd',
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors © CARTO',
+      },
+    ).addTo(map)
+    // OSM/CARTO require visible attribution — re-enable the control we suppressed above.
+    L.control.attribution({ prefix: false }).addTo(map)
+  }
+
   const fg = getComputedStyle(wrapper).color || '#3388ff'
   const layer = L.geoJSON(geojson, {
     style: {

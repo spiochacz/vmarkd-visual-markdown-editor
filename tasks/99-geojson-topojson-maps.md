@@ -5,6 +5,16 @@
 > no base-map TILE layer (remote tiles → CSP-blocked offline), so only the geometry shows on a blank
 > background. Decide: vendor offline tiles (size) vs document as "geometry-only". Mark this task done
 > for the render + track the basemap gap.
+>
+> **🟣 Basemap done 2026-06-27 (99a):** chose **option (b)** — a remote basemap behind an opt-in.
+> `initLeafletMap` now adds CARTO's no-key tiles (light_all/dark_all per editor mode) UNDER the
+> geometry **only when `image.allowRemoteImages` is on**. No CSP change needed: `img-src` already adds
+> `https:` exactly when that setting is on, so the tiles can't be requested while off (default stays
+> fully offline, geometry-only). Plumbed `allowRemoteImages` through `collectConfigOptions` →
+> `window.__vmarkdAllowRemoteImages`. Attribution control re-enabled when tiles load (OSM/CARTO
+> requirement). Test: `test/vscode-e2e/geojson-tiles.spec.ts` (ON → CARTO tiles present; OFF → 0 tiles).
+> Remaining for a clean DONE: a unit test for the lang-dispatch + assert the theme-flip re-render (both
+> low; render itself has strong real-VS-Code coverage).
 
 > **Status:** 📋 TODO. Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps
 > — a **GitHub-native** Markdown feature (since 2022) that vMarkd lacks. Offline via a bundled

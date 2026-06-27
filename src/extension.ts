@@ -1510,6 +1510,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       imageFormat: c.get<string>('image.format'),
       imageQuality: c.get<number>('image.quality'),
       imageMaxWidth: c.get<number>('image.maxWidth'),
+      // Lets the webview add a remote basemap tile layer to geojson/topojson maps (task 99). The CSP
+      // is the real gate (img-src adds `https:` only when this is on); the webview reads this to decide
+      // whether to request tiles at all (so they aren't added + blocked when off).
+      allowRemoteImages: c.get<boolean>('image.allowRemoteImages') === true,
       wikiEnabled: c.get<boolean>('wiki.enabled') !== false,
     }
   }

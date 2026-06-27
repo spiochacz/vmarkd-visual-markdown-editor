@@ -537,6 +537,8 @@ function initVditor(msg) {
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
   // D2 colour theme (vmarkd.theme.d2) — read by custom-diagrams.ts → d2Theme(). Same global pattern.
   ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  // Whether remote basemap tiles may load on geojson/topojson maps (task 99) — read by initLeafletMap.
+  ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
   // Content theme + editor mode — only consumed by the D2 'auto' theme (pairs to the content palette).
   ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
   ;(window as any).__vmarkdMode = msg.theme === 'dark' ? 'dark' : 'light'
@@ -1179,6 +1181,7 @@ function handleConfigChanged(msg: any) {
   // Keep the D2 globals current so a re-render uses the new engine + theme (set before any re-render).
   ;(window as any).__vmarkdD2Layout = msg.options?.d2Layout
   ;(window as any).__vmarkdD2Theme = msg.options?.d2Theme
+  ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
   ;(window as any).__vmarkdContentTheme = msg.options?.contentTheme
   // Mode only rides on a config message when the content theme pins a new light/dark; leave the
   // existing global otherwise (a non-theme config change carries no msg.theme).
