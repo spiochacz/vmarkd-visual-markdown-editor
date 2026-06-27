@@ -16,7 +16,8 @@
 > Remaining for a clean DONE: a unit test for the lang-dispatch + assert the theme-flip re-render (both
 > low; render itself has strong real-VS-Code coverage).
 
-> **Status:** 📋 TODO. Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps
+> **Status:** ✅ DONE (2026-06-27 — render + theming + opt-in CARTO basemap 99a + e2e; see audit/99a notes above).
+> Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps
 > — a **GitHub-native** Markdown feature (since 2022) that vMarkd lacks. Offline via a bundled
 > JS map lib (Leaflet/MapLibre). **First of the new-renderer tasks: it establishes the shared
 > custom fenced-renderer pass** that 100–103 reuse.

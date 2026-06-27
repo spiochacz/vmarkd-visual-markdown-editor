@@ -30,7 +30,7 @@
 > → page bg; verified no white-box on dark: the inner div follows the theme). Test: `wavedrom-theme.spec.ts`
 > ("wavedrom in the full Preview pane sits on the page bg, not the code-panel grey").
 
-> **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
+> **Status:** ✅ DONE (2026-06-27 — render + dark theming for signal/reg/assign/config + Preview-pane fix + e2e; see fix notes above).
 > Render ` ```wavedrom ` fenced blocks as digital **timing diagrams** (WaveJSON). Popular in
 > hardware/EE docs; supported by Kroki/GitLab-adjacent tooling. Pure-JS, SVG, fully offline.
 > **Source:** ecosystem survey (Kroki diagram set); user request.

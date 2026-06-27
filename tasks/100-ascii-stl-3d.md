@@ -14,8 +14,22 @@
 > correct, theme-agnostic choice and no live re-theme is needed. Tests: `media-src/src/stl-material.
 > test.ts` (unit: mid-tone invariant) + `test/vscode-e2e/stl-material.spec.ts` (real-VS-Code: the
 > canvas carries `data-stl-material="#9aa0a6"`; robust where the headless host has no WebGL context).
+>
+> **✅ Closed 2026-06-27:** verify-first done to the extent the environment allows.
+> - **Bundle measured:** `media-src/vendor/threejs/three-stl.min.js` = **541 413 B (≈528.7 KB)**, the
+>   tree-shaken STL viewer (Scene+Camera+Renderer+`STLLoader`+`OrbitControls`, three.js **0.184.0**, MIT).
+>   Vendored + sha256-pinned (`source.json`), sha-gated by `build.mjs syncVendored`, lazy-loaded (only docs
+>   with a ` ```stl ` block pay for it). Within the planned ~600 KB–1 MB budget — no slimmer viewer needed.
+> - **Tests green:** unit `stl-material.test.ts` 2/2; real-VS-Code `stl-material.spec.ts` 1/1
+>   (`data-stl-material=#9aa0a6`, headless via xvfb).
+> - **Not verifiable here:** live orbit/zoom controls, directional lighting, and large-mesh perf are
+>   **WebGL/GPU-only** — this WSL/xvfb host has no usable WebGL (ANGLE/Mesa `llvmpipe BindToCurrentSequence
+>   failed`), so a full-render e2e can't assert them headless. The attribute spec is the headless-robust
+>   proxy; full interactive verification belongs to a GPU/CI run or the user's editor. The render path,
+>   material, bundle, and CSP fit (local-only, no remote, no eval) are confirmed.
 
-> **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
+> **Status:** ✅ DONE (render + material fix + bundle measured + tests; live orbit/lighting/perf is
+> GPU-only, see closure note). Was: 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```stl ` fenced blocks as interactive 3D models — a **GitHub-native** Markdown feature
 > that vMarkd lacks. Offline via bundled three.js. Fully offline (no remote, WebGL/canvas only).
 > **Source:** GitHub-parity gap (GitHub renders mermaid+geojson+topojson+**stl** natively); user request.

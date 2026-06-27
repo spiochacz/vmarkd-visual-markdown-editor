@@ -15,7 +15,7 @@
 > `test/vscode-e2e/nomnoml-theme.spec.ts` (flat + nested, no baked colour survives on dark). No
 > `media-src` change — render + theming were already correct; this round is test + docs only.
 
-> **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
+> **Status:** ✅ DONE (2026-06-27 — render + theming verified incl. nested + e2e; see verify note 103b above).
 > Render ` ```nomnoml ` fenced blocks as UML diagrams. nomnoml is a tiny, pure-JS UML language —
 > a lightweight, fully-offline alternative to PlantUML (task 87) for class/relationship sketches.
 > Supported by Kroki.
