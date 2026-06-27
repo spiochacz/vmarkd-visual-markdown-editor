@@ -1063,6 +1063,8 @@ function handleSetTheme(msg: any) {
   // flowchart.js bakes its colours (no currentColor) → re-render in the new theme's foreground
   // (deferred so it reads the SETTLED colour after the content-theme <link> applies).
   reThemeFlowchart()
+  // Vega bakes axis/label colours from getComputedStyle too → same foreground-settle polling.
+  reThemeVega()
   // PlantUML bakes dark/light at render time → re-render with the new mode.
   // Graphviz uses currentColor but a re-render guarantees a fresh SVG.
   reThemePlantumlGraphviz()
@@ -1084,29 +1086,50 @@ function reThemeSmiles(): void {
   window.setTimeout(() => repairSmiles(app), 600)
 }
 
-/** Re-render flowcharts in the new theme's foreground after a flip. flowchart.js reads the colour
- *  from `getComputedStyle(el).color` at draw time, but the content-theme `<link>` applies
- *  asynchronously and can settle LATE (>600ms) — a fixed-delay re-render bakes a stale colour. So
- *  POLL the foreground for ~2s and re-render only when it actually CHANGES (cheap: at most a couple
- *  of re-renders — once now, once when the new stylesheet's colour finally lands). reRenderFlowchart
- *  re-parses from source; with no flowchart in the doc it's a no-op. */
-function reThemeFlowchart(): void {
+/** Re-render a renderer that BAKES its colours from `getComputedStyle(...).color` at draw time, once
+ *  the new theme's foreground actually LANDS. Such engines (flowchart.js, vega-embed) go stale on a
+ *  live flip: the content-theme `<link>` applies asynchronously and can settle LATE (>400ms), so a
+ *  fixed-delay re-render bakes the OLD colour (reported: vega axis numbers/ticks keep the previous
+ *  theme's colour until the file is reopened). POLL the foreground (probe = a rendered block whose
+ *  computed colour mirrors what the renderer reads) for ~2s and re-render only when it CHANGES —
+ *  cheap (a couple of re-renders at most), and the LAST one uses the settled colour. `reRender`
+ *  re-parses from source, so with no such block in the doc it's a no-op. */
+function reThemeOnForegroundChange(
+  probeSelector: string,
+  reRender: (root?: HTMLElement) => void,
+): void {
   let lastFg = ''
   let ticks = 0
   const tick = () => {
     ticks++
     const editorEl = activeModeElement(window.vditor) ?? undefined
-    const probe = editorEl?.querySelector(
-      '.vditor-ir__preview .language-flowchart, .vditor-wysiwyg__preview .language-flowchart',
-    ) as HTMLElement | null
+    const probe = editorEl?.querySelector(probeSelector) as HTMLElement | null
     const fg = probe ? getComputedStyle(probe).color : ''
     if (fg && fg !== lastFg) {
       lastFg = fg
-      reRenderFlowchart(window, editorEl)
+      reRender(editorEl)
     }
     if (ticks < 14) window.setTimeout(tick, 150) // watch for a late content-theme settle (~2s)
   }
   requestAnimationFrame(tick)
+}
+
+function reThemeFlowchart(): void {
+  reThemeOnForegroundChange(
+    '.vditor-ir__preview .language-flowchart, .vditor-wysiwyg__preview .language-flowchart',
+    (root) => reRenderFlowchart(window, root),
+  )
+}
+
+/** Vega/Vega-Lite bake axis/label/legend/title colours from `getComputedStyle(wrapper).color` at
+ *  render time — same late-settle trap as flowchart, so poll the foreground rather than re-rendering
+ *  on a fixed delay (which left the axis numbers in the old theme's colour until reopen). */
+function reThemeVega(): void {
+  reThemeOnForegroundChange(
+    '.vditor-ir__preview .language-vega, .vditor-wysiwyg__preview .language-vega,' +
+      '.vditor-ir__preview .language-vega-lite, .vditor-wysiwyg__preview .language-vega-lite',
+    reRenderVega,
+  )
 }
 
 /** Re-render PlantUML (dark/light palette) + Graphviz (currentColor) after a theme flip.
@@ -1122,7 +1145,8 @@ function reThemePlantumlGraphviz(): void {
     reRenderNomnoml(el ?? undefined)
     reRenderGeojson(el ?? undefined)
     reRenderTopojson(el ?? undefined)
-    reRenderVega(el ?? undefined)
+    // Vega is re-themed via reThemeVega() (foreground polling) instead — its axis/label colours come
+    // from getComputedStyle, which settles too late for this fixed 400ms delay (the old colour stuck).
     reRenderStl(el ?? undefined)
     // One edit covers BOTH theme-flip sites: reThemePlantumlGraphviz() runs from
     // handleSetTheme AND handleConfigChanged, so D2 re-renders on a content-theme flip
@@ -1240,6 +1264,8 @@ function handleConfigChanged(msg: any) {
   // flowchart.js bakes its foreground colour → re-render on a content-theme switch (deferred so it
   // reads the SETTLED foreground after the content-theme <link> applies).
   if (contentThemeChanged) reThemeFlowchart()
+  // Vega axis/label colours come from getComputedStyle → poll the settled foreground (same as flowchart).
+  if (contentThemeChanged) reThemeVega()
   if (contentThemeChanged) reThemePlantumlGraphviz()
   // D2 layout engine switch (dagre↔ELK) or colour-theme switch — re-render D2 blocks. (A content-theme
   // change already re-renders D2 via reThemePlantumlGraphviz above — which is what the 'auto' D2 theme

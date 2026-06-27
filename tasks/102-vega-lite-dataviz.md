@@ -4,6 +4,15 @@
 > (vega 7.x / vega-embed vendored); status below is stale. **Open gap:** `spec.data.url` is stripped
 > (offline) → only inline data works; document it. Verify-first: vega light/dark theming + responsive
 > width/height. Mark done for inline-data render + track the data-URL limitation.
+>
+> **🐛 Fix 2026-06-27:** live theme-flip staleness — vega-embed bakes axis/label/legend/title colours
+> from `getComputedStyle(wrapper).color`, but on a flip it was re-rendered on a fixed 400ms delay (the
+> `reThemePlantumlGraphviz` batch) BEFORE the content-theme `<link>` settled, so the axis numbers/ticks
+> kept the OLD colour until the file was reopened (user report). Moved vega onto the same foreground-
+> POLLING re-theme as flowchart: new shared `reThemeOnForegroundChange()` helper in `main.ts` (used by
+> `reThemeFlowchart` + new `reThemeVega`), wired into `handleSetTheme` + `handleConfigChanged`
+> (contentThemeChanged). Test: `test/vscode-e2e/vega-theme.spec.ts` (axis `<text>` fill tracks a live
+> github-dark→github-light flip).
 
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```vega ` / ` ```vega-lite ` fenced blocks (JSON spec) as charts. Vega is a richer
