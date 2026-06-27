@@ -441,12 +441,12 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 [data-vmarkd-zoom]:fullscreen > .vmarkd-diagram-fs {
   opacity: 1;
 }
-/* In the IR + WYSIWYG edit surfaces a click on a rendered diagram opens its source for editing, so
-   text selection on the diagram is pointless (and fought the Ctrl-drag pan). Disable it there. The
-   full Preview pane (.vditor-preview) is read-only → selection stays allowed. Scoped to our
-   zoom-decorated diagrams so it never touches surrounding prose. */
-:is(.vditor-ir__preview, .vditor-wysiwyg__preview) [data-vmarkd-zoom],
-:is(.vditor-ir__preview, .vditor-wysiwyg__preview) [data-vmarkd-zoom] * {
+/* No text selection on a zoom/pan diagram: Ctrl-drag panning would otherwise select the SVG labels,
+   and in IR/WYSIWYG a click opens the source for editing anyway. Applied to ALL zoom-decorated
+   diagrams (every pane, incl. the full Preview) since panning works everywhere; scoped to our
+   diagrams so surrounding prose stays selectable. (`* ` covers the SVG `<text>` nodes.) */
+[data-vmarkd-zoom],
+[data-vmarkd-zoom] * {
   user-select: none;
 }
 /* SMILES is the one diagram Lute wraps in a `<code class="language-smiles">` (the others are `<div>`),

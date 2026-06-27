@@ -103,6 +103,7 @@ function decorate(wrapper: HTMLElement): void {
   let sy = 0
   wrapper.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || (!e.ctrlKey && !e.metaKey)) return
+    e.preventDefault() // stop the drag from starting a text selection on the SVG labels
     dragging = true
     sx = e.clientX - st.tx
     sy = e.clientY - st.ty
