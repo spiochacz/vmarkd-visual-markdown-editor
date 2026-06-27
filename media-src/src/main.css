@@ -378,9 +378,13 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    child is a `<code class="language-…">` — a real code block has a `<code class="hljs">` instead.
    Content themes (and the auto code-bg rule above) paint EVERY preview `<pre>` with the code-block
    panel background; for a diagram that's wrong — it should sit on the page background, not a panel.
-   Neutralise it for the known non-code custom languages only (the code block keeps its bg). */
+   Neutralise it for the known non-code custom languages only (the code block keeps its bg).
+   Includes `.vditor-preview` (the full Preview pane): there the diagram render is a transparent SVG
+   (e.g. wavedrom's bitfield/signal is currentColor line-art with NO fill), so the code-panel grey on
+   the `pre` showed THROUGH it — "wszystkie diagramy mają tło jak temat prócz wavedrom" (the other
+   engines' SVGs have opaque fills that hid it). The `code`-form rule below already covered all panes. */
 .vditor-reset
-  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):has(
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview pre):has(
     > :is(
         .language-mermaid,
         .language-echarts,

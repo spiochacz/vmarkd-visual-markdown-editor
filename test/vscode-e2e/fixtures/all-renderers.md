@@ -171,8 +171,28 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ## 12. WaveDrom — timing diagrams (task 101)
 
+Signal (timing):
+
 ```wavedrom
 { "signal": [{ "name": "clk", "wave": "p......." }, { "name": "dat", "wave": "x.345x.." }, { "name": "req", "wave": "0.1..0.." }] }
+```
+
+Register bitfield (`reg`):
+
+```wavedrom
+{ "reg": [{ "bits": 8, "name": "data", "attr": "RW" }, { "bits": 4, "name": "op" }, { "bits": 3, "name": "id" }, { "bits": 1, "name": "v" }] }
+```
+
+Logic / assignment (`assign`):
+
+```wavedrom
+{ "assign": [["out", ["|", ["&", "a", "b"], ["~", "c"]]]] }
+```
+
+With `config` — `hscale` stretches the time axis (a non-default `skin` silently falls back to the bundled default):
+
+```wavedrom
+{ "signal": [{ "name": "clk", "wave": "p......" }, { "name": "bus", "wave": "x.34.5x", "data": ["A", "B", "C"] }], "config": { "hscale": 2 } }
 ```
 
 ---

@@ -106,26 +106,43 @@ function themeWavedromSvg(svg: SVGElement): void {
       .replace(/fill\s*:\s*white\b/gi, 'fill:transparent')
     if (next !== css) styleEl.textContent = next
   })
-  const WHITE = ['white', '#fff', '#ffffff', '#FFF', '#ffffffcc']
-  const BLACK = ['#000', 'black', '#000000']
+  // Black/white recolor, robust to ALL representations: hex (#000/#000000), keyword (black/white) and
+  // the rgb() form a browser normalises a colour to. Applies to inline `style` AND presentation
+  // ATTRIBUTES (`stroke="#000"`): the `reg` (bitfield) diagram draws its boxes/lines with black stroke
+  // ATTRIBUTES — which the inline-style + skin-CSS passes both miss — so it rendered all-black on dark
+  // (e2e: reg blackStroke=32). signal/assign use the `.s*` skin classes (handled by the <style> rewrite).
+  const norm = (c?: string | null) =>
+    (c ?? '').trim().toLowerCase().replace(/\s+/g, '')
+  const isBlack = (c?: string | null) =>
+    ['#000', '#000000', 'black', 'rgb(0,0,0)'].includes(norm(c))
+  const isWhite = (c?: string | null) =>
+    ['#fff', '#ffffff', '#ffffffcc', 'white', 'rgb(255,255,255)'].includes(
+      norm(c),
+    )
   svg.querySelectorAll('*').forEach((el) => {
+    // presentation attributes (reg/bitfield boxes + bit lines)
+    if (isBlack(el.getAttribute('stroke')))
+      el.setAttribute('stroke', 'currentColor')
+    const fa = el.getAttribute('fill')
+    if (isBlack(fa)) el.setAttribute('fill', 'currentColor')
+    else if (isWhite(fa)) el.setAttribute('fill', 'transparent')
+    // inline style (signal grids etc.)
     const st = (el as HTMLElement).style
-    if (!st) return
-    if (WHITE.some((w) => st.fill === w)) st.fill = 'transparent'
-    if (BLACK.some((b) => st.fill === b)) st.fill = 'currentColor'
-    if (BLACK.some((b) => st.stroke === b)) st.stroke = 'currentColor'
-    // Gray grid lines → follow theme (muted currentColor with opacity)
-    const rawStyle = el.getAttribute('style') ?? ''
-    if (rawStyle.includes('stroke:#888')) {
-      st.stroke = 'currentColor'
-      st.opacity = '0.3'
+    if (st) {
+      if (isWhite(st.fill)) st.fill = 'transparent'
+      if (isBlack(st.fill)) st.fill = 'currentColor'
+      if (isBlack(st.stroke)) st.stroke = 'currentColor'
+      // Gray grid lines → follow theme (muted currentColor with opacity)
+      if ((el.getAttribute('style') ?? '').includes('stroke:#888')) {
+        st.stroke = 'currentColor'
+        st.opacity = '0.3'
+      }
     }
   })
   svg.querySelectorAll('text').forEach((t) => {
     const fill = t.getAttribute('fill')
-    if (!fill || BLACK.includes(fill)) t.setAttribute('fill', 'currentColor')
-    if (!t.style.fill || BLACK.includes(t.style.fill))
-      t.style.fill = 'currentColor'
+    if (!fill || isBlack(fill)) t.setAttribute('fill', 'currentColor')
+    if (!t.style.fill || isBlack(t.style.fill)) t.style.fill = 'currentColor'
   })
 }
 

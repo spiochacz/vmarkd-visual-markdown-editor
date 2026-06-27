@@ -11,6 +11,24 @@
 > currentColor itself to black), white fill → transparent; the pastel data fills (`.s8–.s14`) and the
 > `#0041c4` arrows are left untouched. Test: `test/vscode-e2e/wavedrom-theme.spec.ts` (on github-dark a
 > wave path resolves to the themed foreground, and the skin no longer hard-codes black).
+>
+> **🐛 Fix + verify 2026-06-27 (101a):** added `reg` (bitfield), `assign` (logic) and `config:{hscale}`
+> blocks to the fixture and a second e2e — which REVEALED that the **`reg` bitfield rendered all-black
+> on dark** (32 black strokes): unlike signal/assign (which use the `.s*` skin classes), the bitfield
+> draws its boxes/bit-lines with black **presentation attributes** (`stroke="#000"`), which the
+> inline-style + skin-CSS passes both missed. Hardened `themeWavedromSvg` to recolor `stroke`/`fill`
+> ATTRIBUTES too, normalising every black/white form (hex / keyword / `rgb()`). Now reg/assign/config
+> all render with 0 black strokes on dark (e2e green). Note: a non-default `config.skin` silently falls
+> back to the bundled `default` (only that skin is vendored) — acceptable/graceful.
+>
+> **🐛 Fix 2026-06-27 (Preview-pane grey):** in the full Preview pane the diagram lives in a plain
+> `<pre>` that the content theme / `auto` paints with the code-panel grey. wavedrom is currentColor
+> LINE-ART with no fill, so the grey showed THROUGH it ("wszystkie diagramy mają tło jak temat prócz
+> wavedrom" — the other engines' SVGs have opaque fills that hid it). The diagram-preview transparency
+> rule in `main.css` only covered `.vditor-ir__preview`/`.vditor-wysiwyg__preview`; extended its pane
+> list to `.vditor-preview pre` (the `code`-form rule already covered all panes). Theme-safe (transparent
+> → page bg; verified no white-box on dark: the inner div follows the theme). Test: `wavedrom-theme.spec.ts`
+> ("wavedrom in the full Preview pane sits on the page bg, not the code-panel grey").
 
 > **Status:** 📋 TODO (after [task 99](99-geojson-topojson-maps.md) — reuses its renderer pass).
 > Render ` ```wavedrom ` fenced blocks as digital **timing diagrams** (WaveJSON). Popular in
