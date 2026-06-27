@@ -99,12 +99,14 @@ function decorate(wrapper: HTMLElement): void {
 
   // Ctrl/Cmd + left-drag = pan. A plain drag is left alone (text selection / normal behaviour).
   let dragging = false
+  let panned = false
   let sx = 0
   let sy = 0
   wrapper.addEventListener('pointerdown', (e: PointerEvent) => {
     if (e.button !== 0 || (!e.ctrlKey && !e.metaKey)) return
     e.preventDefault() // stop the drag from starting a text selection on the SVG labels
     dragging = true
+    panned = false
     sx = e.clientX - st.tx
     sy = e.clientY - st.ty
     const cur = wrapper.querySelector('svg')
@@ -115,6 +117,7 @@ function decorate(wrapper: HTMLElement): void {
     if (!dragging) return
     const cur = wrapper.querySelector('svg')
     if (!cur) return
+    panned = true
     st.tx = e.clientX - sx
     st.ty = e.clientY - sy
     apply(cur, st)
@@ -139,6 +142,23 @@ function decorate(wrapper: HTMLElement): void {
     const cur = wrapper.querySelector('svg')
     if (cur) reset(cur, st)
   })
+
+  // A Ctrl/Cmd gesture (zoom/pan) must NOT open the block for editing — only a PLAIN click does.
+  // Vditor IR/WYSIWYG expands the block on a 'click' on its mode element (ir/index.ts:113); after a
+  // Ctrl-drag pan that click was bubbling up and expanding the source. Swallow it in the CAPTURE phase
+  // on the wrapper (before it reaches Vditor's bubble handler) when the gesture was Ctrl/panned; a
+  // plain click passes through so click-to-edit still works.
+  wrapper.addEventListener(
+    'click',
+    (e) => {
+      if (panned || e.ctrlKey || e.metaKey) {
+        e.stopPropagation()
+        e.preventDefault()
+        panned = false
+      }
+    },
+    true,
+  )
 
   // ⛶ fullscreen button (top-right). data-render="1" keeps it out of any Lute serialization (defense
   // in depth — preview panes aren't serialized, but this can't leak even if one races a serialize).

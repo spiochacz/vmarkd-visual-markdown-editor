@@ -147,6 +147,24 @@ test('rendered static-SVG diagrams get inline wheel/drag zoom+pan (⛶ gated off
     )
     const transformAfterReset = svg?.style.transform || ''
 
+    // A Ctrl/pan click must be swallowed (so Vditor doesn't open the block for editing); a PLAIN
+    // click must pass through (click-to-edit still works).
+    const ctrlClick = new MouseEvent('click', {
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      ...at(50, 40),
+    })
+    wrap?.dispatchEvent(ctrlClick)
+    const ctrlClickSwallowed = ctrlClick.defaultPrevented
+    const plainClick = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      ...at(50, 40),
+    })
+    wrap?.dispatchEvent(plainClick)
+    const plainClickPassed = !plainClick.defaultPrevented
+
     return {
       decoratedCount: decorated.length,
       fsButtons,
@@ -157,6 +175,8 @@ test('rendered static-SVG diagrams get inline wheel/drag zoom+pan (⛶ gated off
       transformAfterPlainDrag,
       transformAfterPan,
       transformAfterReset,
+      ctrlClickSwallowed,
+      plainClickPassed,
     }
   })
   // eslint-disable-next-line no-console
@@ -170,6 +190,8 @@ test('rendered static-SVG diagrams get inline wheel/drag zoom+pan (⛶ gated off
   expect(info.transformAfterPlainDrag).toBe(info.transformAfterWheel) // plain drag did NOT pan
   expect(info.transformAfterPan).not.toBe(info.transformAfterWheel) // Ctrl+drag panned it
   expect(info.transformAfterReset).toMatch(/scale\(1(\.0+)?\)/) // reset to 1
+  expect(info.ctrlClickSwallowed).toBe(true) // Ctrl/pan click does NOT reach Vditor (no edit-expand)
+  expect(info.plainClickPassed).toBe(true) // plain click still reaches Vditor (click-to-edit)
 
   // Regression: a re-render (reRenderD2 on a theme switch) swaps wrapper.innerHTML for a fresh <svg>.
   // Zoom/pan must survive — state is per-wrapper + handlers resolve the current svg — not break (the
