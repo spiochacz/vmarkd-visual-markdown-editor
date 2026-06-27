@@ -1,8 +1,15 @@
 # Task: Image resize (drag handles)
 
-> **Source:** `aqz236/vscode-markdown-editor` — `imageResize.ts` (609 LOC), their unique feature
+> **Status:** 📋 TODO — spike-first, separate branch.
+> **Source (original):** `aqz236/vscode-markdown-editor` — their unique feature.
+> - File: [`media-src/src/features/image/imageResize.ts`](https://github.com/aqz236/vscode-markdown-editor/blob/master/media-src/src/features/image/imageResize.ts) (~609 LOC)
+> - Introduced in commit [`227a6cd`](https://github.com/aqz236/vscode-markdown-editor/commit/227a6cd47f97ce18089dfec966a6eba4e4fc9343) (`feat(image): 添加图片调整大小功能` — "add image resize"); also touches `core/editorInit.ts`, `main.ts`, `styles/main.css`, `custom.d.ts`.
+> - Later refined in [`b2aabae`](https://github.com/aqz236/vscode-markdown-editor/commit/b2aabaea8010e2ec15330f792410d5d8d7a5990b), [`582fe8d`](https://github.com/aqz236/vscode-markdown-editor/commit/582fe8d17507dd111da7dcfee4af93d804f24e4c), [`df77f30`](https://github.com/aqz236/vscode-markdown-editor/commit/df77f304dbde4a2e9f791e6e18104f820cb35f7a) (size-adjust tuning + scrollbar/display polish).
 > **Derived from (removed plan):** `aqz236-port-plan.md` §1
 > **Value / Risk:** 🟢 high / unique — medium-high (DOM-heavy, no automated coverage)
+>
+> ⚠️ **Don't copy verbatim** — aqz236 calls `setValue()` on every resize-end (full re-render).
+> See §1a for the in-place-DOM rewrite that fits vMarkd's two-way sync.
 
 Take the idea, rewrite the two weak spots. **Spike first**, separate branch.
 Gate behind setting `markdown-editor.imageResize` (default **off**).
