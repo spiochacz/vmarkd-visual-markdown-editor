@@ -1,9 +1,15 @@
 # Task 96 — Bump bundled smiles-drawer 2.1.7 → 2.3.0
 
-> **Status:** 📋 TODO (low-risk minor; verify a molecule renders). Vditor bundles smiles-drawer
-> **~2.1.7** (its `?v=2.1.7` loader label); latest is **2.3.0** (npm `latest` = GitHub release
-> v2.3.0, 2026-04-30). Single-file UMD swap (Lute/Mermaid pattern) — same major, so unlike
-> ECharts/abcjs this is a safe minor bump.
+> **Status:** ✅ DONE (2026-06-28). The vendored bundle is **byte-identical to npm `smiles-drawer@2.3.0`**
+> (sha256 `3fec5e6…` matches the canonical `dist/smiles-drawer.min.js` from the registry tarball) —
+> the binary swap actually landed earlier in commit `dfbd952` but the task was never closed and had
+> **no pin guard**. This round verified + closed it: added the smiles-drawer pin block to
+> `custom-diagrams-pin.test.ts` (sha + `SmiDrawer`/`draw` global + `version==2.3.0` + MIT) and a
+> `?v=2.3.0` assertion to `smiles-render.spec.ts`. Build emits `smiles-drawer.min.js?v=2.3.0` (the
+> esbuild `?v=` patch, driven by `source.json` version); real-VS-Code e2e confirms caffeine renders
+> (SVG 431×431) and the loaded script src carries `?v=2.3.0`. No 2.1.7 in-repo to diff — the engine was
+> already 2.3.0; the "2.2.1" string in the minified file is an embedded sub-dep marker (cf. the
+> chroma.js `2.4.2` red herring), NOT smiles-drawer's version (the SHA is the authority).
 > **Source:** renderer-version audit (the `vmarkd-renderer-theming` skill); user request.
 > **Correction:** an earlier pass mis-read the bundle's `version="2.4.2"` as smiles-drawer — that
 > string is **chroma.js** (an embedded dependency: `chroma$k.version="2.4.2"`). The real bundled

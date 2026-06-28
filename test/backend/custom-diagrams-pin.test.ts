@@ -36,6 +36,37 @@ describe('wavedrom pin (task 101)', () => {
   })
 })
 
+describe('smiles-drawer pin (task 96 — 2.3.0 bump)', () => {
+  const source = readJson('../../media-src/vendor/smiles-drawer/source.json')
+  const jsPath = resolve(
+    '../../media-src/vendor/smiles-drawer/smiles-drawer.min.js',
+  )
+
+  it('vendored bundle exists and sha256 matches source.json', () => {
+    expect(existsSync(jsPath)).toBe(true)
+    const js = readFileSync(jsPath)
+    const got = createHash('sha256').update(js).digest('hex')
+    expect(got).toBe(source.files['smiles-drawer.min.js'].sha256)
+  })
+
+  it('is the global UMD build exposing SmiDrawer with draw()', () => {
+    const js = readFileSync(jsPath, 'utf8')
+    expect(js).toContain('SmiDrawer')
+    expect(js).toContain('draw')
+  })
+
+  it('is pinned to 2.3.0 (the bumped version) and MIT', () => {
+    // SHA above already locks the exact bytes (verified byte-identical to npm smiles-drawer@2.3.0);
+    // this asserts the source.json label matches so the esbuild `?v=` cache-buster stays correct.
+    expect(source.version).toBe('2.3.0')
+    const license = readFileSync(
+      resolve('../../media-src/vendor/smiles-drawer/LICENSE'),
+      'utf8',
+    )
+    expect(license).toContain('MIT')
+  })
+})
+
 describe('nomnoml pin (task 103)', () => {
   const source = readJson('../../media-src/vendor/nomnoml/source.json')
   const jsPath = resolve('../../media-src/vendor/nomnoml/nomnoml.min.js')

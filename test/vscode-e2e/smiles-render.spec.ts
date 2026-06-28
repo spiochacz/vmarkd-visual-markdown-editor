@@ -97,10 +97,14 @@ test('smiles renders on a direct WYSIWYG open (not flattened to style-text)', as
       '.vditor-wysiwyg__preview > code.language-smiles',
     ) as HTMLElement | null
     const smSvg = smCode?.querySelector('svg') ?? null
+    const smScript = document.querySelector(
+      'script[src*="smiles-drawer.min.js"]',
+    ) as HTMLScriptElement | null
     return {
       directWysiwyg: !!document.querySelector('.vditor-wysiwyg'),
       smSvgPresent: !!smSvg,
       smSvgBox: box(smSvg),
+      smScriptSrc: smScript?.src ?? '',
       visibleText: (smCode?.innerText ?? '')
         .replace(/\s+/g, ' ')
         .trim()
@@ -114,4 +118,6 @@ test('smiles renders on a direct WYSIWYG open (not flattened to style-text)', as
   expect(info.smSvgPresent).toBe(true)
   expect(info.smSvgBox?.[1] ?? 0).toBeGreaterThan(50)
   expect(info.visibleText).not.toContain('.element')
+  // task 96 bump: the loaded engine is the vendored 2.3.0 (the `?v=` cache-buster patch emits it).
+  expect(info.smScriptSrc).toContain('smiles-drawer.min.js?v=2.3.0')
 })
