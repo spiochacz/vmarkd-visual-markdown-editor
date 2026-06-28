@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildWebviewHtml,
   sanitizeCss,
+  serializeInitPayload,
   type HtmlBuildParams,
 } from '../../src/html-builder'
 
@@ -306,5 +307,53 @@ describe('sanitizeCss', () => {
 
   it('returns empty string for empty input', () => {
     expect(sanitizeCss('')).toBe('')
+  })
+})
+
+// Task 38: inline init payload — the webview boots Vditor from this instead of the ready→init roundtrip.
+describe('serializeInitPayload', () => {
+  it('round-trips through JSON.parse', () => {
+    const payload = {
+      type: 'init',
+      content: '# Hi\n\nsome *text*',
+      theme: 'dark',
+    }
+    expect(JSON.parse(serializeInitPayload(payload))).toEqual(payload)
+  })
+
+  it('escapes < so document content cannot break out of the <script> element', () => {
+    const evil = 'before </script><script>alert(1)</script> after'
+    const out = serializeInitPayload({ content: evil })
+    // no raw `</script>` survives in the serialized string (the HTML-injection vector)
+    expect(out).not.toContain('</script>')
+    expect(out).toContain('\\u003c')
+    // …but it still parses back to the exact original content
+    expect(JSON.parse(out).content).toBe(evil)
+  })
+})
+
+describe('buildWebviewHtml inline init payload', () => {
+  it('emits a #vmark-init JSON data island when initPayload is provided', () => {
+    const json = serializeInitPayload({ type: 'init', content: '# A' })
+    const html = buildWebviewHtml(defaults({ initPayload: json }))
+    expect(html).toContain('id="vmark-init"')
+    expect(html).toContain('type="application/json"')
+    expect(html).toContain(`nonce="${NONCE}"`)
+    // the data island must come BEFORE the bundle script so main.js can read it on load
+    expect(html.indexOf('id="vmark-init"')).toBeLessThan(
+      html.indexOf('main.js'),
+    )
+  })
+
+  it('omits #vmark-init when no payload (roundtrip-only docs)', () => {
+    expect(buildWebviewHtml(defaults())).not.toContain('id="vmark-init"')
+  })
+
+  it('does not let payload content break out of the script element', () => {
+    const json = serializeInitPayload({ content: '</script><b>x</b>' })
+    const html = buildWebviewHtml(defaults({ initPayload: json }))
+    // exactly one real </script> belongs to the vmark-init block? at minimum the payload's
+    // </script> must be escaped — assert the raw sequence from the content is gone.
+    expect(html).not.toContain('</script><b>x</b>')
   })
 })

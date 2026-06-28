@@ -90,6 +90,10 @@ let lastDiffChanges: DiffChange[] = []
 // The last message Vditor was initialised from — used to re-init when a
 // constructor-only setting (toolbar, word count, …) changes live (task 26).
 let lastInitMsg: InitPayload | null = null
+// Task 38: the content we already booted Vditor from via the inlined `#vmark-init` payload (null when
+// we didn't inline-init). The host still posts `init` after `ready`; that echo with identical content
+// is no-op'd in handleUpdate so it doesn't re-mount (which would reset caret/scroll).
+let inlineInitedContent: string | null = null
 // The per-init observer registry (task 152 item 2): runFinishInit re-wires its ~12
 // MutationObservers through `observers.set(key, observeX(...))`, which disposes the
 // previous observer under that key — replacing the old hand-written `disposeX?.()`
@@ -495,6 +499,14 @@ function initVditor(msg: InitPayload) {
 
 function handleUpdate(msg: Extract<HostMessage, { command: 'update' }>) {
   if (msg.type === 'init') {
+    // Task 38: the host re-sends `init` after `ready` even when we already inline-inited. If this echo
+    // carries the same content we booted from `#vmark-init`, skip the re-mount (it would reset
+    // caret/scroll). Cleared either way so a genuine re-init (content changed mid-open) still runs.
+    if (inlineInitedContent !== null && msg.content === inlineInitedContent) {
+      inlineInitedContent = null
+      return
+    }
+    inlineInitedContent = null
     // A fresh editor: drop any stale gutter bars from a previous instance.
     lastDiffChanges = []
     clearDiffMarkers()
@@ -775,5 +787,23 @@ setupHistoryKeybind(window)
 // Flush the debounced edit before VS Code saves, so Ctrl/Cmd+S never persists a
 // stale snapshot (task 58). Capture phase + non-suppressing — see save-flush.ts.
 setupSaveFlushKeybind(window, () => editSync?.flush())
+
+// Task 38: boot Vditor synchronously from the inlined init payload (host emits `#vmark-init` for
+// non-wiki, non-huge docs) so we don't wait for the serial `ready→init` roundtrip. Set the echo-guard
+// AFTER the init runs (so this first call isn't itself skipped); fall back to `ready→init` if the
+// payload is absent (wiki/large docs) or fails to parse. `ready` is still posted so the host runs
+// onReady (wiki cache/watcher + the no-op init echo).
+const inlineInitEl = document.getElementById('vmark-init')
+if (inlineInitEl?.textContent) {
+  try {
+    const payload = JSON.parse(inlineInitEl.textContent) as InitPayload
+    handleUpdate({ command: 'update' as const, ...payload })
+    inlineInitedContent = payload.content
+  } catch (err) {
+    logToHost(
+      `[main] inline init failed, falling back to ready→init: ${String(err)}`,
+    )
+  }
+}
 
 vscode.postMessage({ command: 'ready' })

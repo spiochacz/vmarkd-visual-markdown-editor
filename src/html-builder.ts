@@ -24,10 +24,25 @@ export interface HtmlBuildParams {
   preRenderedHtml: string | undefined
   savedMode: 'ir' | 'wysiwyg' | 'sv'
   i18nLang: string
+  // Task 38: the initial `update`/init payload, pre-serialized + escaped via serializeInitPayload,
+  // inlined as a `<script type="application/json" id="vmark-init">` so the webview can boot Vditor
+  // synchronously on first paint instead of waiting for the `ready→init` host roundtrip. Undefined
+  // for docs that keep the roundtrip (wiki files — need async pageKeys; large docs — avoid doubling
+  // the HTML, the prerender teaser already embeds the rendered content).
+  initPayload?: string
 }
 
 export function sanitizeCss(css: string | undefined): string {
   return (css || '').replace(/<\/style/gi, '')
+}
+
+// Task 38: serialize the inline init payload for a `<script type="application/json">` data island.
+// Escaping `<` → `<` (valid inside a JSON string) prevents a `</script>` sequence in document
+// content from terminating the script element early — the only HTML-injection vector for a
+// non-executed JSON script block. The webview reads it with JSON.parse (not eval), so no other escape
+// is needed. Keep in sync with the reader in media-src/src/main.ts.
+export function serializeInitPayload(payload: unknown): string {
+  return JSON.stringify(payload).replace(/</g, '\\u003c')
 }
 
 function buildCspMeta(
@@ -194,6 +209,11 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
     ? `<script nonce="${nonce}" id="vditorHljsScript" src="${hljsMain}?v=11.7.0"></script>\n` +
       `\t\t\t\t<script nonce="${nonce}" id="vditorHljsThirdScript" src="${hljsThird}?v=1.0.1"></script>`
     : ''
+  // Task 38: inline init payload (must precede main.js so it's in the DOM when main.js reads it).
+  // type="application/json" → non-executed data island; main.js parses it with JSON.parse.
+  const initPayloadTag = params.initPayload
+    ? `<script type="application/json" id="vmark-init" nonce="${nonce}">${params.initPayload}</script>`
+    : ''
 
   const cspMeta = buildCspMeta(cspSource, nonce, config.allowRemoteImages)
   const bodyAttrs = buildBodyAttrs(config)
@@ -251,6 +271,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
 				${hljsPreload}
+				${initPayloadTag}
 				${jsFiles.map((f) => `<script nonce="${nonce}" src="${f}${CACHE_BUST}"></script>`).join('\n')}
 			</body>
 			</html>`

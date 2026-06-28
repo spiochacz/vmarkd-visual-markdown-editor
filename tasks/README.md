@@ -132,7 +132,7 @@ Cluster from the d2/TALA dig: TALA's look (compact 2D packing **+** clean edge r
 ## Performance (open latency + memory)
 - [x] [37 — retainContextWhenHidden memory dial](37-retain-hidden-memory-dial.md)
 - [ ] [41 — Bounded retain-cache for hidden webviews (keep N)](41-retain-hidden-webview-cache.md) — ⏸ **parked** (only if dispose-on-hide proves annoying)
-- [ ] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md)
+- [x] [38 — Inline init content (skip `ready` roundtrip)](38-inline-init-content.md) — ✅ DONE (2026-06-28): inline the init payload as a `<script type="application/json" id="vmark-init">` data island so the webview boots Vditor synchronously (skip the serial `ready→init` hop); gated to non-wiki, ≤100 KB docs; host still posts the no-op'd echo. Real-VS-Code e2e + unit covered.
 - [ ] [39 — Lean Vditor init (gate renderers on content)](39-lean-vditor-init.md)
 - [x] [40 — Drop unused MathJax (~6.5 MB)](40-drop-unused-mathjax.md)
 - [x] [42 — Rendering profiling harness](42-rendering-profiling-harness.md) — init-latency investigation; finding in task file

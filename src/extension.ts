@@ -25,7 +25,11 @@ import {
   getOrBuildCache,
   invalidateCache,
 } from './wiki-cache'
-import { buildWebviewHtml, sanitizeCss } from './html-builder'
+import {
+  buildWebviewHtml,
+  sanitizeCss,
+  serializeInitPayload,
+} from './html-builder'
 import type { VmarkdConfigOptions, WebviewMessage } from './protocol'
 import {
   resolveContentTheme,
@@ -35,6 +39,10 @@ import {
 
 const KeyVditorOptions = 'vmarkd.options'
 const KeyOutlineWidth = 'vmarkd.outlineWidth'
+// Task 38: max content length we inline into the HTML to skip the ready→init roundtrip. Above this,
+// keep the roundtrip (+ stream-render) — the prerender teaser already embeds the rendered content, so
+// inlining the raw source too would ~double the HTML for large docs. ~100 KB covers nearly all docs.
+const InlineInitMax = 100_000
 const MarkdownEditorViewType = 'vmarkd.editor'
 const WikiFileContextKey = 'vmarkd.isWikiFile'
 const SupportedSchemes = new Set(['file', 'untitled'])
@@ -673,6 +681,8 @@ export class EditorSession {
       uri: vscode.Uri,
       content?: string,
       theme?: 'dark' | 'light',
+      // Task 38: pre-serialized init payload inlined into the HTML (see inlineInitPayload).
+      initPayload?: string,
     ) => string,
   ) {}
 
@@ -898,21 +908,54 @@ export class EditorSession {
     await this.postUpdate({
       type: 'init',
       cdn: this.vditorBaseUri,
-      options: {
-        ...MarkdownEditorProvider.collectConfigOptions(),
-        ...MarkdownEditorProvider.sanitizeVditorOptions(
-          this.context.globalState.get(KeyVditorOptions),
-        ),
-        // Drag-resized outline width overrides the setting default.
-        ...(this.context.globalState.get<number>(KeyOutlineWidth)
-          ? {
-              outlineWidth:
-                this.context.globalState.get<number>(KeyOutlineWidth),
-            }
-          : {}),
-      },
+      options: this.buildInitOptions(),
       theme: effectiveThemeKind(),
       wiki: wikiInit,
+    })
+  }
+
+  // The Vditor init options blob: config-derived options + saved per-user Vditor options + the
+  // drag-resized outline width override. Shared by onReady() (postMessage init) and
+  // inlineInitPayload() (task 38 inline init) so the two paths can't drift.
+  private buildInitOptions() {
+    return {
+      ...MarkdownEditorProvider.collectConfigOptions(),
+      // globalState.get is untyped (unknown) → cast so the saved options spread (sanitize is identity-typed).
+      ...(MarkdownEditorProvider.sanitizeVditorOptions(
+        this.context.globalState.get(KeyVditorOptions),
+      ) as Record<string, unknown>),
+      // Drag-resized outline width overrides the setting default.
+      ...(this.context.globalState.get<number>(KeyOutlineWidth)
+        ? {
+            outlineWidth: this.context.globalState.get<number>(KeyOutlineWidth),
+          }
+        : {}),
+    }
+  }
+
+  // Task 38: serialize the init payload to inline into the HTML so the webview boots Vditor
+  // synchronously on first paint (skip the serial ready→init host roundtrip). Returns undefined to
+  // keep the roundtrip for (a) WIKI files — their links need async pageKeys at first render — and
+  // (b) LARGE docs — the prerender teaser already embeds the rendered content, so inlining the raw
+  // source too would ~double the HTML. Mirrors onReady()'s init payload; onReady still posts the echo
+  // (with identical content), which the webview no-ops — see media-src/src/main.ts.
+  private inlineInitPayload(content: string | undefined): string | undefined {
+    if (
+      content === undefined ||
+      isWikiFile(this.document.uri) ||
+      content.length > InlineInitMax
+    ) {
+      return undefined
+    }
+    // Match postUpdate: external-edit diffing compares against the content handed to the webview.
+    this.lastSyncedContent = content
+    return serializeInitPayload({
+      type: 'init',
+      content: escapeTableSpanPipes(content),
+      cdn: this.vditorBaseUri,
+      options: this.buildInitOptions(),
+      theme: effectiveThemeKind(),
+      wiki: this.wiki,
     })
   }
 
@@ -1387,11 +1430,15 @@ export class EditorSession {
     // This loads main.js, which posts `ready` and triggers the init handshake; with
     // the listener already live, the `ready` can't be dropped, so the editor always
     // gets its content (fixes the intermittent blank/"hung" editor on window reload).
+    // Task 38: also inline the init payload so the webview can boot Vditor synchronously
+    // (the `ready→init` roundtrip remains as the fallback + the source of the wiki/echo path).
+    const initContent = document.getText()
     webviewPanel.webview.html = this.htmlForWebview(
       webviewPanel.webview,
       document.uri,
-      document.getText(),
+      initContent,
       effectiveThemeKind(),
+      this.inlineInitPayload(initContent),
     )
 
     // Populate the Markdown Outline tree for this freshly-opened editor (task 78);
@@ -1596,8 +1643,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       this._context,
       document,
       webviewPanel,
-      (webview, uri, content, theme) =>
-        this._getHtmlForWebview(webview, uri, content, theme),
+      (webview, uri, content, theme, initPayload) =>
+        this._getHtmlForWebview(webview, uri, content, theme, initPayload),
     ).start()
   }
 
@@ -1628,6 +1675,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     uri: vscode.Uri,
     content?: string,
     theme: 'dark' | 'light' = 'light',
+    // Task 38: pre-serialized init payload (built by EditorSession.inlineInitPayload) forwarded into
+    // the HTML so the webview boots Vditor without the ready→init roundtrip.
+    initPayload?: string,
   ) {
     const toUri = (f: string) =>
       webview
@@ -1685,6 +1735,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
           : undefined,
       savedMode,
       i18nLang: resolveVditorI18nLang(vscode.env?.language),
+      initPayload,
     })
   }
 }
