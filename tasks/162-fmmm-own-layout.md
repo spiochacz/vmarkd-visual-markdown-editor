@@ -1,6 +1,9 @@
 # Task 162 — Own FM³/FMMM organic layout engine (clean-room, no deps)
 
-> **Status:** 🟡 **SPIKE DONE — PoC validated (2026-06-28); productionization TODO.** A clean-room
+> **Status:** 🅿️ **PARKED (2026-06-28, user) — SPIKE DONE / PoC validated; productionization not
+> pursued for now.** The whole TALA-alternative cluster is now resolved+parked (113 adopted; 114/115/117
+> rejected; 116 OGDF parked; 163 TSM parked). Revive only if layout quality becomes a headline feature.
+> A clean-room
 > FM³/FMMM force layout in pure JS produces compact, organic layouts on connected relationship graphs
 > (the `complex.d2` archetype). Spike code (throwaway): `tmp/fmmm-spike/{fmmm,spike,d2graphs}.mjs` —
 > NOT committed (tmp/ is gitignored), so the algorithm + findings are captured below for reproduction.

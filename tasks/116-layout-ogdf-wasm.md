@@ -1,6 +1,9 @@
 # Task 116 — Option D: OGDF → WASM layout (academic, strongest, heaviest — likely park)
 
-**Status:** planned (long-shot / likely park — only if layout quality becomes a product differentiator)
+**Status:** 🅿️ **PARKED (2026-06-28, user).** The TALA-alternative cluster is resolved (113 adopted;
+114/115/117 rejected; 162 FMMM + 163 TSM spiked and parked). OGDF→WASM stays the heaviest long-shot
+(GPL + C++→WASM, against the plain-Node/prebuilt-WASM posture). Revive only if layout quality becomes a
+headline product differentiator AND the clean-room own-engine route (162) proves insufficient.
 
 ## Context
 
