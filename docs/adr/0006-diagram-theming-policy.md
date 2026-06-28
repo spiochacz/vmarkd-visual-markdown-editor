@@ -54,7 +54,7 @@ Rationale: D2's token model is **genuinely richer** than the 5-field one; promot
 ### 5. mindmap + smiles are accepted as deliberate partials (◑), not debt
 
 - **smiles** is binary dark/light (smiles-drawer takes only `'dark'|undefined`) — accepted as-is; not worth a palette mapping (prior decision: "leave it").
-- **mindmap** (ECharts tree) bakes some colours — accepted partial; revisit only alongside the mindmap disable-vs-theme decision (task 98), not as standalone work.
+- **mindmap** (ECharts tree) bakes some element colours — accepted partial (◑). The disable-vs-theme decision (task 98) is **resolved (2026-06-28): KEEP it** — it renders and re-themes live (background reconstructed from `data-code` on a flip, fix `e1982cf`); task 98 (disable) is dropped.
 
 ### 6. markmap is the one fully-baked renderer — and stays that way (no theming, ever)
 
