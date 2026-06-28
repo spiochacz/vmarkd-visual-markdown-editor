@@ -334,21 +334,17 @@ describe('patchGraphvizRender (shared viz-global.js + theme)', () => {
     expect(graphvizSource).toContain('dist/js/graphviz/viz.js')
   })
 
-  it('uses the shared viz-global.js (plantuml dir) via Viz.instance() API', () => {
+  // Task 144 item 1: the patch is now a thin shim that re-exports graphvizRender from the real,
+  // typed, unit-tested module (media-src/src/graphviz-render.ts) — the render + theming logic lives
+  // there (covered by graphviz-render.test.ts), NOT in this string any more.
+  it('re-exports graphvizRender from the extracted module + drops the old graphviz/viz.js path', () => {
     const patched = patchGraphvizRender(graphvizSource)
-    expect(patched).toContain('dist/js/plantuml/viz-global.js')
+    expect(patched).toContain('graphviz-render')
+    expect(patched).toContain('export const graphvizRender')
     expect(patched).not.toContain('dist/js/graphviz/viz.js')
-    expect(patched).toContain('VizCtor.instance()')
-    expect(patched).toContain('viz.renderSVGElement(code)')
-    // no manual Worker construction
+    // no manual Worker construction leaked back in
     expect(patched).not.toContain('new Worker(')
     expect(patched).not.toContain('importScripts(')
-  })
-
-  it('themes the SVG: recolour black → currentColor, strip bg polygon', () => {
-    const patched = patchGraphvizRender(graphvizSource)
-    expect(patched).toContain('currentColor')
-    expect(patched).toContain('p.remove()')
   })
 
   it('throws if the anchor is gone — version-bump guard', () => {
@@ -389,15 +385,15 @@ describe('patchPlantumlRender (task 87 — local offline TeaVM render)', () => {
     expect(plantumlSource).toContain('plantuml.com')
   })
 
-  it('replaces the remote <object> with local TeaVM render()', () => {
+  // Task 144 item 1: the patch is now a thin shim re-exporting plantumlRender from the real, typed,
+  // unit-tested module (media-src/src/plantuml-render.ts). The remote encoder is gone (kept assert);
+  // the render + theming logic moved to the module (covered by plantuml-render.test.ts), not here.
+  it('drops the remote encoder and re-exports plantumlRender from the extracted module', () => {
     const patched = patchPlantumlRender(plantumlSource)
     expect(patched).not.toContain('plantumlEncoder.encode')
     expect(patched).not.toContain('plantuml.com')
-    expect(patched).toContain('plantuml/plantuml.js')
-    expect(patched).toContain('plantuml/viz-global.js')
-    expect(patched).toContain('plantumlRenderFn')
-    expect(patched).toContain('data-processed')
-    expect(patched).toContain('themePumlSvg')
+    expect(patched).toContain('plantuml-render')
+    expect(patched).toContain('export const plantumlRender')
   })
 
   it('throws if the encoder anchor is gone — version-bump guard', () => {

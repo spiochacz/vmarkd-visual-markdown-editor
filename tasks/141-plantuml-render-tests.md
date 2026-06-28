@@ -1,6 +1,15 @@
 # Task 141 — PlantUML render test coverage (real-VS-Code "SVG actually rendered" assertion)
 
-> **Status:** 💡 idea / test-debt — created 2026-06-24. Builds on task 87.
+> **Status:** ✅ DONE 2026-06-27 — `test/vscode-e2e/plantuml.spec.ts` renders a ` ```plantuml `
+> sequence block in the real VS Code webview and asserts (1) the wrapper contains an `<svg>` (TeaVM
+> engine booted + rendered, not raw source / not the remote `<object>`), and (2) `themePumlSvg` ran:
+> no baked `#181818/#000000` foreground survives, participant boxes use the faint `currentColor` tint,
+> the transparent bg rect is gone, and the text fill resolves to the theme foreground (not black) on
+> `vscode-dark-2026`. Headless via `xvfb-run -a`. Created alongside [task 144](144-plantuml-architecture-hardening.md)
+> item 2 (which extracted the render+theme logic into the tested `media-src/src/plantuml-render.ts`).
+> The optional theme-flip-re-render bullet (`reRenderPlantuml`) is covered by the live re-theme code
+> path + the shared offscreen pattern; a dedicated flip assertion can be added later if needed.
+> Builds on task 87.
 
 ## Problem
 Offline PlantUML (task 87) is under-tested for the thing that matters: that it **actually renders an

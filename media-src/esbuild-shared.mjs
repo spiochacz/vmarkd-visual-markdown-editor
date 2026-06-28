@@ -789,60 +789,14 @@ export function patchGraphvizRender(code) {
       'fixGraphvizRender: addScript anchor not found in vditor graphvizRender.ts (version drift?)',
     )
   }
+  // Task 144 item 1: render + theme-agnostic post-processing moved to a real, typed, unit-tested
+  // module (media-src/src/graphviz-render.ts). This shim re-exports graphvizRender so Vditor's
+  // previewRender (and our plantuml-retheme.ts) keep importing it from here. Relative path climbs out
+  // of node_modules/vditor/src/ts/markdown/ to media-src/src/ (build-time resolved; the anchor assert
+  // above still guards version drift).
   return `import {Constants} from "../constants";
-import {addScript} from "../util/addScript";
-import {graphvizRenderAdapter} from "./adapterRender";
-
-export const graphvizRender = (element: HTMLElement, cdn = Constants.CDN) => {
-    const graphvizElements = graphvizRenderAdapter.getElements(element);
-    if (graphvizElements.length === 0) return;
-
-    addScript(cdn + "/dist/js/plantuml/viz-global.js", "vditorVizGlobalScript").then(() => {
-        const VizCtor = (window as any).Viz;
-        if (!VizCtor || !VizCtor.instance) return;
-        VizCtor.instance().then((viz: any) => {
-            graphvizElements.forEach((e: HTMLDivElement) => {
-                if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
-                    e.parentElement.classList.contains("vditor-ir__marker--pre")) {
-                    return;
-                }
-                if (e.getAttribute("data-processed") === "true") return;
-                // On re-render (theme flip) textContent is SVG garbage; use saved data-code.
-                const code = e.getAttribute("data-code") || graphvizRenderAdapter.getCode(e);
-                if (!code || code.trim() === "") return;
-                try {
-                    e.setAttribute("data-code", code);
-                    const result = viz.renderSVGElement(code);
-                    e.innerHTML = result.outerHTML
-                        .replace(/(fill|stroke)="(#000000|black)"/g, '$1="currentColor"');
-                    // Text elements have NO fill attr → SVG default fill is black (invisible
-                    // on dark). Set currentColor explicitly so text follows the theme.
-                    e.querySelectorAll("svg text").forEach((t: Element) => {
-                        if (!t.getAttribute("fill")) t.setAttribute("fill", "currentColor");
-                    });
-                    // Remove the graph background polygon (fill="white" or similar solid bg).
-                    e.querySelectorAll("svg > g > polygon, svg polygon").forEach((p: Element) => {
-                        const f = p.getAttribute("fill");
-                        const st = p.getAttribute("stroke");
-                        if ((f === "white" || f === "#ffffff") && (st === "none" || st === "transparent" || !st)) p.remove();
-                    });
-                    // Node shapes (ellipses): subtle tinted fill instead of empty — like mermaid's
-                    // themed node backgrounds. currentColor + low opacity adapts to any theme.
-                    e.querySelectorAll("svg ellipse, svg polygon[fill='currentColor']").forEach((s: Element) => {
-                        if (s.getAttribute("fill") === "none" || s.getAttribute("fill") === "currentColor") {
-                            s.setAttribute("fill", "currentColor");
-                            s.setAttribute("fill-opacity", "0.06");
-                        }
-                    });
-                } catch (error) {
-                    e.innerHTML = "graphviz render error: <br>" + error;
-                    e.className = "vditor-reset--error";
-                }
-                e.setAttribute("data-processed", "true");
-            });
-        });
-    });
-};
+import {graphvizRender as vmGraphvizRender} from "../../../../../src/graphviz-render";
+export const graphvizRender = (element: HTMLElement, cdn = Constants.CDN) => vmGraphvizRender(element, cdn);
 `
 }
 
@@ -915,85 +869,14 @@ export function patchPlantumlRender(code) {
       'fixPlantumlRender: plantumlEncoder.encode anchor not found in plantumlRender.ts (version drift?)',
     )
   }
-  // Replace the ENTIRE function body. Always render in LIGHT mode (no {dark}) — then
-  // post-process the SVG like graphviz: replace baked foreground (#181818, #000000) with
-  // currentColor, strip participant-box fills (#E2E2F0) so they inherit the page, and set
-  // currentColor on text. This makes PlantUML theme-agnostic — works on any background.
+  // Task 144 item 1: the render + theme-agnostic post-processing logic moved to a real, typed,
+  // unit-tested module (media-src/src/plantuml-render.ts). This shim just re-exports plantumlRender
+  // so Vditor's previewRender (and our plantuml-retheme.ts) keep importing it from here. The relative
+  // path climbs out of node_modules/vditor/src/ts/markdown/ to media-src/src/ (resolved at bundle
+  // time — a wrong path fails the build loudly). The anchor assert above still guards version drift.
   return `import {Constants} from "../constants";
-import {addScript} from "../util/addScript";
-import {plantumlRenderAdapter} from "./adapterRender";
-
-let plantumlRenderFn = null;
-
-function themePumlSvg(container) {
-  var svg = container.querySelector("svg");
-  if (!svg) return;
-  // Replace baked foreground colors with currentColor
-  container.innerHTML = container.innerHTML
-    .replace(/(fill|stroke)="(#181818|#000000)"/g, '$1="currentColor"');
-  // Text elements without fill → set currentColor
-  container.querySelectorAll("svg text").forEach(function(t) {
-    var f = t.getAttribute("fill");
-    if (!f || f === "#000000" || f === "#181818") t.setAttribute("fill", "currentColor");
-  });
-  // Participant-box fills: subtle tinted currentColor instead of baked color — like mermaid
-  container.querySelectorAll("svg rect").forEach(function(r) {
-    var f = r.getAttribute("fill");
-    if (f === "#E2E2F0" || f === "#222222") {
-      r.setAttribute("fill", "currentColor");
-      r.setAttribute("fill-opacity", "0.06");
-    }
-  });
-  // Remove fully-transparent background rects
-  container.querySelectorAll("svg rect").forEach(function(r) {
-    var f = r.getAttribute("fill");
-    var s = r.getAttribute("stroke");
-    if (f === "#00000000" && (s === "#00000000" || !s)) r.remove();
-  });
-}
-
-export const plantumlRender = (element = document, cdn = Constants.CDN) => {
-  const plantumlElements = plantumlRenderAdapter.getElements(element);
-  if (plantumlElements.length === 0) return;
-
-  const vizUrl = cdn + "/dist/js/plantuml/viz-global.js";
-  const pumlUrl = cdn + "/dist/js/plantuml/plantuml.js";
-
-  addScript(vizUrl, "vditorVizGlobalScript").then(async () => {
-    if (!plantumlRenderFn) {
-      const mod = await import(pumlUrl);
-      plantumlRenderFn = mod.render;
-    }
-    plantumlElements.forEach((e) => {
-      if (e.parentElement.classList.contains("vditor-wysiwyg__pre") ||
-          e.parentElement.classList.contains("vditor-ir__marker--pre")) {
-        return;
-      }
-      if (e.getAttribute("data-processed") === "true") return;
-      var text = (e.getAttribute("data-code") || plantumlRenderAdapter.getCode(e) || "").trim();
-      if (!text) return;
-      try {
-        e.setAttribute("data-code", text);
-        const targetId = "vmarkd-puml-" + Math.random().toString(36).slice(2, 10);
-        e.id = targetId;
-        e.innerHTML = "";
-        e.setAttribute("data-processed", "true");
-        // Always render LIGHT — post-process to currentColor (theme-agnostic)
-        plantumlRenderFn(text.split(/\\r\\n|\\r|\\n/), targetId);
-        // PlantUML render is async — observe for the SVG to appear, then theme it
-        var obs = new MutationObserver(function() {
-          if (e.querySelector("svg")) { obs.disconnect(); themePumlSvg(e); }
-        });
-        obs.observe(e, { childList: true, subtree: true });
-        // Fallback timeout in case observer misses
-        setTimeout(function() { obs.disconnect(); themePumlSvg(e); }, 5000);
-      } catch (error) {
-        e.className = "vditor-reset--error";
-        e.innerHTML = "plantuml render error: <br>" + error;
-      }
-    });
-  });
-};
+import {plantumlRender as vmPlantumlRender} from "../../../../../src/plantuml-render";
+export const plantumlRender = (element = document, cdn = Constants.CDN) => vmPlantumlRender(element, cdn);
 `
 }
 

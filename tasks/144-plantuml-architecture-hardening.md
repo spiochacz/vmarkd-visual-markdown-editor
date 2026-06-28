@@ -1,10 +1,38 @@
 # Task 144 — PlantUML architecture hardening (patch→module, theming robustness)
 
-> **Status:** 📋 TODO — created 2026-06-24 from a software-architecture review of the offline
-> PlantUML pipeline (task 87). Maintainability / robustness, not a feature gap.
+> **Status:** 🟡 IN PROGRESS — items 1-4 DONE 2026-06-27 (the patch→module extraction + theming
+> robustness, for BOTH plantuml AND graphviz); items 5-6 deferred. Created 2026-06-24 from a
+> software-architecture review of the offline PlantUML pipeline (task 87).
+>
+> **🟢 Items 1-4 DONE 2026-06-27 (render output identical; unit + real-VS-Code verified):**
+> - **1 (patch→module):** the ~75-line `patchPlantumlRender` string + the ~60-line `patchGraphvizRender`
+>   string are now thin shims that re-export from real, typed, lint+unit-tested modules
+>   `media-src/src/plantuml-render.ts` (`plantumlRender` + `themePumlSvg`) and `graphviz-render.ts`
+>   (`graphvizRender` + `themeGraphvizSvg`). The modules import NO Vditor internals (the trivial
+>   adapter `getElements`/`getCode` are inlined as `querySelectorAll(".language-*")` / `textContent`;
+>   script loading uses the shared `loadScript` from task 152) so the theming logic is jsdom-testable.
+>   The anchor-drift asserts stay in the shims (still fail the build loudly on a Vditor bump).
+> - **2 (named colours + render test):** the default-skin colours are named constants
+>   (`PUML_FOREGROUND`/`PUML_BOX_FILL`/`PUML_TRANSPARENT`; `GV_FOREGROUND`/`GV_BG_FILL`) — a future
+>   PlantUML/Viz default change is greppable + caught by the new tests, not a silent miscolour. New
+>   unit tests `plantuml-render.test.ts` + `graphviz-render.test.ts` assert the SVG foreground →
+>   `currentColor`, box fills flattened, transparent bg removed, idempotent. New real-VS-Code spec
+>   `plantuml.spec.ts` (the task-141 render test) asserts the rendered `<svg>`'s foreground resolves to
+>   the theme fg (not baked black) on dark; `graphviz.spec.ts` still green.
+> - **3 (no innerHTML reparse):** theming is now a pure DOM walk (`querySelectorAll` + `setAttribute`),
+>   no `container.innerHTML = …replace(…)` serialize→reparse; graphviz appends the live SVG node.
+> - **4 (observer de-race):** the MutationObserver + 5000ms fallback now share a `themed` guard flag so
+>   the fallback can't double-theme, and the magic `5000` is commented (per `.claude/rules/ts.md`). The
+>   TeaVM `render()` exposes no completion promise, so the observer stays (documented).
+>
+> **⏳ Deferred — items 5, 6:** 5 (pin a stable PlantUML release instead of the mutable `snapshot`
+> tag — a re-vendoring op needing a stable tag that ships the TeaVM artifact + sha re-pin) and 6
+> (relocate the shared `viz-global.js` out of `plantuml/` into a neutral `vendor/viz/` — touches
+> build.mjs sync + both module load paths). Both 🟡, independent of the extraction; own focused pass.
+>
 > **Source:** architecture review (2026-06-24).
-> **Value / Risk:** 🟢 removes the biggest maintainability debt + closes two "subtly-wrong" theming
-> traps / low — pure refactor + tests, render output stays identical.
+> **Value / Risk:** 🟢 removed the biggest maintainability debt + closed the "subtly-wrong" theming
+> traps / low — pure refactor + tests, render output stayed identical (verified).
 
 ## Context — what was reviewed
 Offline PlantUML (task 87) = pre-built TeaVM JS vendored under `media-src/vendor/plantuml/`
@@ -21,7 +49,7 @@ cost); `currentColor` theme-agnostic model; offline/privacy via local inline SVG
 
 ## Findings → work items (by priority)
 
-### 1. 🔴 Extract the patch body from a string into a real TS module
+### 1. 🟢 Extract the patch body from a string into a real TS module — DONE 2026-06-27 (plantuml + graphviz)
 `patchPlantumlRender` returns a **~75-line JS string** that replaces the entire Vditor function
 (`esbuild-shared.mjs:922-997`). Consequences: not type-checked, not lintable, not unit-testable as
 code; escaped regex (`\\r\\n`) is a footgun; lazy-load + render + theming + error-handling are all
@@ -32,7 +60,7 @@ inlined in one template literal.
 - **Graphviz has the IDENTICAL problem** (`patchGraphvizRender`, `esbuild-shared.mjs:786-846`) — apply
   the same extraction (`graphviz-render.ts`) in this task or a sibling, so the two share the pattern.
 
-### 2. 🟠 Name the skin colours + add a render test (anti "subtly-wrong")
+### 2. 🟢 Name the skin colours + add a render test (anti "subtly-wrong") — DONE 2026-06-27
 `themePumlSvg` hardcodes PlantUML's default-skin colours (`#181818 #000000 #E2E2F0 #222222 #00000000`,
 opacity `0.06`) inline (`esbuild-shared.mjs:933-951`). The dep is a **beta snapshot**
 (`1.2026.7beta3`); if PlantUML changes its default skin the diagram still renders but in the **wrong
@@ -42,14 +70,14 @@ the output actually contains `currentColor`.
   [task 141](141-plantuml-render-tests.md)) asserting the rendered SVG's foreground became
   `currentColor` and the participant-box fill was flattened.
 
-### 3. 🟠 Replace the `innerHTML` serialize→reparse in theming
+### 3. 🟢 Replace the `innerHTML` serialize→reparse in theming — DONE 2026-06-27 (DOM walk)
 `themePumlSvg` does `container.innerHTML = container.innerHTML.replace(/(fill|stroke)=…/)`
 (`esbuild-shared.mjs:932`) — a full SVG serialize + reparse on every theme pass (costly reflow on
 large diagrams, drops listeners), then switches to DOM-API for `rect`/`text` in the same function.
 - **Fix:** do all of it via DOM walk (`querySelectorAll` + `setAttribute`) — no reparse, one
   consistent style.
 
-### 4. 🟡 Document / de-race the MutationObserver + 5s fallback
+### 4. 🟢 Document / de-race the MutationObserver + 5s fallback — DONE 2026-06-27 (themed guard + comment)
 Theming fires on first `<svg>` via a `MutationObserver`, with a `setTimeout(…, 5000)` fallback
 (`esbuild-shared.mjs:984-989`). If the observer already ran, the timeout re-themes (harmless but
 wasteful); a multi-mutation render could be themed half-built.
