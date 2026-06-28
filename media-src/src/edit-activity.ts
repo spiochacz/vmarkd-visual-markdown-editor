@@ -187,6 +187,11 @@ function restoreOverlay(node: Element, lang: string, root: HTMLElement): void {
   const overlay = document.createElement('div')
   overlay.className = OVERLAY_CLASS
   overlay.setAttribute('data-render', '1')
+  // Bridge the engine's per-svg sizing (plantuml min-width / smiles max-width / abc+graphviz
+  // max-height) to the overlay so the cached render is sized IDENTICALLY to the live one — else a
+  // small plantuml shrinks under the overlay and jumps to 300px on swap. A data-attr, NOT a
+  // `.language-X` class: observers key on the class and must not re-process the overlay. CSS in main.css.
+  overlay.setAttribute('data-lang', lang)
   overlay.innerHTML = html
   preview.classList.add(STALE_CLASS)
   preview.appendChild(overlay)

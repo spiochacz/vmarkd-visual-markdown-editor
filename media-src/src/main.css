@@ -220,6 +220,21 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   max-width: 100%;
   height: auto;
 }
+/* Re-assert the per-engine svg sizing the live diagram has (the rules below) onto the overlay too —
+   keyed on `data-lang` (set by restoreOverlay; NOT a `.language-X` class, which observers would
+   re-process). Without these the cached svg ignores plantuml's min-width / smiles' max-width / abc+
+   graphviz's max-height, so the diagram shrinks/grows under the overlay and JUMPS to the live size on
+   swap (reported: small plantuml shrank to ~104px then jumped to 300px). Keep in sync with the
+   per-engine rules below. */
+.vmarkd-stale-overlay[data-lang="plantuml"] > svg {
+  min-width: 300px;
+}
+.vmarkd-stale-overlay[data-lang="smiles"] > svg {
+  max-width: 80%;
+}
+.vmarkd-stale-overlay:is([data-lang="abc"], [data-lang="graphviz"]) > svg {
+  max-height: 480px;
+}
 /* WYSIWYG equivalent: clicking into a code block reveals its editable source (`pre.vditor-wysiwyg__pre`,
    which Vditor flips to inline `display:block`) but leaves the rendered `pre.vditor-wysiwyg__preview`
    showing too — so you saw TWO stacked sections ("leftover from IR"). Hide the render while editing
