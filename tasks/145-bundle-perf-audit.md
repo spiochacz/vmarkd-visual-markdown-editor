@@ -29,6 +29,23 @@
 > - **6 (lute 3.5 M eager host-side):** accepted — it's core (instant-paint teaser + serialization,
 >   can't be lazy); the `.map` is already excluded from the VSIX. No action.
 >
+> **🟢 Perf follow-up 2026-06-28 (item 1 redone after a user-reported regression; measured in real VS Code):**
+> The item-1 `requestIdleCallback` defer REGRESSED perceived load: on a diagram-heavy doc the main
+> thread stays busy, so the idle callback starved and code colouring loaded LAST (behind the diagrams).
+> Measured with `test/vscode-e2e/perf-timeline.spec.ts` (15-diagram fixture), code COLOURED:
+> - defer (shipped): ~4.8 s · revert to eager: ~4.0 s · **+ host hljs preload: ~1.3 s.**
+> Fixes:
+> - **Reverted the defer** → eager `ensureHljsLoaded` (finish-init.ts): `addScript` is async and does
+>   NOT block first paint, so deferring only pushed colouring behind the diagram burst.
+> - **Host-side hljs preload** (html-builder.ts): inject `vditorHljsScript`/`vditorHljsThirdScript`
+>   BEFORE main.js — but ONLY when the prerendered HTML contains a code fence, so no-code docs don't pay
+>   the 2.1 MB. Same ids as Vditor's highlightRender + our ensureHljsLoaded ⇒ both dedupe. window.hljs
+>   is ready before the render burst ⇒ code colours at ~1.3 s instead of ~4.8 s.
+> - **Yield between custom-diagram renderers** (custom-diagrams.ts `observeCustomDiagrams`): the 8
+>   engines ran in one synchronous rAF, monopolising the thread; now they yield a frame between each
+>   (re-entrant-safe), so colouring/paint interleave (D2 ~6.5 s → ~5.6 s). Diagram serialization (the D2
+>   ~470 ms wasm boot etc.) is the remaining inherent cost — item-4 territory, single-threaded by nature.
+>
 > **Source:** architecture review (2026-06-24), measured against the current build + vendored assets.
 > **Value / Risk:** 🟢 faster first D2/code render + a guard against silent size growth / low —
 > mostly load-strategy + CI gate, no behavioural change.

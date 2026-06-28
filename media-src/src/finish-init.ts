@@ -105,22 +105,17 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // Make our hljs token spans invisible to Lute (it reparses the wysiwyg source every keystroke +
   // on getValue) so the highlighted edit surface still round-trips byte-clean. Idempotent per Lute.
   wrapLuteFlatten(window.vditor)
-  // Eager-load hljs for WYSIWYG live code highlighting — but DEFER it past first paint (task 145
-  // item 1): the script is ~2.1 MB and was the only heavy eager runtime cost competing with the
-  // initial render. requestIdleCallback (Chromium supports it in the webview; setTimeout fallback)
-  // keeps live-highlight-from-idle without the first-paint hit. The observer below reads window.hljs
-  // lazily, so highlighting simply turns on once the script lands; IR code blocks are highlighted by
-  // Vditor's own lazy hljs load regardless.
-  const loadHljs = () =>
-    ensureHljsLoaded(cdn).then(() =>
-      // Nudge the highlighter once the script lands, in case a code block is already focused + idle.
-      document.dispatchEvent(new Event('selectionchange')),
-    )
-  if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(() => loadHljs())
-  } else {
-    setTimeout(loadHljs, 0)
-  }
+  // Eager-load hljs for WYSIWYG live code highlighting so it downloads IN PARALLEL with the diagram
+  // engines from the start. addScript appends an async <script> — this does NOT block first paint.
+  // Do NOT defer it to requestIdleCallback (task 145 item 1 tried that, REVERTED 2026-06-28): on a
+  // diagram-heavy doc the main thread stays busy (D2 wasm compile ~470 ms, mermaid/echarts), so the
+  // idle callback starves for seconds and code colouring loads LAST, behind the diagrams ("in
+  // sequence"). The observer below reads window.hljs lazily; IR code is highlighted by Vditor's own
+  // lazy hljs load too.
+  ensureHljsLoaded(cdn).then(() =>
+    // Nudge the highlighter once the script lands, in case a code block is already focused + idle.
+    document.dispatchEvent(new Event('selectionchange')),
+  )
   observers.set(
     'wysiwyg-highlight',
     observeWysiwygCodeHighlight(app, () => (window as any).hljs),

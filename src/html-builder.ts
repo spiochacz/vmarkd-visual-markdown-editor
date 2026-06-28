@@ -177,6 +177,23 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
   )
   const iconScript = toUri('media/vditor-icons.js')
   const i18nScript = toUri(`media/vditor/dist/js/i18n/${i18nLang}.js`)
+  // Preload highlight.js BEFORE main.js, but only when the document actually has a code block (task
+  // 145 follow-up). Measured: with hljs lazy-loaded from the webview, its 2.1 MB script EXECUTION is
+  // starved behind the synchronous diagram-render burst on the single main thread, so code colouring
+  // landed ~4 s in. Loading it here (same ids as Vditor's highlightRender + our ensureHljsLoaded, so
+  // both dedupe) makes window.hljs ready before the burst → Vditor colours code blocks as soon as it
+  // renders them. Gated on a code fence in the prerendered HTML so no-code docs don't pay the 2.1 MB.
+  const docHasCode =
+    typeof params.preRenderedHtml === 'string' &&
+    /<code|language-/.test(params.preRenderedHtml)
+  const hljsMain = toUri('media/vditor/dist/js/highlight.js/highlight.min.js')
+  const hljsThird = toUri(
+    'media/vditor/dist/js/highlight.js/third-languages.js',
+  )
+  const hljsPreload = docHasCode
+    ? `<script nonce="${nonce}" id="vditorHljsScript" src="${hljsMain}?v=11.7.0"></script>\n` +
+      `\t\t\t\t<script nonce="${nonce}" id="vditorHljsThirdScript" src="${hljsThird}?v=1.0.1"></script>`
+    : ''
 
   const cspMeta = buildCspMeta(cspSource, nonce, config.allowRemoteImages)
   const bodyAttrs = buildBodyAttrs(config)
@@ -233,6 +250,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
+				${hljsPreload}
 				${jsFiles.map((f) => `<script nonce="${nonce}" src="${f}${CACHE_BUST}"></script>`).join('\n')}
 			</body>
 			</html>`

@@ -803,20 +803,47 @@ export function observeCustomDiagrams(
   appEl: HTMLElement | null | undefined,
 ): () => void {
   if (!appEl) return () => {}
+  const renderers = [
+    renderWavedrom,
+    renderNomnoml,
+    renderGeojson,
+    renderTopojson,
+    renderVega,
+    renderVegaLite,
+    renderStl,
+    renderD2,
+  ]
   let raf = 0
-  const run = () => {
+  let running = false
+  let dirty = false
+  // Render each custom-diagram engine, YIELDING a frame between them, so the burst doesn't monopolise
+  // the single main thread. Measured (task 145 follow-up, perf-timeline.spec): when all engines ran in
+  // one synchronous rAF, hljs execution + Vditor's highlightRender (code colouring) were starved until
+  // every diagram finished (~4.8 s on a 15-diagram doc). Yielding lets the colouring + paint interleave.
+  // Idempotent (each renderer skips data-processed); re-entrant-safe via running/dirty so mutations
+  // arriving mid-pass trigger exactly one more pass, not overlapping ones.
+  const run = async () => {
     raf = 0
-    renderWavedrom(appEl)
-    renderNomnoml(appEl)
-    renderGeojson(appEl)
-    renderTopojson(appEl)
-    renderVega(appEl)
-    renderVegaLite(appEl)
-    renderStl(appEl)
-    renderD2(appEl)
+    if (running) {
+      dirty = true
+      return
+    }
+    running = true
+    do {
+      dirty = false
+      for (const render of renderers) {
+        render(appEl)
+        await new Promise<void>((r) => requestAnimationFrame(() => r()))
+      }
+    } while (dirty)
+    running = false
   }
   const schedule = () => {
-    if (!raf) raf = requestAnimationFrame(run)
+    if (running) {
+      dirty = true
+      return
+    }
+    if (!raf) raf = requestAnimationFrame(() => void run())
   }
   const obs = new MutationObserver(schedule)
   obs.observe(appEl, { childList: true, subtree: true })
@@ -824,5 +851,6 @@ export function observeCustomDiagrams(
   return () => {
     obs.disconnect()
     if (raf) cancelAnimationFrame(raf)
+    running = false
   }
 }
