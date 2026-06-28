@@ -180,21 +180,49 @@ export const lower = (h: string) =>
     .join('')}`
 
 /**
- * Translate a source palette into mermaid `base` theme variables covering the common
- * diagram types (flowchart, sequence, class, state, cluster, notes). Missing source
- * fields are derived from `bg`/`fg`. `darkMode` is set from `bg` luminance so mermaid's
- * own derived contrasts go the right way.
+ * The source 5-field palette resolved to concrete colours + the derived node/cluster/note
+ * surfaces — the SHARED primitive every palette-paired diagram renderer builds on (mermaid via
+ * `paletteToThemeVariables`; plantuml/graphviz/nomnoml/flowchart via `diagram-palette.ts`). One
+ * place so a plantuml box tints the SAME as a mermaid node on the same theme (`surface`), notes
+ * tint the same (`note`), etc. Missing source fields are derived from `bg`/`fg`; `dark` is set
+ * from `bg` luminance so engines that need a light/dark hint go the right way.
  */
-export function paletteToThemeVariables(
-  p: MermaidPalette,
-): Record<string, string | boolean> {
+export interface DiagramColors {
+  bg: string
+  fg: string
+  line: string
+  accent: string
+  muted: string
+  surface: string // node / element fill
+  surface2: string // cluster / alt fill
+  note: string // note background (accent-tinted)
+  dark: boolean
+}
+
+export function deriveDiagramColors(p: MermaidPalette): DiagramColors {
   const bg = lower(p.bg)
   const fg = lower(p.fg)
   const line = lower(p.line ?? mix(bg, fg, 0.35))
   const accent = lower(p.accent ?? fg)
+  const muted = lower(p.muted ?? mix(bg, fg, 0.5))
   const dark = luminance(bg) < 0.5
   const surface = mix(bg, fg, dark ? 0.1 : 0.05) // node fill
   const surface2 = mix(bg, fg, dark ? 0.16 : 0.09) // cluster / alt
+  const note = mix(bg, accent, 0.18) // accent-tinted note background
+  return { bg, fg, line, accent, muted, surface, surface2, note, dark }
+}
+
+/**
+ * Translate a source palette into mermaid `base` theme variables covering the common
+ * diagram types (flowchart, sequence, class, state, cluster, notes). Built on the shared
+ * `deriveDiagramColors` primitive so mermaid's node/cluster/note surfaces match the other
+ * palette-paired renderers exactly. `darkMode` drives mermaid's own derived contrasts.
+ */
+export function paletteToThemeVariables(
+  p: MermaidPalette,
+): Record<string, string | boolean> {
+  const { bg, fg, line, accent, surface, surface2, note, dark } =
+    deriveDiagramColors(p)
 
   return {
     darkMode: dark,
@@ -221,7 +249,7 @@ export function paletteToThemeVariables(
     titleColor: fg,
     edgeLabelBackground: bg,
     // notes
-    noteBkgColor: mix(bg, accent, 0.18),
+    noteBkgColor: note,
     noteTextColor: fg,
     noteBorderColor: accent,
     // sequence

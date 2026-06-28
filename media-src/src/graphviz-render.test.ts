@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { themeGraphvizSvg } from './graphviz-render'
+import { applyGraphvizTheme, themeGraphvizSvg } from './graphviz-render'
 
 // A minimal stand-in for a Viz.js-rendered Graphviz SVG with the DOT default colours
 // themeGraphvizSvg must neutralise (task 144 item 2).
@@ -54,5 +54,38 @@ describe('themeGraphvizSvg', () => {
   it('no-ops when the container holds no <svg> yet', () => {
     const empty = document.createElement('div')
     expect(() => themeGraphvizSvg(empty)).not.toThrow()
+  })
+})
+
+// Full palette-pairing: applyGraphvizTheme injects palette colours as DOT graph/node/edge default
+// statements right after the graph header `{`, so Graphviz colours the diagram from the content theme.
+describe('applyGraphvizTheme', () => {
+  const P = { surface: '#232425', line: '#48a0c7', fg: '#bbbebf' }
+
+  it('injects graph/node/edge defaults right after the digraph header', () => {
+    const out = applyGraphvizTheme('digraph { A -> B }', P)
+    expect(out).toMatch(/digraph \{\s*\n\s*graph \[bgcolor="transparent"/)
+    expect(out).toContain('node [style="filled", fillcolor="#232425"')
+    expect(out).toContain('edge [color="#48a0c7"')
+    expect(out).toContain('A -> B') // body preserved
+  })
+
+  it('handles strict / undirected / named graph headers', () => {
+    expect(applyGraphvizTheme('graph { A -- B }', P)).toContain('node [style=')
+    expect(applyGraphvizTheme('strict digraph G { A -> B }', P)).toContain(
+      'node [style=',
+    )
+  })
+
+  it('inserts defaults BEFORE the body so an author colour overrides them', () => {
+    const out = applyGraphvizTheme('digraph { A [fillcolor="#ff0000"] }', P)
+    // our default node[...] comes first; the author's per-node fillcolor comes later → author wins.
+    expect(out.indexOf('fillcolor="#232425"')).toBeLessThan(
+      out.indexOf('fillcolor="#ff0000"'),
+    )
+  })
+
+  it('leaves a non-graph string untouched (no header → Viz.js reports the error)', () => {
+    expect(applyGraphvizTheme('not a graph', P)).toBe('not a graph')
   })
 })

@@ -6,6 +6,7 @@
 // NO Vditor internals (the adapter's getElements/getCode are one-liners, inlined; script loading uses
 // our shared `loadScript`) so the theming logic is testable in jsdom without pulling Vditor's source.
 
+import { resolveDiagramPalette } from './diagram-palette'
 import { loadScript } from './load-script'
 
 // PlantUML default-skin colours (snapshot dep `1.2026.7beta3`). Named so a skin change in a future
@@ -52,6 +53,45 @@ export function themePumlSvg(container: HTMLElement): void {
   }
 }
 
+// Full palette-pairing (default per ADR-0006): inject a PlantUML modern `<style>` block built from
+// the active diagram palette so every diagram type is themed semantically — element fill = surface,
+// lines/borders/lifelines = line, text = fg, notes = accent-tinted — pairing PlantUML with the
+// content theme like mermaid (was: foreground-monochrome via themePumlSvg only). The `<style>` route
+// (not skinparam) is the cross-diagram-type mechanism; verified offline against the bundled TeaVM
+// engine on sequence/class/activity/component/state/mindmap/gantt/json/wbs — all theme cleanly with
+// no baked default surviving, and none error on the `<style>` (so it's safe to always inject).
+// themePumlSvg still runs afterwards as the safety net (drops the transparent bg rect; neutralises
+// any baked default in a user-skinned diagram we DON'T inject into).
+function plantumlStyleBlock(): string {
+  const p = resolveDiagramPalette()
+  // `;`-separated declarations inside `{ }` is valid PlantUML <style> syntax (verified).
+  return [
+    '<style>',
+    'document { BackgroundColor transparent }',
+    `root { LineColor ${p.line} ; FontColor ${p.fg} ; BackgroundColor ${p.surface} ; HyperLinkColor ${p.accent} }`,
+    `element { LineColor ${p.line} ; FontColor ${p.fg} ; BackgroundColor ${p.surface} }`,
+    `arrow { LineColor ${p.line} ; FontColor ${p.fg} }`,
+    `note { BackgroundColor ${p.note} ; LineColor ${p.accent} ; FontColor ${p.fg} }`,
+    `title { FontColor ${p.fg} }`,
+    '</style>',
+  ].join('\n')
+}
+
+// The author already themes the diagram → leave their colours alone (ADR-0006: user directives win).
+const HAS_OWN_THEME = /<style>|^\s*(?:skinparam|!theme)\b/im
+
+// Inject our palette `<style>` INSIDE the @start*/@end* wrapper (PlantUML requires <style> within the
+// block) right after the opening directive; if the source has no @start* line (PlantUML allows bare
+// source) prepend it (the engine wraps implicitly). No-op when the author supplies their own theme.
+export function injectPlantumlTheme(lines: string[]): string[] {
+  if (HAS_OWN_THEME.test(lines.join('\n'))) return lines
+  const style = plantumlStyleBlock().split('\n')
+  const i = lines.findIndex((l) => /^\s*@start/i.test(l))
+  return i >= 0
+    ? [...lines.slice(0, i + 1), ...style, ...lines.slice(i + 1)]
+    : [...style, ...lines]
+}
+
 // Lazily-loaded TeaVM `render(lines, targetId)` (cached after first load).
 let plantumlRenderFn: ((lines: string[], targetId: string) => void) | null =
   null
@@ -94,8 +134,12 @@ export function plantumlRender(
         e.id = targetId
         e.innerHTML = ''
         e.setAttribute('data-processed', 'true')
-        // Render in LIGHT (no {dark}); themePumlSvg makes it theme-agnostic afterwards.
-        plantumlRenderFn(text.split(/\r\n|\r|\n/), targetId)
+        // Inject the palette `<style>` (unless the author themed it) so PlantUML colours the diagram
+        // from the content theme; themePumlSvg still runs afterwards as the safety net.
+        plantumlRenderFn(
+          injectPlantumlTheme(text.split(/\r\n|\r|\n/)),
+          targetId,
+        )
         // The TeaVM render is async and exposes no completion promise, so we observe for the <svg>
         // to appear and theme it once. `themed` guards the fallback below so we never theme twice.
         let themed = false

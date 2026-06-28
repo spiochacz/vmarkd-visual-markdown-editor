@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { themePumlSvg } from './plantuml-render'
+import { injectPlantumlTheme, themePumlSvg } from './plantuml-render'
 
 // A minimal stand-in for a rendered PlantUML SVG carrying the default-skin colours
 // themePumlSvg must neutralise (task 144 item 2 — the render test for the colour mapping).
@@ -57,5 +57,67 @@ describe('themePumlSvg', () => {
   it('no-ops when the container holds no <svg> yet (render not complete)', () => {
     const empty = document.createElement('div')
     expect(() => themePumlSvg(empty)).not.toThrow()
+  })
+})
+
+// Full palette-pairing: injectPlantumlTheme prepends a <style> block (built from the active diagram
+// palette) so PlantUML colours the diagram from the content theme. With no d2-config set it resolves
+// the github fallback palette (a valid hex set), which is all these structural assertions need.
+describe('injectPlantumlTheme', () => {
+  it('inserts a <style> block right after the @startuml directive', () => {
+    const out = injectPlantumlTheme([
+      '@startuml',
+      'Alice -> Bob: Hi',
+      '@enduml',
+    ])
+    expect(out[0]).toBe('@startuml')
+    expect(out[1]).toBe('<style>')
+    expect(out).toContain('</style>')
+    // the diagram body still follows the injected style.
+    expect(out).toContain('Alice -> Bob: Hi')
+    expect(out[out.length - 1]).toBe('@enduml')
+  })
+
+  it('builds the style from palette colours (themed, not raw defaults)', () => {
+    const out = injectPlantumlTheme(['@startuml', 'A -> B', '@enduml']).join(
+      '\n',
+    )
+    // element/arrow/text/note declarations carry concrete hex colours.
+    expect(out).toMatch(/element \{ LineColor #[0-9a-f]{6}/i)
+    expect(out).toMatch(/note \{ BackgroundColor #[0-9a-f]{6}/i)
+    expect(out).toContain('document { BackgroundColor transparent }')
+  })
+
+  it('prepends the style when the source has no @start directive (bare source)', () => {
+    const out = injectPlantumlTheme(['Alice -> Bob: Hi'])
+    expect(out[0]).toBe('<style>')
+    expect(out).toContain('Alice -> Bob: Hi')
+  })
+
+  it('leaves the source untouched when the author supplies skinparam', () => {
+    const src = [
+      '@startuml',
+      'skinparam backgroundColor #222',
+      'A -> B',
+      '@enduml',
+    ]
+    expect(injectPlantumlTheme(src)).toEqual(src)
+  })
+
+  it('leaves the source untouched when the author supplies their own <style>', () => {
+    const src = [
+      '@startuml',
+      '<style>',
+      'root { FontColor red }',
+      '</style>',
+      'A -> B',
+      '@enduml',
+    ]
+    expect(injectPlantumlTheme(src)).toEqual(src)
+  })
+
+  it('leaves the source untouched when the author uses !theme', () => {
+    const src = ['@startuml', '!theme cerulean', 'A -> B', '@enduml']
+    expect(injectPlantumlTheme(src)).toEqual(src)
   })
 })

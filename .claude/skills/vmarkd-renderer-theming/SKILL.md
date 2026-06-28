@@ -36,12 +36,12 @@ theming mechanism — that's the #1 source of mistakes.
 | `markmap` | markmap | none | ❌ baked palette (the ONE that doesn't re-render on flip) |
 | `flowchart` | flowchart.js | `drawSVG(el, {line/element/font-color, fill})` | ✅ foreground-paired, poll on flip (task 91) |
 | `vega` `vega-lite` | vega-embed | colours from `getComputedStyle(wrapper).color` | ✅ foreground-paired, poll on flip (task 102) |
-| `graphviz` | Viz.js | SVG post-process #000→currentColor | ✅ foreground-monochrome; re-renders on flip |
+| `graphviz` | Viz.js | inject DOT `graph`/`node`/`edge` palette defaults after `{` | ✅ full palette-paired (fill=surface, line, fg, transparent bg) since 2026-06-28; re-renders on flip |
 | `abc` | abcjs | SVG post-process → currentColor | ✅ foreground-monochrome; re-renders on flip |
 | `wavedrom` | WaveDrom | embedded `<style>` skin recolour → currentColor | ✅ foreground-monochrome; re-renders on flip |
 | `nomnoml` | nomnoml | SVG post-process → currentColor | ✅ foreground-monochrome; re-renders on flip |
 | `geojson` `topojson` | Leaflet | SVG geometry → currentColor (+ opt-in remote tiles, task 99) | ✅ foreground-monochrome; re-renders on flip |
-| `plantuml` | TeaVM offline (vendored) → SVG | SVG post-process → currentColor | ✅ offline + foreground-monochrome (task 87 shipped — NOT CSP-blocked any more) |
+| `plantuml` | TeaVM offline (vendored) → SVG | inject modern `<style>` block from palette (element/arrow/note) | ✅ offline + full palette-paired (fill=surface, line, fg, note=accent) since 2026-06-28; re-renders on flip |
 | `stl` | three.js | fixed neutral material (theme-independent) | ◑ material fixed `#9aa0a6` (lighting needs a mid base); re-renders on flip but colour ~constant |
 | `$…$` `$$…$$` | KaTeX | none (currentColor) | ✅ inherits CSS |
 

@@ -24,7 +24,13 @@ A new diagram renderer **SHOULD be palette-paired** — map the content theme to
 
 **Foreground-monochrome (SVG post-process → `currentColor`/themed foreground) is the accepted fallback ONLY** for engines whose output cannot be palette-mapped without per-engine work disproportionate to the value (no theme API, or an opaque SVG we can only recolour by ink). When a renderer lands as monochrome, **record why** (in its task + the skill table) so the split stays intentional.
 
-Current intentional fallbacks (no theme API / opaque output): graphviz, plantuml, abc, wavedrom, nomnoml, geojson/topojson, flowchart and vega (these two pair the *foreground* explicitly via `getComputedStyle` polling, not a palette — same monochrome tier). Promoting any of them to full pairing is opt-in future work, not a debt this ADR demands.
+Current intentional fallbacks (no theme API / opaque output): abc, wavedrom, nomnoml, geojson/topojson, flowchart and vega (flowchart/vega pair the *foreground* explicitly via `getComputedStyle` polling, not a palette — same monochrome tier). Promoting any of them to full pairing is opt-in future work, not a debt this ADR demands.
+
+**Update (2026-06-28) — plantuml + graphviz promoted to full palette-pairing.** The opt-in work above was taken for these two (user request: "dobre tematy"). Both map the active palette (the shared `resolveDiagramPalette` in `media-src/src/diagram-palette.ts` → `pairedPalette` → `MERMAID_PALETTES`, with a VS Code-vars / github fallback; built on the extracted `deriveDiagramColors` in `src/mermaid-palettes.ts`) to the engine's own theming surface, so they sit with mermaid/echarts/D2:
+- **plantuml** — inject a modern `<style>` block (element fill = surface, lines/borders = line, text = fg, notes = accent) inside the `@start…@end` wrapper (`plantuml-render.ts`).
+- **graphviz** — inject DOT `graph`/`node`/`edge` default attribute statements after the header `{` (fill = surface, color = line, fontcolor = fg, bgcolor = transparent) (`graphviz-render.ts`).
+
+The author's own colours win (a `skinparam`/`<style>`/`!theme`, DOT `color=`) — only absent defaults are injected; `themePumlSvg`/`themeGraphvizSvg` stay as the safety net. **flowchart and nomnoml were trialled for pairing too but reverted to foreground-monochrome at the user's request** (the surface-fill / themed-line look wasn't wanted there) — they remain in the fallback list above.
 
 ### 2. Expose an explicit theme picker only where the engine ships multiple first-class theme families
 
@@ -50,9 +56,9 @@ Rationale: D2's token model is **genuinely richer** than the 5-field one; promot
 - **smiles** is binary dark/light (smiles-drawer takes only `'dark'|undefined`) — accepted as-is; not worth a palette mapping (prior decision: "leave it").
 - **mindmap** (ECharts tree) bakes some colours — accepted partial; revisit only alongside the mindmap disable-vs-theme decision (task 98), not as standalone work.
 
-### 6. markmap is the one fully-baked renderer — tracked elsewhere
+### 6. markmap is the one fully-baked renderer — and stays that way (no theming, ever)
 
-markmap has zero theming and does not re-render on a flip. No new work here; tracked near task 95 (its webview blocker). Listed for the complete picture.
+markmap has zero theming and does not re-render on a flip. **Decision (2026-06-28, user): markmap will NOT get theming** — its multi-colour baked palette is left as-is permanently. Do not revisit (this closes the theming half of task 95; an offline bump for other reasons may still happen, but without a colour-strategy goal). Listed for the complete picture.
 
 ## Consequences
 

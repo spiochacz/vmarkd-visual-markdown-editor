@@ -5,6 +5,7 @@
 // script load via shared `loadScript`) so `themeGraphvizSvg` is testable in jsdom. Viz.js is loaded
 // from the shared `viz-global.js` (the same asset PlantUML uses).
 
+import { resolveDiagramPalette } from './diagram-palette'
 import { loadScript } from './load-script'
 
 // Graphviz/DOT default colours. FOREGROUND = baked ink (edges/borders/text) repainted to currentColor
@@ -51,6 +52,30 @@ export function themeGraphvizSvg(container: HTMLElement): void {
   }
 }
 
+// Full palette-pairing (default per ADR-0006): inject palette colours as DOT graph/node/edge DEFAULT
+// attribute statements right after the graph header `{`, so Graphviz colours the diagram semantically
+// — node fill = surface, borders/edges/cluster = line, text = fg, transparent canvas — pairing it with
+// the content theme like mermaid (was: foreground-monochrome via themeGraphvizSvg only). Inserted FIRST
+// so any author colour (a later `node [...]` default or an `X [color=…]`) overrides ours (ADR-0006:
+// user directives win — verified: an author `fillcolor` survives). themeGraphvizSvg still runs after as
+// the safety net (neutralises any stray baked black, drops a white bg polygon). Verified offline against
+// the bundled Viz.js on digraph/graph/strict/cluster/author-coloured DOT — all theme cleanly.
+export function applyGraphvizTheme(
+  dot: string,
+  p: { surface: string; line: string; fg: string },
+): string {
+  const defaults =
+    `\n  graph [bgcolor="transparent", color="${p.line}", fontcolor="${p.fg}"];\n` +
+    `  node [style="filled", fillcolor="${p.surface}", color="${p.line}", fontcolor="${p.fg}"];\n` +
+    `  edge [color="${p.line}", fontcolor="${p.fg}"];\n`
+  // Insert after the FIRST graph header `{` (strict? (di)graph name? {). No match (malformed DOT) →
+  // return as-is and let Viz.js surface the parse error.
+  const m = dot.match(/(?:strict\s+)?(?:di)?graph\b[^{]*\{/i)
+  if (!m) return dot
+  const at = (m.index ?? 0) + m[0].length
+  return dot.slice(0, at) + defaults + dot.slice(at)
+}
+
 // Render every `.language-graphviz` block under `element` via the local Viz.js engine, then theme the
 // SVG. Lazy-loads the shared viz-global.js once. element/cdn come from Vditor's previewRender through
 // the shim; getElements/getCode are the (trivial) inlined adapter.
@@ -68,6 +93,7 @@ export function graphvizRender(
       const VizCtor = (window as unknown as { Viz?: any }).Viz
       if (!VizCtor?.instance) return
       VizCtor.instance().then((viz: any) => {
+        const palette = resolveDiagramPalette()
         for (const e of Array.from(graphvizElements)) {
           if (
             e.parentElement?.classList.contains('vditor-wysiwyg__pre') ||
@@ -85,7 +111,9 @@ export function graphvizRender(
           if (!code) continue
           try {
             e.setAttribute('data-code', code)
-            const result = viz.renderSVGElement(code) as SVGElement
+            const result = viz.renderSVGElement(
+              applyGraphvizTheme(code, palette),
+            ) as SVGElement
             e.innerHTML = ''
             e.appendChild(result) // append the live node — no innerHTML reparse (item 3)
             themeGraphvizSvg(e)
