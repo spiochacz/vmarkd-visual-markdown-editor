@@ -14,6 +14,12 @@ import {
 import { renderD2GraphElk } from './elk-layout'
 import { faithfulRender } from './faithful-render'
 import { getD2Config } from './d2-config'
+import {
+  isTyping,
+  deferUntilSettle,
+  beginSettleRender,
+  scheduleReveal,
+} from './edit-activity'
 
 declare const window: Window & {
   vditor?: { options?: { cdn?: string } }
@@ -170,7 +176,8 @@ function themeNomnomlSvg(svg: SVGElement): void {
 const PANE_SEL =
   '.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview'
 
-function findBlocks(
+// Exported for unit testing the code→div swap (notably the hljs-strip — see custom-diagrams.test.ts).
+export function findBlocks(
   root: ParentNode,
   lang: string,
 ): { wrapper: HTMLElement; code: string }[] {
@@ -194,7 +201,15 @@ function findBlocks(
     let wrapper = el
     if (el.tagName === 'CODE') {
       const div = document.createElement('div')
+      // Drop the `hljs` class: Vditor's processCodeRender highlights these unknown-language blocks as
+      // code first (adds `.hljs` to the <code>), and copying it onto the diagram <div> made the
+      // highlight.js theme paint the code-PANEL background behind the (often transparent) diagram svg
+      // — the rendered diagram sat on a code box instead of the page (task 161 follow-up). The diagram
+      // only needs its `language-X` class for the theming/centering CSS to match.
       div.className = el.className
+        .replace(/\bhljs\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
       if (el.getAttribute('data-code'))
         div.setAttribute('data-code', el.getAttribute('data-code')!)
       el.replaceWith(div)
@@ -822,28 +837,44 @@ export function observeCustomDiagrams(
   // every diagram finished (~4.8 s on a 15-diagram doc). Yielding lets the colouring + paint interleave.
   // Idempotent (each renderer skips data-processed); re-entrant-safe via running/dirty so mutations
   // arriving mid-pass trigger exactly one more pass, not overlapping ones.
-  const run = async () => {
-    raf = 0
+  const run = () => {
     if (running) {
       dirty = true
       return
     }
-    running = true
-    do {
-      dirty = false
-      for (const render of renderers) {
-        render(appEl)
-        await new Promise<void>((r) => requestAnimationFrame(() => r()))
-      }
-    } while (dirty)
-    running = false
+    void (async () => {
+      running = true
+      do {
+        dirty = false
+        for (const render of renderers) {
+          render(appEl)
+          await new Promise<void>((r) => requestAnimationFrame(() => r()))
+        }
+      } while (dirty)
+      running = false
+    })()
   }
+  // Check isTyping in schedule() (it runs on EVERY mutation, regardless of run()'s running/dirty state)
+  // so a burst is always deferred — even if an OPEN-path render is still looping. While the user types
+  // in a diagram's source, defer the whole pass to the edit-activity settle: the cached overlay keeps
+  // the last SVG visible meanwhile (task 161 step 1). On settle, prep canvas previews (cover mode),
+  // render the latest source, and start the swap-when-ready reveal watcher. The OPEN path / theme
+  // re-renders aren't typing → they render promptly via the rAF path below.
   const schedule = () => {
-    if (running) {
-      dirty = true
+    if (isTyping()) {
+      deferUntilSettle('custom-diagrams', () => {
+        beginSettleRender()
+        run()
+        scheduleReveal()
+      })
       return
     }
-    if (!raf) raf = requestAnimationFrame(() => void run())
+    if (!raf) {
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        run()
+      })
+    }
   }
   const obs = new MutationObserver(schedule)
   obs.observe(appEl, { childList: true, subtree: true })

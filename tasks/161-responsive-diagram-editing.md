@@ -1,10 +1,116 @@
 # Task 161 — Responsive diagram editing (debounce + off-main-thread D2 compile)
 
-> **Status:** 📋 TODO — created 2026-06-28 from a live-editing responsiveness investigation
-> (follow-up to task 145's first-paint/perf work).
+> **Status:** 🟡 STEP 1 DONE 2026-06-28 (debounce + keep-last-render overlay, both engine families;
+> measured before/after in the real webview). Step 2 (off-main-thread D2 worker) + WYSIWYG still TODO.
+> Created 2026-06-28 from a live-editing responsiveness investigation (follow-up to task 145).
+> **Baseline MEASURED 2026-06-28** (the problem confirmed + quantified — see below).
+
+## Step 1 IMPLEMENTED 2026-06-28 — debounce + keep-last-render overlay
+A shared edit-activity gate (`media-src/src/edit-activity.ts`) arms a 220 ms quiet-timer on every editor
+input (capture phase) and exposes `isTyping()` / `deferUntilSettle(key, cb)`. While typing, the heavy
+diagram re-render is SKIPPED and coalesced into ONE render on the pause. Both families consult it:
+- **Vditor-native** (mermaid/graphviz/echarts/flowchart/plantuml/mindmap/markmap/abc/smiles): the
+  per-input `processCodeRender` loop in `ir/input.ts` is routed through `window.__vmarkdDeferIrDiagramRender`
+  via esbuild `patchIrDeferDiagramRender` (anchor-asserted; stock loop kept as the else-fallback).
+- **custom-observer** (d2/wavedrom/nomnoml/geojson/topojson/vega/stl): `observeCustomDiagrams.run()`
+  checks `isTyping()` and defers its pass to settle.
+
+Because Vditor leaves the preview VISIBLE during edit (confirmed in `_ir.less` — it does NOT hide it,
+unlike our code-block CSS), a naive defer would flicker the diagram to raw source. So the gate keeps the
+LAST rendered SVG on screen during the burst: a cached, **Lute-invisible** overlay (`data-render="1"`,
+class `.vmarkd-stale-overlay`; main.css hides the raw children of `.vditor-ir__preview.vmarkd-deferred`).
+This is step-3 "swap-when-ready" folded into step 1; staleness/cancellation (step 4) is handled by
+construction (latest-wins-per-key settle → superseded renders never run; nothing is in-flight to cancel).
+
+**Measured before/after — main-thread BLOCKED *while typing* (the stutter), 15 keystrokes, real VS Code
+(`test/vscode-e2e/d2-edit-perf.spec.ts`, separates typing-phase blocking from the one post-pause render):**
+
+| engine | family | BEFORE typing-block | AFTER typing-block | Δ |
+|---|---|---:|---:|---:|
+| flowchart | native (DSL) | 857 ms | 343 ms | **−60%** |
+| echarts | native (canvas) | 590 ms | 299 ms | −49% |
+| graphviz | native | 512 ms | 259 ms | −49% |
+| mermaid | native | 954 ms | 557 ms | −42% |
+| d2 | custom (WASM) | 571 ms | 337 ms | −41% |
+| stl | custom (WebGL) | 337 ms | 351 ms | ~0% |
+
+- The big per-keystroke hitches are gone: mermaid's worst single freeze while typing dropped from
+  ~630 ms to ~100 ms (the heavy render moved to the post-pause settle, ~350–600 ms once, off the
+  typing path where it's far less perceptible).
+- **stl is flat** — its per-keystroke cost is Lute re-spinning the large STL source text, not the
+  (WebGL) render, so deferring the render gains nothing. The residual ~250–550 ms across all engines
+  is the same: **SpinVditorIRDOM (Lute) re-spin per keystroke** — out of scope for step 1 (that's the
+  task-68/69 serialize hot-path), and the lever step 2 (worker) can't move either.
+- Verified the overlay keeps the diagram visible (no raw-text flicker) while typing AND through the
+  post-pause re-render — `test/vscode-e2e/t161-visual.spec.ts` (d2 + mermaid: deferred class + cached
+  render shown + raw source hidden while typing; then a frame-by-frame settle sampler asserts ZERO
+  "bare" frames — the diagram never flashes to raw source on the swap — and the new render lands).
+  Unit tests: `media-src/src/edit-activity.test.ts` (gate semantics) + `patchIrDeferDiagramRender`
+  drift guard in `test/backend/vditor-source-patches.test.ts`.
+- **Swap-when-ready fix (reported: "przeskok przez białe tło z napisami"):** the first cut stripped the
+  overlay BEFORE the async re-render finished → a flash of raw source. Now the overlay STAYS up while
+  the engine re-renders into the (still-hidden) source child, and is removed only once the new svg/
+  canvas actually lands (`scheduleReveal`, per-preview, 3 s timeout fallback). SVG engines render into a
+  display:none child; canvas engines (echarts/mindmap/stl/geojson/topojson) render visible under an
+  opaque absolute cover. Also fixed: the custom-observer (d2) reveal never fired because the settle was
+  gated behind `observeCustomDiagrams`' `running` flag — moved the isTyping/defer decision into
+  `schedule()` (runs on every mutation) so it's reliable.
+- **Scroll-jank-after-edit fix (reported: "po edycji diagramu nie mogę płynnie scrollować, przycina"):**
+  the keep-last-render cache was refreshed by a MutationObserver that `toDataURL`'d every canvas
+  (echarts/mindmap/stl) on each mutation; the diagrams idle-animate (STL's three.js render loop, leaflet,
+  echarts) → ~20 toDataURL/s → main thread ~25% blocked → scroll stuttered after an edit. Fix: snapshot
+  ONCE per typing burst (first keystroke, in `markEditActivity`, capture phase before the spin); removed
+  the observer. Verified: idle blocking after-edit ≈ before-edit (was +~300 ms). Note: a residual
+  ~320 ms/2.5 s idle blocking in the all-renderers fixture is PRE-EXISTING (STL animate loop + 2 leaflet
+  maps + echarts), present with/without editing. Test: `test/vscode-e2e/diagram-edit-scroll.spec.ts`.
+- **Custom-diagram code-PANEL background fix (reported: blocks below wavedrom show the block bg, not the
+  page bg) — PRE-EXISTING, not from this task** (confirmed: a clean build without the task-161 changes
+  has the identical issue). Vditor highlights these unknown-language blocks as code first (adds `.hljs`
+  to the `<code>`); `findBlocks` swapped `<code>`→`<div>` copying the class, so the highlight.js theme
+  painted the code-panel bg (#0d1117) behind the (often transparent) diagram svg. wavedrom looked OK
+  only because its svg has opaque fills. The earlier transparent-bg CSS only neutralised the preview
+  `<pre>`, never the inner `div.language-X`. Fix: `findBlocks` strips `hljs` from the swapped div. Tests:
+  unit `media-src/src/custom-diagrams.test.ts` (5) + e2e `test/vscode-e2e/diagram-bg.spec.ts` (asserts no
+  rendered diagram wrapper has `.hljs` or a non-transparent bg).
+- **Overlay left-edge jump fix (reported: "skacze do lewej krawędzi przy renderze a potem do środka"):**
+  two bugs found in the real editor — (a) `visualSnapshot` grabbed the FIRST svg in the preview, which
+  was Vditor's copy-button icon (`<svg><use #vditor-icon-copy>`), not the diagram → scoped the snapshot
+  + the reveal check to svg/canvas INSIDE the `.language-X` wrapper (`RENDER_SEL`); (b) the overlay div
+  lacked the diagram's `text-align:center` + `max-width:100%`, so the cached svg rendered left-aligned at
+  intrinsic width → re-asserted both on `.vmarkd-stale-overlay` in main.css. `t161-visual.spec.ts` now
+  asserts the overlay is the diagram (not a UI icon) AND centred (centre offset < 8 px).
+- Gates green: typecheck · 964 unit tests · lint:ci (7 pre-existing parity warnings) · d2-theme e2e
+  (open-path unaffected — defer only triggers on `isTyping`).
 > **Source:** user report — editing a diagram's source in a code block, while the diagram re-renders
 > below ("praktycznie co znak"), makes the UI stutter. Measured in the real VS Code webview
 > (`test/vscode-e2e/perf-timeline.spec.ts` pattern).
+
+## Baseline measured (2026-06-28, real VS Code, `test/vscode-e2e/d2-edit-perf.spec.ts`)
+Typed 15 letters one-by-one (50 ms apart) into a diagram's IR source while the preview re-renders
+below; an rAF-gap sampler in the webview recorded how long the main thread was blocked
+(`blockingMs` = Σ(frame-gap − 16.7 ms) over the typing window; `maxGap` = the single worst freeze).
+Fixture: `test/vscode-e2e/fixtures/diagram-edit.md` (one block per engine, trailing `zzz` identifier
+the spec extends so every keystroke stays valid → a real re-render).
+
+| engine | family | preview rebuilds | main-thread BLOCKED | worst single freeze |
+|---|---|---:|---:|---:|
+| **mermaid** | vditor-native | 15 | **≈1424 ms** (~83% of typing) | **670 ms** |
+| graphviz | vditor-native | 15 | ≈533 ms (~36%) | 85 ms |
+| d2 | custom-observer (no debounce) | 25 | ≈423 ms (~30%) | 76 ms |
+
+Findings:
+- **The stutter is real and engine-wide** — every keystroke rebuilds the preview and re-runs the
+  engine on the main thread. It is NOT d2-specific; **mermaid is by far the worst** (a 670 ms freeze
+  per heavy keystroke; the thread is busy ~83% of the time you type).
+- d2 shows MORE rebuilds (25 > 15) because both Vditor's spin AND `observeCustomDiagrams` re-render it
+  (the re-entrant running/dirty pass), but each compile is comparatively cheap post-boot.
+- **Step 1 (debounce) is the high-ROI fix for ALL families**, not just d2 — collapse N per-keystroke
+  re-renders to ~1 after a pause. The before/after net is this spec: expect rebuilds → ~1–2 and
+  blockingMs to drop sharply. Step 2 (worker) then removes the residual per-render compile block,
+  d2 first (pure-compute compile), mermaid/graphviz are heavier worker candidates.
+- Caveat: `svg (re)insert` count is 0 for the native engines in the spec (they swap via `innerHTML`
+  on an existing wrapper, which the added-node observer doesn't catch) — `blockingMs`/`rebuilds` are
+  the load-bearing metrics, not the svg count.
 > **Value / Risk:** 🟢 smooth typing while a diagram re-renders below / medium — step 1 (debounce) is
 > low-risk + cheap; step 2 (Web Worker for D2) is a real architecture change (worker + protocol +
 > cancellation), so spike + measure before committing.

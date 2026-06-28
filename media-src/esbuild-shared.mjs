@@ -478,6 +478,29 @@ export function patchIrInputSerialize(code) {
     '        const text = (vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : "";'
   return code.slice(0, start) + replacement + code.slice(end)
 }
+// Perf (task 161 step 1): IR re-renders EVERY diagram preview through processCodeRender on every input
+// (mermaid ~670 ms/keystroke, graphviz, d2 WASM, …) → the main thread freezes while you type in a
+// diagram's source. Route the per-input render loop through our edit-activity gate, which defers the
+// heavy engines until the user pauses + keeps the last render visible (window.__vmarkdDeferIrDiagramRender,
+// installed by main.ts). Falls back to the stock loop if the hook isn't installed (e.g. the harness).
+const IR_DIAGRAM_LOOP =
+  `vditor.ir.element.querySelectorAll(".vditor-ir__preview[data-render='2']").forEach((item: HTMLElement) => {\n` +
+  `        processCodeRender(item, vditor);\n` +
+  `    });`
+export function patchIrDeferDiagramRender(code) {
+  if (!code.includes(IR_DIAGRAM_LOOP)) {
+    throw new Error(
+      'patchIrDeferDiagramRender: processCodeRender loop anchor not found in vditor ir/input.ts (version drift?)',
+    )
+  }
+  const replacement =
+    `if ((window as any).__vmarkdDeferIrDiagramRender) {\n` +
+    `        (window as any).__vmarkdDeferIrDiagramRender(vditor, processCodeRender);\n` +
+    `    } else {\n` +
+    `        ${IR_DIAGRAM_LOOP}\n` +
+    `    }`
+  return code.replace(IR_DIAGRAM_LOOP, replacement)
+}
 // About Vditor dialog. Vditor hard-codes it in Chinese (toolbar/Info.ts) — NOT an
 // i18n string, so English is only possible by rewriting the tip.show() HTML at build
 // time. The TOP half is Vditor's ORIGINAL About content, translated verbatim (tagline,
@@ -932,6 +955,10 @@ const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]process\.ts$/,
     transform: patchIrInputSerialize,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]input\.ts$/,
+    transform: patchIrDeferDiagramRender,
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Info\.ts$/,

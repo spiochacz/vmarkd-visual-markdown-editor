@@ -187,6 +187,39 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   > .vditor-ir__preview:has(> code.hljs) {
   display: none;
 }
+/* task 161 step 1+3 (debounce + swap-when-ready): while a diagram render is deferred during a typing
+   burst, edit-activity.ts marks its preview `.vmarkd-deferred` and appends a `.vmarkd-stale-overlay`
+   holding the last-good render. Hide the raw source children so ONLY that overlay shows → the diagram
+   stays visible (no flicker to raw text). The overlay stays up through the settle re-render too and is
+   only removed once the new render is ready (swap-when-ready) — no "jump through white text". */
+.vditor-ir__preview.vmarkd-deferred > *:not(.vmarkd-stale-overlay) {
+  display: none;
+}
+/* Canvas/WebGL engines (echarts/mindmap/stl) measure their container, so at settle they must render
+   VISIBLE+sized — keep the source child in flow and lay the overlay over it (opaque, so the raw text /
+   half-drawn canvas underneath never shows through) until the new <canvas> lands and we reveal. */
+.vditor-ir__preview.vmarkd-cover {
+  position: relative;
+}
+.vditor-ir__preview.vmarkd-cover > .vmarkd-stale-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--vscode-editor-background, transparent);
+}
+/* The overlay must match the real diagram's layout so swapping in/out doesn't shift it: diagrams are
+   centred by `text-align:center` on their `.language-X` wrapper + `max-width:100%` on the svg (see the
+   per-engine rules below). The overlay is a plain div, so re-assert both here — otherwise the cached
+   svg renders at intrinsic width, LEFT-aligned, and the diagram jumps left→centre on every swap. */
+.vmarkd-stale-overlay {
+  text-align: center;
+}
+.vmarkd-stale-overlay > svg,
+.vmarkd-stale-overlay > img,
+.vmarkd-stale-overlay .vmarkd-stale-img {
+  max-width: 100%;
+  height: auto;
+}
 /* WYSIWYG equivalent: clicking into a code block reveals its editable source (`pre.vditor-wysiwyg__pre`,
    which Vditor flips to inline `display:block`) but leaves the rendered `pre.vditor-wysiwyg__preview`
    showing too — so you saw TWO stacked sections ("leftover from IR"). Hide the render while editing

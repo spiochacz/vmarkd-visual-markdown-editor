@@ -10,6 +10,7 @@ import {
   patchMathRender,
   patchProcessCode,
   patchIrInputSerialize,
+  patchIrDeferDiagramRender,
   patchInfoDialog,
   patchPreviewCopyTip,
   patchIrBlurExpand,
@@ -45,6 +46,9 @@ const outlineSource = read(
 )
 const irProcessSource = read(
   '../../media-src/node_modules/vditor/src/ts/ir/process.ts',
+)
+const irInputSource = read(
+  '../../media-src/node_modules/vditor/src/ts/ir/input.ts',
 )
 const infoSource = read(
   '../../media-src/node_modules/vditor/src/ts/toolbar/Info.ts',
@@ -548,6 +552,33 @@ describe('patchIrInputSerialize (task 68 — webview owns the serialize)', () =>
   it('throws (fails the build loudly) if the anchors are gone — version-bump guard', () => {
     expect(() => patchIrInputSerialize('// unrelated source')).toThrow(
       /fixIrInputSerialize/,
+    )
+  })
+})
+
+describe('patchIrDeferDiagramRender (task 161 — debounce diagram render while typing)', () => {
+  it('the shipped IR input re-renders every diagram preview on each input (pre-patch)', () => {
+    expect(irInputSource).toContain(
+      `vditor.ir.element.querySelectorAll(".vditor-ir__preview[data-render='2']").forEach((item: HTMLElement) => {`,
+    )
+    expect(irInputSource).toContain('processCodeRender(item, vditor);')
+  })
+
+  it('routes the per-input render loop through the edit-activity gate (with a stock fallback)', () => {
+    const patched = patchIrDeferDiagramRender(irInputSource)
+    // gate hook is preferred when installed…
+    expect(patched).toContain('(window as any).__vmarkdDeferIrDiagramRender')
+    expect(patched).toContain(
+      '(window as any).__vmarkdDeferIrDiagramRender(vditor, processCodeRender);',
+    )
+    // …and the original loop is kept as the else-branch fallback (harness / hook absent).
+    expect(patched).toContain('processCodeRender(item, vditor);')
+    expect(patched).toContain('} else {')
+  })
+
+  it('throws (fails the build loudly) if the loop anchor is gone — version-bump guard', () => {
+    expect(() => patchIrDeferDiagramRender('// unrelated source')).toThrow(
+      /patchIrDeferDiagramRender/,
     )
   })
 })

@@ -26,6 +26,7 @@ import { observeCustomDiagrams } from './custom-diagrams'
 import { installMarkmapResize } from './markmap-fit'
 import { observeAbc } from './abc-fit'
 import { observeMindmaps } from './echarts-retheme'
+import { installEditActivity } from './edit-activity'
 
 export interface FinishInitDeps {
   /** The shared observer registry — every observer below registers through it so a
@@ -73,6 +74,10 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // (Same rationale as the WYSIWYG code-highlight observer below.)
   const app = document.getElementById('app')
   const previewEl = innerVditor()?.preview?.previewElement
+  // Debounce diagram re-render while typing in a diagram's source (task 161 step 1): arms a quiet-timer
+  // on every editor input and exposes window.__vmarkdDeferIrDiagramRender for the patched ir/input.ts
+  // processCodeRender loop (Vditor-native engines) — observeCustomDiagrams (d2/…) consults the same gate.
+  observers.set('edit-activity', installEditActivity(app))
   observers.set('callouts', observeCallouts(app))
   // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
   // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
