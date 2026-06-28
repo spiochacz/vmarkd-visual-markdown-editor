@@ -14,6 +14,7 @@
 // emits JSON that MUST match this interface — keep them in sync (verified by d2-wasm.test.ts).
 
 import { loadScript } from './load-script'
+import { logToHost } from './webview-log'
 
 // The (Tiny)Go wasm_exec runtime handle + the synchronous compile entrypoint it registers.
 // Typed so the window-global boundary is narrowed immediately on read (task 151 item 5).
@@ -115,6 +116,34 @@ const D2_VER = '0.1.33'
 
 let bootPromise: Promise<D2CompileFn | null> | null = null
 
+// Instantiate the D2 wasm, preferring STREAMING (compiles WHILE the ~1.8 MB downloads → shorter
+// first-D2 latency, task 145 item 2). instantiateStreaming REQUIRES the response carry
+// Content-Type: application/wasm; the vscode-resource origin may not send it, in which case it throws
+// — fall back to the buffered fetch→arrayBuffer→instantiate path (also covers any engine without
+// streaming). Logs once which path ran so the MIME behaviour is verifiable in the real webview.
+async function instantiateD2Wasm(
+  url: string,
+  importObject: WebAssembly.Imports,
+): Promise<WebAssembly.Instance> {
+  if (typeof WebAssembly.instantiateStreaming === 'function') {
+    try {
+      const res = await WebAssembly.instantiateStreaming(
+        fetch(url),
+        importObject,
+      )
+      logToHost('[d2] wasm instantiate: streaming')
+      return res.instance
+    } catch (e) {
+      logToHost(
+        `[d2] wasm instantiate: streaming failed (${e}); buffered fallback`,
+      )
+    }
+  }
+  const resp = await fetch(url)
+  const buf = await resp.arrayBuffer()
+  return (await WebAssembly.instantiate(buf, importObject)).instance
+}
+
 export function bootD2(cdn: string): Promise<D2CompileFn | null> {
   if (bootPromise) return bootPromise
   bootPromise = (async () => {
@@ -123,15 +152,16 @@ export function bootD2(cdn: string): Promise<D2CompileFn | null> {
       'vditorD2WasmExec',
     )
     if (!window.Go) return null
-    let buf: ArrayBuffer
+    const go = new window.Go()
+    let instance: WebAssembly.Instance
     try {
-      const resp = await fetch(`${cdn}/dist/js/d2/d2-compile.wasm?v=${D2_VER}`)
-      buf = await resp.arrayBuffer()
+      instance = await instantiateD2Wasm(
+        `${cdn}/dist/js/d2/d2-compile.wasm?v=${D2_VER}`,
+        go.importObject,
+      )
     } catch {
       return null
     }
-    const go = new window.Go()
-    const { instance } = await WebAssembly.instantiate(buf, go.importObject)
     go.run(instance) // blocks on select{}; do not await
     // Phase 0: cold init ~470 ms; d2compile registers within a few frames after go.run().
     // 50 rAF (~0.8 s @60 fps) is a generous safety margin, NOT a tuned constant. If the

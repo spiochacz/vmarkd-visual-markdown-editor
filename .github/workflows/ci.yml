@@ -39,6 +39,11 @@ jobs:
       - name: Build
         run: node build.mjs
 
+      # Guard against silent bundle growth (task 145 item 3): fails if main.js (glue only) or the
+      # separate ELK bundle exceed their budgets — catches an engine leaking into the eager bundle.
+      - name: Bundle-size budget
+        run: npm run check:bundle-size
+
       # The webview half is bundled with esbuild, which strips types without
       # checking them — so type-check it explicitly (host is covered by Build).
       - name: Type-check (webview)

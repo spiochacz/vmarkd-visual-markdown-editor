@@ -3,7 +3,7 @@
 // the pre-bundled `vditor/dist/index.js` can't do. The Vditor-source specifics
 // live in esbuild-shared.mjs (reused by the e2e harness server).
 import * as esbuild from 'esbuild'
-import { rmSync } from 'node:fs'
+import { rmSync, writeFileSync } from 'node:fs'
 import { vditorSourceConfig } from './esbuild-shared.mjs'
 
 const watch = process.argv.includes('--watch')
@@ -15,6 +15,10 @@ const options = {
   outfile: '../media/dist/main.js',
   sourcemap: true,
   minify: !watch,
+  // Emit a metafile so the bundle-size budget check (scripts/check-bundle-size.mjs, task 145 item 3)
+  // — and ad-hoc `esbuild --analyze` inspection — can see WHAT landed in main.js (catches an engine
+  // accidentally bundled in instead of lazy-loaded). Written to media/dist/main.meta.json (gitignored).
+  metafile: true,
   logLevel: 'info',
   // (woff2 external lives in vditorSourceConfig — shared with the e2e harness server.)
   ...vditorSourceConfig,
@@ -52,5 +56,13 @@ if (watch) {
   console.log('[build.mjs] watching…')
   await esbuild.build(elkOptions)
 } else {
-  await Promise.all([esbuild.build(options), esbuild.build(elkOptions)])
+  const [mainResult] = await Promise.all([
+    esbuild.build(options),
+    esbuild.build(elkOptions),
+  ])
+  // Persist the metafile next to the bundle for the size-budget check + analysis.
+  writeFileSync(
+    new URL('../media/dist/main.meta.json', import.meta.url),
+    JSON.stringify(mainResult.metafile),
+  )
 }

@@ -1,7 +1,34 @@
 # Task 145 — Bundle size / lazy-load / first-paint perf
 
-> **Status:** 📋 TODO — created 2026-06-24 from a measured bundle/perf audit of the webview.
-> Perf / package-size, not a feature.
+> **Status:** ✅ DONE 2026-06-28 — items 1,2,3,5 implemented; items 4,6 resolved as recorded decisions.
+> Created 2026-06-24 from a measured bundle/perf audit of the webview.
+>
+> **🟢 Done 2026-06-28 (gates green; D2 render re-verified in the real webview):**
+> - **3 (size budget — the regression net):** esbuild now emits a `metafile` (media/dist/main.meta.json,
+>   gitignored) and `scripts/check-bundle-size.mjs` (npm `check:bundle-size`) fails if `main.js` (525 KB
+>   budget; now 460) or `elk-main.js` (1600 KB; now 1421) exceed budget — catches an engine leaking
+>   into the eager bundle or dep bloat. Wired into CI as a "Bundle-size budget" step after Build.
+> - **1 (hljs no longer competes with first paint):** the ~2.1 MB eager `ensureHljsLoaded` is DEFERRED
+>   to `requestIdleCallback` (setTimeout fallback) in finish-init.ts — chose option (b) as
+>   no-regression-by-construction (the script still loads, just past first paint; WYSIWYG live-highlight
+>   keeps working, IR code is highlighted by Vditor's own lazy hljs regardless). Verified: webview.spec
+>   "collapsed code block == preview height" still passes.
+> - **2 (D2 wasm streaming-instantiate):** `bootD2` now prefers `WebAssembly.instantiateStreaming`
+>   (compiles WHILE the wasm downloads) with a try/catch fallback to the buffered
+>   fetch→arrayBuffer→instantiate path — low-risk: if the vscode-resource origin serves the wrong MIME
+>   (no `application/wasm`), streaming throws and the fallback runs. `logToHost` records which path ran
+>   so the MIME behaviour is verifiable in the Output channel. Verified: d2-theme.spec renders (3/3).
+> - **5 (stale .vsix):** deleted `vmarkd-1.0.0.vsix` + `vmarkd-1.2.0.vsix` from the working tree;
+>   `*.vsix` was already in `.gitignore` (so they can't recur).
+>
+> **🟢 Recorded decisions (no code):**
+> - **4 (d2 wasm size):** largely OBSOLETED by the TinyGo rebuild (2026-06-25, task 124-era):
+>   d2-compile.wasm went **11.2 MB → 1.8 MB** (−84%), so it no longer dominates the VSIX. Streaming
+>   (item 2) is the remaining latency lever; shipping it pre-compressed is NOT worth it (the VSIX is
+>   already zip-compressed, so the only win would be installed-on-disk footprint of a now-1.8 MB file).
+> - **6 (lute 3.5 M eager host-side):** accepted — it's core (instant-paint teaser + serialization,
+>   can't be lazy); the `.map` is already excluded from the VSIX. No action.
+>
 > **Source:** architecture review (2026-06-24), measured against the current build + vendored assets.
 > **Value / Risk:** 🟢 faster first D2/code render + a guard against silent size growth / low —
 > mostly load-strategy + CI gate, no behavioural change.
@@ -18,7 +45,7 @@
 
 ## Findings → work items (by ROI)
 
-### 1. 🟠 highlight.js (2.1 M) eager-loads on EVERY open
+### 1. 🟢 highlight.js (2.1 M) eager-loads on EVERY open — DONE 2026-06-28 (deferred to requestIdleCallback)
 `ensureHljsLoaded` (`media-src/src/wysiwyg-code-highlight.ts:40`, called from `main.ts:473`) pulls
 `highlight.min.js` + `third-languages.js` on init regardless of whether the document has a code
 block. It's the only heavy **eager runtime** cost (deliberate: WYSIWYG live-highlight from the
@@ -28,7 +55,7 @@ start; dedupes with Vditor's later lazy load).
   doesn't compete with first paint; (c) keep eager but measure the cost first. Decide with a
   before/after first-paint measurement — don't regress WYSIWYG live-highlight.
 
-### 2. 🟠 D2 wasm is not streaming-instantiated
+### 2. 🟢 D2 wasm is not streaming-instantiated — DONE 2026-06-28 (instantiateStreaming + fallback)
 `bootD2` does `fetch → resp.arrayBuffer() → WebAssembly.instantiate(buf)` (`d2-wasm.ts:90-96`).
 `WebAssembly.instantiateStreaming(fetch(...), importObject)` compiles **while** the 11 M downloads →
 shorter first-D2-render latency (cold init ~470 ms today).
@@ -37,23 +64,23 @@ shorter first-D2-render latency (cold init ~470 ms today).
   it's wrong, `instantiateStreaming` throws → keep the current `arrayBuffer` path as a fallback
   (try/catch). Low risk with the fallback.
 
-### 3. 🟡 No bundle-size budget / metafile in CI
+### 3. 🟢 No bundle-size budget / metafile in CI — DONE 2026-06-28 (metafile + check:bundle-size in CI)
 `main.js` and the VSIX grew silently (5.1 → 10.3 MB across releases) with no gate. Emit an esbuild
 `metafile` from `media-src/build.mjs` and add a CI check that fails if `main.js` (or the VSIX)
 exceeds a budget. Catches accidental engine-into-bundle leaks and dependency bloat.
 
-### 4. 🟡 d2 wasm (11 M) dominates the VSIX for a niche renderer
+### 4. 🟢 d2 wasm (11 M) dominates the VSIX for a niche renderer — RESOLVED (TinyGo cut it to 1.8 M)
 Already lazy at runtime and the build stubs the latex/d2fonts embeds
 (`media-src/vendor/d2/build/stub-*.go`, per `build-notes.md`) — good. The remaining lever is mostly
 streaming (#2). Optionally explore shipping the wasm pre-compressed + decompressing in JS, but the
 VSIX is already zip-compressed so the win is only the installed-on-disk footprint — likely not worth
 the complexity. Record the decision either way.
 
-### 5. ⚪ Stale `.vsix` artifacts in the repo root
+### 5. 🟢 Stale `.vsix` artifacts in the repo root — DONE 2026-06-28 (deleted; already gitignored)
 `vmarkd-1.0.0.vsix` + `vmarkd-1.2.0.vsix` (~15 M) sit in the working tree. Not shipped (not in
 `media/`), but clutter — add `*.vsix` to `.gitignore` and clean them.
 
-### 6. ⚪ lute (3.5 M) eager host-side — accepted
+### 6. 🟢 lute (3.5 M) eager host-side — ACCEPTED (no action, core)
 Loaded host-side for the instant-paint teaser + serialization (core, can't be lazy). `.map` (440 K)
 is already excluded from the VSIX (`.vscodeignore **/*.map`). No action — recorded for completeness.
 

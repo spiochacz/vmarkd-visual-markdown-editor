@@ -105,11 +105,22 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // Make our hljs token spans invisible to Lute (it reparses the wysiwyg source every keystroke +
   // on getValue) so the highlighted edit surface still round-trips byte-clean. Idempotent per Lute.
   wrapLuteFlatten(window.vditor)
-  ensureHljsLoaded(
-    cdn,
-    // Nudge the highlighter once the script lands, in case a code block is already focused
-    // and idle (no further mutations would otherwise trigger the first paint).
-  ).then(() => document.dispatchEvent(new Event('selectionchange')))
+  // Eager-load hljs for WYSIWYG live code highlighting — but DEFER it past first paint (task 145
+  // item 1): the script is ~2.1 MB and was the only heavy eager runtime cost competing with the
+  // initial render. requestIdleCallback (Chromium supports it in the webview; setTimeout fallback)
+  // keeps live-highlight-from-idle without the first-paint hit. The observer below reads window.hljs
+  // lazily, so highlighting simply turns on once the script lands; IR code blocks are highlighted by
+  // Vditor's own lazy hljs load regardless.
+  const loadHljs = () =>
+    ensureHljsLoaded(cdn).then(() =>
+      // Nudge the highlighter once the script lands, in case a code block is already focused + idle.
+      document.dispatchEvent(new Event('selectionchange')),
+    )
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => loadHljs())
+  } else {
+    setTimeout(loadHljs, 0)
+  }
   observers.set(
     'wysiwyg-highlight',
     observeWysiwygCodeHighlight(app, () => (window as any).hljs),
