@@ -1,6 +1,13 @@
 # Task 113 — Option A: ELK-full layout renderer (TALA-alternative, 80/20)
 
-**Status:** planned (spike-first — the cheapest, highest-value of the TALA-alternative cluster)
+**Status:** ✅ ELK option set ADOPTED into production / ❌ standalone renderer DROPPED (2026-06-28, user).
+The worthwhile finding — the TALA-leaning ELK options (BALANCED nodePlacement, `considerModelOrder=
+NODES_AND_EDGES`, `GREEDY_MODEL_ORDER`, `thoroughness=8`, tuned spacing) — **already ships in the existing
+d2 ELK layout (`media-src/src/elk-layout.ts`, 2026-06-21; see the empirical follow-up below).** The bigger
+"standalone ELK-full renderer" ambition (new ` ```graph `/` ```elk ` fence + own SVG drawer + elkjs EPL
+vendoring) is **dropped** — the "own-engine" direction it belonged to is rejected (siblings 114/115/117).
+`wrapping`/`aspectRatio` stay un-adopted (helped `complex.d2`, hurt `big1_micro` → per-graph only). The
+rest of this file is historical.
 
 ## Proof-of-concept result (2026-06-18 — thesis validated)
 

@@ -1,6 +1,8 @@
 # Task 117 — Option E: HOLA / libdialect human-like orthogonal layout (WASM, no JS port)
 
-**Status:** planned (research / long-shot — the most TALA-like single algorithm, but unported)
+**Status:** ❌ CHECKED & REJECTED (2026-06-28, user). The HOLA / libdialect option (E — closest single
+algorithm to TALA, but unported → needs a C++→WASM build) was evaluated and dropped. Rejected together
+with **114 (B: cola)** and **115 (C: cola+libavoid)**. The rest of this file is historical rationale.
 
 ## Context
 

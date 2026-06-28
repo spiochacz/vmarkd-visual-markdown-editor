@@ -1,6 +1,8 @@
 # Task 114 — Option B: cola.js / WebCoLa constraint-based layout (closest to TALA's character)
 
-**Status:** planned (spike — pursue only if Option A's layered look isn't organic enough)
+**Status:** ❌ CHECKED & REJECTED (2026-06-28, user). The cola/WebCoLa constraint-layout option (B)
+was evaluated and dropped as a TALA-alternative backend — not pursued. Rejected together with its
+siblings **115 (C: cola+libavoid)** and **117 (E: HOLA)**. The rest of this file is historical rationale.
 
 ## Context
 

@@ -1,6 +1,9 @@
 # Task 115 — Option C: composed layout pipeline (placement + libavoid-js routing + compaction)
 
-**Status:** planned (spike — the realistic "build our own engine" 70/30; gated on B/113 results)
+**Status:** ❌ CHECKED & REJECTED (2026-06-28, user). The composed cola + libavoid-js routing pipeline
+(C — the "build our own engine" option) was evaluated and dropped. (libavoid-js itself proved workable
+in spike, but the overall own-engine direction wasn't worth it.) Rejected together with **114 (B: cola)**
+and **117 (E: HOLA)**. The rest of this file is historical rationale.
 
 ## Context
 
