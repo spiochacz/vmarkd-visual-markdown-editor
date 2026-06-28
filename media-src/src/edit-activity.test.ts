@@ -7,6 +7,7 @@ import {
   beginSettleRender,
   scheduleReveal,
   installEditActivity,
+  hasFreshRender,
 } from './edit-activity'
 
 // The gate's quiet window is 220 ms (private const in edit-activity.ts); tests advance well under it
@@ -107,4 +108,34 @@ test('installEditActivity arms the gate on input and exposes the native defer ho
 test('beginSettleRender / scheduleReveal are no-ops when there is no IR editor', () => {
   expect(() => beginSettleRender()).not.toThrow()
   expect(() => scheduleReveal()).not.toThrow()
+})
+
+test('hasFreshRender: a rendered svg outside the overlay counts as fresh', () => {
+  const p = document.createElement('div')
+  p.innerHTML = '<div class="language-mermaid"><svg></svg></div>'
+  expect(hasFreshRender(p)).toBe(true)
+})
+
+test('hasFreshRender: a parse-error box is a terminal render → fresh (no 3s reveal wait)', () => {
+  const mermaid = document.createElement('div')
+  mermaid.innerHTML =
+    '<div class="language-mermaid"><div class="vmarkd-mermaid-error"><pre>err</pre></div></div>'
+  expect(hasFreshRender(mermaid)).toBe(true)
+  // forward-compat with task 178's generalised class
+  const generalised = document.createElement('div')
+  generalised.innerHTML =
+    '<div class="vmarkd-diagram-error"><pre>err</pre></div>'
+  expect(hasFreshRender(generalised)).toBe(true)
+})
+
+test('hasFreshRender: a stale overlay alone is NOT fresh (cached svg / cached error box inside it)', () => {
+  const cachedSvg = document.createElement('div')
+  cachedSvg.innerHTML =
+    '<div class="vmarkd-stale-overlay" data-render="1"><svg></svg></div>'
+  expect(hasFreshRender(cachedSvg)).toBe(false)
+
+  const cachedError = document.createElement('div')
+  cachedError.innerHTML =
+    '<div class="vmarkd-stale-overlay" data-render="1"><div class="vmarkd-mermaid-error"></div></div>'
+  expect(hasFreshRender(cachedError)).toBe(false)
 })

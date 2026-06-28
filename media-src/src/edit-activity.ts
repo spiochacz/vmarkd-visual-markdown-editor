@@ -144,12 +144,18 @@ function previewOf(node: Element): HTMLElement | null {
 const RENDER_SEL = '[class*="language-"] svg, [class*="language-"] canvas'
 
 // A render is "present" once the diagram wrapper holds an svg/canvas OUTSIDE our overlay (i.e. the
-// engine finished re-rendering into the source child).
-function hasFreshRender(preview: Element): boolean {
+// engine finished re-rendering into the source child) — OR a parse-error box landed (a terminal
+// render with NO svg/canvas). Without the error-box case the reveal waits the full REVEAL_TIMEOUT_MS
+// (3s) before swapping the stale overlay out, so an error panel appears ~3s late (mermaid error box;
+// generalised .vmarkd-diagram-error in task 178). Exported for the unit test.
+export function hasFreshRender(preview: Element): boolean {
   for (const el of Array.from(preview.querySelectorAll(RENDER_SEL))) {
     if (!el.closest(`.${OVERLAY_CLASS}`)) return true
   }
-  return false
+  const err = preview.querySelector(
+    '.vmarkd-mermaid-error, .vmarkd-diagram-error',
+  )
+  return !!(err && !err.closest(`.${OVERLAY_CLASS}`))
 }
 
 // A clean, language-class-free snapshot of the current render so the overlay never re-matches an
