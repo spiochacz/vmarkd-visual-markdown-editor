@@ -39,7 +39,8 @@ you add to the editable surface is seen by these serializers unless you opt out 
 
 On the other side: `Md2VditorIRDOM` / `Md2VditorDOM` (markdown → editor DOM, render) and
 `SpinVditorIRDOM` / `SpinVditorDOM` (re-normalize the editor DOM on every input — the per-keystroke
-rebuild). `SpinVditorIRDOM` is why injected nodes are **transient** (see Gotchas).
+rebuild). `SpinVditorIRDOM` is why injected nodes are **transient** (see Gotchas); its scope + hard
+constraints are in *The spin* below.
 
 ## ⭐ THE KEY FINDING — make injected DOM invisible to Lute with `data-render="1"`
 
@@ -130,6 +131,38 @@ A "special" block (code, mermaid, math, callout) is a **dual-node**: an editable
   skip). This is the precedent — and the reason "callouts work" does NOT mean "any span works".
 - **CSS/styling of these halves is the `vmarkd-renderer-theming` skill** (the IR edit-surface section).
 
+## The spin (`SpinVditorIRDOM` / `SpinVditorDOM`) — block-scoped, mandatory, main-thread-only
+
+On **every input** Vditor re-normalizes the edited DOM through Lute so structure stays live (typing
+`## ` becomes a heading, a list continues, `*x*` emphasizes). Verified against the blob +
+`vditor/src/ts/ir/input.ts` (edit-responsiveness dig, 2026-06-28):
+
+- **It is BLOCK-scoped, not whole-document.** The spin input is the edited block's
+  `blockElement.outerHTML` (`ir/input.ts` ~`:134`), **not** `ir.element.innerHTML`. Only the
+  `isIRElement` fallback (no enclosing block, or a link-ref-def / footnote relocation) spins the whole
+  element. So per-keystroke cost scales with the EDITED BLOCK, not the doc — a long doc with a short
+  edited paragraph is cheap; a 2000-line diagram source is not. (Corrects the common "it re-spins the
+  whole document" assumption.)
+- **The round-trip re-parses the whole block string, INCLUDING any rendered preview SVG.**
+  `SpinVditorIRDOM` (blob ~`@3340621`) = `vditorIRDOM2Md` → `Parse` → re-`Render`. `vditorIRDOM2Md`'s
+  `K.ParseHTML` tokenizes the ENTIRE block string first; the `data-render`/`svg`-namespace skip in
+  `genASTByVditorIRDOM` (~`@1444697`) happens **after** the parse. So a multi-thousand-node diagram SVG
+  embedded in the block is fully HTML-tokenized **every keystroke, then discarded** — the residual
+  diagram-edit stutter (`[[diagram-edit-debounce]]`, task 172). `data-render` hides a node from the
+  *AST*, **not** from `ParseHTML`'s tokenizer.
+- **The serialize is INDEPENDENT of the spin.** `processAfterRender` (`ir/process.ts`) debounces
+  `getMarkdown` on `undoDelay`, reading the live source `--pre code` TEXT NODE (skipping
+  `data-render=2`). A typed char is in the saved markdown even if the spin is skipped — the spin is
+  about LIVE DOM normalization, not save fidelity.
+- **It cannot move off-thread or go incremental.** Lute is synchronous GopherJS (no Promise/Worker/
+  postMessage); the `<wbr>` caret snapshot can't survive an async DOM swap (live editable diverges from
+  the worker's snapshot → caret / stale-overwrite races); `VditorIRDOM2Md` / `genASTByVditorIRDOM` are
+  internal Go with no JS renderer hook (no sub-AST without forking GopherJS); and the webview rejects
+  Workers anyway. **Do NOT propose a Worker spin or "skip the spin for structural keystrokes".** The
+  only safe wins are shrinking its INPUT (strip the preview render before the spin — task 172) or
+  skipping it for keystrokes that provably can't change structure (a char inside a fenced code/diagram
+  BODY — task 175, behind exhaustive escape-hatch classification).
+
 ## Lute in Node (host prerender + fast spikes)
 
 Lute runs headless in Node — no browser needed — because it's just the GopherJS blob:
@@ -160,8 +193,11 @@ console.log(s.slice(j-120, j+120))                            // → the skip gu
 
 Useful anchors: `VditorIRDOM2Md` / `VditorDOM2Md` (serialize entry), `genASTByVditorIRDOM` /
 `genASTByVditorDOM` (the walkers), `DomAttrValue` (attr read), `data-type` / `data-render` /
-`vditor-ir__preview` (node identity + skip), `Md2VditorIRDOM` (render entry). Always **verify
-empirically** against our vendored version too — static reading of GopherJS can mislead.
+`vditor-ir__preview` (node identity + skip), `Md2VditorIRDOM` (render entry), `SpinVditorIRDOM` /
+`SpinVditorDOM` (the per-input spin: `vditorIRDOM2Md`→`Parse`→`Render`), `ListData` / `Tight`
+(whole-list loose/tight + ordinals). Always **verify empirically** against our vendored version too —
+static reading of GopherJS can mislead (offsets like `@3340621` drift on a Lute bump — grep the
+literal, don't trust the number).
 
 ## Lute parse/render options (`Set*`)
 
@@ -183,6 +219,12 @@ not by forking. Match an existing patch's anchor-assert style so it fails loud o
 - **Round-trip is the acceptance test.** For ANY DOM-injection or serialization change, assert
   `getValue()` is **byte-identical** with the injected node present vs absent (and that
   `serializeForHost()`'s incremental path matches a full `getValue()`). A diff = a leak or a fidelity bug.
+- **Lists are whole-list AST, not per-`<li>`.** `ListData.Tight` (loose/tight, blob ~`@1523759`) and
+  ordered-list `Start` / `Num` / `Delimiter` are derived during a cold `Parse` from the WHOLE list's
+  blank-line gaps + sibling context. You **cannot** spin or incrementally serialize a lone `<li>` (or a
+  single-item-wrapped list): it flips tightness / renumbers and **drifts the byte round-trip**, not
+  just the visual DOM. This is why Vditor widens a list edit's spin to the top-level list — and why any
+  block-scoping of the spin/serialize must keep whole lists intact (tasks 69, 177).
 - **`sv` mode skips Lute entirely** (raw `textContent`) — features that hook the serializers don't
   apply there; handle or exclude `sv` explicitly.
 - **One blob, three consumers.** The webview, e2e harnesses, and host prerender share the SAME
@@ -212,4 +254,6 @@ not by forking. Match an existing patch's anchor-assert style so it fails loud o
   `[[vditor-indexcss-served-stale-from-webview-cache]]` (the single-copy / patch-in-build discipline).
 - Skill: `vmarkd-renderer-theming` (CSS/theming side of the same dual-node).
 - Tasks: 153 (ghost text — the spike that produced the finding), 69 (incremental IR serialization),
-  61 (minimal-diff write-back), 83 (soft-break option), 106 (callouts dual-node).
+  61 (minimal-diff write-back), 83 (soft-break option), 106 (callouts dual-node). Spin scope/cost
+  (2026-06-28 edit-responsiveness dig): 172 (strip the preview SVG out of the spin input), 175 (skip
+  the spin for fenced-body keystrokes), 177 (list-widening + the `ListData.Tight` round-trip trap).
