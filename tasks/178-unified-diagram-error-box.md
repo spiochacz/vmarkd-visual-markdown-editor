@@ -15,26 +15,39 @@ diagram), null-safe, lives in the `data-render="2"` preview (Lute-invisible), st
 
 ## Problem — the current per-engine landscape (audited 2026-06-29)
 
-Three inconsistent behaviours; the first is the same "unformatted" bug the user hit on mermaid:
+Whether an engine can even *report* a validation error governs the scope. **Reports errors?** —
+✅ throws a hard parse/validation error (box applies) · ◑ renders its OWN error, doesn't throw (box
+optional — catch only the hard throws) · ✗ effectively can't error / always renders (skip). Current
+behaviour is then inconsistent: raw unformatted dump, silent nothing, or raw source.
 
-| Engine | Current error behaviour | Where |
-|---|---|---|
-| **mermaid** | ✅ clean themed box | `patchMermaidErrorRender` (done) |
-| **echarts** | ❌ raw `echarts render error: <br>${error}` dumped | native `chartRender.ts:31-33` |
-| **mindmap** | ❌ raw `mindmap render error: <br>${error}` | native `mindmapRender.ts:67-69` |
-| **graphviz** | ❌ raw `graphviz render error: <br>${error}` | our `graphviz-render.ts:120-121` (+ native `graphvizRender.ts:39`) |
-| **plantuml** | ❌ raw `plantuml render error: <br>${error}` | our `plantuml-render.ts:165-167` |
-| **math (KaTeX)** | ❌ raw `e.message` (secondary catch; `throwOnError:false` handles most inline) | native `mathRender.ts:64` |
-| **smiles** | ⚠️ silent `catch {}` → blank/empty svg, no feedback | `smiles-render.ts:90` |
-| **wavedrom** | ⚠️ throw leaves the raw source visible | `custom-diagrams.ts:245` |
-| **nomnoml / vega / geojson / topojson / stl** | ⚠️ silent catch → leave source / blank | `custom-diagrams.ts:479/500/529/791` |
-| **flowchart** | ⚠️ no catch → uncaught throw possible | native `flowchartRender.ts:20` |
-| **d2** | ◑ richer fallback: shows source + a note ("d2: … — showing source") + `data-d2-error` | `custom-diagrams.ts:~346-363` |
-| **abc / markmap** | no catch (abcjs renders partial / its own; markmap rarely errors) | — |
+| Engine | Reports errors? | Current behaviour | Where |
+|---|---|---|---|
+| **mermaid** | ✅ parse error | ✅ clean themed box | `patchMermaidErrorRender` (done) |
+| **graphviz** | ✅ invalid DOT | ❌ raw `graphviz render error: <br>` dump | our `graphviz-render.ts:120-121` (+ native `graphvizRender.ts:39`) |
+| **d2** | ✅ compile error | ◑ source + note ("d2: … — showing source") + `data-d2-error` | `custom-diagrams.ts:~346-363` |
+| **echarts** | ✅ parse spec / `setOption` | ❌ raw `echarts render error: <br>` dump | native `chartRender.ts:31-33` |
+| **mindmap** | ✅ `setOption` (rare) | ❌ raw `mindmap render error: <br>` dump | native `mindmapRender.ts:67-69` |
+| **vega / vega-lite** | ✅ invalid spec | ⚠️ silent catch → blank | `custom-diagrams.ts` (per-engine catch) |
+| **wavedrom** | ✅ bad WaveJSON | ⚠️ throw leaves the raw source visible | `custom-diagrams.ts:245` |
+| **nomnoml** | ✅ bad syntax | ⚠️ silent catch → blank | `custom-diagrams.ts` (per-engine catch) |
+| **smiles** | ✅ invalid SMILES | ⚠️ silent `catch {}` → blank svg, no feedback | `smiles-render.ts:90` |
+| **flowchart** | ✅ parse error | ⚠️ no catch → uncaught throw possible | native `flowchartRender.ts:20` |
+| **geojson / topojson** | ✅ `JSON.parse` (bad JSON) | ⚠️ silent catch → leave source / blank | `custom-diagrams.ts` (per-engine catch) |
+| **stl** | ✅ bad ASCII STL | ⚠️ silent catch → blank | `custom-diagrams.ts:~791` |
+| **plantuml** | ◑ own red "syntax error" SVG (throws only on boot/encode) | ❌ raw `plantuml render error: <br>` (infra only) | our `plantuml-render.ts:165-167` |
+| **math (KaTeX)** | ◑ own red inline error (`throwOnError:false`, task 57) | ❌ raw `e.message` (secondary catch) | native `mathRender.ts:64` |
+| **abc** | ✗ lenient — renders partial, warnings not throws | no catch | — |
+| **markmap** | ✗ any outline is valid | no catch | — |
 
 So a typo gives you **unformatted red text** (echarts/mindmap/graphviz/plantuml/math), **nothing at
 all** (smiles/nomnoml/vega/geojson/topojson/stl), or the raw source (wavedrom) — depending on which
-diagram you typed. The goal is **one clean, themed validation-error box everywhere**.
+diagram you typed.
+
+**Scope from the capability column:** the box targets the **12 ✅ engines** (turn raw dump / silence
+into a clean box; mermaid done, so 11 to do). The **2 ◑ engines** (plantuml, math) keep their own
+rendered error — apply the box only to their hard (boot/encode/secondary) throws, don't fight their
+inline error. The **2 ✗ engines** (abc, markmap) are skipped — they can't meaningfully error. The
+goal is **one clean, themed validation-error box everywhere an engine actually reports an error**.
 
 ## Goal
 
