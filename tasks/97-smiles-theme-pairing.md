@@ -1,10 +1,11 @@
 # Task 97 — smiles-drawer theme pairing (background/bond from palette; keep CPK atoms)
 
-> **🔎 Audit 2026-06-24 (task 142):** smiles renders + binary dark/light works (Vditor +
-> `media-src/src/smiles-render.ts` flatten-repair). Still open (this task): pair the dark/light to the
-> CONTENT theme + live re-render on flip. Verify-first: reaction syntax + draw-options coverage.
+> **✅ ACCEPTED AS-IS / WON'T DO (2026-06-28, user): "97 jest ok jak teraz jest".** smiles renders and
+> does binary dark/light + the flatten-repair works; the user accepts the current behaviour, so the
+> content-theme pairing + live re-render proposed below are **not** wanted. Consistent with ADR-0006 §5
+> (smiles = accepted binary dark/light partial, "leave it"). The rest of this file is historical.
 
-> **Status:** 📋 TODO. smiles-drawer already does **binary dark/light** (Vditor passes
+> **Status (historical):** was 📋 TODO. smiles-drawer already does **binary dark/light** (Vditor passes
 > `theme === 'dark' ? 'dark' : undefined` to `draw`), but it follows the **VS Code** mode, not
 > the content theme's effective mode, and doesn't re-render on a live flip. Pair it properly:
 > drive the built-in dark/light by the *content theme*, and optionally tune background/bond/

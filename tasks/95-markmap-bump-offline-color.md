@@ -1,21 +1,19 @@
 # Task 95 — Full markmap bump (0.14.3 → 0.18.x) + offline bundle + color strategy
 
-> **🔎 Audit 2026-06-24 (task 142):** `media-src/vendor/markmap/source.json` now pins **0.18.12** —
-> so the bump may have landed since this status was written. VERIFY the spike blocker (`Markmap.create`
-> "n is not a constructor" in the real webview) is actually resolved in shipped code. Theming still ❌
-> (baked palette); collapse/zoom interaction unverified. Update the status once confirmed.
-
-> **Status:** 📋 TODO — **spike partial** (2026-06-17). Offline bundle builds (758KB, -47KB vs old
-> 805KB), API shape matches, `Transformer.transform()` works — but `Markmap.create(svg, opts)` throws
-> `n is not a constructor` in the real VS Code webview (d3 v7 SVG namespace issue or esbuild IIFE
-> scope). Needs debugging: the constructor works in Node but not in the webview. Reverted for now. Vditor bundles a
-> combined `markmap.min.js` = **markmap-lib/view 0.14.3 + d3 6.7.0**; latest is **0.18.12**, but
-> 0.18 **split into separate packages** (markmap-lib, markmap-view, d3 external) — there's no
-> drop-in combined UMD. So: build our own offline combined bundle, vendor it (no CDN), AND work
-> out how to color the mind-map well on any background (markmap has no CSS theming hook).
-> **Source:** user request — full markmap modernization despite the niche.
-> **Value / Risk:** 🟡 modern engine + readable diagrams / **medium-high** — custom bundle build,
-> 0.14→0.18 API drift, d3 size, and a genuinely open color-design question.
+> **Status:** ✅ DONE (bump + offline bundle) / ❌ colour-strategy DROPPED (2026-06-28).
+> The bump SHIPPED (it landed in commit `dfbd952`): `media-src/vendor/markmap/` is a **custom combined
+> offline bundle** = d3 7.9.0 (tree-shaken) + markmap-lib 0.18.12 + markmap-view 0.18.12, concatenated
+> onto `window.markmap` (no CDN autoloader — the inert jsdelivr/unpkg strings from markmap-view aren't
+> on the render path; CSP `default-src 'none'` + the e2e prove offline). **0.18.12 is the current latest**
+> (npm markmap-lib/view both 0.18.12). The spike blocker (`Markmap.create` "n is not a constructor") is
+> **resolved in shipped code** — real-VS-Code e2e renders markmap (markmap-resize/diagram-zoom/
+> diagram-width specs). This round closed the verification gap: added a **pin guard**
+> (`custom-diagrams-pin.test.ts`: sha + `window.markmap`/`Markmap`/`Transformer` + version 0.18.12 +
+> MIT/ISC) and confirmed the e2e. The esbuild `?v=` patch emits `markmap.min.js?v=0.18.12`.
+>
+> **Colour strategy: NOT done — and dropped by decision (2026-06-28, user): markmap stays baked, no
+> theming, ever** (ADR-0006 §6). markmap keeps its multi-colour identity; no live re-theme. The rest of
+> this file's colour design is historical only.
 
 ## Problem
 1. **Stale + can't drop-in.** Bundled markmap is **0.14.3** (combined UMD with d3 6.7.0).

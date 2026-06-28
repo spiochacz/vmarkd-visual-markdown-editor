@@ -67,6 +67,38 @@ describe('smiles-drawer pin (task 96 — 2.3.0 bump)', () => {
   })
 })
 
+describe('markmap combined offline bundle pin (task 95 — 0.18.12)', () => {
+  const source = readJson('../../media-src/vendor/markmap/source.json')
+  const jsPath = resolve('../../media-src/vendor/markmap/markmap.min.js')
+
+  it('vendored bundle exists and sha256 matches source.json', () => {
+    expect(existsSync(jsPath)).toBe(true)
+    const js = readFileSync(jsPath)
+    const got = createHash('sha256').update(js).digest('hex')
+    expect(got).toBe(source.files['markmap.min.js'].sha256)
+  })
+
+  it('is the combined lib+view bundle exposing window.markmap (Markmap + Transformer)', () => {
+    const js = readFileSync(jsPath, 'utf8')
+    expect(js).toContain('window.markmap')
+    expect(js).toContain('Markmap')
+    expect(js).toContain('Transformer')
+    // (the bundle carries inert CDN strings from markmap-view's autoloader, but the render path
+    //  uses the bundled lib/view directly — offline is proven by the real-VS-Code e2e under CSP
+    //  default-src 'none'; so no no-CDN string assertion here.)
+  })
+
+  it('is pinned to 0.18.12 with MIT (markmap) + ISC (d3) licenses', () => {
+    expect(source.version).toBe('0.18.12')
+    const license = readFileSync(
+      resolve('../../media-src/vendor/markmap/LICENSE'),
+      'utf8',
+    )
+    expect(license).toContain('MIT')
+    expect(license).toContain('ISC')
+  })
+})
+
 describe('nomnoml pin (task 103)', () => {
   const source = readJson('../../media-src/vendor/nomnoml/source.json')
   const jsPath = resolve('../../media-src/vendor/nomnoml/nomnoml.min.js')
