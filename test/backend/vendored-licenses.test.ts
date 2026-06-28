@@ -58,7 +58,9 @@ describe('vendored-asset license compliance (task 149)', () => {
   it.each([
     ['d2', 'MPL-2.0'],
     ['elk', 'EPL-2.0'],
-    ['plantuml', 'MIT (plantuml + viz-global)'],
+    ['plantuml', 'MIT (plantuml)'],
+    // viz-global.js (@viz-js/viz) moved to its own dir (task 144 item 6) — shared by plantuml + graphviz.
+    ['viz', 'MIT (@viz-js/viz)'],
   ])('copyleft/attribution-critical %s (%s) has a vendored license', (dir) => {
     const entry = VENDORED_ASSETS.find((e) => e.dir === dir)
     expect(entry, `no VENDORED_ASSETS entry for ${dir}`).toBeTruthy()

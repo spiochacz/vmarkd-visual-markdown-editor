@@ -52,16 +52,22 @@ export const VENDORED_ASSETS = [
     license: ['LICENSE', 'NOTICE'],
     missingNote: 'using Vditor default',
   },
-  // PlantUML offline TeaVM — plantuml.js (MIT, plantuml/plantuml-mit) + viz-global.js (MIT, @viz-js/viz);
-  // graphviz reuses this same viz-global.js (tasks/87). Both license texts vendored.
+  // PlantUML offline TeaVM — plantuml.js (MIT, plantuml/plantuml-mit). It needs viz-global.js, which
+  // now lives in its OWN vendor/viz/ dir (task 144 item 6) since BOTH plantuml and graphviz share it —
+  // keeping it under plantuml/ was a hidden coupling (removing plantuml would have broken graphviz).
   {
     dir: 'plantuml',
-    copy: [
-      ['plantuml.js', 'plantuml.js'],
-      ['viz-global.js', 'viz-global.js'],
-    ],
-    license: ['LICENSE', 'viz-global.LICENSE'],
+    copy: [['plantuml.js', 'plantuml.js']],
+    license: ['LICENSE'],
     missingNote: 'PlantUML offline disabled',
+  },
+  // Viz.js (@viz-js/viz, MIT) — Graphviz→WASM/JS, the shared engine for BOTH plantuml (task 87) and
+  // graphviz (task 94). Ships to media/vditor/dist/js/viz/; both renderers load it from there.
+  {
+    dir: 'viz',
+    copy: [['viz-global.js', 'viz-global.js']],
+    license: ['LICENSE'],
+    missingNote: 'PlantUML + Graphviz offline disabled',
   },
   { dir: 'abcjs', copy: [['abcjs_basic.min.js', 'abcjs_basic.min.js']], license: ['LICENSE'] },
   {

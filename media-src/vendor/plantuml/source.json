@@ -1,16 +1,14 @@
 {
-  "version": "1.2026.7beta3",
-  "source": "https://github.com/plantuml/plantuml/releases/tag/snapshot",
-  "artifact": "js-plantuml-SNAPSHOT.zip",
-  "date": "2026-06-16",
-  "license": "MIT — plantuml.js (plantuml/plantuml-mit, © 2019 plantuml); viz-global.js (@viz-js/viz, © Michael Daines). License texts vendored as LICENSE + viz-global.LICENSE.",
+  "version": "1.2026.6",
+  "source": "https://github.com/plantuml/plantuml/releases/tag/v1.2026.6",
+  "artifact": "js-plantuml-1.2026.6.zip",
+  "date": "2026-06-28",
+  "note": "Pinned to the STABLE, immutable v1.2026.6 release tag, NOT the mutable `snapshot` tag (task 144 item 5): snapshot is a rolling pre-release GitHub overwrites, so a re-fetch could 404 / drift. v1.2026.6 is the latest stable that ships the TeaVM js-plantuml zip. (Was 1.2026.7beta3 from snapshot.)",
+  "license": "MIT — plantuml.js (plantuml/plantuml-mit, © 2019 plantuml). License text vendored as LICENSE.",
   "files": {
     "plantuml.js": {
-      "sha256": "98a6560b8e35aaff399d3a63960fe072d63f8020a7e832be74024445169c5f7b"
-    },
-    "viz-global.js": {
-      "sha256": "ef2cd8a08b5cf8b65e3634131052b41870ff30bb6fb23e23a87fd09d44666cba"
+      "sha256": "48bf2790629d84a3573a109c305acc3eee84f69cbb5c11cd93395a018c1fe3b2"
     }
   },
-  "notes": "Pre-built TeaVM JS from PlantUML GitHub Releases snapshot tag. No JDK needed. plantuml.js is the ES module (import { render }), viz-global.js must be loaded as a <script> before importing plantuml.js. API: render(lines, targetId, {dark}) — async, writes SVG into the target DOM element."
+  "notes": "Pre-built TeaVM JS from PlantUML GitHub Releases snapshot tag. No JDK needed. plantuml.js is the ES module (import { render }). It needs viz-global.js (@viz-js/viz) loaded as a <script> first — that shared asset now lives in vendor/viz/ (task 144 item 6), NOT here. API: render(lines, targetId, {dark}) — async, writes SVG into the target DOM element."
 }

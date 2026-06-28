@@ -1,0 +1,14 @@
+{
+  "version": "@viz-js/viz (bundled in plantuml js-plantuml-SNAPSHOT)",
+  "description": "Viz.js (@viz-js/viz) — Graphviz compiled to WASM/JS. Shared by the offline PlantUML engine (task 87) AND the graphviz renderer (task 94). Relocated out of vendor/plantuml/ into its own neutral dir so the two consumers don't couple through PlantUML's folder (task 144 item 6).",
+  "origin": "https://github.com/mdaines/viz-js",
+  "source": "https://github.com/plantuml/plantuml/releases/tag/v1.2026.6",
+  "artifact": "js-plantuml-1.2026.6.zip (viz-global.js is shipped inside the PlantUML TeaVM bundle; byte-identical to the snapshot copy — same @viz-js/viz)",
+  "license": "MIT — viz-global.js (@viz-js/viz, © Michael Daines). License text vendored as LICENSE.",
+  "files": {
+    "viz-global.js": {
+      "sha256": "ef2cd8a08b5cf8b65e3634131052b41870ff30bb6fb23e23a87fd09d44666cba"
+    }
+  },
+  "notes": "Loaded as a <script> (window.Viz) before plantuml.js. Ships to media/vditor/dist/js/viz/viz-global.js; both plantuml-render.ts and graphviz-render.ts load it from there."
+}

@@ -67,7 +67,8 @@ export function plantumlRender(
     element.querySelectorAll<HTMLElement>('.language-plantuml')
   if (plantumlElements.length === 0) return
 
-  const vizUrl = `${cdn}/dist/js/plantuml/viz-global.js`
+  // viz-global.js lives in its own dir (task 144 item 6) — shared with graphviz; plantuml.js stays.
+  const vizUrl = `${cdn}/dist/js/viz/viz-global.js`
   const pumlUrl = `${cdn}/dist/js/plantuml/plantuml.js`
 
   loadScript(vizUrl, 'vditorVizGlobalScript').then(async () => {

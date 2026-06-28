@@ -62,36 +62,40 @@ export function graphvizRender(
     element.querySelectorAll<HTMLElement>('.language-graphviz')
   if (graphvizElements.length === 0) return
 
-  loadScript(
-    `${cdn}/dist/js/plantuml/viz-global.js`,
-    'vditorVizGlobalScript',
-  ).then(() => {
-    const VizCtor = (window as unknown as { Viz?: any }).Viz
-    if (!VizCtor?.instance) return
-    VizCtor.instance().then((viz: any) => {
-      for (const e of Array.from(graphvizElements)) {
-        if (
-          e.parentElement?.classList.contains('vditor-wysiwyg__pre') ||
-          e.parentElement?.classList.contains('vditor-ir__marker--pre')
-        ) {
-          continue
+  // Shared Viz.js, in its own dir (task 144 item 6) — same asset the plantuml engine loads.
+  loadScript(`${cdn}/dist/js/viz/viz-global.js`, 'vditorVizGlobalScript').then(
+    () => {
+      const VizCtor = (window as unknown as { Viz?: any }).Viz
+      if (!VizCtor?.instance) return
+      VizCtor.instance().then((viz: any) => {
+        for (const e of Array.from(graphvizElements)) {
+          if (
+            e.parentElement?.classList.contains('vditor-wysiwyg__pre') ||
+            e.parentElement?.classList.contains('vditor-ir__marker--pre')
+          ) {
+            continue
+          }
+          if (e.getAttribute('data-processed') === 'true') continue
+          // On re-render (theme flip) textContent is SVG garbage; prefer saved data-code.
+          const code = (
+            e.getAttribute('data-code') ||
+            e.textContent ||
+            ''
+          ).trim()
+          if (!code) continue
+          try {
+            e.setAttribute('data-code', code)
+            const result = viz.renderSVGElement(code) as SVGElement
+            e.innerHTML = ''
+            e.appendChild(result) // append the live node — no innerHTML reparse (item 3)
+            themeGraphvizSvg(e)
+          } catch (error) {
+            e.innerHTML = `graphviz render error: <br>${error}`
+            e.className = 'vditor-reset--error'
+          }
+          e.setAttribute('data-processed', 'true')
         }
-        if (e.getAttribute('data-processed') === 'true') continue
-        // On re-render (theme flip) textContent is SVG garbage; prefer saved data-code.
-        const code = (e.getAttribute('data-code') || e.textContent || '').trim()
-        if (!code) continue
-        try {
-          e.setAttribute('data-code', code)
-          const result = viz.renderSVGElement(code) as SVGElement
-          e.innerHTML = ''
-          e.appendChild(result) // append the live node — no innerHTML reparse (item 3)
-          themeGraphvizSvg(e)
-        } catch (error) {
-          e.innerHTML = `graphviz render error: <br>${error}`
-          e.className = 'vditor-reset--error'
-        }
-        e.setAttribute('data-processed', 'true')
-      }
-    })
-  })
+      })
+    },
+  )
 }

@@ -1,8 +1,23 @@
 # Task 144 — PlantUML architecture hardening (patch→module, theming robustness)
 
-> **Status:** 🟡 IN PROGRESS — items 1-4 DONE 2026-06-27 (the patch→module extraction + theming
-> robustness, for BOTH plantuml AND graphviz); items 5-6 deferred. Created 2026-06-24 from a
-> software-architecture review of the offline PlantUML pipeline (task 87).
+> **Status:** ✅ DONE 2026-06-28 — all 6 items shipped (items 1-4 on 2026-06-27; items 5-6 on
+> 2026-06-28). Created 2026-06-24 from a software-architecture review of the offline PlantUML pipeline
+> (task 87).
+>
+> **🟢 Items 5-6 DONE 2026-06-28 (re-verified: plantuml + graphviz specs green):**
+> - **6 (relocate shared viz-global.js):** moved the shared `@viz-js/viz` asset out of
+>   `media-src/vendor/plantuml/` into its own neutral `media-src/vendor/viz/` (own `source.json` +
+>   `LICENSE`); added a `viz` entry to `VENDORED_ASSETS` (ships to `media/vditor/dist/js/viz/`), dropped
+>   it from the plantuml entry. Both `plantuml-render.ts` + `graphviz-render.ts` now load
+>   `dist/js/viz/viz-global.js`. Kills the hidden coupling (removing/restructuring plantuml no longer
+>   breaks graphviz). `vendored-licenses.test.ts` copyleft guard extended with the `viz` dir.
+> - **5 (immutable tag):** re-pinned plantuml.js from the **mutable `snapshot` tag** (rolling
+>   pre-release, `1.2026.7beta3` — a re-fetch could 404 / drift) to the **stable, immutable
+>   `v1.2026.6`** release tag (latest stable shipping the TeaVM `js-plantuml` zip). New sha
+>   `48bf2790…`. viz-global.js in v1.2026.6 is **byte-identical** to the snapshot copy (same
+>   `@viz-js/viz`, sha `ef2cd8a0…` unchanged) → graphviz engine untouched; only plantuml.js changed.
+>   The stable skin still uses the same default colours, so the named-constant theming + plantuml.spec
+>   pass unchanged (the version downgrade beta3→.6 is render-safe, verified).
 >
 > **🟢 Items 1-4 DONE 2026-06-27 (render output identical; unit + real-VS-Code verified):**
 > - **1 (patch→module):** the ~75-line `patchPlantumlRender` string + the ~60-line `patchGraphvizRender`
@@ -24,11 +39,6 @@
 > - **4 (observer de-race):** the MutationObserver + 5000ms fallback now share a `themed` guard flag so
 >   the fallback can't double-theme, and the magic `5000` is commented (per `.claude/rules/ts.md`). The
 >   TeaVM `render()` exposes no completion promise, so the observer stays (documented).
->
-> **⏳ Deferred — items 5, 6:** 5 (pin a stable PlantUML release instead of the mutable `snapshot`
-> tag — a re-vendoring op needing a stable tag that ships the TeaVM artifact + sha re-pin) and 6
-> (relocate the shared `viz-global.js` out of `plantuml/` into a neutral `vendor/viz/` — touches
-> build.mjs sync + both module load paths). Both 🟡, independent of the extraction; own focused pass.
 >
 > **Source:** architecture review (2026-06-24).
 > **Value / Risk:** 🟢 removed the biggest maintainability debt + closed the "subtly-wrong" theming
@@ -85,12 +95,12 @@ wasteful); a multi-mutation render could be themed half-built.
   doesn't, keep the observer but guard the fallback with a "already themed" flag and **comment why**
   the magic `5000` exists (per `.claude/rules/ts.md`).
 
-### 5. 🟡 Pin a stable release, not a mutable `snapshot` tag
+### 5. 🟢 Pin a stable release, not a mutable `snapshot` tag — DONE 2026-06-28 (v1.2026.6)
 `source.json` pins `1.2026.7beta3` from the `snapshot` GitHub tag. sha256 protects integrity but the
 **snapshot tag is mutable** → a rebuild can 404 / drift. Move to a stable PlantUML release tag (keep
 the sha guard).
 
-### 6. 🟡 Relocate the shared `viz-global.js` out of `plantuml/`
+### 6. 🟢 Relocate the shared `viz-global.js` out of `plantuml/` — DONE 2026-06-28 (vendor/viz/)
 Graphviz loads `…/dist/js/plantuml/viz-global.js` (`esbuild-shared.mjs:800`) — a hidden coupling:
 removing/restructuring PlantUML breaks Graphviz, and the location is misleading. Move the shared
 `@viz-js/viz` asset to a neutral `vendor/viz/` (update both patches + `build.mjs` sync).
