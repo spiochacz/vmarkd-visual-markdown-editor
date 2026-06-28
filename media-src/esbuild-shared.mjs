@@ -594,6 +594,52 @@ export function patchMermaidVersion(code, version) {
   }
   return code.replace(MERMAID_VER_ANCHOR, `mermaid.min.js?v=${version}`)
 }
+// Mermaid parse-error UX. Vditor's mermaidRender.ts catch dumps mermaid's "bomb" error SVG
+// (errorElement.outerHTML) + the raw e.message into a bare <small>, with `e.message.replace(/\n/,
+// "<br>")` — no /g, so only the FIRST newline survives and multi-line parser errors (with the caret
+// diagram) mash together; it also crashes if errorElement is null. We (1) set
+// `suppressErrorRendering: true` so mermaid never injects the bomb (render() just throws), and (2)
+// replace the catch with a compact, themed `.vmarkd-mermaid-error` box whose <pre> preserves every
+// newline incl. the caret diagram (escaped so source `<…>` can't inject HTML). The box lives in the
+// `data-render="2"` preview half → invisible to the Lute round-trip. Styled in media-src/src/main.css.
+// Anchored on the config flag + the catch body; throws on drift.
+const MERMAID_START_ON_LOAD = 'startOnLoad: false,'
+const MERMAID_CATCH_RE =
+  /\} catch \(e\) \{[\s\S]*?errorElement\.parentElement\.remove\(\);\s*\}/
+const MERMAID_ERROR_CATCH = `} catch (e) {
+                // vMarkd (patchMermaidErrorRender): suppressErrorRendering (above) stops mermaid
+                // injecting its bomb SVG, so render a compact themed box instead. <pre> keeps every
+                // newline incl. the caret diagram; escape so source <…> can't inject HTML. Lives in
+                // the data-render="2" preview → invisible to the Lute round-trip.
+                const stray = document.querySelector("#" + id);
+                if (stray && stray.parentElement) { stray.parentElement.remove(); }
+                const msg = String(e && e.message ? e.message : e)
+                    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                item.innerHTML = '<div class="vmarkd-mermaid-error">' +
+                    '<div class="vmarkd-mermaid-error__title">Mermaid</div>' +
+                    '<pre class="vmarkd-mermaid-error__msg">' + msg + '</pre></div>';
+            }`
+export function patchMermaidErrorRender(code) {
+  if (
+    !code.includes('errorElement.outerHTML') ||
+    !MERMAID_CATCH_RE.test(code)
+  ) {
+    throw new Error(
+      'patchMermaidErrorRender: mermaidRender.ts catch-block anchor not found (version drift?)',
+    )
+  }
+  if (!code.includes(MERMAID_START_ON_LOAD)) {
+    throw new Error(
+      'patchMermaidErrorRender: mermaid config `startOnLoad: false,` anchor not found (version drift?)',
+    )
+  }
+  return code
+    .replace(
+      MERMAID_START_ON_LOAD,
+      `${MERMAID_START_ON_LOAD}\n            suppressErrorRendering: true,`,
+    )
+    .replace(MERMAID_CATCH_RE, () => MERMAID_ERROR_CATCH)
+}
 // Task 89 — we vendor a newer ECharts than Vditor bundles (syncEcharts). Three vditor modules
 // load `…/echarts.min.js?v=5.5.1` under the SAME script id (`vditorEchartsScript`): chartRender
 // (charts), mindmapRender (mind maps), devtools. addScript dedupes by id, so whichever loads
@@ -965,11 +1011,14 @@ const VDITOR_TS_PATCHES = [
     transform: (code) => patchInfoDialog(code, lutePin),
   },
   {
+    // chain: clean parse-error box (suppressErrorRendering + themed catch) THEN the ?v= bump
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]mermaidRender\.ts$/,
-    transform: (code) =>
-      mermaidPin?.version
-        ? patchMermaidVersion(code, mermaidPin.version)
-        : code,
+    transform: (code) => {
+      const withErr = patchMermaidErrorRender(code)
+      return mermaidPin?.version
+        ? patchMermaidVersion(withErr, mermaidPin.version)
+        : withErr
+    },
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]markmapRender\.ts$/,

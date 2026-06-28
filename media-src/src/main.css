@@ -566,6 +566,36 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   --markmap-circle-open-bg: var(--vmarkd-bg, #fff);
   --markmap-table-border: 1px solid currentColor;
 }
+/* Mermaid parse-error box (esbuild patchMermaidErrorRender). Vditor's catch otherwise dumps mermaid's
+   bomb SVG + a single-newline-mashed raw message; we suppress the bomb (suppressErrorRendering) and
+   render this compact themed box instead. The <pre> keeps mermaid's caret diagram aligned (white-space:
+   pre) and scrolls horizontally rather than blowing the diagram's width:100% layout. Theme-var driven
+   (no palette interaction); lives in the data-render="2" preview half (never serialized). */
+.vmarkd-mermaid-error {
+  border: 1px solid
+    var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground, #e51400));
+  border-radius: 4px;
+  background: var(--vscode-inputValidation-errorBackground, transparent);
+  padding: 0.5em 0.75em;
+  margin: 0.25em 0;
+  max-width: 100%;
+  text-align: left;
+}
+.vmarkd-mermaid-error__title {
+  margin-bottom: 0.3em;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--vscode-errorForeground, #e51400);
+}
+.vmarkd-mermaid-error__msg {
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+  font-size: 0.8em;
+  color: var(--vscode-foreground);
+  background: transparent;
+}
 /* D2: center, shrink-to-fit, themed via currentColor (themeSvg post-processes the SVG). */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview) .language-d2 {
   text-align: center;

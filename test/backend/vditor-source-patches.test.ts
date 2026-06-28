@@ -23,6 +23,7 @@ import {
   patchAbcRender,
   patchMindmapThemeColors,
   patchEchartsThemeInit,
+  patchMermaidErrorRender,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -52,6 +53,9 @@ const irInputSource = read(
 )
 const infoSource = read(
   '../../media-src/node_modules/vditor/src/ts/toolbar/Info.ts',
+)
+const mermaidRenderSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/mermaidRender.ts',
 )
 // Reading this path also guards against a file rename: if Vditor moves
 // preview/index.ts, this readFileSync throws at load and the suite fails loudly —
@@ -688,5 +692,29 @@ describe('patchIrBlurExpand (code-block edit click flash)', () => {
     expect(() => patchIrBlurExpand('// unrelated source')).toThrow(
       /fixIrBlurExpand/,
     )
+  })
+})
+
+describe('patchMermaidErrorRender (mermaidRender.ts)', () => {
+  it('suppresses the bomb + renders a themed escaped error box, drops the raw dump', () => {
+    const patched = patchMermaidErrorRender(mermaidRenderSource)
+    // mermaid no longer injects its bomb error graphic (render() just throws) …
+    expect(patched).toContain('suppressErrorRendering: true')
+    // … and the catch renders our themed box, not errorElement.outerHTML + a <small> dump
+    expect(patched).toContain('vmarkd-mermaid-error')
+    expect(patched).toContain('vmarkd-mermaid-error__msg')
+    expect(patched).toContain('&amp;') // message is HTML-escaped (source <…> can't inject)
+    expect(patched).not.toContain('errorElement.outerHTML')
+    expect(patched).not.toContain('errorElement.parentElement.remove()')
+  })
+
+  it('throws (fails the build loudly) if the config or catch anchor drifts', () => {
+    expect(() => patchMermaidErrorRender('// unrelated source')).toThrow(
+      /patchMermaidErrorRender/,
+    )
+    // config flag present but the catch body gone → still throws (both anchors required)
+    expect(() =>
+      patchMermaidErrorRender('const c = { startOnLoad: false, };'),
+    ).toThrow(/patchMermaidErrorRender/)
   })
 })
