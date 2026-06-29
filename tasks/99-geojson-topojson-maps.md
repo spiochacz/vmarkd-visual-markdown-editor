@@ -15,6 +15,30 @@
 > requirement). Test: `test/vscode-e2e/geojson-tiles.spec.ts` (ON → CARTO tiles present; OFF → 0 tiles).
 > Remaining for a clean DONE: a unit test for the lang-dispatch + assert the theme-flip re-render (both
 > low; render itself has strong real-VS-Code coverage).
+>
+> **🟣 Basemap configurable 2026-06-29 (99b):** user — "geojson ma czarno-białą mapę" (the 99a basemap
+> is CARTO Positron/Dark Matter, intentionally monochrome). Added `vmarkd.theme.geoBasemap` (Themes
+> group) so the basemap is overridable: `auto` (default = the 99a themed mono, unchanged), `voyager`
+> (colored CARTO Voyager), `osm` (OpenStreetMap), `none` (geometry only even with remote images on).
+> Threaded through the SAME theme mechanism: `protocol.VmarkdConfigOptions.geoBasemap` →
+> `collectConfigOptions` → the typed `d2-config` holder (`getD2Config().geoBasemap`, read by
+> `initLeafletMap` alongside `.mode`) → `basemapFor(setting, dark)`. Live re-apply: a new `geo` flag in
+> `rethemeDiagrams`/`reThemeMonochromeGroup` (separate from `monoGroup` so a basemap change re-renders
+> only the maps; a content/theme flip still re-renders them via `mono || geo`, so `auto` flips
+> light/dark). Tile source still gated by `image.allowRemoteImages` (CSP). Tests: `basemapFor` unit
+> (`custom-diagrams.test.ts`), `d2-config` round-trip, `manifest` schema, real-VS-Code
+> `geojson-basemap.spec.ts` (osm/voyager/none tile-source assertions); `geojson-tiles.spec.ts` (default
+> mono) still green.
+>
+> **🟣 Map z-index fix 2026-06-29 (99c):** user — "mapa przykrywa rozwijane menu jak np w toolbarze".
+> Leaflet gives its panes/controls high z-indexes (the zoom control container is z-index 1000 and is
+> always present, even offline); with no stacking boundary they escaped to the editor root and painted
+> OVER Vditor's toolbar dropdown (`.vditor-panel`, z-index 3). Fix: `isolation: isolate` on the
+> `.language-geojson`/`.language-topojson` wrapper (main.css) → Leaflet's z-indexes stay scoped to the
+> map, which then sits at its natural level below the positioned toolbar UI. Real-VS-Code
+> `geojson-zindex.spec.ts` parents a faithful `.vditor-panel` probe over the map's zoom control and
+> asserts elementFromPoint hits the panel, not Leaflet (RED-checked: without isolate the
+> leaflet-control-zoom wins).
 
 > **Status:** ✅ DONE (2026-06-27 — render + theming + opt-in CARTO basemap 99a + e2e; see audit/99a notes above).
 > Render ` ```geojson ` / ` ```topojson ` fenced blocks as interactive maps

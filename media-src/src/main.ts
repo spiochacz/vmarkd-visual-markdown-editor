@@ -184,6 +184,8 @@ function initVditor(msg: InitPayload) {
     theme: msg.options?.d2Theme,
     contentTheme: msg.options?.contentTheme,
     mode: msg.theme === 'dark' ? 'dark' : 'light',
+    // geojson/topojson basemap style (theme.geoBasemap) — read by initLeafletMap.
+    geoBasemap: msg.options?.geoBasemap,
   })
   // Whether remote basemap tiles may load on geojson/topojson maps (task 99) — read by initLeafletMap.
   ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
@@ -573,6 +575,7 @@ function handleSetTheme(msg: Extract<HostMessage, { command: 'set-theme' }>) {
     flowchart: true,
     vega: true,
     monoGroup: true,
+    geo: true,
     d2: true,
   })
 }
@@ -598,11 +601,15 @@ function handleConfigChanged(
     lastInitMsg && lastInitMsg.options?.d2Layout !== msg.options?.d2Layout
   const d2ThemeChanged =
     lastInitMsg && lastInitMsg.options?.d2Theme !== msg.options?.d2Theme
-  // Keep the D2 config current so a re-render uses the new engine + theme (set before any re-render).
+  const geoBasemapChanged =
+    lastInitMsg && lastInitMsg.options?.geoBasemap !== msg.options?.geoBasemap
+  // Keep the D2 + geo config current so a re-render uses the new engine/theme/basemap (set before any
+  // re-render).
   setD2Config({
     layout: msg.options?.d2Layout,
     theme: msg.options?.d2Theme,
     contentTheme: msg.options?.contentTheme,
+    geoBasemap: msg.options?.geoBasemap,
   })
   ;(window as any).__vmarkdAllowRemoteImages = msg.options?.allowRemoteImages
   // Mode only rides on a config message when the content theme pins a new light/dark; leave the
@@ -656,6 +663,9 @@ function handleConfigChanged(
     flowchart: contentThemeChanged,
     vega: contentThemeChanged,
     monoGroup: contentThemeChanged,
+    // geojson/topojson re-render on a content flip (palette) OR a geoBasemap setting change. Separate
+    // from monoGroup so changing only the basemap doesn't needlessly re-render plantuml/graphviz/etc.
+    geo: contentThemeChanged || geoBasemapChanged,
     d2: contentThemeChanged || d2LayoutChanged || d2ThemeChanged,
   })
 }

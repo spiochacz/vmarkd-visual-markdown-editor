@@ -1610,6 +1610,9 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       echartsTheme: c.get<string>('theme.echarts'),
       d2Layout: c.get<string>('diagram.d2Layout'),
       d2Theme: c.get<string>('theme.d2'),
+      // Basemap under geojson/topojson maps (theme.geoBasemap). `auto` (default) = themed monochrome
+      // CARTO; only takes effect when allowRemoteImages is on (CSP). Read by initLeafletMap.
+      geoBasemap: c.get<string>('theme.geoBasemap'),
       showToolbar: c.get<boolean>('editor.toolbar'),
       highlightHeadings: c.get<boolean>('theme.highlightHeadings'),
       showHeadingMarkers: c.get<boolean>('editor.headingMarkers'),

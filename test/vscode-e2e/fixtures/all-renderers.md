@@ -42,7 +42,7 @@ $$
 
 ---
 
-## 3. Mermaid — full palette pairing (task 86)
+## 3. Mermaid — full palette pairing
 
 ```mermaid
 graph TD
@@ -65,7 +65,7 @@ sequenceDiagram
 
 ---
 
-## 4. ECharts — palette + gallery themes (task 89/90)
+## 4. ECharts — palette + gallery themes
 
 ```echarts
 {
@@ -91,7 +91,7 @@ sequenceDiagram
 
 ---
 
-## 6. Markmap — markdown outline, CSS var theming (task 95)
+## 6. Markmap — markdown outline, CSS var theming
 
 ```markmap
 # Root
@@ -120,7 +120,7 @@ cond(no)->op
 
 ---
 
-## 8. Graphviz / Viz.js — DOT, SVG post-processing theme (task 94)
+## 8. Graphviz / Viz.js — DOT, SVG post-processing theme
 
 ```graphviz
 digraph G {
@@ -134,7 +134,7 @@ digraph G {
 
 ---
 
-## 9. PlantUML — offline TeaVM + SVG post-processing (task 87)
+## 9. PlantUML — offline TeaVM + SVG post-processing
 
 ```plantuml
 @startuml
@@ -146,7 +146,7 @@ Alice -> Bob: How are you?
 
 ---
 
-## 10. abc.js — ABC music notation, foreground themed (task 93)
+## 10. abc.js — ABC music notation, foreground themed
 
 ```abc
 X:1
@@ -159,7 +159,7 @@ C D E F | G A B c |
 
 ---
 
-## 11. smiles-drawer — chemical structure, foreground themed (task 93)
+## 11. smiles-drawer — chemical structure, foreground themed
 
 Caffeine:
 
@@ -169,7 +169,7 @@ CN1C=NC2=C1C(=O)N(C(=O)N2C)C
 
 ---
 
-## 12. WaveDrom — timing diagrams (task 101)
+## 12. WaveDrom — timing diagrams
 
 Signal (timing):
 
@@ -197,7 +197,7 @@ With `config` — `hscale` stretches the time axis (a non-default `skin` silentl
 
 ---
 
-## 13. nomnoml — UML diagrams (task 103)
+## 13. nomnoml — UML diagrams
 
 ```nomnoml
 [Pirate|eyeCount: Int|raid();pillage()]
@@ -218,7 +218,7 @@ Nested containers (exercises nomnoml's per-depth fill shades — must follow the
 
 ---
 
-## 14. GeoJSON — interactive map, offline / no tiles (task 99)
+## 14. GeoJSON — interactive map, offline / no tiles
 
 ```geojson
 {
@@ -256,7 +256,7 @@ Nested containers (exercises nomnoml's per-depth fill shades — must follow the
 
 ---
 
-## 15. TopoJSON — converted to GeoJSON + Leaflet (task 99)
+## 15. TopoJSON — converted to GeoJSON + Leaflet
 
 ```topojson
 {
@@ -279,7 +279,7 @@ Nested containers (exercises nomnoml's per-depth fill shades — must follow the
 
 ---
 
-## 16. Vega / Vega-Lite — declarative data-viz (task 102)
+## 16. Vega / Vega-Lite — declarative data-viz
 
 > Offline only: charts must use **inline `data.values`**. A remote `data.url` (top-level, in a
 > `data: [...]` array, or nested in a layer/transform) is **stripped** before rendering — nothing is
@@ -377,7 +377,7 @@ blocks in a row; the renderer makes one full-width block per fence). `vconcat` s
 
 ---
 
-## 17. STL — 3D model, WebGL canvas (task 100)
+## 17. STL — 3D model, WebGL canvas
 
 ```stl
 solid cube
@@ -470,7 +470,7 @@ endsolid cube
 
 ---
 
-## 18. D2 — compile-only WASM + dagre/ELK + currentColor (task 104)
+## 18. D2 — compile-only WASM + dagre/ELK + currentColor
 
 A plain diagram (nodes, edge labels, a container, shaped nodes) renders to themed SVG:
 
@@ -563,7 +563,7 @@ notifsvc -> usersvc: lookup
 ```
 
 Per-end arrowhead shapes — the common set (triangle / arrow / (filled-)diamond / (filled-)circle /
-box) plus the crow's-foot ER family — and arrowhead cardinality labels (task 128):
+box) plus the crow's-foot ER family — and arrowhead cardinality labels:
 
 ```d2
 a -> b: { target-arrowhead.shape: triangle }
@@ -600,7 +600,7 @@ orders.user_id -> users.id: {
 
 `near` pins a shape to a viewport region (the idiom for titles / legends) OUTSIDE the layout flow.
 The 8 viewport constants are placed relative to the drawing bounds; the relative `near: <shape-id>`
-form still falls back to source (Phase B, task 126A):
+form still falls back to source (Phase B):
 
 ```d2
 title: System Architecture {near: top-center}
@@ -611,7 +611,7 @@ api -> cache
 ```
 
 `shape: text` renders borderless left-aligned prose; `shape: code` renders a monospace panel. Both are
-toSVG-only (no WASM), and multi-line labels split into `<tspan>` rows (task 124 Phase A):
+toSVG-only (no WASM), and multi-line labels split into `<tspan>` rows (Phase A):
 
 ```d2
 note: "Plain text shape.\nBorderless, multi-line prose." { shape: text }
@@ -621,7 +621,7 @@ note -> snippet
 note -> boxed
 ```
 
-Connection styles (task 124 #1) — `stroke` / `stroke-width` / `stroke-dash` / `opacity` / `animated`;
+Connection styles (#1) — `stroke` / `stroke-width` / `stroke-dash` / `opacity` / `animated`;
 an unstyled edge keeps the theme default, and arrowheads follow the edge's stroke colour:
 
 ```d2
@@ -632,7 +632,7 @@ a -> d: faint {style.opacity: 0.35}
 ```
 
 Shape `tooltip` (hover `<title>`), `link` (clickable `<a>`, routed by the webview link policy), and
-`icon` / `shape: image` (task 124 #3/#5). Remote URLs need `image.allowRemoteImages`; `data:` always
+`icon` / `shape: image` (#3/#5). Remote URLs need `image.allowRemoteImages`; `data:` always
 works:
 
 ```d2
@@ -661,25 +661,25 @@ bob -> alice: hey
 | Renderer | Themed? | Mechanism |
 |----------|:-------:|-----------|
 | math (KaTeX) | ✅ | inherits `currentColor` |
-| mermaid | ✅ | palette pairing (task 86) |
-| ECharts | ✅ | palette + gallery themes (task 89/90) |
-| smiles | ✅ | foreground color (task 93) |
-| markmap | ✅ | CSS vars `--markmap-*` (task 95) |
-| graphviz | ✅ | SVG post-processing `currentColor` (task 94) |
-| plantuml | ✅ | SVG post-processing `currentColor` (task 87) |
+| mermaid | ✅ | palette pairing |
+| ECharts | ✅ | palette + gallery themes |
+| smiles | ✅ | foreground color |
+| markmap | ✅ | CSS vars `--markmap-*` |
+| graphviz | ✅ | SVG post-processing `currentColor` |
+| plantuml | ✅ | SVG post-processing `currentColor` |
 | flowchart | ✅ | foreground from content theme |
-| abc | ✅ | foreground color (task 93) |
-| wavedrom | ✅ | SVG post-processing `currentColor` (task 101) |
-| nomnoml | ✅ | SVG post-processing `currentColor` (task 103) |
-| geojson | ✅ | Leaflet style color from computed style (task 99) |
-| topojson | ✅ | same as geojson (task 99) |
-| vega / vega-lite | ✅ | vega-embed config (axis/label/title colors from computed style, task 102) |
-| stl | ✅ | MeshPhongMaterial fixed neutral mid-grey, theme-independent (task 100) |
-| d2 | ✅ | compile-only WASM + dagre + `currentColor` SVG (task 104) |
+| abc | ✅ | foreground color |
+| wavedrom | ✅ | SVG post-processing `currentColor` |
+| nomnoml | ✅ | SVG post-processing `currentColor` |
+| geojson | ✅ | Leaflet style color from computed style |
+| topojson | ✅ | same as geojson |
+| vega / vega-lite | ✅ | vega-embed config (axis/label/title colors from computed style) |
+| stl | ✅ | MeshPhongMaterial fixed neutral mid-grey, theme-independent |
+| d2 | ✅ | compile-only WASM + dagre + `currentColor` SVG |
 
 ---
 
-## 20. Callouts / GitHub Alerts (task 106)
+## 20. Callouts / GitHub Alerts
 
 5 GitHub types:
 

@@ -23,6 +23,7 @@ export interface VmarkdConfigOptions {
   echartsTheme?: string
   d2Layout?: string
   d2Theme?: string
+  geoBasemap?: string
   showToolbar?: boolean
   highlightHeadings?: boolean
   showHeadingMarkers?: boolean

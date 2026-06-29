@@ -436,6 +436,54 @@ export function reRenderD2(root?: ParentNode): void {
 
 // --- GeoJSON / TopoJSON (Leaflet) ---
 
+// Basemap tile source for a geojson/topojson map, chosen by the `theme.geoBasemap` setting (task 99 +
+// the setting). `auto` (default) is the THEMED MONOCHROME CARTO basemap (Positron light / Dark Matter
+// dark) — a neutral backdrop so the data stands out; it flips with the editor mode. `voyager`/`osm`
+// are colored; `none` (and any unknown value handled by the default arm is `auto`, NOT none) → no
+// basemap. All non-null sources are remote `https:` tiles, so they only load when allowRemoteImages is
+// on (CSP). `{r}` is Leaflet's retina token (→ '' unless detectRetina); OSM has no retina tiles so its
+// URL omits it. Exported for the unit test. Keep in sync with the package.json enum.
+export interface Basemap {
+  url: string
+  subdomains: string
+  maxZoom: number
+  attribution: string
+}
+const CARTO_ATTR = '© OpenStreetMap contributors © CARTO'
+export function basemapFor(
+  setting: string | undefined,
+  dark: boolean,
+): Basemap | null {
+  switch (setting) {
+    case 'none':
+      return null
+    case 'voyager':
+      return {
+        url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        subdomains: 'abcd',
+        maxZoom: 19,
+        attribution: CARTO_ATTR,
+      }
+    case 'osm':
+      return {
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        subdomains: 'abc',
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors',
+      }
+    default: {
+      // 'auto' (and any unknown value) → themed monochrome CARTO, per editor mode (current default).
+      const variant = dark ? 'dark_all' : 'light_all'
+      return {
+        url: `https://{s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}{r}.png`,
+        subdomains: 'abcd',
+        maxZoom: 19,
+        attribution: CARTO_ATTR,
+      }
+    }
+  }
+}
+
 function initLeafletMap(wrapper: HTMLElement, geojson: any): void {
   const L = window.L
   if (!L) return
@@ -452,21 +500,23 @@ function initLeafletMap(wrapper: HTMLElement, geojson: any): void {
   })
 
   // Optional remote basemap (task 99): default is geometry-only on a transparent canvas (fully
-  // offline). When the user has opted into remote images, add CARTO's no-key basemap UNDER the
-  // geometry — light/dark variant per the editor mode. The CSP only allows `https:` images when
-  // `image.allowRemoteImages` is on, so without the opt-in these tiles can't (and won't) be requested.
+  // offline). When the user has opted into remote images, add a basemap UNDER the geometry; its style
+  // follows the `theme.geoBasemap` setting (default `auto` = themed monochrome CARTO, picked light/dark
+  // per the editor mode — see basemapFor). The CSP only allows `https:` images when
+  // `image.allowRemoteImages` is on, so without the opt-in these tiles can't (and won't) be requested;
+  // `geoBasemap: none` also skips the basemap (basemapFor → null) even when remote images are allowed.
   if ((window as any).__vmarkdAllowRemoteImages) {
-    const variant = getD2Config().mode === 'dark' ? 'dark_all' : 'light_all'
-    L.tileLayer(
-      `https://{s}.basemaps.cartocdn.com/${variant}/{z}/{x}/{y}{r}.png`,
-      {
-        subdomains: 'abcd',
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors © CARTO',
-      },
-    ).addTo(map)
-    // OSM/CARTO require visible attribution — re-enable the control we suppressed above.
-    L.control.attribution({ prefix: false }).addTo(map)
+    const cfg = getD2Config()
+    const basemap = basemapFor(cfg.geoBasemap, cfg.mode === 'dark')
+    if (basemap) {
+      L.tileLayer(basemap.url, {
+        subdomains: basemap.subdomains,
+        maxZoom: basemap.maxZoom,
+        attribution: basemap.attribution,
+      }).addTo(map)
+      // OSM/CARTO require visible attribution — re-enable the control we suppressed above.
+      L.control.attribution({ prefix: false }).addTo(map)
+    }
   }
 
   const fg = getComputedStyle(wrapper).color || '#3388ff'

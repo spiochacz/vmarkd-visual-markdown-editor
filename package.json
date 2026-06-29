@@ -408,6 +408,24 @@
             "type": "boolean",
             "default": false,
             "description": "Apply a themed background to headings (h1–h6) for easier scanning."
+          },
+          "vmarkd.theme.geoBasemap": {
+            "order": 8,
+            "type": "string",
+            "enum": [
+              "auto",
+              "voyager",
+              "osm",
+              "none"
+            ],
+            "enumDescriptions": [
+              "Monochrome CARTO basemap (Positron / Dark Matter) that follows the editor's light/dark theme — a neutral backdrop for your data (the default).",
+              "CARTO Voyager — a colored street basemap.",
+              "OpenStreetMap standard — a full-color basemap.",
+              "No basemap — draw only the GeoJSON/TopoJSON geometry on a transparent canvas."
+            ],
+            "default": "auto",
+            "description": "Basemap shown under GeoJSON/TopoJSON maps. \"auto\" (default) is a themed monochrome CARTO basemap (a neutral backdrop, so your data stands out); \"voyager\"/\"osm\" are colored. Basemap tiles only load when \"Allow Remote Images\" is enabled (the security policy blocks remote tiles otherwise); \"none\" needs no network and works offline."
           }
         }
       },

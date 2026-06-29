@@ -99,11 +99,17 @@ function reThemeVega(): void {
 
 /** Re-render the baked/currentColor SVG renderers after a theme flip — deferred (rAF + 400ms) so the
  *  content-theme `<link>` and the `vditor--dark` class have settled before the re-render reads colours.
- *  `mono` covers plantuml/graphviz/abc/wavedrom/nomnoml/geojson/topojson/stl; `d2` is SEPARATE so the
- *  single authority (rethemeDiagrams) decides D2's grouping once — D2 can re-render for a layout/theme
- *  change with no content flip, where the mono group must NOT re-render. */
-function reThemeMonochromeGroup(opts: { mono: boolean; d2: boolean }): void {
-  if (!opts.mono && !opts.d2) return
+ *  `mono` covers plantuml/graphviz/abc/wavedrom/nomnoml/stl; `geo` (geojson/topojson) is SEPARATE so
+ *  changing only the `theme.geoBasemap` setting re-renders the maps without touching the rest of the
+ *  group (a content flip sets both → still a single geojson re-render via the `mono || geo` gate); `d2`
+ *  is SEPARATE so the single authority (rethemeDiagrams) decides D2's grouping once — D2 can re-render
+ *  for a layout/theme change with no content flip, where the mono group must NOT re-render. */
+function reThemeMonochromeGroup(opts: {
+  mono: boolean
+  geo: boolean
+  d2: boolean
+}): void {
+  if (!opts.mono && !opts.geo && !opts.d2) return
   const cdn = deps.getCdn()
   const run = () => {
     const el = activeModeElement(window.vditor) ?? undefined
@@ -113,11 +119,15 @@ function reThemeMonochromeGroup(opts: { mono: boolean; d2: boolean }): void {
       reRenderAbc(el, cdn)
       reRenderWavedrom(el ?? undefined)
       reRenderNomnoml(el ?? undefined)
-      reRenderGeojson(el ?? undefined)
-      reRenderTopojson(el ?? undefined)
       // Vega is re-themed via reThemeVega() (foreground polling) — its axis/label colours come from
       // getComputedStyle, which settles too late for this fixed 400ms delay (the old colour stuck).
       reRenderStl(el ?? undefined)
+    }
+    // geojson/topojson: a content flip re-themes the geometry colour AND flips the `auto` basemap
+    // light/dark; a geoBasemap setting change swaps the tile source. One re-render covers both.
+    if (opts.mono || opts.geo) {
+      reRenderGeojson(el ?? undefined)
+      reRenderTopojson(el ?? undefined)
     }
     // D2 SVG bakes currentColor, so a flip needs a re-render. It rides the same deferral.
     if (opts.d2) reRenderD2(el ?? undefined)
@@ -140,6 +150,7 @@ export function rethemeDiagrams(f: {
   flowchart: boolean
   vega: boolean
   monoGroup: boolean
+  geo: boolean
   d2: boolean
 }): void {
   const el = activeModeElement(window.vditor) ?? undefined
@@ -170,8 +181,8 @@ export function rethemeDiagrams(f: {
   // flowchart.js + vega bake their foreground from getComputedStyle → poll the settled colour.
   if (f.flowchart) reThemeFlowchart()
   if (f.vega) reThemeVega()
-  // Baked/currentColor SVG group + D2 (deferred); D2 deduped to a single fire here.
-  reThemeMonochromeGroup({ mono: f.monoGroup, d2: f.d2 })
+  // Baked/currentColor SVG group + geojson/topojson + D2 (deferred); D2 deduped to a single fire here.
+  reThemeMonochromeGroup({ mono: f.monoGroup, geo: f.geo, d2: f.d2 })
   // SMILES follows the page-background luminance — a flip changes it outside #app, so re-run explicitly.
   if (f.smiles) reThemeSmiles()
 }

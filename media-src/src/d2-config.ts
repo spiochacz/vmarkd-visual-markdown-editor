@@ -6,13 +6,15 @@
 //
 // `mode` + `contentTheme` are the editor's light/dark + content theme — only the
 // D2 'auto' theme pairs to them, but they're the diagram-theme inputs renderD2
-// reads, so they live here too. (`__vmarkdAllowRemoteImages` is geojson-only and
-// stays separate.)
+// reads, so they live here too. `geoBasemap` (the `theme.geoBasemap` setting) is a
+// geojson/topojson render input read by initLeafletMap alongside `mode`, so it lives
+// here too. (`__vmarkdAllowRemoteImages` is the CSP/security gate and stays separate.)
 interface D2ConfigWindow {
   __vmarkdD2Layout?: string
   __vmarkdD2Theme?: string
   __vmarkdContentTheme?: string
   __vmarkdMode?: 'dark' | 'light'
+  __vmarkdGeoBasemap?: string
 }
 
 export interface D2Config {
@@ -20,6 +22,7 @@ export interface D2Config {
   theme?: string
   contentTheme?: string
   mode?: 'dark' | 'light'
+  geoBasemap?: string
 }
 
 const win = (): D2ConfigWindow => window as unknown as D2ConfigWindow
@@ -31,6 +34,7 @@ export function setD2Config(patch: Partial<D2Config>): void {
   if ('theme' in patch) g.__vmarkdD2Theme = patch.theme
   if ('contentTheme' in patch) g.__vmarkdContentTheme = patch.contentTheme
   if ('mode' in patch) g.__vmarkdMode = patch.mode
+  if ('geoBasemap' in patch) g.__vmarkdGeoBasemap = patch.geoBasemap
 }
 
 export function getD2Config(): D2Config {
@@ -40,5 +44,6 @@ export function getD2Config(): D2Config {
     theme: g.__vmarkdD2Theme,
     contentTheme: g.__vmarkdContentTheme,
     mode: g.__vmarkdMode,
+    geoBasemap: g.__vmarkdGeoBasemap,
   }
 }

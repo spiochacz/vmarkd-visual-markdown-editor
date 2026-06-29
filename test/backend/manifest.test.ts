@@ -246,6 +246,18 @@ describe('package.json manifest', () => {
     expect(mermaid.enumDescriptions[0]).toMatch(/VS Code/i)
   })
 
+  it('declares the geoBasemap setting (enum incl. auto/voyager/osm/none, default "auto")', () => {
+    const props = Object.assign(
+      {},
+      ...pkg.contributes.configuration.map((c: any) => c.properties),
+    )
+    const geo = props['vmarkd.theme.geoBasemap']
+    expect(geo).toMatchObject({ type: 'string', default: 'auto' })
+    expect(geo.enum).toEqual(['auto', 'voyager', 'osm', 'none'])
+    // per-value dropdown help, parallel to enum by index (task 51 convention)
+    expect(geo.enumDescriptions).toHaveLength(geo.enum.length)
+  })
+
   it('describes the "auto" value of theme.code (task 51)', () => {
     const props = Object.assign(
       {},

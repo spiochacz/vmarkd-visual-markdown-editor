@@ -1,9 +1,50 @@
 // @vitest-environment jsdom
-import { test, expect, beforeEach } from 'vitest'
-import { findBlocks } from './custom-diagrams'
+import { test, expect, beforeEach, describe } from 'vitest'
+import { basemapFor, findBlocks } from './custom-diagrams'
 
 beforeEach(() => {
   document.body.innerHTML = ''
+})
+
+// The `theme.geoBasemap` setting → Leaflet tile source (initLeafletMap reads this). `auto` (default)
+// is themed monochrome CARTO (Positron light / Dark Matter dark); `voyager`/`osm` are colored; `none`
+// disables the basemap. Keep in sync with the package.json enum.
+describe('basemapFor (theme.geoBasemap → tile source)', () => {
+  test('auto (default) is themed monochrome CARTO, flipping light/dark by mode', () => {
+    const light = basemapFor('auto', false)
+    const dark = basemapFor('auto', true)
+    expect(light?.url).toContain('cartocdn.com/light_all/')
+    expect(dark?.url).toContain('cartocdn.com/dark_all/')
+    expect(light?.subdomains).toBe('abcd')
+  })
+
+  test('an unknown value falls back to auto (themed monochrome), NOT none', () => {
+    expect(basemapFor(undefined, false)?.url).toContain(
+      'cartocdn.com/light_all/',
+    )
+    expect(basemapFor('bogus', true)?.url).toContain('cartocdn.com/dark_all/')
+  })
+
+  test('voyager is the colored CARTO Voyager basemap (mode-independent)', () => {
+    expect(basemapFor('voyager', false)?.url).toContain(
+      'cartocdn.com/rastertiles/voyager/',
+    )
+    expect(basemapFor('voyager', true)?.url).toContain(
+      'cartocdn.com/rastertiles/voyager/',
+    )
+  })
+
+  test('osm is the OpenStreetMap basemap (abc subdomains, no retina token)', () => {
+    const osm = basemapFor('osm', false)
+    expect(osm?.url).toContain('tile.openstreetmap.org/')
+    expect(osm?.url).not.toContain('{r}') // OSM has no retina tiles
+    expect(osm?.subdomains).toBe('abc')
+  })
+
+  test('none disables the basemap (null → geometry only)', () => {
+    expect(basemapFor('none', false)).toBeNull()
+    expect(basemapFor('none', true)).toBeNull()
+  })
 })
 
 // Regression for the "diagram sits on a code-PANEL background" bug: Vditor highlights these unknown

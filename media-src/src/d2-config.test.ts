@@ -8,6 +8,7 @@ afterEach(() => {
     '__vmarkdD2Theme',
     '__vmarkdContentTheme',
     '__vmarkdMode',
+    '__vmarkdGeoBasemap',
   ]) {
     delete (window as unknown as Record<string, unknown>)[k]
   }
@@ -20,12 +21,14 @@ describe('d2-config', () => {
       theme: 'auto',
       contentTheme: 'github-dark',
       mode: 'dark',
+      geoBasemap: 'osm',
     })
     expect(getD2Config()).toEqual({
       layout: 'elk',
       theme: 'auto',
       contentTheme: 'github-dark',
       mode: 'dark',
+      geoBasemap: 'osm',
     })
   })
 
