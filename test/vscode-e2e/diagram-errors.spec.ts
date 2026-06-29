@@ -7,8 +7,9 @@
 // pipeline — not reproducible in the chromium harness. Engines covered here are the ones that
 // deterministically THROW on bad input; mindmap/plantuml/geojson/topojson/smiles are NOT asserted
 // here — covered by the unit patch tests + their own specs (plantuml renders its own SVG error;
-// geojson/topojson keep source; smiles-drawer is too lenient to reliably throw — empirically it
-// renders an SVG even for malformed input, so the box code stays defensive but isn't e2e-triggerable).
+// geojson/topojson keep source; smiles-drawer does NOT throw — its draw() routes a malformed-SMILES
+// parser error to a 5th-arg error callback, which smiles-render.ts now passes → the box is asserted
+// in smiles-render.spec.ts, not here).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 

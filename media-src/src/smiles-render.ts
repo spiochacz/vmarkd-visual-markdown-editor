@@ -16,7 +16,17 @@ import { renderDiagramError } from './diagram-error'
 
 declare class SmiDrawer {
   constructor(moleculeOptions: object, reactionOptions: object)
-  draw: (code: string, selector: string, theme?: string) => void
+  // draw(smiles, selector, theme, successCb, errorCb). smiles-drawer's draw() CATCHES a malformed-
+  // SMILES parser error internally and routes it to the 5th-arg error callback — falling back to a
+  // bare `console.error` if none is passed. It does NOT re-throw, so the error callback is the ONLY
+  // way to detect a bad SMILES; without it a malformed molecule silently leaves an empty <svg>.
+  draw: (
+    code: string,
+    selector: string,
+    theme?: string,
+    successCallback?: ((el: unknown) => void) | null,
+    errorCallback?: (error: unknown) => void,
+  ) => void
 }
 
 // Preview surfaces that carry an EDITABLE source we can recover from (NOT the standalone `.vditor-
@@ -96,13 +106,25 @@ export function repairSmiles(root: ParentNode): void {
     code.setAttribute('data-processed', 'true')
     code.dataset.vmsmilesDark = `${dark}`
     delete code.dataset.vmsmilesErr
-    try {
-      new Drawer({}, {}).draw(smiles, `#${id}`, dark ? 'dark' : 'light')
-    } catch (error) {
-      // smiles-drawer throws on a malformed SMILES → the shared themed error box (task 178; was: a
-      // silent empty svg, no feedback). Record the errored source so the observer skips it until edited.
+    // Surface a malformed SMILES as the shared themed error box (task 178) instead of a silent empty
+    // svg. smiles-drawer does NOT throw — its draw() catches the parser error and only `console.error`s
+    // it unless we pass the 5th-arg error callback; the callback fires SYNCHRONOUSLY inside draw()
+    // (parse + draw are sync), so recording vmsmilesErr here still gates the observer's re-render loop.
+    // Keep the outer try/catch as belt-and-braces in case a future version re-throws instead.
+    const onError = (error: unknown) => {
       code.dataset.vmsmilesErr = smiles
       renderDiagramError(code, 'smiles', error)
+    }
+    try {
+      new Drawer({}, {}).draw(
+        smiles,
+        `#${id}`,
+        dark ? 'dark' : 'light',
+        null,
+        onError,
+      )
+    } catch (error) {
+      onError(error)
     }
   }
 }

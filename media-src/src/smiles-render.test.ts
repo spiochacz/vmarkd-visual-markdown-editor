@@ -3,11 +3,28 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { repairSmiles } from './smiles-render'
 
 // Stub smiles-drawer: record what code it's asked to draw, and drop a child into the target svg so
-// the "rendered" check (svg has content) reflects a successful draw.
-function stubDrawer(): { drawn: Array<{ code: string; theme?: string }> } {
+// the "rendered" check (svg has content) reflects a successful draw. `badCodes` mirrors the real
+// library's malformed-SMILES behaviour: draw() does NOT throw — it catches the parser error and routes
+// it to the 5th-arg error callback (so the stub invokes errorCallback instead of drawing).
+function stubDrawer(opts?: { badCodes?: string[] }): {
+  drawn: Array<{ code: string; theme?: string }>
+} {
   const drawn: Array<{ code: string; theme?: string }> = []
+  const bad = new Set(opts?.badCodes ?? [])
   class SmiDrawer {
-    draw(code: string, selector: string, theme?: string) {
+    draw(
+      code: string,
+      selector: string,
+      theme?: string,
+      _successCallback?: ((el: unknown) => void) | null,
+      errorCallback?: (error: unknown) => void,
+    ) {
+      if (bad.has(code)) {
+        errorCallback?.(
+          new Error(`smiles parse error: unexpected token in "${code}"`),
+        )
+        return // nothing drawn — exactly what the real lib does (silent, error to the callback)
+      }
       drawn.push({ code, theme })
       const svg = document.querySelector(selector)
       if (svg)
@@ -95,6 +112,38 @@ describe('repairSmiles', () => {
     expect(
       root.querySelector('.vditor-wysiwyg__preview > code.language-smiles svg'),
     ).toBeNull()
+  })
+
+  // A malformed SMILES (e.g. caffeine with a trailing lowercase `f`) used to render NOTHING: the
+  // library swallows the parser error internally (console.error) and leaves an empty <svg>, and the
+  // try/catch never fired because draw() doesn't throw. We now pass the error callback → the shared
+  // themed error box appears instead of a blank block.
+  it('renders the themed error box for a malformed SMILES (drawer never throws → error callback)', () => {
+    const badSmiles = 'CN1C=NC2=C1C(=O)N(C(=O)N2C)Cf' // trailing lowercase f — invalid
+    const { drawn } = stubDrawer({ badCodes: [badSmiles] })
+    const root = brokenWysiwygBlock(badSmiles)
+    repairSmiles(root)
+    const code = root.querySelector(
+      '.vditor-wysiwyg__preview > code.language-smiles',
+    ) as HTMLElement
+    expect(code.querySelector('.vmarkd-diagram-error')).not.toBeNull() // box shown…
+    expect(code.querySelector('svg')).toBeNull() // …not a silent empty svg
+    expect(code.dataset.vmsmilesErr).toBe(badSmiles) // errored source recorded (loop gate)
+    expect(drawn).toHaveLength(0) // nothing actually drawn
+  })
+
+  it('skips re-rendering an errored SMILES until the source changes (no observer loop)', () => {
+    const badSmiles = 'C(' // unbalanced parenthesis
+    stubDrawer({ badCodes: [badSmiles] })
+    const root = brokenWysiwygBlock(badSmiles)
+    repairSmiles(root) // first pass: renders the error box + records vmsmilesErr
+    const code = root.querySelector(
+      '.vditor-wysiwyg__preview > code.language-smiles',
+    ) as HTMLElement
+    const box = code.querySelector('.vmarkd-diagram-error')
+    expect(box).not.toBeNull()
+    repairSmiles(root) // second pass: same source + box present → skipped (no re-render)
+    expect(code.querySelector('.vmarkd-diagram-error')).toBe(box) // same node — not rebuilt
   })
 
   it('does not redraw using flattened style-text when there is no source', () => {

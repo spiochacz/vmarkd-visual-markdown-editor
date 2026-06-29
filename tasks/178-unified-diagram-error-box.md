@@ -11,8 +11,9 @@
 - **TS-module renderers** call `renderDiagramError`: graphviz (was raw dump), plantuml (hard infra
   throw only — its own SVG syntax error stays), nomnoml + stl (were silent→blank, now box + set
   `data-processed` so the observer doesn't loop), wavedrom + vega (via a new optional `faithfulRender`
-  `onError` → box; faithfulRender marks `data-processed` to stop the re-find loop), smiles (defensive —
-  box if `.draw()` throws, with a `data-vmsmilesErr` signature guard against the observer loop).
+  `onError` → box; faithfulRender marks `data-processed` to stop the re-find loop), smiles (box via the
+  smiles-drawer error callback — see the 2026-06-29 follow-up — with a `data-vmsmilesErr` signature
+  guard against the observer loop).
 - **Native esbuild patches** (byte-identical inline markup, anchored + drift-throw): `patchMermaidErrorRender`
   (rewired to the shared class), `patchEchartsErrorBox`, `patchMindmapErrorBox`, `patchFlowchartError`
   (flowchart had NO catch — now wrapped; chained before `patchFlowchartTheme`). All in `VDITOR_TS_PATCHES`.
@@ -57,6 +58,32 @@ correct type) + `fixtures/plantuml-multi-type.md`. `plantuml.spec.ts` (theme) st
 engine reset itself is covered by the e2e; `isClassSource`/`injectPlantumlTheme`/`themePumlSvg` are
 unit-covered.)
 
+### Follow-up fix (2026-06-29) — malformed SMILES rendered NOTHING (error callback, not throw)
+
+**Symptom (user):** a SMILES block with a malformed molecule (e.g. caffeine + a trailing lowercase
+`f`: `CN1C=NC2=C1C(=O)N(C(=O)N2C)Cf`) rendered NOTHING — no diagram, no error. ("smiles przy takim
+czyms nic nie wyswietla… leci tam jakis blad ktorym mozna wyswietlic?")
+
+**Root cause (verified against the vendored bundle):** smiles-drawer's `draw()` does **NOT throw** on a
+parse error — its signature is `draw(smiles, selector, theme, successCb, errorCb)` and internally it
+does `try { drawMolecule(...) } catch(e){ errorCb ? errorCb(e) : console.error(e) }`. We called it with
+only 3 args, so the parser error was swallowed to `console.error` and our `try/catch` in `repairSmiles`
+**never fired** — leaving the empty `<svg>` we'd just inserted. (The parser DOES reject the input — the
+old task-178 "too lenient to throw" finding was wrong: `Parser.parse("…Cf")` throws `Expected … but "f"
+found.`, it's just never re-thrown out of `draw()`.)
+
+**Fix** (`media-src/src/smiles-render.ts`): pass the 5th-arg error callback to `draw()`; it fires
+**synchronously** (parse + draw are sync) → record `vmsmilesErr` + `renderDiagramError(code,'smiles',e)`
+→ the shared themed box. Kept the outer `try/catch` as belt-and-braces. The `data-vmsmilesErr`
+signature guard (re-attempt only when the source changes) prevents the box-render mutation from looping
+the observer. Updated the `declare class SmiDrawer` to the wider signature.
+
+**Tests:** unit `smiles-render.test.ts` (+2: box rendered for a malformed SMILES via the error callback;
+no observer loop — same source + box → skipped; RED-checked: both FAIL on the 3-arg call). Real-VS-Code
+`smiles-render.spec.ts` (+1) + `fixtures/smiles-error.md`: a malformed SMILES shows the `SMILES`-titled
+`<pre>` box, `svgPresent:false` (not the silent empty svg), `inSource:0`, source round-trips. Full
+vitest 1062, lint 7-parity, typecheck clean. `diagram-errors.spec.ts` header comment corrected.
+
 ### Deliberate scope boundaries
 - **geojson / topojson** keep the **source visible** on bad JSON (decision in plan item 5 — the bad
   JSON is the useful feedback), no box.
@@ -66,8 +93,8 @@ unit-covered.)
   not an error). Asserted in `diagram-errors.spec.ts` (the `## d2` block).
 - **math (KaTeX, ◑)** keeps its own inline red error (`throwOnError:false`, task 57) — already readable,
   not part of the "raw dump / silent" set; not converted.
-- **smiles (◑ in practice)** keeps the defensive box but is NOT asserted in the e2e: smiles-drawer is
-  too lenient to deterministically throw (empirically renders an SVG even for malformed input).
+- **smiles** — box now ASSERTED in the e2e via the smiles-drawer error callback (corrected
+  2026-06-29; the old "too lenient to throw" note was wrong — see the follow-up below).
 - **abc / markmap (✗)** can't meaningfully error — untouched.
 
 ### Tests
@@ -83,8 +110,10 @@ unit-covered.)
      typing into its IR source (proven d2-edit-perf caret pattern), shows the box AFTER the edit
      settles via Vditor's real spin and the box REPLACES the live SVG (`svgLeft:0`), never in source.
   `mermaid-error.spec.ts` updated to the shared class, still green.
-- Finding: **smiles-drawer is too lenient to deterministically throw** (renders an SVG even for `[CH4`)
-  → smiles box stays defensive but isn't e2e-asserted.
+- Finding (CORRECTED 2026-06-29): the original "smiles-drawer is too lenient to throw" was wrong — it
+  DOES reject malformed input, but its `draw()` catches the parser error internally and routes it to a
+  5th-arg error callback (else `console.error`); without the callback we got a silent empty `<svg>`.
+  See the follow-up below — the box is now e2e-asserted in `smiles-render.spec.ts`.
 **Value / Risk:** 🟨 medium (consistent, readable validation feedback across all diagrams; today it's either an unformatted raw dump or silent nothing) / 🟢 low (per-engine catch rewrites + a shared box; preview-only, never serialized).
 **Engines:** all (mermaid done; echarts, mindmap, graphviz, plantuml, math/KaTeX, d2, smiles, wavedrom, nomnoml, vega, geojson, topojson, stl, flowchart, abc, markmap).
 
@@ -113,7 +142,7 @@ behaviour is then inconsistent: raw unformatted dump, silent nothing, or raw sou
 | **vega / vega-lite** | ✅ invalid spec | ⚠️ silent catch → blank | `custom-diagrams.ts` (per-engine catch) |
 | **wavedrom** | ✅ bad WaveJSON | ⚠️ throw leaves the raw source visible | `custom-diagrams.ts:245` |
 | **nomnoml** | ✅ bad syntax | ⚠️ silent catch → blank | `custom-diagrams.ts` (per-engine catch) |
-| **smiles** | ✅ invalid SMILES | ⚠️ silent `catch {}` → blank svg, no feedback | `smiles-render.ts:90` |
+| **smiles** | ◑ invalid SMILES — error via callback, NOT a throw (corrected; see follow-up) | ⚠️ silent → blank svg, no feedback | `smiles-render.ts` |
 | **flowchart** | ✅ parse error | ⚠️ no catch → uncaught throw possible | native `flowchartRender.ts:20` |
 | **geojson / topojson** | ✅ `JSON.parse` (bad JSON) | ⚠️ silent catch → leave source / blank | `custom-diagrams.ts` (per-engine catch) |
 | **stl** | ✅ bad ASCII STL | ⚠️ silent catch → blank | `custom-diagrams.ts:~791` |
