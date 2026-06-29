@@ -33,6 +33,7 @@ const EXPECTED: Record<string, string> = {
   vega: 'Vega',
   wavedrom: 'WaveDrom',
   nomnoml: 'nomnoml',
+  d2: 'D2', // a d2 COMPILE error now shows the box too (boot/timeout still keeps source)
 }
 
 test('every broken diagram block renders the themed error box, no raw dump / blank', async ({

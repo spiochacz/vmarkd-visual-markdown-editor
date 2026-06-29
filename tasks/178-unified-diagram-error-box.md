@@ -60,7 +60,10 @@ unit-covered.)
 ### Deliberate scope boundaries
 - **geojson / topojson** keep the **source visible** on bad JSON (decision in plan item 5 — the bad
   JSON is the useful feedback), no box.
-- **d2** keeps its richer source+note fallback (intentional; not regressed).
+- **d2**: a COMPILE error now shows the shared box with d2's own message (like mermaid; user-requested
+  2026-06-29) — `renderDiagramError(wrapper,'d2',res.error)`. A WASM boot/timeout still keeps the source
+  visible (infra, not the user's syntax), and a valid-but-unsupported SHAPE keeps the source+note (that's
+  not an error). Asserted in `diagram-errors.spec.ts` (the `## d2` block).
 - **math (KaTeX, ◑)** keeps its own inline red error (`throwOnError:false`, task 57) — already readable,
   not part of the "raw dump / silent" set; not converted.
 - **smiles (◑ in practice)** keeps the defensive box but is NOT asserted in the e2e: smiles-drawer is

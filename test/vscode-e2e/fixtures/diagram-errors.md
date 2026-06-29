@@ -38,3 +38,9 @@ digraph G { a -> }
 ```nomnoml
 [unbalanced
 ```
+
+## d2 — invalid syntax (unclosed block)
+
+```d2
+a -> b: {
+```

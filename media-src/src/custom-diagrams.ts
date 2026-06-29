@@ -350,13 +350,17 @@ export function renderD2(root?: ParentNode): void {
     compileD2(cdn, code)
       .then(async (res) => {
         if ('error' in res) {
-          // Distinguish a WASM boot/timeout from a real d2 compile error so a stuck engine
-          // isn't mistaken for bad syntax. Both leave the source visible (loud), like the
-          // other renderers' catch{}. data-d2-error is inspectable in devtools / e2e.
-          wrapper.setAttribute(
-            'data-d2-error',
-            res.error === 'd2 wasm unavailable' ? 'boot' : 'compile',
-          )
+          // Distinguish a WASM boot/timeout from a real d2 COMPILE error so a stuck engine isn't
+          // mistaken for bad syntax. A compile error is a validation failure → show the shared themed
+          // box with d2's own message (task 178, like mermaid). A boot/timeout is infrastructure, NOT
+          // the user's syntax → leave the source visible so they can still read/copy it.
+          // data-d2-error stays inspectable in devtools / e2e (and reRenderD2 clears it).
+          if (res.error === 'd2 wasm unavailable') {
+            wrapper.setAttribute('data-d2-error', 'boot')
+          } else {
+            wrapper.setAttribute('data-d2-error', 'compile')
+            renderDiagramError(wrapper, 'd2', res.error)
+          }
           return
         }
         const reason = unsupportedReason(res)
