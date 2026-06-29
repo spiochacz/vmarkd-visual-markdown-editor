@@ -54,6 +54,7 @@ import { calloutWysiwygToolbar } from './callouts'
 import { observeGapParagraphs, setupTrailingNav } from './gap-paragraph'
 import { setupCaretScroll } from './caret-scroll'
 import { setupCalloutArrowNav } from './callout-nav'
+import { setupHrArrowNav } from './hr-nav'
 import { setupHistoryKeybind } from './undo-keybind'
 import { setupSaveFlushKeybind } from './save-flush'
 import { openLinkFromMarker } from './link-click'
@@ -129,6 +130,13 @@ setupCaretScroll(() =>
 setupCalloutArrowNav(
   () => (window.vditor ? (activeModeElement(window.vditor) ?? null) : null),
   () => innerVditor(),
+)
+
+// Step the caret ACROSS void `<hr>` thematic breaks (they have no text node, so the native move
+// drops the selection on them → stuck above a rule). Wired once; reads the active editor lazily.
+// hr-nav.ts (task 100).
+setupHrArrowNav(() =>
+  window.vditor ? (activeModeElement(window.vditor) ?? null) : null,
 )
 
 // Move the caret INTO the trailing paragraph at end-of-file. The invariant (above) keeps the

@@ -4,7 +4,9 @@ import {
   TRAILING_ACTIVE_CLASS,
   cleanupGapParagraphs,
   ensureTrailingParagraph,
+  isThematicBreakParagraph,
   markTrailingActive,
+  promoteThematicBreaks,
 } from './gap-paragraph'
 
 const TRAILING = 'data-vmarkd-trailing'
@@ -200,5 +202,76 @@ describe('markTrailingActive — reveal the trailing paragraph only with the car
   it('is a no-op when there is no trailing paragraph', () => {
     const el = editorWith(`<p>only content</p>`)
     expect(() => markTrailingActive(el, null)).not.toThrow()
+  })
+})
+
+// Task 100: a `---` typed under another `---` stayed as literal `<p>--- </p>` source (the
+// block-scoped re-spin never promotes the LAST one). We promote a lone thematic-break paragraph the
+// caret has left to a real <hr>, and the trailing invariant then offers an escape line below it.
+describe('isThematicBreakParagraph — recognising a lone rule marker', () => {
+  const p = (html: string) => {
+    const el = document.createElement('p')
+    el.innerHTML = html
+    return el
+  }
+  it('matches ---, ***, ___ and spaced variants (with trailing spaces / ZWSP)', () => {
+    expect(isThematicBreakParagraph(p('---'))).toBe(true)
+    expect(isThematicBreakParagraph(p('--- '))).toBe(true) // the live-IR `--- ` source
+    expect(isThematicBreakParagraph(p('***'))).toBe(true)
+    expect(isThematicBreakParagraph(p('___'))).toBe(true)
+    expect(isThematicBreakParagraph(p('- - -'))).toBe(true)
+    expect(isThematicBreakParagraph(p('----'))).toBe(true)
+    expect(isThematicBreakParagraph(p(`${ZWSP}---${ZWSP}`))).toBe(true)
+  })
+  it('rejects non-rules, mid-edit, and non-paragraphs', () => {
+    expect(isThematicBreakParagraph(p('--'))).toBe(false) // only two dashes
+    expect(isThematicBreakParagraph(p('---foo'))).toBe(false) // has other text
+    expect(isThematicBreakParagraph(p('-*-'))).toBe(false) // mixed markers
+    expect(isThematicBreakParagraph(p('text'))).toBe(false)
+    expect(isThematicBreakParagraph(p('---<wbr>'))).toBe(false) // mid-edit (element child)
+    const hr = document.createElement('hr')
+    expect(isThematicBreakParagraph(hr)).toBe(false) // already a rule, not a <p>
+  })
+})
+
+describe('promoteThematicBreaks — render a left-behind `---` as an <hr>', () => {
+  it('promotes a lone `--- ` paragraph the caret has left, leaving normal paragraphs alone', () => {
+    const el = editorWith(
+      '<p>before</p><p data-block="0">plain text</p><p data-block="0">--- </p>',
+    )
+    const before = el.querySelector('p:first-child')?.firstChild as Text
+    expect(promoteThematicBreaks(el, before)).toBe(true)
+    expect(el.querySelectorAll('hr').length).toBe(1) // only the rule promoted
+    expect(el.querySelector('p:nth-child(2)')?.textContent).toBe('plain text') // normal p untouched
+    expect((el.lastElementChild as HTMLElement).tagName).toBe('HR') // the `--- ` became the rule
+  })
+
+  it('does NOT promote the paragraph that holds the caret (still being edited)', () => {
+    const el = editorWith('<p data-block="0">---</p>')
+    const caret = el.querySelector('p')?.firstChild as Text
+    expect(promoteThematicBreaks(el, caret)).toBe(false)
+    expect(el.querySelectorAll('hr').length).toBe(0)
+    expect(el.querySelector('p')?.textContent).toBe('---') // left as editable source
+  })
+
+  it('promoted <hr> then earns a trailing escape paragraph (integration)', () => {
+    const el = editorWith('<p>x</p><p data-block="0">---</p>')
+    promoteThematicBreaks(el, el.querySelector('p')?.firstChild ?? null)
+    ensureTrailingParagraph(el, null)
+    // the rule rendered, and there's a caret slot (trailing paragraph) below it
+    expect(el.querySelector('hr')).not.toBeNull()
+    const last = el.lastElementChild as HTMLElement
+    expect(last.tagName).toBe('P')
+    expect(last.hasAttribute(TRAILING)).toBe(true)
+  })
+
+  it('promotes every left-behind rule but keeps the focused one as source', () => {
+    const el = editorWith(
+      '<hr data-block="0"><p data-block="0">---</p><p data-block="0">---</p>',
+    )
+    const focused = el.querySelectorAll('p')[1]?.firstChild as Text // caret in the LAST one
+    promoteThematicBreaks(el, focused)
+    expect(el.querySelectorAll('hr').length).toBe(2) // original + the un-focused promotion
+    expect(el.querySelectorAll('p').length).toBe(1) // the focused `---` stays editable
   })
 })

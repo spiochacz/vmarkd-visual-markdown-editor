@@ -23,6 +23,45 @@ function isEmptyGapParagraph(p: HTMLElement): boolean {
   return (p.textContent || '').replace(ZWSP, '').trim() === ''
 }
 
+// A markdown thematic-break marker: 3+ of one of `-`/`*`/`_`, optional spaces between/around
+// (`---`, `***`, `___`, `- - -`). Adjacent top-level `<p>` elements are blank-line-separated in the
+// source, so a lone `<p>--- </p>` always serialises as a thematic break (never a setext underline —
+// that would already be an `<h2>`).
+const THEMATIC_BREAK = /^\s*([-*_])(?:\s*\1){2,}\s*$/
+
+// A "lone thematic-break paragraph" = a `<p>` whose only content is a thematic-break marker (no
+// element children → no `<wbr>`/inline = not mid-edit). Lute's full open-render turns `---` into
+// `<hr>`, but the block-scoped SpinVditorIRDOM does NOT promote the LAST such paragraph (nothing
+// follows it to force a block boundary), so it lingers as editable `--- ` source forever. Task 100.
+export function isThematicBreakParagraph(el: Element): boolean {
+  if (el.tagName !== 'P' || el.childElementCount > 0) return false
+  return THEMATIC_BREAK.test((el.textContent || '').replace(ZWSP, ''))
+}
+
+// Promote lone thematic-break paragraphs the caret has LEFT to real `<hr>` elements, so a `---`
+// typed under another `---` (or at end-of-file) actually renders as a rule instead of staying as
+// literal `--- ` text. Lute serialises `<hr>` back to `---`, so the markdown round-trips; the focused
+// paragraph is left as editable source (only promote when the caret is elsewhere). The trailing
+// invariant then offers an escape paragraph below the new rule (endsWithBlock treats `<hr>` as
+// atomic). Pure DOM → unit-testable. Returns true if it changed anything. Task 100.
+export function promoteThematicBreaks(
+  editor: HTMLElement,
+  caretNode: Node | null,
+): boolean {
+  let changed = false
+  for (const p of Array.from(
+    editor.querySelectorAll<HTMLElement>(':scope > p'),
+  )) {
+    if (caretNode && p.contains(caretNode)) continue
+    if (!isThematicBreakParagraph(p)) continue
+    const hr = editor.ownerDocument.createElement('hr')
+    hr.setAttribute('data-block', '0')
+    p.replaceWith(hr)
+    changed = true
+  }
+  return changed
+}
+
 // Remove transient empty gap paragraphs the caret has moved away from. Exported pure so it
 // can be unit-tested with a plain DOM. Only touches `<p>` that (a) is empty, (b) does not
 // hold the caret, (c) has a code-block neighbour, and (d) is not the trailing paragraph
@@ -288,7 +327,8 @@ function caretLineRect(range: Range): DOMRect | null {
 }
 
 // Ensure the trailing paragraph exists, then drop the caret into it. Returns true on success.
-function placeCaretInTrailing(editor: HTMLElement): boolean {
+// Exported so the <hr> arrow-nav can land the caret at EOF after stepping past a run of rules.
+export function placeCaretInTrailing(editor: HTMLElement): boolean {
   const sel0 = window.getSelection()
   const caret0 = sel0?.rangeCount ? sel0.getRangeAt(0).startContainer : null
   ensureTrailingParagraph(editor, caret0)
@@ -438,6 +478,10 @@ export function observeGapParagraphs(
       if (!editor) return
       const sel = window.getSelection()
       const caret = sel?.rangeCount ? sel.getRangeAt(0).startContainer : null
+      // Render a `---` the caret has left as an actual <hr> (the block-scoped re-spin won't promote
+      // the last one — see promoteThematicBreaks). The trailing-paragraph observer then offers an
+      // escape line below the new rule.
+      promoteThematicBreaks(editor, caret)
       cleanupGapParagraphs(editor, caret)
       // Reveal the trailing paragraph only while the caret is inside it.
       markTrailingActive(editor, caret)
