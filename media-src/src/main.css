@@ -469,6 +469,17 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   ) {
   background: transparent !important;
 }
+/* Leaflet gives its panes/controls high z-indexes (panes 200–700, the zoom + attribution CONTROLS up
+   to 1000) — far above Vditor's toolbar dropdown (`.vditor-panel`, z-index 3) and hint (`.vditor-hint`,
+   z-index 4). With no stacking boundary those numbers compete at the editor root, so an open geojson/
+   topojson map painted its zoom control / tiles OVER the toolbar dropdown menus (user: "mapa przykrywa
+   rozwijane menu jak np w toolbarze"). Wrap each map in its OWN stacking context (`isolation: isolate`)
+   so all of Leaflet's internal z-indexes stay scoped to the map div and the whole map sits at the
+   wrapper's natural level — below the positioned toolbar UI. The map never needs to overlay chrome. */
+:is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
+  :is(.language-geojson, .language-topojson) {
+  isolation: isolate;
+}
 /* Inline zoom/pan ⛶ fullscreen button (diagram-zoom.ts adds it + sets the wrapper position:relative).
    Top-right of the diagram; fades in on hover/focus so it doesn't clutter the diagram at rest. Colours
    follow the editor via --vscode-* with a subtle backdrop so it reads on any diagram fill. */
