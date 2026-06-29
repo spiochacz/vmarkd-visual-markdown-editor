@@ -2,6 +2,34 @@
 
 **Status:** ✅ DONE (2026-06-29). Callouts are now editable in place — typing keeps the text + caret.
 
+## Follow-up fix (2026-06-29) — body vanished after RENAMING the type
+
+User report: a callout with an unknown name (e.g. `[!TIPs]`) lost its body text. Root cause (separate
+from the eject bug, pre-existing in task 106): editing the marker makes the IR SPLIT the leading run
+into separate text nodes (`[!TIPs]` + `\nbody`); `stripMarkerLine` read only `p.firstChild` (`[!TIPs]`,
+no `\n`) and dropped the WHOLE `<p>` incl. the body in the sibling node. The markdown round-tripped, so
+the source was intact, but the collapsed preview showed an empty body. Fix: `stripMarkerLine`
+(`callouts.ts`) now SCANS the `<p>`'s child nodes to find the first `\n`/`<br>` instead of assuming one
+text node. Unit (`callouts.test.ts`, split-node + marker-only cases) + real-VS-Code
+(`callout-rename.spec.ts`, RED-checked: empty body without the fix). Latent risk noted: the WYSIWYG
+`hideWysiwygMarker`/`setCalloutType`/`setCalloutTitle` use the same `p.firstChild` shortcut — not
+fixed (no repro in WYSIWYG), but suspect if a similar WYSIWYG bug surfaces.
+
+## Follow-up 2 (2026-06-29) — invalid type → raw text + no collapse flicker
+
+Two more user reports on the same callout-editing surface:
+- **Unknown type rendered as a (blue) callout.** `matchCallout` was lenient (any `[A-Za-z][\w-]*`).
+  Now it only matches KNOWN names (`CALLOUT_TYPES`); an unknown `[!TIPs]` is NOT a callout — like
+  GitHub it stays a plain blockquote showing the raw `[!TIPs]` text (body kept). (`callouts.ts`,
+  `KNOWN_TYPES`.) e2e `callout-rename.spec.ts` (static + rename-to-unknown → raw).
+- **Editing a callout body then leaving made it vanish + reappear (content jump).** The re-spin drops
+  the injected preview each keystroke and the task-179 editing branch had SKIPPED rebuilding it, so at
+  the instant `--expand` cleared on caret-leave the callout had NO preview → empty frame → jump. Fix:
+  `decorateCallout` now runs `syncPreview` in BOTH states (it only reads/clones the source, never the
+  editable `<p>`, so it can't eject the caret), keeping the preview present (hidden under `--expand`)
+  so collapse reveals it immediately. e2e `callout-edit.spec.ts` samples the height across edit→leave
+  (constant 58px, no collapse). Unit `accepts unknown` → `rejects unknown`; full vitest 1060.
+
 ## Outcome (what shipped)
 
 Root cause confirmed (hypotheses 1 + 2): every keystroke runs `SpinVditorIRDOM`, which rebuilds the

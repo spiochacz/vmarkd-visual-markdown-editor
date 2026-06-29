@@ -182,3 +182,74 @@ test('leaving the callout after editing re-syncs the preview to the final source
   expect(r.editing).toBe(false) // editing flag cleared
   expect(r.previewText).toContain('editable body text LEFT') // preview shows the edit, not stale text
 })
+
+test('editing then leaving never collapses the callout to an empty frame (no flicker/jump)', async ({
+  workbox,
+  evaluateInVSCode,
+}) => {
+  await evaluateInVSCode(
+    async (vscode, args) => {
+      const [uri] = args as [string]
+      await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        vscode.Uri.file(uri),
+        'vmarkd.editor',
+      )
+    },
+    [FIXTURE] as [string],
+  )
+  const frame = wf(workbox)
+  await frame
+    .locator('.vditor-ir blockquote[data-callout] > .vmarkd-callout__preview')
+    .first()
+    .waitFor({ timeout: 60_000 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 1000)))
+
+  // sample the callout's height every frame across the whole edit→leave cycle
+  await frame.locator('body').evaluate(() => {
+    const w = window as unknown as Record<string, unknown>
+    w.__h = []
+    w.__sampling = true
+    const tick = () => {
+      if (!w.__sampling) return
+      const bq = document.querySelector('.vditor-ir blockquote[data-callout]')
+      ;(w.__h as number[]).push(
+        bq ? Math.round((bq as HTMLElement).getBoundingClientRect().height) : 0,
+      )
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  })
+
+  await enterCalloutBody(frame)
+  await workbox.keyboard.type(' Z', { delay: 60 })
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 200)))
+  // leave — this is where the callout used to vanish then reappear (empty frame → content jump)
+  await frame.locator('.vditor-ir').getByText('after paragraph').click()
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 600)))
+
+  const s = await frame.locator('body').evaluate(() => {
+    const w = window as unknown as Record<string, unknown>
+    w.__sampling = false
+    const h = (w.__h as number[]).filter((x) => x > 0)
+    return {
+      baseline: h[0],
+      min: Math.min(...h),
+      max: Math.max(...h),
+      n: h.length,
+    }
+  })
+  // eslint-disable-next-line no-console
+  console.log(`[callout-flicker] ${JSON.stringify(s)}`)
+  // the callout must never collapse to (near) nothing — the empty-frame "disappear" dropped it far
+  // below both its editing and rendered heights. Allow normal source⇄preview variance, but no vanish:
+  // stay above half the baseline (collapsed render) height throughout.
+  expect(s.min).toBeGreaterThanOrEqual(Math.round(s.baseline * 0.5))
+})

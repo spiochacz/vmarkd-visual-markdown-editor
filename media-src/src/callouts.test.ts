@@ -59,8 +59,10 @@ describe('matchCallout', () => {
     expect(matchCallout('[!note]-')).not.toHaveProperty('foldable')
   })
 
-  it('accepts unknown types (rendered with a neutral style)', () => {
-    expect(matchCallout('[!whatever]')?.type).toBe('whatever')
+  it('rejects unknown types — not a callout, stays a plain blockquote', () => {
+    expect(matchCallout('[!whatever]')).toBeNull()
+    expect(matchCallout('[!TIPs]')).toBeNull() // the reported invalid name (typo of tip)
+    expect(matchCallout('[!note]')?.type).toBe('note') // a known type still matches
   })
 
   it('returns null for normal blockquote text', () => {
@@ -100,6 +102,57 @@ describe('calloutSourceHasAnchor (editing-guard predicate)', () => {
     expect(calloutSourceHasAnchor(bq, null)).toBe(false)
     expect(calloutSourceHasAnchor(bq, undefined)).toBe(false)
     expect(calloutSourceHasAnchor(bq, after.firstChild)).toBe(false) // sibling paragraph
+  })
+})
+
+describe('callout preview body survives a SPLIT marker/body text run (renamed-type bug)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+    window.getSelection()?.removeAllRanges()
+  })
+
+  // Editing the marker (e.g. [!TIP] → [!NOTE]) makes the IR split the leading run into separate text
+  // nodes: `[!NOTE]` + `\nbody`. stripMarkerLine used to look only at p.firstChild (`[!NOTE]`, no `\n`)
+  // and drop the WHOLE <p> — so the body vanished from the rendered callout. It must scan child nodes.
+  it('strips only the marker line, keeping the body, when the run is split across text nodes', () => {
+    const ir = document.createElement('div')
+    ir.className = 'vditor-ir vditor-reset'
+    ir.setAttribute('contenteditable', 'true')
+    const bq = document.createElement('blockquote')
+    const p = document.createElement('p')
+    p.appendChild(document.createTextNode('[!NOTE]')) // marker in its own text node…
+    p.appendChild(document.createTextNode('\nbody text here')) // …body split into a sibling node
+    bq.appendChild(p)
+    ir.appendChild(bq)
+    document.body.appendChild(ir)
+
+    applyCallouts(ir)
+    const preview = bq.querySelector(PREVIEW) as HTMLElement
+    expect(preview).not.toBeNull()
+    expect(preview.querySelector('.vmarkd-callout__title')?.textContent).toBe(
+      'Note',
+    )
+    expect(
+      preview.querySelector('.vmarkd-callout__body')?.textContent?.trim(),
+    ).toBe('body text here') // body PRESERVED (was empty before the fix)
+  })
+
+  it('still drops a marker-only first paragraph (no body line)', () => {
+    const ir = document.createElement('div')
+    ir.className = 'vditor-ir vditor-reset'
+    const bq = document.createElement('blockquote')
+    const marker = document.createElement('p')
+    marker.textContent = '[!NOTE]'
+    const bodyP = document.createElement('p')
+    bodyP.textContent = 'a second paragraph body'
+    bq.append(marker, bodyP)
+    ir.appendChild(bq)
+    document.body.appendChild(ir)
+
+    applyCallouts(ir)
+    const body = bq.querySelector('.vmarkd-callout__body') as HTMLElement
+    expect(body.textContent).toContain('a second paragraph body') // body kept
+    expect(body.textContent).not.toContain('[!NOTE]') // marker-only <p> dropped
   })
 })
 
