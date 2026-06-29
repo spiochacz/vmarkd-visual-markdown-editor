@@ -501,6 +501,64 @@ export function patchIrDeferDiagramRender(code) {
     `    }`
   return code.replace(IR_DIAGRAM_LOOP, replacement)
 }
+// Perf (task 171 item 1): the IR space fast-path (ir/input.ts startSpace/endSpace) short-circuits the
+// spin but calls `vditor.options.input(getMarkdown(vditor))` SYNCHRONOUSLY — a full-document Lute
+// serialize on the keystroke→paint path on essentially EVERY inter-word SPACE while appending prose,
+// and the result is thrown away (our options.input ignores its arg; counter/cache are off). Gate the
+// serialize: only compute getMarkdown when counter/cache actually consume it; otherwise call input()
+// with nothing. Two textually-identical sites → assert EXACTLY 2 so a partial apply can't slip by.
+const IR_SPACE_INPUT = 'vditor.options.input(getMarkdown(vditor));'
+export function patchIrSpaceSerialize(code) {
+  const count = code.split(IR_SPACE_INPUT).length - 1
+  if (count !== 2) {
+    throw new Error(
+      `fixIrSpaceSerialize: expected 2 '${IR_SPACE_INPUT}' sites in vditor ir/input.ts, found ${count} (version drift?)`,
+    )
+  }
+  return code
+    .split(IR_SPACE_INPUT)
+    .join(
+      'vditor.options.input((vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : undefined);',
+    )
+}
+// Perf (task 171 item 2): ir/input.ts calls `renderToc(vditor)` on EVERY keystroke; renderToc runs a
+// SECOND full GopherJS SpinVditorIRDOM (outlineRender) + rewrites every heading id, regardless of
+// whether a ToC block / outline panel even exists — a whole extra spin per keystroke on heading-heavy
+// docs. Route it through window.__vmarkdDeferRenderToc (edit-activity.ts), which coalesces it to the
+// edit-settle. Falls back to the stock call if the hook isn't installed (e.g. the harness).
+const IR_RENDER_TOC = 'renderToc(vditor);'
+export function patchDeferRenderToc(code) {
+  if (!code.includes(IR_RENDER_TOC)) {
+    throw new Error(
+      'patchDeferRenderToc: renderToc(vditor) anchor not found in vditor ir/input.ts (version drift?)',
+    )
+  }
+  const replacement =
+    `if ((window as any).__vmarkdDeferRenderToc) {\n` +
+    `        (window as any).__vmarkdDeferRenderToc(vditor, renderToc);\n` +
+    `    } else {\n` +
+    `        renderToc(vditor);\n` +
+    `    }`
+  return code.replace(IR_RENDER_TOC, replacement)
+}
+// Perf (task 171 item 4): WYSIWYG (afterRenderEvent.ts) and SV (sv/process.ts) compute
+// `const text = getMarkdown(vditor)` then pass it to options.input(text), which ignores the arg — dead
+// super-linear serialize when counter/cache are off (parity cleanup; the IR default path is task 68).
+// Gate it; `text` stays declared so the counter/cache blocks below still compile. Same one-line anchor
+// in both files → per-file count assert.
+const DEFER_GETMD_TEXT = 'const text = getMarkdown(vditor);'
+export function patchDeferGetMarkdown(code, fileLabel) {
+  const count = code.split(DEFER_GETMD_TEXT).length - 1
+  if (count !== 1) {
+    throw new Error(
+      `patchDeferGetMarkdown: expected 1 '${DEFER_GETMD_TEXT}' in vditor ${fileLabel}, found ${count} (version drift?)`,
+    )
+  }
+  return code.replace(
+    DEFER_GETMD_TEXT,
+    'const text = (vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : "";',
+  )
+}
 // About Vditor dialog. Vditor hard-codes it in Chinese (toolbar/Info.ts) — NOT an
 // i18n string, so English is only possible by rewriting the tip.show() HTML at build
 // time. The TOP half is Vditor's ORIGINAL About content, translated verbatim (tagline,
@@ -1070,8 +1128,23 @@ const VDITOR_TS_PATCHES = [
     transform: patchIrInputSerialize,
   },
   {
+    // chain ir/input.ts patches: defer diagram render (161) + gate the space fast-path serialize +
+    // defer renderToc (171 items 1/2). Distinct anchors, so order is immaterial.
     file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]input\.ts$/,
-    transform: patchIrDeferDiagramRender,
+    transform: (code) =>
+      patchDeferRenderToc(
+        patchIrSpaceSerialize(patchIrDeferDiagramRender(code)),
+      ),
+  },
+  {
+    // 171 item 4: skip the discarded full-doc serialize in WYSIWYG + SV (same anchor in both files).
+    file: /vditor[/\\]src[/\\]ts[/\\]wysiwyg[/\\]afterRenderEvent\.ts$/,
+    transform: (code) =>
+      patchDeferGetMarkdown(code, 'wysiwyg/afterRenderEvent.ts'),
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]sv[/\\]process\.ts$/,
+    transform: (code) => patchDeferGetMarkdown(code, 'sv/process.ts'),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]toolbar[/\\]Info\.ts$/,

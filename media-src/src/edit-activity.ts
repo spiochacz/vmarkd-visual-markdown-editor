@@ -12,9 +12,10 @@
 // walkers) and only SWAP it out once the new render is actually ready (swap-when-ready): the old image
 // stays put while the engine re-renders into the (still-hidden) source child, then we reveal atomically
 // — no flash to raw source ("przeskok przez białe tło z napisami").
-//   - SVG engines render fine into a display:none child (they don't measure the container).
-//   - CANVAS engines (echarts/mindmap/stl) DO measure → they render into a visible child kept under an
-//     opaque absolute overlay (".vmarkd-cover"), revealed when the new <canvas> lands.
+//   - Most SVG engines render fine into a display:none child (they don't measure the DOM box).
+//   - MEASURING engines (canvas echarts/mindmap/stl measure the CONTAINER; flowchart.js measures its
+//     TEXT via getBBox, which is ~0 when hidden → shrunken boxes) render into a VISIBLE child kept
+//     under an opaque absolute overlay (".vmarkd-cover"), revealed when the new render lands.
 //
 // Two render paths consult this gate:
 //   - Vditor-native engines: the processCodeRender loop in ir/input.ts is routed through
@@ -89,14 +90,22 @@ const CACHED = new Set([
   'vega-lite',
   'stl',
 ])
-// Canvas/WebGL engines measure their container, so they CAN'T render into a display:none child — they
-// render visible under an opaque cover overlay instead. (The rest are SVG → render fine while hidden.)
-const CANVAS_LANGS = new Set([
+// Engines that MEASURE during render, so they CAN'T render into a display:none child — they render
+// VISIBLE under an opaque cover overlay instead. Two flavours, same fix:
+//   - canvas/WebGL (echarts/mindmap/stl/geojson/topojson) measure their CONTAINER (0×0 when hidden);
+//   - flowchart.js measures TEXT (getComputedTextLength/getBBox on its <text> nodes), which returns
+//     ~0 in a display:none subtree → the boxes collapse and the whole diagram shrinks (svg 179→79px
+//     wide after an edit — user: "flowcharts po edycji ma małe diagramy"). It rendered correctly at
+//     OPEN (preview visible) and only shrank when re-rendered while deferred.
+// (The remaining SVG engines — graphviz/plantuml/abc/d2/etc. — compute layout without touching the DOM
+// box, so they render fine while hidden and stay in the cheap display:none deferred state.)
+const MEASURE_LANGS = new Set([
   'echarts',
   'mindmap',
   'stl',
   'geojson',
   'topojson',
+  'flowchart',
 ])
 
 const STALE_CLASS = 'vmarkd-deferred' // typing / svg-settle: source children display:none, overlay static
@@ -125,17 +134,23 @@ function nodeLang(node: Element): string {
   return m ? m[1] : ''
 }
 
-function ordinalOf(node: Element, lang: string, root: HTMLElement): number {
-  let i = 0
+// Per-lang ordinal (document order) of EVERY code-block node, computed in a SINGLE walk so the batch
+// callers (deferIrDiagramRender's overlay loop, snapshotRenders) don't re-walk per node — the old
+// per-node `ordinalOf` was O(n²) in code-block count and ran on the typing-burst critical path on
+// diagram-heavy docs (task 171 item 3). Same semantics as before: count nodes of the SAME lang before
+// each one. Keys the renderCache (`${lang}#${ord}`), so the per-lang counter must stay consistent.
+function ordinalMap(root: HTMLElement): Map<Element, number> {
+  const counts = new Map<string, number>()
+  const out = new Map<Element, number>()
   for (const n of Array.from(
     root.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),
   )) {
-    if (nodeLang(n) === lang) {
-      if (n === node) return i
-      i++
-    }
+    const lang = nodeLang(n)
+    const i = counts.get(lang) ?? 0
+    out.set(n, i)
+    counts.set(lang, i + 1)
   }
-  return -1
+  return out
 }
 
 function previewOf(node: Element): HTMLElement | null {
@@ -192,7 +207,7 @@ function visualSnapshot(preview: Element): { html: string; h: number } | null {
 // processCodeRender loop (before paint) → no flicker to raw source. The overlay is appended AFTER the
 // source <code> (which stays firstElementChild, so processCodeRender's language switch still works) and
 // carries data-render="1" so Lute never serialises it.
-function restoreOverlay(node: Element, lang: string, root: HTMLElement): void {
+function restoreOverlay(node: Element, lang: string, ord: number): void {
   const preview = previewOf(node)
   if (!preview) return
   preview.classList.remove(COVER_CLASS)
@@ -200,7 +215,6 @@ function restoreOverlay(node: Element, lang: string, root: HTMLElement): void {
     preview.classList.add(STALE_CLASS)
     return
   }
-  const ord = ordinalOf(node, lang, root)
   const cached = ord >= 0 ? renderCache.get(`${lang}#${ord}`) : undefined
   if (!cached) return // nothing cached yet (first keystroke before any render) → raw shows briefly
   const overlay = document.createElement('div')
@@ -225,9 +239,10 @@ function revealPreview(preview: Element): void {
   preview.classList.remove(STALE_CLASS, COVER_CLASS)
 }
 
-// At settle, before the engines re-render: switch the CANVAS-engine previews from the display:none
-// "deferred" state into the "cover" state (source child visible + sized so echarts/three can measure;
-// the opaque overlay still hides it). SVG previews stay deferred (they render fine while hidden).
+// At settle, before the engines re-render: switch the MEASURING-engine previews from the display:none
+// "deferred" state into the "cover" state (source child visible + sized so echarts/three can measure
+// the container and flowchart.js can measure its text; the opaque overlay still hides it). The
+// non-measuring SVG previews stay deferred (they render fine while hidden).
 export function beginSettleRender(): void {
   const root = irRoot()
   if (!root) return
@@ -235,7 +250,7 @@ export function beginSettleRender(): void {
     root.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),
   )) {
     const lang = nodeLang(node)
-    if (!CANVAS_LANGS.has(lang)) continue
+    if (!MEASURE_LANGS.has(lang)) continue
     const preview = previewOf(node)
     if (preview?.classList.contains(STALE_CLASS)) {
       preview.classList.remove(STALE_CLASS)
@@ -284,12 +299,14 @@ function deferIrDiagramRender(
   const previews = Array.from(
     root.querySelectorAll<HTMLElement>(".vditor-ir__preview[data-render='2']"),
   )
+  // ordinals computed ONCE per keystroke (single walk) instead of per-deferred-preview (task 171 item 3)
+  const ords = ordinalMap(root)
   let deferredNative = false
   for (const preview of previews) {
     const node = preview.closest('.vditor-ir__node')
     const lang = node ? nodeLang(node) : ''
     if (isTyping() && CACHED.has(lang)) {
-      if (node) restoreOverlay(node, lang, root)
+      if (node) restoreOverlay(node, lang, ords.get(node) ?? -1)
       if (NATIVE_DEFER.has(lang)) deferredNative = true
       continue // skip the heavy render this keystroke
     }
@@ -315,6 +332,7 @@ function deferIrDiagramRender(
 function snapshotRenders(): void {
   const root = irRoot()
   if (!root || isTyping()) return
+  const ords = ordinalMap(root) // one walk, not one per node (task 171 item 3)
   for (const node of Array.from(
     root.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),
   )) {
@@ -329,7 +347,7 @@ function snapshotRenders(): void {
       continue
     const snap = visualSnapshot(preview)
     if (!snap) continue
-    const ord = ordinalOf(node, lang, root)
+    const ord = ords.get(node) ?? -1
     if (ord >= 0) renderCache.set(`${lang}#${ord}`, snap)
   }
 }
@@ -345,6 +363,12 @@ export function installEditActivity(
   if (!app) return () => {}
   ;(window as unknown as Record<string, unknown>).__vmarkdDeferIrDiagramRender =
     deferIrDiagramRender
+  // Defer renderToc to the edit-settle (task 171 item 2): coalesce N keystrokes' ToC re-spins into one
+  // (the patched ir/input.ts calls this instead of renderToc on every keystroke). Latest wins per key.
+  ;(window as unknown as Record<string, unknown>).__vmarkdDeferRenderToc = (
+    vditor: unknown,
+    renderToc: (v: unknown) => void,
+  ) => deferUntilSettle('renderToc', () => renderToc(vditor))
   const onInput = () => markEditActivity()
   app.addEventListener('input', onInput, true)
   return () => {
@@ -360,5 +384,6 @@ export function installEditActivity(
     settleCbs.clear()
     delete (window as unknown as Record<string, unknown>)
       .__vmarkdDeferIrDiagramRender
+    delete (window as unknown as Record<string, unknown>).__vmarkdDeferRenderToc
   }
 }

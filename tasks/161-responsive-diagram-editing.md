@@ -79,7 +79,26 @@ construction (latest-wins-per-key settle → superseded renders never run; nothi
   lacked the diagram's `text-align:center` + `max-width:100%`, so the cached svg rendered left-aligned at
   intrinsic width → re-asserted both on `.vmarkd-stale-overlay` in main.css. `t161-visual.spec.ts` now
   asserts the overlay is the diagram (not a UI icon) AND centred (centre offset < 8 px).
-- Gates green: typecheck · 964 unit tests · lint:ci (7 pre-existing parity warnings) · d2-theme e2e
+- **Flowchart-shrinks-after-edit fix (2026-06-29, reported: "flowcharts po edycji ma małe diagramy,
+  jakby zmniejszała się wielkość boxów"):** the swap-when-ready note above assumed "SVG engines render
+  fine into a display:none child". FALSE for flowchart.js — it measures its text
+  (getComputedTextLength/getBBox on the `<text>` nodes), which returns ~0 inside a `display:none`
+  subtree, so on the settle re-render its boxes collapsed and the whole diagram shrank (svg 179→79px
+  wide / 412→282px tall, MEASURED). It rendered correctly at OPEN (preview visible) and only shrank when
+  re-rendered while deferred. Fix: renamed `CANVAS_LANGS`→`MEASURE_LANGS` and added `flowchart` — at
+  settle `beginSettleRender` now switches the flowchart preview to COVER mode (source visible+sized
+  under the opaque overlay) so text measures correctly, same as the canvas engines. The non-measuring
+  SVG engines (graphviz/plantuml/abc/d2) stay in the cheap display:none deferred path. Verified GREEN:
+  after the fix the svg is byte-identical size before/after the edit (179×412 → 179×412, sample min=max).
+- **Edit-cycle MONITOR added (the missing regression net — user: "to co jest do tej pory pozwala na
+  regresje"):** prior diagram specs were open-then-snapshot and could not catch a diagram that renders
+  at open but breaks on EDIT. `test/vscode-e2e/diagram-edit-monitor.spec.ts` drives a real keystroke
+  edit through the debounce→settle→swap and asserts, per engine: (1) no size jump/collapse (before/after
+  + an rAF height sampler across the whole cycle), (2) no error box on a valid edit / an error box on an
+  invalid one that then RECOVERS, (3) the svg is actually present. Covers flowchart (the regression) +
+  graphviz (control + break→error→recover round-trip). Unit: `edit-activity.test.ts` asserts
+  `beginSettleRender` puts flowchart in cover mode and leaves graphviz deferred.
+- Gates green: typecheck · 1063 unit tests · lint:ci (7 pre-existing parity warnings) · d2-theme e2e
   (open-path unaffected — defer only triggers on `isTyping`).
 > **Source:** user report — editing a diagram's source in a code block, while the diagram re-renders
 > below ("praktycznie co znak"), makes the UI stutter. Measured in the real VS Code webview

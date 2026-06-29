@@ -11,6 +11,9 @@ import {
   patchProcessCode,
   patchIrInputSerialize,
   patchIrDeferDiagramRender,
+  patchIrSpaceSerialize,
+  patchDeferRenderToc,
+  patchDeferGetMarkdown,
   patchInfoDialog,
   patchPreviewCopyTip,
   patchIrBlurExpand,
@@ -53,6 +56,12 @@ const irProcessSource = read(
 )
 const irInputSource = read(
   '../../media-src/node_modules/vditor/src/ts/ir/input.ts',
+)
+const afterRenderEventSource = read(
+  '../../media-src/node_modules/vditor/src/ts/wysiwyg/afterRenderEvent.ts',
+)
+const svProcessSource = read(
+  '../../media-src/node_modules/vditor/src/ts/sv/process.ts',
 )
 const infoSource = read(
   '../../media-src/node_modules/vditor/src/ts/toolbar/Info.ts',
@@ -586,6 +595,83 @@ describe('patchIrDeferDiagramRender (task 161 — debounce diagram render while 
   it('throws (fails the build loudly) if the loop anchor is gone — version-bump guard', () => {
     expect(() => patchIrDeferDiagramRender('// unrelated source')).toThrow(
       /patchIrDeferDiagramRender/,
+    )
+  })
+})
+
+describe('patchIrSpaceSerialize (task 171 item 1 — gate the space fast-path serialize)', () => {
+  it('the shipped IR input serialises the whole doc on both space fast-paths (pre-patch)', () => {
+    // startSpace + endSpace each call input(getMarkdown(...)) — exactly two sites.
+    expect(
+      irInputSource.split('vditor.options.input(getMarkdown(vditor));').length -
+        1,
+    ).toBe(2)
+  })
+
+  it('gates getMarkdown behind counter/cache at BOTH sites (no serialize when off)', () => {
+    const patched = patchIrSpaceSerialize(irInputSource)
+    expect(patched).not.toContain('vditor.options.input(getMarkdown(vditor));')
+    expect(
+      patched.split(
+        'vditor.options.input((vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : undefined);',
+      ).length - 1,
+    ).toBe(2) // both sites rewritten
+  })
+
+  it('throws if the site count drifts from 2 — version-bump guard', () => {
+    expect(() => patchIrSpaceSerialize('// no sites')).toThrow(
+      /fixIrSpaceSerialize.*found 0/,
+    )
+  })
+})
+
+describe('patchDeferRenderToc (task 171 item 2 — defer renderToc to settle)', () => {
+  it('the shipped IR input calls renderToc on every input (pre-patch)', () => {
+    expect(irInputSource).toContain('renderToc(vditor);')
+  })
+
+  it('routes renderToc through the settle hook with a stock fallback', () => {
+    const patched = patchDeferRenderToc(irInputSource)
+    expect(patched).toContain(
+      '(window as any).__vmarkdDeferRenderToc(vditor, renderToc);',
+    )
+    expect(patched).toContain('} else {')
+    expect(patched).toContain('renderToc(vditor);') // fallback kept
+  })
+
+  it('throws if the renderToc anchor is gone — version-bump guard', () => {
+    expect(() => patchDeferRenderToc('// no renderToc')).toThrow(
+      /patchDeferRenderToc/,
+    )
+  })
+})
+
+describe('patchDeferGetMarkdown (task 171 item 4 — WYSIWYG/SV discarded serialize)', () => {
+  it('both WYSIWYG + SV compute a discarded full-doc serialize (pre-patch)', () => {
+    expect(afterRenderEventSource).toContain(
+      'const text = getMarkdown(vditor);',
+    )
+    expect(svProcessSource).toContain('const text = getMarkdown(vditor);')
+  })
+
+  it('gates the serialize behind counter/cache in both files (text stays declared)', () => {
+    for (const [src, label] of [
+      [afterRenderEventSource, 'wysiwyg/afterRenderEvent.ts'],
+      [svProcessSource, 'sv/process.ts'],
+    ] as const) {
+      const patched = patchDeferGetMarkdown(src, label)
+      expect(patched).not.toContain('const text = getMarkdown(vditor);')
+      expect(patched).toContain(
+        'const text = (vditor.options.counter.enable || vditor.options.cache.enable) ? getMarkdown(vditor) : "";',
+      )
+      // the counter/cache consumers below still reference `text`
+      expect(patched).toContain('vditor.counter.render(vditor, text);')
+    }
+  })
+
+  it('throws if the anchor count drifts — version-bump guard', () => {
+    expect(() => patchDeferGetMarkdown('// none', 'x.ts')).toThrow(
+      /patchDeferGetMarkdown.*found 0/,
     )
   })
 })

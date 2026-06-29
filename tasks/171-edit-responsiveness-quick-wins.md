@@ -1,6 +1,41 @@
 # Task 171 — Edit-responsiveness quick-wins bundle (per-keystroke waste removal)
 
-**Status:** TODO (ready — four independent S-effort waste-removals on the input path, low risk, ship as one PR).
+**Status:** ✅ DONE (2026-06-29). All four waste-removals shipped as one PR.
+
+## Outcome (what shipped)
+
+All four landed; no Lute round-trip / caret exposure (subtractive + pure scheduling).
+- **Item 1** — `patchIrSpaceSerialize` (esbuild, `ir/input.ts`): the startSpace/endSpace fast-paths no
+  longer run a full-document `getMarkdown` per inter-word space; `options.input()` is called as a cheap
+  signal, the serialize is gated behind counter/cache. Asserts EXACTLY 2 rewritten sites.
+- **Item 2** — `patchDeferRenderToc` (esbuild, `ir/input.ts`) + `__vmarkdDeferRenderToc`
+  (`edit-activity.ts`): `renderToc` (a SECOND full GopherJS spin + heading-id rewrite per keystroke) is
+  coalesced to the edit-settle via the existing `deferUntilSettle` gate. Stock-call fallback if the
+  hook isn't installed (harness).
+- **Item 3** — `edit-activity.ts`: replaced the per-node `ordinalOf` (O(n²) on burst-start /
+  per-deferred-preview) with a single-walk `ordinalMap`; `snapshotRenders` + the `deferIrDiagramRender`
+  overlay loop now compute every code-block's per-lang ordinal once. Same renderCache-key semantics.
+- **Item 4** — `patchDeferGetMarkdown` (esbuild, `wysiwyg/afterRenderEvent.ts` + `sv/process.ts`): the
+  discarded full-doc serialize in WYSIWYG/SV is gated behind counter/cache (`text` stays declared for
+  the counter/cache consumers). Parity cleanup.
+
+## Tests
+- **Unit** (`test/backend/vditor-source-patches.test.ts`, +3 describe blocks): each patch's anchor
+  found, correct match count (item 1 = 2 sites, item 4 = 1/file), output shape, and a drift-throw
+  guard. Item 3's `ordinalMap` is exercised by the existing `edit-activity` tests. Full vitest 1058.
+- **Real-VS-Code e2e** (`perf-edit.spec.ts` + `fixtures/perf-edit.md`): (1) IR space-path typing still
+  propagates to the host `TextDocument` (the gated `options.input()` still fires editSync); (2) a new
+  heading still gets its outline `ir-<slug>_<index>` id after the deferred renderToc settles (`[toc]`
+  renders no block in IR, so the outline id — which only outlineRender assigns — is the observable);
+  (4) WYSIWYG typing still propagates to the host. Regression: the diagram-defer/overlay specs
+  (`d2-edit-perf`, `plantuml-overlay-size`, `t161-visual`) stay green (item 3 path).
+- `tsc` + `biome` (7-baseline) + full vitest + the e2e all green, headless.
+
+---
+
+**(original plan below)**
+
+**Premise was:** four independent S-effort waste-removals on the input path, low risk, ship as one PR.
 **Source:** vMark edit-responsiveness analysis (2026-06-28, 39→22-agent workflow `wf_2c64003e-264`).
 **Value / Risk:** 🟨 medium (removes wasted full-document serializes + a second GopherJS spin per keystroke; biggest on large / heading-heavy / diagram-heavy docs) / 🟢 low (all subtractive or pure scheduling; no Lute round-trip / caret exposure).
 **Engines:** none directly (input-path glue) — items 2/3 help diagram-heavy + heading-heavy docs.

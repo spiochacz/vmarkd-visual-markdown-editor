@@ -110,6 +110,38 @@ test('beginSettleRender / scheduleReveal are no-ops when there is no IR editor',
   expect(() => scheduleReveal()).not.toThrow()
 })
 
+// Regression: a flowchart shrank after an edit (svg 179→79px wide) because flowchart.js measures its
+// text and re-rendered into the STILL-display:none deferred child (getBBox ~0 → collapsed boxes).
+// flowchart must therefore render in COVER mode (visible+sized under the opaque overlay) like the
+// canvas engines — NOT stay in the display:none "deferred" state. A non-measuring SVG engine
+// (graphviz computes layout without the DOM box) must STAY deferred (cheaper, renders fine hidden).
+test('beginSettleRender switches a deferred flowchart to cover mode, leaves graphviz deferred', () => {
+  const ir = document.createElement('div')
+  ir.className = 'vditor-ir'
+  const block = (lang: string) =>
+    '<div class="vditor-ir__node" data-type="code-block">' +
+    `<pre class="vditor-ir__marker--pre"><code class="language-${lang}">src</code></pre>` +
+    // both previews start in the display:none "deferred" state (mid-typing overlay shown)
+    '<div class="vditor-ir__preview vmarkd-deferred" data-render="2"></div>' +
+    '</div>'
+  ir.innerHTML = block('flowchart') + block('graphviz')
+  document.body.appendChild(ir)
+
+  beginSettleRender()
+
+  const previews = ir.querySelectorAll('.vditor-ir__preview')
+  const flowchart = previews[0]
+  const graphviz = previews[1]
+  // flowchart measures text → must become visible+sized (cover) so the new render isn't shrunken
+  expect(flowchart.classList.contains('vmarkd-cover')).toBe(true)
+  expect(flowchart.classList.contains('vmarkd-deferred')).toBe(false)
+  // graphviz doesn't measure the DOM box → stays in the cheap display:none deferred state
+  expect(graphviz.classList.contains('vmarkd-cover')).toBe(false)
+  expect(graphviz.classList.contains('vmarkd-deferred')).toBe(true)
+
+  ir.remove()
+})
+
 test('hasFreshRender: a rendered svg outside the overlay counts as fresh', () => {
   const p = document.createElement('div')
   p.innerHTML = '<div class="language-mermaid"><svg></svg></div>'
