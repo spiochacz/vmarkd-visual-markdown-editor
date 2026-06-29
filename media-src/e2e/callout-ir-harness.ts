@@ -58,6 +58,44 @@ const editor = new Vditor('app', {
       const after = paras[paras.length - 1] as HTMLElement
       caretAndExpand(after.firstChild as Node, 1)
     }
+
+    // Task 179 — focus the IR surface + put the caret at the END of the callout body so a real
+    // Playwright keystroke burst types into it (exercises SpinVditorIRDOM + observeCallouts).
+    ;(window as any).__focusBodyEnd = () => {
+      const p = el().querySelector(
+        'blockquote[data-callout] > p',
+      ) as HTMLElement
+      const t = p.firstChild as Text // "[!NOTE]\nbody text of the note"
+      el().focus()
+      caretAndExpand(t, t.data.length)
+    }
+    // Live snapshot of the callout's editing state — re-queried fresh (the re-spin replaces nodes).
+    ;(window as any).__state = () => {
+      const bq = el().querySelector(
+        'blockquote[data-callout]',
+      ) as HTMLElement | null
+      const src = bq?.querySelector(':scope > p') as HTMLElement | null
+      const sel = window.getSelection()
+      const anchor = sel?.rangeCount ? sel.anchorNode : null
+      const host = anchor
+        ? anchor.nodeType === 1
+          ? (anchor as Element)
+          : anchor.parentElement
+        : null
+      return {
+        srcText: src?.textContent ?? null,
+        // caret still inside the callout's editable source (not ejected, not in the preview)
+        caretInCallout: !!(
+          anchor &&
+          bq?.contains(anchor) &&
+          !host?.closest('.vmarkd-callout__preview')
+        ),
+        expanded: !!bq?.classList.contains('vditor-ir__node--expand'),
+        editing: !!bq?.hasAttribute('data-callout-editing'),
+        srcVisible: src ? getComputedStyle(src).display !== 'none' : false,
+        value: editor.getValue(),
+      }
+    }
     ;(window as any).__ready = true
   },
 })

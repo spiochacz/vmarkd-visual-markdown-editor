@@ -99,3 +99,50 @@ test('the callout keeps its exact size when the caret enters (collapse⇄expand)
   await page.waitForTimeout(150)
   expect(Math.abs((await height()) - collapsed)).toBeLessThanOrEqual(1)
 })
+
+// Task 179 — typing inside a callout used to blank the text + eject the caret. Each keystroke runs
+// SpinVditorIRDOM (rebuilds the blockquote, dropping `--expand`) → observeCallouts re-decorated it
+// SYNCHRONOUSLY, collapsing the dual-node before Vditor re-expanded it: the source went display:none
+// (typed text "disappeared") and the caret fell out. The fix drives expand/collapse off the live
+// selection + skips the preview rebuild for the callout being typed in. This types REAL keystrokes.
+test('typing inside the callout keeps the text + the caret inside (no eject, no blank)', async ({
+  page,
+}) => {
+  await page.evaluate(() => (window as any).__focusBodyEnd())
+  await page.keyboard.type(' EDITED', { delay: 30 })
+  await page.waitForTimeout(250)
+
+  const st = await page.evaluate(() => (window as any).__state())
+  expect(st.srcText).toContain('body text of the note EDITED') // the text persisted…
+  expect(st.caretInCallout).toBe(true) // …the caret did NOT get ejected…
+  expect(st.srcVisible).toBe(true) // …the source stayed visible (not collapsed to display:none)…
+  expect(st.expanded).toBe(true) // …the dual-node stayed expanded while editing…
+  expect(st.editing).toBe(true) // …and is flagged as being edited.
+  expect(st.value).toContain('> body text of the note EDITED') // round-trips through Lute
+})
+
+test('leaving the callout after editing re-syncs the preview to the final source', async ({
+  page,
+}) => {
+  await page.evaluate(() => (window as any).__focusBodyEnd())
+  await page.keyboard.type(' AFTER-LEAVE', { delay: 30 })
+  await page.waitForTimeout(200)
+  // move the caret OUT (trailing paragraph) → the callout collapses + its preview rebuilds
+  await page.evaluate(() => (window as any).__caretOutside())
+  await page.waitForTimeout(250)
+
+  const r = await page.evaluate(() => {
+    const bq = (window as any).__bq() as HTMLElement
+    const preview = bq.querySelector(
+      ':scope > .vmarkd-callout__preview',
+    ) as HTMLElement | null
+    return {
+      expanded: bq.classList.contains('vditor-ir__node--expand'),
+      editing: bq.hasAttribute('data-callout-editing'),
+      previewText: preview?.textContent ?? null,
+    }
+  })
+  expect(r.expanded).toBe(false) // collapsed after leaving
+  expect(r.editing).toBe(false) // editing flag cleared
+  expect(r.previewText).toContain('body text of the note AFTER-LEAVE') // preview shows the edit
+})

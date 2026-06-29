@@ -1,6 +1,44 @@
 # Task 179 — Fix callout editing: typing ejects the caret / text disappears (IR dual-node)
 
-**Status:** TODO (bug, reported 2026-06-29). High value — callouts are effectively **uneditable** today.
+**Status:** ✅ DONE (2026-06-29). Callouts are now editable in place — typing keeps the text + caret.
+
+## Outcome (what shipped)
+
+Root cause confirmed (hypotheses 1 + 2): every keystroke runs `SpinVditorIRDOM`, which rebuilds the
+blockquote (dropping `vditor-ir__node--expand`) and fires `observeCallouts` **synchronously** — before
+Vditor's keyup re-adds `--expand`. The old IR sync ran `syncPreview` (`replaceWith`) unconditionally on
+the node being typed in, and nothing re-asserted `--expand`, so CSS hid the source (`display:none`,
+text "disappeared") and the caret fell out.
+
+Fix — drive the dual-node's expand/collapse off the **live selection**, not Vditor's keyup timing
+(`media-src/src/callouts.ts`):
+- **(a) + (b)** `decorateCallout` IR branch: when the caret is inside this callout's editable source
+  (`calloutSourceHasAnchor`, gated to the `.vditor-ir` edit surface) → re-assert `vditor-ir__node--expand`
+  + flag `data-callout-editing` and **SKIP** the preview rebuild (never restructure the node being typed
+  in); else → collapse + `syncPreview` from the current source.
+- **Caret-leave re-sync:** `observeCallouts` adds a `selectionchange` handler — keeps the focused
+  callout expanded straight off the selection, and re-syncs (collapse + rebuild preview) any
+  `data-callout-editing` callout the caret has left (the MutationObserver never fires on a bare caret
+  move out). Self-correcting off the DOM flag (no cross-event state).
+
+Constraints held: round-trip byte-identical (preview stays Lute-ignored, source untouched), caret
+preserved, observer stays synchronous + idempotent, callout-nav entry + WYSIWYG mode-switch colouring
+unaffected (regression specs green).
+
+## Tests (regression-proof)
+- **Unit** (`callouts.test.ts`, +6): `calloutSourceHasAnchor`, the editing-skip branch (caret-safe, no
+  restructure), Preview-pane gate (not editable → no expand), and the `selectionchange` leave-resync /
+  focus-expand / still-editing-skip. New code regions 100% unit-covered.
+- **Harness e2e** (`callout-ir.spec.ts`, +2): REAL keystrokes in real Vditor IR — text persists, caret
+  stays inside, source visible, round-trips; leave re-syncs the preview. **RED-check: both FAIL on the
+  pre-fix code** (preview showed stale `"Note…note A"`).
+- **Real-VS-Code e2e** (`callout-edit.spec.ts`, NEW + `fixtures/callout-edit.md`): the mandate — type in
+  a callout in the real custom-editor webview → text persists, caret inside, `getValue()` round-trips;
+  click out → preview re-syncs. Regression `callouts-mode.spec.ts` still green.
+
+---
+
+**Reported:** 2026-06-29. High value — callouts were effectively **uneditable** before this fix.
 **Source:** user report — "edycja callout('tooltipa') powoduje znikanie tekstu, wpisywanie powoduje wyskoczenie z calloutu" (editing a callout makes the text disappear; typing kicks the caret out of the callout).
 **Value / Risk:** 🟥 high (the callout feature, task 106, is unusable for editing) / 🟠 medium (touches the IR dual-node + the per-keystroke `SpinVditorIRDOM` re-spin + caret preservation).
 **Engines:** none — callouts (`> [!NOTE]` GitHub/Obsidian alerts).
