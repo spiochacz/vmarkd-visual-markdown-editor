@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { injectPlantumlTheme, themePumlSvg } from './plantuml-render'
+import {
+  injectPlantumlTheme,
+  isClassSource,
+  themePumlSvg,
+} from './plantuml-render'
 
 // A minimal stand-in for a rendered PlantUML SVG carrying the default-skin colours
 // themePumlSvg must neutralise (task 144 item 2 — the render test for the colour mapping).
@@ -119,5 +123,66 @@ describe('injectPlantumlTheme', () => {
   it('leaves the source untouched when the author uses !theme', () => {
     const src = ['@startuml', '!theme cerulean', 'A -> B', '@enduml']
     expect(injectPlantumlTheme(src)).toEqual(src)
+  })
+})
+
+describe('isClassSource (engine-reset type probe — task 178 follow-up)', () => {
+  // The bug: a class render poisons the shared TeaVM engine so a later sequence source stays a class
+  // diagram. isClassSource must flip class<->non-class so the engine is re-imported across the switch.
+  it('sequence diagrams (arrow messages) are NOT class', () => {
+    expect(isClassSource('@startuml\nAlice -> Bob: Hello\n@enduml')).toBe(false)
+    expect(isClassSource('@startuml\nBob --> Alice: Hi there\n@enduml')).toBe(
+      false,
+    )
+    expect(isClassSource('@startuml\nAlice ->> Bob: x\n@enduml')).toBe(false)
+    // a participant-only sequence
+    expect(
+      isClassSource('@startuml\nparticipant Alice\nactor Bob\n@enduml'),
+    ).toBe(false)
+  })
+
+  it('a bare association (no arrowhead) IS class — the exact bug trigger "Alice - Bob"', () => {
+    expect(isClassSource('@startuml\nAlice - Bob: Hello\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nAlice -- Bob\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nAlice .. Bob\n@enduml')).toBe(true)
+  })
+
+  it('a DOTTED arrow (.->, .>, ..>) IS class — the "Alice .-> Bob" trigger that still has an arrowhead', () => {
+    // these carry a ">" arrowhead (so the no-arrowhead rule misses them) but the "." makes them class
+    expect(isClassSource('@startuml\nAlice .-> Bob: Hello\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nAlice .> Bob\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nFoo ..> Bar\n@enduml')).toBe(true)
+  })
+
+  it('explicit class-diagram syntax IS class', () => {
+    expect(
+      isClassSource('@startuml\nclass Foo\nclass Bar\nFoo --> Bar\n@enduml'),
+    ).toBe(true)
+    expect(isClassSource('@startuml\ninterface I\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nabstract class A\n@enduml')).toBe(true)
+  })
+
+  it('class relations (inheritance/composition/aggregation/dependency) ARE class', () => {
+    expect(isClassSource('@startuml\nFoo <|-- Bar\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nFoo *-- Bar\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nFoo o-- Bar\n@enduml')).toBe(true)
+    expect(isClassSource('@startuml\nFoo ..> Bar\n@enduml')).toBe(true)
+  })
+
+  it('non-class non-sequence diagrams are treated as non-class (engine stays consistent)', () => {
+    expect(isClassSource('@startmindmap\n* root\n** child\n@endmindmap')).toBe(
+      false,
+    )
+    expect(isClassSource('@startuml\nstart\n:do work;\nstop\n@enduml')).toBe(
+      false,
+    )
+  })
+
+  it('flips when an arrow is mangled into an association (the recovery path)', () => {
+    const seq = '@startuml\nAlice -> Bob: Hello\n@enduml'
+    const cls = '@startuml\nAlice - Bob: Hello\n@enduml'
+    expect(isClassSource(seq)).toBe(false)
+    expect(isClassSource(cls)).toBe(true)
+    expect(isClassSource(seq)).not.toBe(isClassSource(cls))
   })
 })

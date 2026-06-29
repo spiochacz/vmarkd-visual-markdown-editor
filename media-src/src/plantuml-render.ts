@@ -6,6 +6,7 @@
 // NO Vditor internals (the adapter's getElements/getCode are one-liners, inlined; script loading uses
 // our shared `loadScript`) so the theming logic is testable in jsdom without pulling Vditor's source.
 
+import { renderDiagramError } from './diagram-error'
 import { resolveDiagramPalette } from './diagram-palette'
 import { loadScript } from './load-script'
 
@@ -92,9 +93,59 @@ export function injectPlantumlTheme(lines: string[]): string[] {
     : [...style, ...lines]
 }
 
-// Lazily-loaded TeaVM `render(lines, targetId)` (cached after first load).
+// The vendored TeaVM PlantUML engine carries STICKY diagram-TYPE state across render() calls on a
+// single module instance: once it renders e.g. a class diagram, a later VALID sequence source is
+// misclassified as a class diagram and never recovers (and a 2nd render racing on the shared instance
+// is dropped). The bundle exposes no reset, so the only reset lever is a FRESH module instance via a
+// cache-busted dynamic import (`?rev=N` → a distinct module URL → fresh module statics → independent
+// diagram-type detection). Re-importing on EVERY render re-evaluates the ~7 MB module and lags editing,
+// so we REUSE one cached engine and only re-import when the diagram TYPE actually switches
+// (class<->non-class) — the only thing that poisons it. `isClassSource()` is the cheap source probe;
+// `engineLastClass` is the type the cached engine last rendered. Editing a diagram's content (type
+// unchanged) reuses the engine → no lag; a type switch (the bug trigger) pays one re-import.
+// (task 178 follow-up; root-caused via the multi-agent reproduction.)
 let plantumlRenderFn: ((lines: string[], targetId: string) => void) | null =
   null
+let engineLastClass: boolean | null = null
+let engineRev = 0
+
+// Cheap probe: does this PlantUML source render as a CLASS diagram? (used only to decide engine resets,
+// not to drive rendering; `engineLastClass` is also corrected from the actual render below as a safety
+// net). Class markers: class/interface/enum/abstract/annotation keywords; class relations
+// (`<|--`/`--|>`/`*--`/`o--`/…); or a connector between two names that is NOT a plain sequence message.
+// Sequence message arrows are dashes + an arrowhead (`->`, `-->`, `->>`, `<-`, …) — they carry `>`/`<`
+// and NEVER a `.`. So a connector that (a) contains a `.` (dotted: `.->`, `..>`) or (b) has NO
+// arrowhead (a bare association: `A - B`, `A -- B`, `A .. B`) is class-diagram syntax. Pure + unit-
+// tested; it only needs to FLIP when class<->non-class flips so the engine is reset across that switch.
+export function isClassSource(src: string): boolean {
+  if (/^\s*(?:abstract\s+)?(?:class|interface|enum|annotation)\b/im.test(src))
+    return true
+  if (/<\|--|--\|>|\*--|--\*|o--|--o|<\.\.|\.\.>/.test(src)) return true
+  for (const line of src.split(/\r\n|\r|\n/)) {
+    // capture the connector token (run of arrow/relation chars) between two identifiers
+    const m = /^\s*\w[\w.]*\s+([-.<>|*o]+)\s+\w/.exec(line)
+    if (!m) continue
+    const conn = m[1]
+    if (conn.includes('.')) return true // dotted connector (.->, ..>) = class/dependency
+    if (!/[<>]/.test(conn)) return true // no arrowhead = bare association = class
+  }
+  return false
+}
+
+// Did the engine ACTUALLY render a class/object diagram? PlantUML draws a circled type icon — a
+// standalone single-letter <text> "C"/"I"/"E"/"A" (class/interface/enum/abstract); sequence/activity/
+// etc. have none. Used as the safety net for engineLastClass: if isClassSource misreads an exotic arrow
+// form, the rendered output corrects it, so the next type switch is still detected (worst case: one
+// extra reset = a brief lag, never a stuck wrong diagram). A class literally named "C" would false-
+// positive → harmless (an unnecessary reset).
+function renderedIsClass(el: HTMLElement): boolean {
+  const svg = el.querySelector('svg')
+  if (!svg) return false
+  for (const t of Array.from(svg.querySelectorAll('text'))) {
+    if (/^[CIEA]$/.test((t.textContent ?? '').trim())) return true
+  }
+  return false
+}
 
 // Render every `.language-plantuml` block under `element` via the local TeaVM engine, then theme the
 // SVG. Lazy-loads the engine once (no main-bundle cost). element/cdn come from Vditor's previewRender
@@ -112,12 +163,6 @@ export function plantumlRender(
   const pumlUrl = `${cdn}/dist/js/plantuml/plantuml.js`
 
   loadScript(vizUrl, 'vditorVizGlobalScript').then(async () => {
-    if (!plantumlRenderFn) {
-      const mod = (await import(pumlUrl)) as {
-        render: (lines: string[], targetId: string) => void
-      }
-      plantumlRenderFn = mod.render
-    }
     for (const e of Array.from(plantumlElements)) {
       if (
         e.parentElement?.classList.contains('vditor-wysiwyg__pre') ||
@@ -134,6 +179,25 @@ export function plantumlRender(
         e.id = targetId
         e.innerHTML = ''
         e.setAttribute('data-processed', 'true')
+        // Reset the engine ONLY across a diagram-type switch (see engineLastClass note above): drop the
+        // cached instance so a fresh one is imported, otherwise reuse it (no lag). The await serializes
+        // the loop, so two blocks never race one instance.
+        const srcClass = isClassSource(text)
+        if (
+          plantumlRenderFn &&
+          engineLastClass !== null &&
+          engineLastClass !== srcClass
+        ) {
+          plantumlRenderFn = null
+        }
+        if (!plantumlRenderFn) {
+          engineRev += 1
+          const mod = (await import(`${pumlUrl}?rev=${engineRev}`)) as {
+            render: (lines: string[], targetId: string) => void
+          }
+          plantumlRenderFn = mod.render
+        }
+        engineLastClass = srcClass
         // Inject the palette `<style>` (unless the author themed it) so PlantUML colours the diagram
         // from the content theme; themePumlSvg still runs afterwards as the safety net.
         plantumlRenderFn(
@@ -152,6 +216,10 @@ export function plantumlRender(
           if (e.querySelector('svg')) {
             obs.disconnect()
             themeOnce()
+            // Safety net: correct engineLastClass from what the engine ACTUALLY rendered, so a
+            // misread by isClassSource (e.g. an unhandled arrow form) can't leave the engine
+            // mismarked and wedge a later type switch. Reliable (the C/I/E/A class icon).
+            engineLastClass = renderedIsClass(e)
           }
         })
         obs.observe(e, { childList: true, subtree: true })
@@ -163,8 +231,10 @@ export function plantumlRender(
           themeOnce()
         }, 5000)
       } catch (error) {
-        e.className = 'vditor-reset--error'
-        e.innerHTML = `plantuml render error: <br>${error}`
+        // HARD infra throw only (engine boot / encode) — PlantUML renders its OWN red "syntax error"
+        // SVG for bad source, so this box never fights that; it surfaces the rare infra failure (task
+        // 178), was a raw "plantuml render error:" dump.
+        renderDiagramError(e, 'plantuml', error)
       }
     }
   })
