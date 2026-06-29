@@ -36,18 +36,18 @@ test('a broken mermaid block renders the themed error box, not the bomb SVG', as
 
   const frame = wf(workbox)
   await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
-  // mermaid lazy-loads, then the catch injects our box
+  // mermaid lazy-loads, then the catch injects our box (shared .vmarkd-diagram-error class, task 178)
   await frame
-    .locator('.language-mermaid .vmarkd-mermaid-error')
+    .locator('.language-mermaid .vmarkd-diagram-error')
     .first()
     .waitFor({ timeout: 60_000 })
 
   const info = await frame.locator('body').evaluate(() => {
     const box = document.querySelector(
-      '.language-mermaid .vmarkd-mermaid-error',
+      '.language-mermaid .vmarkd-diagram-error',
     )
-    const title = box?.querySelector('.vmarkd-mermaid-error__title')
-    const msg = box?.querySelector('.vmarkd-mermaid-error__msg')
+    const title = box?.querySelector('.vmarkd-diagram-error__title')
+    const msg = box?.querySelector('.vmarkd-diagram-error__msg')
     return {
       hasBox: !!box,
       title: title?.textContent ?? null,

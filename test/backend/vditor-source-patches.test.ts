@@ -24,6 +24,9 @@ import {
   patchMindmapThemeColors,
   patchEchartsThemeInit,
   patchMermaidErrorRender,
+  patchFlowchartError,
+  patchEchartsErrorBox,
+  patchMindmapErrorBox,
 } from '../../media-src/esbuild-shared.mjs'
 
 const read = (rel: string) =>
@@ -696,16 +699,20 @@ describe('patchIrBlurExpand (code-block edit click flash)', () => {
 })
 
 describe('patchMermaidErrorRender (mermaidRender.ts)', () => {
-  it('suppresses the bomb + renders a themed escaped error box, drops the raw dump', () => {
+  it('suppresses the bomb + renders the shared themed escaped error box, drops the raw dump', () => {
     const patched = patchMermaidErrorRender(mermaidRenderSource)
     // mermaid no longer injects its bomb error graphic (render() just throws) …
     expect(patched).toContain('suppressErrorRendering: true')
-    // … and the catch renders our themed box, not errorElement.outerHTML + a <small> dump
-    expect(patched).toContain('vmarkd-mermaid-error')
-    expect(patched).toContain('vmarkd-mermaid-error__msg')
+    // … and the catch renders the SHARED box (task 178 — same class for every engine), not
+    // errorElement.outerHTML + a <small> dump. data-render="1" → Lute-invisible.
+    expect(patched).toContain('vmarkd-diagram-error')
+    expect(patched).toContain('vmarkd-diagram-error__msg')
+    expect(patched).toContain('data-render="1"')
+    expect(patched).toContain('vmarkd-diagram-error__title">Mermaid')
     expect(patched).toContain('&amp;') // message is HTML-escaped (source <…> can't inject)
     expect(patched).not.toContain('errorElement.outerHTML')
     expect(patched).not.toContain('errorElement.parentElement.remove()')
+    expect(patched).not.toContain('vmarkd-mermaid-error') // old per-engine class is gone
   })
 
   it('throws (fails the build loudly) if the config or catch anchor drifts', () => {
@@ -716,5 +723,82 @@ describe('patchMermaidErrorRender (mermaidRender.ts)', () => {
     expect(() =>
       patchMermaidErrorRender('const c = { startOnLoad: false, };'),
     ).toThrow(/patchMermaidErrorRender/)
+  })
+})
+
+describe('patchEchartsErrorBox / patchMindmapErrorBox (task 178 — native render-error box)', () => {
+  it('Vditor ships the raw "render error" dump in chart + mindmap (pre-patch)', () => {
+    expect(chartSource).toContain('echarts render error: <br>')
+    expect(chartSource).toContain('e.className = "vditor-reset--error";')
+    expect(mindmapSource).toContain('mindmap render error: <br>')
+  })
+
+  it('echarts: replaces the raw dump with the shared themed box (escaped, titled)', () => {
+    const patched = patchEchartsErrorBox(chartSource)
+    expect(patched).toContain('vmarkd-diagram-error" data-render="1"')
+    expect(patched).toContain('vmarkd-diagram-error__title">ECharts')
+    expect(patched).toContain('vmarkd-diagram-error__msg')
+    expect(patched).toContain('&amp;') // escaped message
+    // raw dump + the unwanted reset class are gone (the box is self-styled)
+    expect(patched).not.toContain('echarts render error')
+    expect(patched).not.toContain('e.className = "vditor-reset--error"')
+  })
+
+  it('mindmap: replaces the raw dump with the shared themed box (titled Mindmap)', () => {
+    const patched = patchMindmapErrorBox(mindmapSource)
+    expect(patched).toContain('vmarkd-diagram-error__title">Mindmap')
+    expect(patched).toContain('vmarkd-diagram-error__msg')
+    expect(patched).not.toContain('mindmap render error')
+  })
+
+  it('composes with patchMindmapThemeColors (both apply, independent anchors)', () => {
+    const patched = patchMindmapErrorBox(patchMindmapThemeColors(mindmapSource))
+    expect(patched).toContain('window.__vmarkdMindmapStyle.node') // theme patch survived
+    expect(patched).toContain('vmarkd-diagram-error__title">Mindmap') // error patch applied
+  })
+
+  it('throws (fails the build loudly) if the catch anchor drifts', () => {
+    expect(() => patchEchartsErrorBox('// unrelated source')).toThrow(
+      /patchNativeDiagramError/,
+    )
+    expect(() => patchMindmapErrorBox('// unrelated source')).toThrow(
+      /patchNativeDiagramError/,
+    )
+  })
+})
+
+describe('patchFlowchartError (task 178 — wrap flowchart render in a catch → box)', () => {
+  it('Vditor ships the render body with NO catch (pre-patch, uncaught parse error)', () => {
+    expect(flowchartSource).toContain(
+      'const flowchartObj = flowchart.parse(flowchartRenderAdapter.getCode(item));',
+    )
+    expect(flowchartSource).not.toContain('vmarkd-diagram-error')
+  })
+
+  it('wraps parse+draw in a try/catch that renders the shared themed box', () => {
+    const patched = patchFlowchartError(flowchartSource)
+    expect(patched).toContain('try {')
+    expect(patched).toContain('} catch (error) {')
+    expect(patched).toContain('vmarkd-diagram-error" data-render="1"')
+    expect(patched).toContain('vmarkd-diagram-error__title">Flowchart')
+    expect(patched).toContain('&amp;') // escaped message
+    // the drawSVG line is kept verbatim INSIDE the try so patchFlowchartTheme can still theme it
+    expect(patched).toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('composes with patchFlowchartTheme (error wrap inner, theme outer)', () => {
+    const patched = patchFlowchartTheme(patchFlowchartError(flowchartSource))
+    // themed drawSVG present (theme patch found the verbatim line inside the try)…
+    expect(patched).toContain('"line-color": vmFcColor')
+    expect(patched).toContain('"fill": "none"')
+    // …and the error box is present, and the bare baked-black call is gone
+    expect(patched).toContain('vmarkd-diagram-error__title">Flowchart')
+    expect(patched).not.toContain('flowchartObj.drawSVG(item);')
+  })
+
+  it('throws (fails the build loudly) if the render-body anchor is gone — version-bump guard', () => {
+    expect(() => patchFlowchartError('// unrelated source')).toThrow(
+      /fixFlowchartError/,
+    )
   })
 })

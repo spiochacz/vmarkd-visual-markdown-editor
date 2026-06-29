@@ -1,7 +1,87 @@
 # Task 178 — Unified validation/render-error box for ALL diagram engines
 
-**Status:** TODO (ready — mermaid is the shipped precedent to generalize). Medium.
-**Source:** user request (2026-06-29) — "mermaid pokazuje błędy parsowania w niesformatowany sposób" → fixed for mermaid; generalize to every engine.
+**Status:** DONE (2026-06-29). Shipped + installed; unit + real-VS-Code e2e green. Medium.
+**Source:** user request (2026-06-29) — "mermaid pokazuje błędy parsowania w niesformatowany sposób" → fixed for mermaid; "dodaj obsługę błędów parsowania do następnych diagramów" → generalized to every engine.
+
+## What shipped (2026-06-29)
+
+- **Shared box** `media-src/src/diagram-error.ts` (`renderDiagramError`/`diagramErrorHtml`/`diagramErrorTitle`):
+  one themed `.vmarkd-diagram-error` box, escaped `<pre>` message, `data-render="1"` (Lute-invisible).
+  CSS renamed `.vmarkd-mermaid-error*` → `.vmarkd-diagram-error*` (mermaid now uses the shared class).
+- **TS-module renderers** call `renderDiagramError`: graphviz (was raw dump), plantuml (hard infra
+  throw only — its own SVG syntax error stays), nomnoml + stl (were silent→blank, now box + set
+  `data-processed` so the observer doesn't loop), wavedrom + vega (via a new optional `faithfulRender`
+  `onError` → box; faithfulRender marks `data-processed` to stop the re-find loop), smiles (defensive —
+  box if `.draw()` throws, with a `data-vmsmilesErr` signature guard against the observer loop).
+- **Native esbuild patches** (byte-identical inline markup, anchored + drift-throw): `patchMermaidErrorRender`
+  (rewired to the shared class), `patchEchartsErrorBox`, `patchMindmapErrorBox`, `patchFlowchartError`
+  (flowchart had NO catch — now wrapped; chained before `patchFlowchartTheme`). All in `VDITOR_TS_PATCHES`.
+- **Rides the task-161 settle gate** (box renders on settle, not per-keystroke); `hasFreshRender`
+  already treats the box as a terminal render → reveals immediately, no 3s wait.
+
+### Follow-up fix (2026-06-29) — PlantUML diagram-type stickiness (separate bug, found while verifying)
+
+**Symptom (user):** editing a PlantUML arrow into class syntax (`Alice -> Bob` → `Alice - Bob`, or
+typing `.->`) flips the whole block to a **class diagram** (Alice/Bob as classes + the message labels
+as associations) and it **never recovers** to the sequence diagram even after the source is valid again.
+
+**Root cause (high confidence, reproduced + multi-agent diagnosed, wf_f9a87f0e-196):** the vendored
+**TeaVM PlantUML engine carries sticky diagram-TYPE state across `render()` calls** on the ONE shared
+module instance (`plantumlRenderFn` was cached once). Once it renders a class diagram, a later VALID
+sequence source is misclassified as a class diagram. Proven deterministically: identical
+`Alice -> Bob: Hello` renders as a SEQUENCE on a fresh engine but as a CLASS after the engine has
+rendered a class; and STEP3 (`Hello`→`Helloo`) showed the engine DOES re-render the new source each
+settle (label tracks the edit) — only the TYPE classification was stuck (so NOT a stale DOM / skipped
+render / task-161 overlay — those were all falsified by the repro). Same root as the established
+"2nd PlantUML block renders blank" finding (shared-engine poisoning, concurrency face).
+
+**Fix:** `media-src/src/plantuml-render.ts` — the only reset lever is a fresh module instance (cache-
+busted dynamic `import(\`${pumlUrl}?rev=${engineRev}\`)` → distinct URL → fresh statics). But re-
+importing on EVERY render re-evaluates the ~7 MB module and **lags editing** (first attempt did this →
+user reported "strasznie długi lag"). So we **reuse one cached engine** and re-import **only when the
+diagram TYPE switches** (class↔non-class — the only thing that poisons it). Two pieces, both needed:
+(1) `isClassSource(text)` — a CONNECTOR-based probe: a connector between two names containing a `.`
+(`.->`/`..>`) or with NO arrowhead (`A - B`) is class; plain `->`/`-->` is sequence; + class keywords/
+relations. (A naive "has `>` ⇒ not class" rule mis-classed `.->` → the user's 2nd "doesn't recover"
+report; the connector rule fixes it.) (2) SAFETY NET: `engineLastClass` is corrected from the ACTUAL
+render (the C/I/E/A class icon, `renderedIsClass`) in the observer — so a remaining heuristic misread
+degrades to one extra reset (brief lag), never a stuck wrong diagram. Editing content (type unchanged)
+reuses the engine → no lag; a type switch pays one re-import + recovers. Theming + task-161 debounce
+untouched. Memory: re-imports (rare, only on type switches) aren't GC'd → bounded growth until reload.
+
+**Tests:** unit `isClassSource` (6 cases: sequence/bare-assoc/explicit-class/relations/other/flip) in
+`plantuml-render.test.ts`; real-VS-Code `test/vscode-e2e/plantuml-edit-recovery.spec.ts` (1:
+sequence→class→sequence on one block recovers; 2: a class block + a sequence block both render the
+correct type) + `fixtures/plantuml-multi-type.md`. `plantuml.spec.ts` (theme) still green; full vitest
+1034, lint 7-parity, typecheck clean. (A vitest unit can't drive the real TeaVM engine headless, so the
+engine reset itself is covered by the e2e; `isClassSource`/`injectPlantumlTheme`/`themePumlSvg` are
+unit-covered.)
+
+### Deliberate scope boundaries
+- **geojson / topojson** keep the **source visible** on bad JSON (decision in plan item 5 — the bad
+  JSON is the useful feedback), no box.
+- **d2** keeps its richer source+note fallback (intentional; not regressed).
+- **math (KaTeX, ◑)** keeps its own inline red error (`throwOnError:false`, task 57) — already readable,
+  not part of the "raw dump / silent" set; not converted.
+- **smiles (◑ in practice)** keeps the defensive box but is NOT asserted in the e2e: smiles-drawer is
+  too lenient to deterministically throw (empirically renders an SVG even for malformed input).
+- **abc / markmap (✗)** can't meaningfully error — untouched.
+
+### Tests
+- Unit: `media-src/src/diagram-error.test.ts` (escape/title/`<pre>`/Error-instance — 100% cover);
+  `test/backend/vditor-source-patches.test.ts` (+ echarts/mindmap/flowchart patches + mermaid class
+  rename + drift-throws); `edit-activity.test.ts` (+2: `deferIrDiagramRender` SKIPS the render for a
+  cached diagram lang while `isTyping()` → the box can't strobe mid-keystroke, and renders on settle).
+  Full suite 1028 green, lint 7-parity-only, typecheck clean.
+- Real-VS-Code e2e (`test/vscode-e2e/diagram-errors.spec.ts`):
+  1. broken-fixture (`fixtures/diagram-errors.md`) — graphviz/echarts/flowchart/vega/wavedrom/nomnoml
+     each show a titled `<pre>` box, no raw dump, never in the editable source.
+  2. settle-gate (`fixtures/diagram-error-settle.md`) — a VALID graphviz, broken by REAL keyboard
+     typing into its IR source (proven d2-edit-perf caret pattern), shows the box AFTER the edit
+     settles via Vditor's real spin and the box REPLACES the live SVG (`svgLeft:0`), never in source.
+  `mermaid-error.spec.ts` updated to the shared class, still green.
+- Finding: **smiles-drawer is too lenient to deterministically throw** (renders an SVG even for `[CH4`)
+  → smiles box stays defensive but isn't e2e-asserted.
 **Value / Risk:** 🟨 medium (consistent, readable validation feedback across all diagrams; today it's either an unformatted raw dump or silent nothing) / 🟢 low (per-engine catch rewrites + a shared box; preview-only, never serialized).
 **Engines:** all (mermaid done; echarts, mindmap, graphviz, plantuml, math/KaTeX, d2, smiles, wavedrom, nomnoml, vega, geojson, topojson, stl, flowchart, abc, markmap).
 

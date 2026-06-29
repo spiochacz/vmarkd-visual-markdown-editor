@@ -599,25 +599,27 @@ export function patchMermaidVersion(code, version) {
 // "<br>")` — no /g, so only the FIRST newline survives and multi-line parser errors (with the caret
 // diagram) mash together; it also crashes if errorElement is null. We (1) set
 // `suppressErrorRendering: true` so mermaid never injects the bomb (render() just throws), and (2)
-// replace the catch with a compact, themed `.vmarkd-mermaid-error` box whose <pre> preserves every
-// newline incl. the caret diagram (escaped so source `<…>` can't inject HTML). The box lives in the
-// `data-render="2"` preview half → invisible to the Lute round-trip. Styled in media-src/src/main.css.
-// Anchored on the config flag + the catch body; throws on drift.
+// replace the catch with the shared compact, themed `.vmarkd-diagram-error` box (task 178 —
+// generalised across engines; markup mirrors diagram-error.ts `diagramErrorHtml('mermaid', …)`) whose
+// <pre> preserves every newline incl. the caret diagram (escaped so source `<…>` can't inject HTML).
+// The box carries data-render="1" and lives in the `data-render="2"` preview half → invisible to the
+// Lute round-trip. Styled in media-src/src/main.css. Anchored on the config flag + the catch body;
+// throws on drift.
 const MERMAID_START_ON_LOAD = 'startOnLoad: false,'
 const MERMAID_CATCH_RE =
   /\} catch \(e\) \{[\s\S]*?errorElement\.parentElement\.remove\(\);\s*\}/
 const MERMAID_ERROR_CATCH = `} catch (e) {
                 // vMarkd (patchMermaidErrorRender): suppressErrorRendering (above) stops mermaid
-                // injecting its bomb SVG, so render a compact themed box instead. <pre> keeps every
-                // newline incl. the caret diagram; escape so source <…> can't inject HTML. Lives in
-                // the data-render="2" preview → invisible to the Lute round-trip.
+                // injecting its bomb SVG, so render the shared themed box instead. <pre> keeps every
+                // newline incl. the caret diagram; escape so source <…> can't inject HTML. data-render="1"
+                // + the data-render="2" preview → invisible to the Lute round-trip. Mirrors diagram-error.ts.
                 const stray = document.querySelector("#" + id);
                 if (stray && stray.parentElement) { stray.parentElement.remove(); }
                 const msg = String(e && e.message ? e.message : e)
                     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                item.innerHTML = '<div class="vmarkd-mermaid-error">' +
-                    '<div class="vmarkd-mermaid-error__title">Mermaid</div>' +
-                    '<pre class="vmarkd-mermaid-error__msg">' + msg + '</pre></div>';
+                item.innerHTML = '<div class="vmarkd-diagram-error" data-render="1">' +
+                    '<div class="vmarkd-diagram-error__title">Mermaid</div>' +
+                    '<pre class="vmarkd-diagram-error__msg">' + msg + '</pre></div>';
             }`
 export function patchMermaidErrorRender(code) {
   if (
@@ -639,6 +641,71 @@ export function patchMermaidErrorRender(code) {
       `${MERMAID_START_ON_LOAD}\n            suppressErrorRendering: true,`,
     )
     .replace(MERMAID_CATCH_RE, () => MERMAID_ERROR_CATCH)
+}
+// Task 178 — generalise the mermaid error box to the other NATIVE Vditor renderers (echarts, mindmap,
+// flowchart) that can't import diagram-error.ts. Each produces ONE JS statement that builds the shared
+// `.vmarkd-diagram-error` box BYTE-IDENTICAL to diagram-error.ts `diagramErrorHtml(...)` (same class,
+// same &/</> escape, same <pre>) — `elVar` is the preview element in scope, `title` the engine label.
+// Keep in sync with diagram-error.ts + main.css `.vmarkd-diagram-error`.
+function diagramErrorBoxStmt(elVar, title, errVar = 'error') {
+  return (
+    `const vmErrMsg = String(${errVar} && ${errVar}.message ? ${errVar}.message : ${errVar}).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); ` +
+    `${elVar}.innerHTML = '<div class="vmarkd-diagram-error" data-render="1">' + '<div class="vmarkd-diagram-error__title">${title}</div>' + '<pre class="vmarkd-diagram-error__msg">' + vmErrMsg + '</pre></div>';`
+  )
+}
+// echarts (chartRender.ts) and mindmap (mindmapRender.ts) both dump
+// `e.className = "vditor-reset--error"; e.innerHTML = \`<engine> render error: <br>${error}\`;` on a
+// parse/setOption failure — unformatted red text. Replace each with the shared themed box (drop the
+// vditor-reset--error class; the box is self-styled). One parametrised patch; `rawLiteral`
+// ("echarts render error" / "mindmap render error") doubles as the drift anchor. Throws on drift.
+function patchNativeDiagramError(code, rawLiteral, title) {
+  const anchor =
+    '} catch (error) {\n' +
+    '                    e.className = "vditor-reset--error";\n' +
+    '                    e.innerHTML = `' +
+    rawLiteral +
+    ': <br>${error}`;\n' +
+    '                }'
+  if (!code.includes(anchor)) {
+    throw new Error(
+      `patchNativeDiagramError: "${rawLiteral}" catch anchor not found in vditor renderer (version drift?)`,
+    )
+  }
+  const box =
+    '} catch (error) {\n                    ' +
+    diagramErrorBoxStmt('e', title) +
+    '\n                }'
+  return code.replace(anchor, box)
+}
+// flowchart (flowchartRender.ts) has NO catch — a `flowchart.parse` syntax error (or a drawSVG throw)
+// propagates uncaught and leaves a blank/broken block. Wrap the parse+render body in try/catch so a bad
+// flowchart shows the shared themed box (task 178). Runs BEFORE patchFlowchartTheme (which rewrites the
+// `flowchartObj.drawSVG(item);` line kept verbatim inside the try), so the order in the registry is
+// patchFlowchartTheme(patchFlowchartError(code)). Anchored on the contiguous body; throws on drift.
+const FLOWCHART_BODY_ANCHOR =
+  '            const flowchartObj = flowchart.parse(flowchartRenderAdapter.getCode(item));\n' +
+  '            item.innerHTML = "";\n' +
+  '            flowchartObj.drawSVG(item);\n' +
+  '            item.setAttribute("data-processed", "true");'
+export function patchFlowchartError(code) {
+  if (!code.includes(FLOWCHART_BODY_ANCHOR)) {
+    throw new Error(
+      'fixFlowchartError: render-body anchor not found in vditor flowchartRender.ts (version drift?)',
+    )
+  }
+  const wrapped =
+    '            try {\n' +
+    FLOWCHART_BODY_ANCHOR +
+    '\n            } catch (error) {\n                ' +
+    diagramErrorBoxStmt('item', 'Flowchart') +
+    '\n            }'
+  return code.replace(FLOWCHART_BODY_ANCHOR, wrapped)
+}
+export function patchEchartsErrorBox(code) {
+  return patchNativeDiagramError(code, 'echarts render error', 'ECharts')
+}
+export function patchMindmapErrorBox(code) {
+  return patchNativeDiagramError(code, 'mindmap render error', 'Mindmap')
 }
 // Task 89 — we vendor a newer ECharts than Vditor bundles (syncEcharts). Three vditor modules
 // load `…/echarts.min.js?v=5.5.1` under the SAME script id (`vditorEchartsScript`): chartRender
@@ -1029,8 +1096,10 @@ const VDITOR_TS_PATCHES = [
     transform: patchGraphvizRender,
   },
   {
+    // chain: wrap the render body in a catch → themed error box (patchFlowchartError) THEN theme the
+    // drawSVG call (patchFlowchartTheme finds the verbatim drawSVG line kept inside the new try).
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]flowchartRender\.ts$/,
-    transform: patchFlowchartTheme,
+    transform: (code) => patchFlowchartTheme(patchFlowchartError(code)),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]plantumlRender\.ts$/,
@@ -1053,7 +1122,8 @@ const VDITOR_TS_PATCHES = [
     },
   },
   {
-    // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only
+    // 3 echarts loaders share this filter; bump the `?v=` in all, rewrite theme-init in chartRender only,
+    // and replace each renderer's raw "render error" dump with the shared themed error box (task 178).
     file: /vditor[/\\]src[/\\]ts[/\\](markdown[/\\](chartRender|mindmapRender)|devtools[/\\]index)\.ts$/,
     transform: (code, path) => {
       let out = echartsPin?.version
@@ -1061,8 +1131,11 @@ const VDITOR_TS_PATCHES = [
         : code
       if (/[/\\](chartRender|mindmapRender)\.ts$/.test(path))
         out = patchEchartsThemeInit(out)
-      if (/[/\\]mindmapRender\.ts$/.test(path))
+      if (/[/\\]chartRender\.ts$/.test(path)) out = patchEchartsErrorBox(out)
+      if (/[/\\]mindmapRender\.ts$/.test(path)) {
         out = patchMindmapThemeColors(out)
+        out = patchMindmapErrorBox(out)
+      }
       return out
     },
   },

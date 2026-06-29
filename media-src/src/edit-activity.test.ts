@@ -139,3 +139,62 @@ test('hasFreshRender: a stale overlay alone is NOT fresh (cached svg / cached er
     '<div class="vmarkd-stale-overlay" data-render="1"><div class="vmarkd-mermaid-error"></div></div>'
   expect(hasFreshRender(cachedError)).toBe(false)
 })
+
+// Task 178 item 4: the error box must NOT strobe while typing — a half-typed diagram is "invalid" on
+// every keystroke. The box is produced by the engine, which runs inside processCodeRender; this proves
+// the deferIrDiagramRender gate SKIPS processCodeRender for a cached diagram lang while isTyping() (so
+// the engine — and any error box — can't run mid-keystroke) and runs it exactly once on settle.
+function buildIrWithGraphviz(): HTMLElement {
+  const ir = document.createElement('div')
+  ir.className = 'vditor-ir'
+  // a graphviz code-block dual-node: editable source + an already-rendered preview (data-render="2")
+  ir.innerHTML =
+    '<div class="vditor-ir__node" data-type="code-block">' +
+    '<pre class="vditor-ir__marker--pre"><code class="language-graphviz">digraph{a-&gt;b}</code></pre>' +
+    '<div class="vditor-ir__preview" data-render="2"><div class="language-graphviz"><svg></svg></div></div>' +
+    '</div>'
+  document.body.appendChild(ir)
+  return ir
+}
+
+test('deferIrDiagramRender: a cached diagram lang is NOT rendered while typing (no error-box flash), rendered once on settle', () => {
+  const ir = buildIrWithGraphviz()
+  const dispose = installEditActivity(ir)
+  const defer = (window as unknown as Record<string, unknown>)
+    .__vmarkdDeferIrDiagramRender as (v: unknown, p: unknown) => void
+  const vditor = { ir: { element: ir } }
+  const rendered: Element[] = []
+  const processCodeRender = (el: Element) => rendered.push(el)
+
+  // mid-typing burst → isTyping() true
+  markEditActivity()
+  expect(isTyping()).toBe(true)
+  defer(vditor, processCodeRender)
+  // graphviz is a cached/deferred lang → processCodeRender is skipped → the engine never runs, so an
+  // error box cannot be produced this keystroke (the cached overlay holds instead).
+  expect(rendered.length).toBe(0)
+
+  // user pauses → the quiet timer fires → the deferred render runs once (now the box could appear)
+  vi.advanceTimersByTime(300)
+  expect(rendered.length).toBeGreaterThan(0)
+
+  dispose()
+  ir.remove()
+})
+
+test('deferIrDiagramRender: when NOT typing, a diagram renders immediately (gate only defers mid-burst)', () => {
+  const ir = buildIrWithGraphviz()
+  const dispose = installEditActivity(ir)
+  const defer = (window as unknown as Record<string, unknown>)
+    .__vmarkdDeferIrDiagramRender as (v: unknown, p: unknown) => void
+  const rendered: Element[] = []
+  const processCodeRender = (el: Element) => rendered.push(el)
+
+  // no markEditActivity() → isTyping() false → the render is NOT deferred
+  expect(isTyping()).toBe(false)
+  defer({ ir: { element: ir } }, processCodeRender)
+  expect(rendered.length).toBeGreaterThan(0)
+
+  dispose()
+  ir.remove()
+})

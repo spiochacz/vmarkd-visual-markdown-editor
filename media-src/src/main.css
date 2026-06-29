@@ -235,6 +235,19 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 .vmarkd-stale-overlay:is([data-lang="abc"], [data-lang="graphviz"]) > svg {
   max-height: 480px;
 }
+/* abc/graphviz/mermaid/markmap render LEFT-aligned (they have NO `text-align:center` wrapper, unlike
+   flowchart/plantuml/smiles/d2/vega/wavedrom/nomnoml). The blanket centre above would shift them to
+   the middle while typing, so the diagram jumps centre→left on swap — reported for abc (narrow → very
+   visible). Match their real left alignment. Keep this list in sync with which `.language-X` wrappers
+   below do NOT set `text-align:center`. */
+.vmarkd-stale-overlay:is(
+    [data-lang="abc"],
+    [data-lang="graphviz"],
+    [data-lang="mermaid"],
+    [data-lang="markmap"]
+  ) {
+  text-align: left;
+}
 /* WYSIWYG equivalent: clicking into a code block reveals its editable source (`pre.vditor-wysiwyg__pre`,
    which Vditor flips to inline `display:block`) but leaves the rendered `pre.vditor-wysiwyg__preview`
    showing too — so you saw TWO stacked sections ("leftover from IR"). Hide the render while editing
@@ -581,12 +594,13 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   --markmap-circle-open-bg: var(--vmarkd-bg, #fff);
   --markmap-table-border: 1px solid currentColor;
 }
-/* Mermaid parse-error box (esbuild patchMermaidErrorRender). Vditor's catch otherwise dumps mermaid's
-   bomb SVG + a single-newline-mashed raw message; we suppress the bomb (suppressErrorRendering) and
-   render this compact themed box instead. The <pre> keeps mermaid's caret diagram aligned (white-space:
-   pre) and scrolls horizontally rather than blowing the diagram's width:100% layout. Theme-var driven
-   (no palette interaction); lives in the data-render="2" preview half (never serialized). */
-.vmarkd-mermaid-error {
+/* Unified diagram validation/render-error box (task 178; generalizes the mermaid box to every engine
+   — diagram-error.ts + the native esbuild patches that inline identical markup). On a parse/validation
+   failure an engine renders THIS instead of a raw "X render error:" dump / a blank block / raw source.
+   The <pre> keeps multi-line parser errors + mermaid's caret diagram aligned (white-space: pre) and
+   scrolls horizontally rather than blowing the diagram's width:100% layout. Theme-var driven (no
+   palette interaction); lives in the data-render="1"/"2" preview half (never serialized). */
+.vmarkd-diagram-error {
   border: 1px solid
     var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground, #e51400));
   border-radius: 4px;
@@ -596,13 +610,13 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   max-width: 100%;
   text-align: left;
 }
-.vmarkd-mermaid-error__title {
+.vmarkd-diagram-error__title {
   margin-bottom: 0.3em;
   font-weight: 600;
   font-size: 0.85em;
   color: var(--vscode-errorForeground, #e51400);
 }
-.vmarkd-mermaid-error__msg {
+.vmarkd-diagram-error__msg {
   margin: 0;
   overflow-x: auto;
   white-space: pre;

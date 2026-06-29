@@ -103,9 +103,13 @@ const STALE_CLASS = 'vmarkd-deferred' // typing / svg-settle: source children di
 const COVER_CLASS = 'vmarkd-cover' // canvas-settle: source visible+sized, overlay absolute opaque on top
 const OVERLAY_CLASS = 'vmarkd-stale-overlay'
 
-// Last rendered VISUAL snapshot (svg outerHTML, or an <img> of a canvas), keyed `${lang}#${ordinal}`
-// (ordinal = position among IR code-block nodes of that language; stable during a typing burst).
-const renderCache = new Map<string, string>()
+// Last rendered VISUAL snapshot (svg outerHTML, or an <img> of a canvas) + its on-screen HEIGHT,
+// keyed `${lang}#${ordinal}` (ordinal = position among IR code-block nodes of that language; stable
+// during a typing burst). The height is reserved on the overlay (restoreOverlay) so the deferred
+// preview never collapses below the real render: some engines' cached svg re-lays-out SHORTER inside
+// the overlay (abc has no viewBox → it scaled to ~79px while the live render was 124px), which shrank
+// the preview mid-typing → content below jumped up, then back down on swap (user-reported for abc).
+const renderCache = new Map<string, { html: string; h: number }>()
 
 function irRoot(): HTMLElement | null {
   return document.querySelector('.vditor-ir')
@@ -158,19 +162,28 @@ export function hasFreshRender(preview: Element): boolean {
   return !!(err && !err.closest(`.${OVERLAY_CLASS}`))
 }
 
-// A clean, language-class-free snapshot of the current render so the overlay never re-matches an
-// engine's element selector. Canvas can't be cloned (its bitmap is lost) → rasterise via toDataURL.
-function visualSnapshot(preview: Element): string | null {
+// A clean, language-class-free snapshot of the current render (+ its on-screen height) so the overlay
+// never re-matches an engine's element selector. Canvas can't be cloned (its bitmap is lost) →
+// rasterise via toDataURL. The height is what the overlay reserves so the preview can't shrink below it.
+function visualSnapshot(preview: Element): { html: string; h: number } | null {
   for (const el of Array.from(preview.querySelectorAll(RENDER_SEL))) {
     if (el.closest(`.${OVERLAY_CLASS}`)) continue
+    // Reserve the height of the whole render REGION (the `.language-X` wrapper), not just the svg —
+    // abc's wrapper is taller than its svg (73px svg in a 124px region), so pinning the svg height
+    // still let the preview shrink. The wrapper is what occupies the preview vertically.
+    const region = (el.closest('[class*="language-"]') ?? el) as HTMLElement
+    const h = Math.round(region.getBoundingClientRect().height)
     if (el instanceof HTMLCanvasElement) {
       try {
-        return `<img class="vmarkd-stale-img" alt="" src="${el.toDataURL()}">`
+        return {
+          html: `<img class="vmarkd-stale-img" alt="" src="${el.toDataURL()}">`,
+          h,
+        }
       } catch {
         return null // tainted canvas — fall through (no overlay; brief flash, rare)
       }
     }
-    return (el as SVGElement).outerHTML
+    return { html: (el as SVGElement).outerHTML, h }
   }
   return null
 }
@@ -188,8 +201,8 @@ function restoreOverlay(node: Element, lang: string, root: HTMLElement): void {
     return
   }
   const ord = ordinalOf(node, lang, root)
-  const html = ord >= 0 ? renderCache.get(`${lang}#${ord}`) : undefined
-  if (!html) return // nothing cached yet (first keystroke before any render) → raw shows briefly
+  const cached = ord >= 0 ? renderCache.get(`${lang}#${ord}`) : undefined
+  if (!cached) return // nothing cached yet (first keystroke before any render) → raw shows briefly
   const overlay = document.createElement('div')
   overlay.className = OVERLAY_CLASS
   overlay.setAttribute('data-render', '1')
@@ -198,7 +211,10 @@ function restoreOverlay(node: Element, lang: string, root: HTMLElement): void {
   // small plantuml shrinks under the overlay and jumps to 300px on swap. A data-attr, NOT a
   // `.language-X` class: observers key on the class and must not re-process the overlay. CSS in main.css.
   overlay.setAttribute('data-lang', lang)
-  overlay.innerHTML = html
+  // Reserve the live render's height so the preview can't shrink below it while typing — some engines'
+  // cached svg re-lays-out shorter inside the overlay (abc), which would bounce the content below.
+  if (cached.h > 0) overlay.style.minHeight = `${cached.h}px`
+  overlay.innerHTML = cached.html
   preview.classList.add(STALE_CLASS)
   preview.appendChild(overlay)
 }
@@ -311,10 +327,10 @@ function snapshotRenders(): void {
       preview.classList.contains(COVER_CLASS)
     )
       continue
-    const html = visualSnapshot(preview)
-    if (!html) continue
+    const snap = visualSnapshot(preview)
+    if (!snap) continue
     const ord = ordinalOf(node, lang, root)
-    if (ord >= 0) renderCache.set(`${lang}#${ord}`, html)
+    if (ord >= 0) renderCache.set(`${lang}#${ord}`, snap)
   }
 }
 

@@ -12,6 +12,8 @@
 // reproduce); confirmed via the xvfb real-vscode suite: drawn at ~500ms, flattened at ~1000ms,
 // re-draw-from-source restores the 539×539 SVG.
 
+import { renderDiagramError } from './diagram-error'
+
 declare class SmiDrawer {
   constructor(moleculeOptions: object, reactionOptions: object)
   draw: (code: string, selector: string, theme?: string) => void
@@ -80,15 +82,27 @@ export function repairSmiles(root: ParentNode): void {
       continue
     const smiles = smilesFor(code)
     if (!smiles) continue
+    // If we already rendered the error box for THIS exact source, skip — the box-render is itself a
+    // mutation that re-fires the observer, so without this it would loop. Re-attempt once the source
+    // changes (signature differs) — i.e. the user fixes the SMILES.
+    if (
+      code.dataset.vmsmilesErr === smiles &&
+      code.querySelector('.vmarkd-diagram-error')
+    )
+      continue
     const id = `vmsmiles-${Date.now().toString(36)}-${seq++}`
     code.innerHTML = `<svg id="${id}"></svg>`
     // Mark processed so Vditor's own SMILESRender won't fight us (it also keys off data-processed).
     code.setAttribute('data-processed', 'true')
     code.dataset.vmsmilesDark = `${dark}`
+    delete code.dataset.vmsmilesErr
     try {
       new Drawer({}, {}).draw(smiles, `#${id}`, dark ? 'dark' : 'light')
-    } catch {
-      // smiles-drawer throws on a malformed string — leave the (empty) svg, don't crash the editor
+    } catch (error) {
+      // smiles-drawer throws on a malformed SMILES → the shared themed error box (task 178; was: a
+      // silent empty svg, no feedback). Record the errored source so the observer skips it until edited.
+      code.dataset.vmsmilesErr = smiles
+      renderDiagramError(code, 'smiles', error)
     }
   }
 }

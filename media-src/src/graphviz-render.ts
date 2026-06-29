@@ -5,6 +5,7 @@
 // script load via shared `loadScript`) so `themeGraphvizSvg` is testable in jsdom. Viz.js is loaded
 // from the shared `viz-global.js` (the same asset PlantUML uses).
 
+import { renderDiagramError } from './diagram-error'
 import { resolveDiagramPalette } from './diagram-palette'
 import { loadScript } from './load-script'
 
@@ -118,8 +119,9 @@ export function graphvizRender(
             e.appendChild(result) // append the live node — no innerHTML reparse (item 3)
             themeGraphvizSvg(e)
           } catch (error) {
-            e.innerHTML = `graphviz render error: <br>${error}`
-            e.className = 'vditor-reset--error'
+            // Invalid DOT → the shared themed error box (task 178), was a raw "graphviz render error:"
+            // dump. Lives in the data-render="2" preview, so it never serializes.
+            renderDiagramError(e, 'graphviz', error)
           }
           e.setAttribute('data-processed', 'true')
         }

@@ -12,6 +12,7 @@ import {
   d2Theme,
 } from './d2-render'
 import { renderD2GraphElk } from './elk-layout'
+import { renderDiagramError } from './diagram-error'
 import { faithfulRender } from './faithful-render'
 import { getD2Config } from './d2-config'
 import {
@@ -241,20 +242,25 @@ export function renderWavedrom(root?: ParentNode): void {
     let seq = 0
     blocks.forEach(({ wrapper, code }) => {
       const index = seq++
-      // faithfulRender swaps in the result only on success, so a JSON parse error
-      // OR a renderWaveForm throw leaves the raw source visible (was: blanked).
-      void faithfulRender(wrapper, 'wavedrom', (stage) => {
-        const parsed = JSON.parse(code)
-        // renderWaveForm(index, source, idPrefix) renders into
-        // document.getElementById(idPrefix + index) — so the target div must be in
-        // the document (the stage is), with a matching id.
-        const div = document.createElement('div')
-        div.id = `__vmarkd_wd_${index}`
-        stage.appendChild(div)
-        wd.renderWaveForm(index, parsed, '__vmarkd_wd_')
-        const svg = stage.querySelector('svg')
-        if (svg) themeWavedromSvg(svg)
-      })
+      // faithfulRender swaps in the result only on success; on a JSON parse error OR a renderWaveForm
+      // throw the onError callback shows the shared themed error box (task 178; was: blanked/source).
+      void faithfulRender(
+        wrapper,
+        'wavedrom',
+        (stage) => {
+          const parsed = JSON.parse(code)
+          // renderWaveForm(index, source, idPrefix) renders into
+          // document.getElementById(idPrefix + index) — so the target div must be in
+          // the document (the stage is), with a matching id.
+          const div = document.createElement('div')
+          div.id = `__vmarkd_wd_${index}`
+          stage.appendChild(div)
+          wd.renderWaveForm(index, parsed, '__vmarkd_wd_')
+          const svg = stage.querySelector('svg')
+          if (svg) themeWavedromSvg(svg)
+        },
+        (w, err) => renderDiagramError(w, 'wavedrom', err),
+      )
     })
   })
 }
@@ -299,8 +305,11 @@ export function renderNomnoml(root?: ParentNode): void {
         const svg = wrapper.querySelector('svg')
         if (svg) themeNomnomlSvg(svg)
         wrapper.setAttribute('data-processed', 'true')
-      } catch {
-        // Parse error — leave the source visible
+      } catch (error) {
+        // Parse error → the shared themed error box (task 178; was: silent, left blank). data-processed
+        // marks the box terminal so the observer doesn't re-find + re-render the wrapper into a loop.
+        renderDiagramError(wrapper, 'nomnoml', error)
+        wrapper.setAttribute('data-processed', 'true')
       }
     })
   })
@@ -598,33 +607,38 @@ function renderVegaBlock(
 
   blocks.forEach(({ wrapper, code }) => {
     const fg = getComputedStyle(wrapper).color || '#333'
-    // faithfulRender keeps the raw source on a JSON parse error OR a failed embed
-    // (was: source cleared first, so a bad spec blanked the block).
-    void faithfulRender(wrapper, 'vega', async (stage) => {
-      // Offline/security: only inline data.values renders; stripRemoteData recursively removes any
-      // remote `url` (top-level, data arrays, nested layers/transforms) so nothing fetches.
-      const spec = stripRemoteData(JSON.parse(code))
-      const div = document.createElement('div')
-      stage.appendChild(div)
-      await ve(div, spec, {
-        renderer: 'svg',
-        actions: false,
-        config: {
-          background: 'transparent',
-          axis: {
-            labelColor: fg,
-            titleColor: fg,
-            tickColor: fg,
-            domainColor: fg,
-            gridColor: fg,
-            gridOpacity: 0.15,
+    // On a JSON parse error OR a failed embed the onError callback shows the shared themed error box
+    // (task 178; was: source cleared first, so a bad spec blanked the block).
+    void faithfulRender(
+      wrapper,
+      'vega',
+      async (stage) => {
+        // Offline/security: only inline data.values renders; stripRemoteData recursively removes any
+        // remote `url` (top-level, data arrays, nested layers/transforms) so nothing fetches.
+        const spec = stripRemoteData(JSON.parse(code))
+        const div = document.createElement('div')
+        stage.appendChild(div)
+        await ve(div, spec, {
+          renderer: 'svg',
+          actions: false,
+          config: {
+            background: 'transparent',
+            axis: {
+              labelColor: fg,
+              titleColor: fg,
+              tickColor: fg,
+              domainColor: fg,
+              gridColor: fg,
+              gridOpacity: 0.15,
+            },
+            legend: { labelColor: fg, titleColor: fg },
+            title: { color: fg },
+            view: { stroke: 'transparent' },
           },
-          legend: { labelColor: fg, titleColor: fg },
-          title: { color: fg },
-          view: { stroke: 'transparent' },
-        },
-      })
-    })
+        })
+      },
+      (w, err) => renderDiagramError(w, 'vega', err),
+    )
   })
 }
 
@@ -788,8 +802,12 @@ export function renderStl(root?: ParentNode): void {
     blocks.forEach(({ wrapper, code }) => {
       try {
         initStlViewer(wrapper, code)
-      } catch {
-        // Parse error — leave source visible
+      } catch (error) {
+        // Bad ASCII STL → the shared themed error box (task 178; was: silent, left blank). initStlViewer
+        // sets data-processed only on success, so set it here too: marks the box terminal so the observer
+        // doesn't re-find + re-render the wrapper into a loop (findBlocks skips [data-processed="true"]).
+        renderDiagramError(wrapper, 'stl', error)
+        wrapper.setAttribute('data-processed', 'true')
       }
     })
   })
