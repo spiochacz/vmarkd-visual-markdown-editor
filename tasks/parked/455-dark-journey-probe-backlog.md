@@ -27,8 +27,6 @@ tier (task 449) — see `test/backend/probe-tier-convention.test.ts`.
 - [ ] **Untitled → save-as** — untitled md → `openWith` vMarkd → type → saveAs. The manifest
       registers untitled but the path is never exercised end-to-end (`block-fidelity.spec.ts`
       mentions untitled but does not drive the save-as journey).
-- [ ] **Ctrl+F find** — does VS Code's find UI open at all over the webview, given our capture-phase
-      key interception (`[[webview-key-capture-vs-vscode]]`)?
 - [ ] **Line-targeted vMarkd open** — click a VS Code global-search result that resolves to a
       markdown file; does the custom-editor open carry the selection at all? Overlaps task 52
       (reveal-line) and task 229 (code-line links) — probe before either implements a second path.
@@ -50,6 +48,9 @@ tier (task 449) — see `test/backend/probe-tier-convention.test.ts`.
   `diagram-fast-edit-safety.spec.ts`.
 - **Callout arrow-nav** → `callout-edit.spec.ts` / `callout-rename.spec.ts`.
 - **Copy as HTML** → `copy-clipboard.spec.ts`.
+- **Ctrl+F find (does the UI open at all)** → answered 2026-08 by task 514: it opens, and the
+  focus-theft bug it surfaced is fixed + pinned by `test/vscode-e2e/find-widget-focus.spec.ts`.
+  The remaining find-journey surface is planned in [task 516](../516-qa-journey-coverage-plan.md) Phase 2.
 
 ## Out of scope
 
