@@ -19,28 +19,38 @@ tier (task 449) — see `test/backend/probe-tier-convention.test.ts`.
 
 ## Still open
 
-- [ ] **IME composition** — CDP `Input.imeSetComposition` in IR prose and inside a highlighted code
-      block; duplication/caret check. Grepped 2026-07-30: zero `imeSetComposition` anywhere in
-      `test/vscode-e2e`. Completely dark, and the highest-value item here — CJK input is a whole
-      user population, and the WYSIWYG highlight path (`wrapLuteFlatten`, caret-as-char-offset) is
-      exactly the machinery composition events break.
-- [ ] **Untitled → save-as** — untitled md → `openWith` vMarkd → type → saveAs. The manifest
-      registers untitled but the path is never exercised end-to-end (`block-fidelity.spec.ts`
-      mentions untitled but does not drive the save-as journey).
+- [x] **IME composition** — DONE 2026-08-13 via task 516 journey C5
+      (`media-src/e2e/ime-composition.spec.ts`, harness layer + CDP, no VS Code boot needed).
+      This item's own hunch was right and then some: composition IS broken, just not in the
+      predicted direction — it TRUNCATES the pre-edit rather than duplicating it
+      (`Helloにほ日本語`), and the WYSIWYG highlight path loses more than plain IR. A bare
+      contenteditable control commits cleanly, so it is our surface.
+      Bug + trace: [task 518](../518-ime-composition-corrupts-text.md).
+- [x] **Untitled → save-as** — DONE 2026-08-13 via [task 516](../516-qa-journey-coverage-plan.md)
+      journey A7: `test/vscode-e2e/untitled-save-as.spec.ts`. The journey WORKS end to end. Two
+      gotchas worth keeping: the URI path must end in `.md` for the `filenamePattern: "*.md"` +
+      `scheme: "untitled"` selector to match, and the native Save-As picker is unreachable from
+      Playwright — `files.simpleDialog.enable` swaps in a DOM-rendered quick input that is
+      drivable. Third, subtler: `vscode.openWith(uri, 'vmarkd.editor')` with an explicit viewType
+      BYPASSES the customEditors selector entirely, so the manifest's `scheme: untitled`
+      declaration only gates the "Open With" picker UI — removing it does NOT turn the spec red,
+      and the spec therefore does not guard that registration.
 - [ ] **Line-targeted vMarkd open** — click a VS Code global-search result that resolves to a
       markdown file; does the custom-editor open carry the selection at all? Overlaps task 52
       (reveal-line) and task 229 (code-line links) — probe before either implements a second path.
 - [ ] **Wiki link-text rewrite on target rename** — rename `b.md` while a chip to it is open in
       `a.md`; grep the doc for the stale name. No spec matches `renameFile` today.
-- [ ] **Drag-drop text/file → link** — synthetic drop carrying `text/plain` + a file item; only
-      images are handled today (`image-upload-wire.spec.ts` covers the image path only).
+- [x] **Drag-drop text/file → link** — DONE 2026-08-13 via task 516 journey C7 (`PROBE-C7` in
+      `media-src/e2e/dragdrop.spec.ts`). Answer: it does neither — it silently CRASHES the upload
+      pipeline. Bug and trace in [task 517](../517-drop-file-with-text-crashes-upload.md).
 - [ ] **Untrusted/virtual workspace** — launch vscode-test in restricted mode; does the editor open?
       Nothing in the suite touches workspace trust. Note this now has a security edge: task 359's
       link allowlist deliberately reasons about untrusted documents.
-- [ ] **Config interaction pairs** (fullWidth×outline, fontSize×lineNumbers) — cheap parametrized
-      harness boot; promote to a net only if a probe finds breakage. Do this at the CHROMIUM layer,
-      not real VS Code — task 450's lesson is that per-parameter VS Code boots are the expensive
-      mistake.
+- [x] **Config interaction pairs** (fullWidth×outline, fontSize×lineNumbers) — DONE 2026-08-13 via
+      task 516 journey D11 (`media-src/e2e/config-pairs.spec.ts`, chromium layer as this item
+      prescribed). No breakage found, so it landed as a net rather than a throwaway: the outline
+      never overlaps the reading column, fullWidth still widens it with the outline open, and the
+      line-number gutter scales with font size instead of colliding with the code.
 
 ## Already covered since 190 was written — do NOT re-probe
 
