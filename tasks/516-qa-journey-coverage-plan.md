@@ -13,6 +13,40 @@ spot-checked by grep over `test/vscode-e2e` before being asserted.
 backed by tests rather than by nobody-hit-it-yet. This task is the plan; implementation is
 per-phase, each phase independently shippable.
 
+## Progress (branch `test/516-qa-journeys`)
+
+Every landed spec carries a red-green-red proof: it was watched FAILING with the mechanism it
+guards deliberately broken, then passing again after revert. Where a break could not produce a
+red, that is recorded in the spec rather than claimed as coverage.
+
+- [x] **A1** task-checkbox toggle → save — `checkbox-toggle.spec.ts`. Journey WORKS; the old
+      suspicion from 190 §5 was a harness artefact, not a product bug.
+- [x] **A2** autosave × writeback — `autosave-writeback.spec.ts`. No echo storm, no corruption.
+      The no-re-dirty assertion has no red proof; what guards it is content equality, not echo
+      suppression (recorded in the spec).
+- [x] **A3** same document in two panes — `two-pane-editing.spec.ts`. Tab dedup + alternating
+      vMarkd/text-editor edits converge. NOTE: the dedup test only exercises our logic with a
+      SECOND column active — the same-column shape passes with the mechanism fully broken.
+- [x] **C5** IME composition — `ime-composition.spec.ts` + `ime-helpers.ts`. **Found a real bug:
+      composition corrupts the text** → [task 518](518-ime-composition-corrupts-text.md). Closes
+      the 455 IME item.
+- [x] **C7** non-image drag-drop — probe in `dragdrop.spec.ts`. **Found a real bug: the upload
+      pipeline crashes silently** → [task 517](517-drop-file-with-text-crashes-upload.md).
+- [x] **D11** config interaction pairs — `config-pairs.spec.ts` (harness). Closes the 455 item.
+- [ ] **A7** untitled → Save As — journey confirmed working end-to-end; spec landing. Two
+      gotchas for the 455 item: the URI path must end in `.md` to match the customEditors
+      selector, and `files.simpleDialog.enable` is what makes Save As automatable at all.
+- [ ] **A8** dirty-close (Save / Don't Save) — in progress.
+- [ ] **A4** external change while dirty (+ revert) — in progress, probe-first.
+- [ ] **C1** table structure editing — queued.
+
+**Open thread:** typing `# Heading text` character-by-character into a blank document drops the
+space after the first word (`# Headingtext`). Found incidentally during A7; scope (heading-specific
+vs general IR, empty-doc vs any doc) under investigation at the harness layer. File a task if it
+reproduces outside the untitled path.
+
+Remaining journeys below are unstarted.
+
 ## Relationship to tasks 190 and 455 (read first)
 
 [Task 190](done/190-user-journey-test-coverage-plan.md) (closed 2026-07-30) was the previous
