@@ -156,6 +156,14 @@ const FAST_SPECS = [
   // double-fire, not a positive completion signal, so a poll would mask exactly the bug class this
   // file exists to catch) — included anyway because the mechanism is that central.
   'format-hotkeys.spec.ts',
+  // 2026-08-13 (task 516 A1) — clicking a task-list checkbox and having the flip reach disk. The
+  // ONLY addition this tier took from that task's ten new journey specs, deliberately: it is a
+  // one-click mutation users make constantly, it writes to the DOCUMENT (silent data loss if it
+  // regresses, which is this tier's stated bar), and no other spec here clicks a checkbox at all.
+  // It also has to be real-VS-Code: a synthetic click loses the caret context and collapses
+  // getValue() in the chromium harness — that artefact is precisely why the journey went five
+  // weeks unconfirmed. Two tests, ~30 s. Everything else from 516 stays FULL-only.
+  'checkbox-toggle.spec.ts',
 ]
 const tier = process.env.VMARKD_FAST
   ? FAST_SPECS
