@@ -48,6 +48,8 @@ const RAW = [
   { key: 'preview-scroll' },
   { key: 'code-linenumber' },
   { key: 'config-apply' },
+  // Task 516 D11 — config interaction pairs (fullWidth×outline, fontSize×codeLineNumbers).
+  { key: 'config-pairs' },
   { key: 'escape-toolbar' },
   { key: 'toolbar-overflow' },
   {
