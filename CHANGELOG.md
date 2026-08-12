@@ -55,6 +55,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Fixed
 
+- **The Ctrl+F search box keeps focus once it finds something.** Typing a query that matched text in
+  the document handed focus back to the editor mid-word, so the rest of what you typed went into the
+  document instead of the search field. The editor was reclaiming focus on a moment VS Code's find
+  only borrows it for.
 - **An image replaced on disk now repaints in the open editor.** Overwriting a picture the document
   points at — same file name, new content — left the old one on screen until you reloaded the whole
   window; closing and reopening the tab was not enough, because the stale copy was held by the

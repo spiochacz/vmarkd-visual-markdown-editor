@@ -79,6 +79,11 @@ const FAST_SPECS = [
   // Task 513 — an image swapped on disk under an unchanged path. Cheap (~8 s) and it guards a
   // host+webview wire (file watcher -> assets-changed -> cache revalidation) nothing else covers.
   'image-swap-refresh.spec.ts',
+  // Task 514 — Ctrl+F, typing a matching query, and the find box losing focus (the rest of the
+  // query then edits the document). ~13 s, one test, and the only net over it: the find widget is
+  // HOST workbench UI driving Electron's findInFrame, neither of which exists in the chromium
+  // harness, and the loss is transient — nothing else here would notice it.
+  'find-widget-focus.spec.ts',
   'callouts-mode.spec.ts',
   'inline-code-gap.spec.ts',
   'block-fidelity.spec.ts',

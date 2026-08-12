@@ -121,10 +121,28 @@ function restoreEditorFocus(win: Window, cameFromEditorBlur: boolean): void {
  * document, so they outlive every re-init.
  */
 export function installFocusRestore(win: Window): void {
-  win.addEventListener('focus', () => {
+  win.addEventListener('focus', (e) => {
     // One frame later: VS Code sets `activeElement` to BODY as part of handing focus back, and a
     // synchronous restore here can be undone by the rest of that handover.
-    win.requestAnimationFrame(() => restoreEditorFocus(win, false))
+    win.requestAnimationFrame(() => {
+      // Task 514 — Ctrl+F, then typing a query that MATCHES: the find box loses focus and the rest
+      // of the keystrokes land in the document. MEASURED in a real VS Code (the recorder in
+      // find-widget-focus.spec.ts): activating a match makes Chromium hand the webview FRAME window
+      // a `focus` event (VS Code's webview find widget runs Electron's `findInFrame` against this
+      // frame), which the frame gives straight back — the host's find INPUT is what the user is
+      // typing into. The measured sequence is focus(t) → blur(t+4ms) → our rAF(t+9ms). Without this
+      // gate the rAF fires `editor.focus()` into that gap, which pulls focus out of the find box and
+      // ALSO arms caret.ts's re-assert loop, so the caret keeps stealing it back for seconds after.
+      //
+      // `hasFocus()` alone is the discriminator — a real tab return (task 389, this module's whole
+      // reason to exist) still has it true a frame later, a find-match activation does not. Gated on
+      // `isTrusted` because the harness dispatches a SYNTHETIC `window.dispatchEvent(new
+      // Event('focus'))` to work around never granting a freshly-opened editor real OS focus
+      // (caret-on-open.spec.ts) — there `hasFocus()` never flips true, so an ungated check would
+      // silently disable this module in every spec that drives it that way.
+      if (e.isTrusted && !win.document.hasFocus()) return
+      restoreEditorFocus(win, false)
+    })
   })
   win.document.addEventListener('focusout', (e) => {
     const vditor = (win as unknown as { vditor?: unknown }).vditor

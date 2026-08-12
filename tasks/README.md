@@ -21,6 +21,8 @@ condition changes. Not the same as `done/`: these remain open work, just not
 active right now.
 
 ## Quick wins (low risk, fast)
+- [x] [514 — Ctrl+F: the search box loses focus as soon as a match is found](done/514-find-widget-steals-focus.md)
+- [x] [515 — Can an armed caret intent steal focus from host UI? (investigation, no change)](done/515-caret-write-focus-theft.md)
 - [x] [513 — An image replaced on disk keeps showing its old bytes](done/513-image-swap-refresh.md)
 - [ ] [509 — Optional title unfurl when pasting a URL](509-paste-url-title-unfurl.md) — 📋 TODO, opt-in and host-side; task 224 keeps deterministic URL labels by default.
 - [x] [01 — Search Ctrl+F keybinding](done/01-search-keybinding.md)

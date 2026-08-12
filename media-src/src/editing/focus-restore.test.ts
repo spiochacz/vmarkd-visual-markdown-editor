@@ -94,6 +94,58 @@ describe('installFocusRestore', () => {
     expect(window.getSelection()!.getRangeAt(0).startOffset).toBe(3)
   })
 
+  // Task 514 — VS Code's webview find widget. Activating a match hands the frame window a real
+  // `focus` event which the frame gives straight back (measured in a real VS Code: focus at t,
+  // blur at t+4ms, this module's rAF at t+9ms), because the find INPUT — host UI, outside this
+  // document — is what the user is typing into. Restoring into that gap takes the find box's focus
+  // away and sends the rest of the query into the document.
+  it('does NOT restore on a TRUSTED window focus the document no longer holds (find widget)', async () => {
+    const editor = mountEditor()
+    caretIn(editor, 5)
+    // A stand-in window whose `focus` handler this test calls directly: jsdom defines `isTrusted`
+    // as a NON-configurable own property of every event it dispatches, so a browser-originated
+    // focus cannot be forged through `dispatchEvent`. `installFocusRestore` already takes the
+    // window as a parameter, so handing it a stub is the seam that exists for this.
+    let onFocus: ((e: { isTrusted: boolean }) => void) | undefined
+    installFocusRestore({
+      addEventListener: (
+        type: string,
+        h: (e: { isTrusted: boolean }) => void,
+      ) => {
+        if (type === 'focus') onFocus = h
+      },
+      requestAnimationFrame: (cb: FrameRequestCallback) =>
+        window.requestAnimationFrame(cb),
+      document,
+      getSelection: () => window.getSelection(),
+      get vditor() {
+        return (window as unknown as Record<string, unknown>).vditor
+      },
+    } as unknown as Window)
+    ;(document.body as HTMLElement).focus()
+    // The state one frame after the find widget's transient frame-focus: the event fired, but the
+    // document does not have focus any more.
+    document.hasFocus = () => false
+
+    onFocus?.({ isTrusted: true })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(document.activeElement).not.toBe(editor)
+  })
+
+  it('still restores on an UNTRUSTED window focus with no OS focus (the e2e harness path)', async () => {
+    // caret-on-open.spec.ts dispatches a synthetic `window.dispatchEvent(new Event('focus'))`
+    // because the harness never grants a freshly-opened editor real OS focus — `hasFocus()` never
+    // flips true there. Gating the check on `isTrusted` is what keeps that path alive.
+    const editor = mountEditor()
+    caretIn(editor, 5)
+    installFocusRestore(window)
+    ;(document.body as HTMLElement).focus()
+    document.hasFocus = () => false
+
+    await refocusWindow()
+    expect(document.activeElement).toBe(editor)
+  })
+
   it('does NOT steal focus from another focusable element in the webview', async () => {
     // A toolbar input, a dialog field: focus is there because the user put it there. Restoring the
     // caret must never be a reason to take it away.
