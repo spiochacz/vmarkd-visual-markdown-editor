@@ -49,10 +49,19 @@ red, that is recorded in the spec rather than claimed as coverage.
       ever reach it under this runner.
 - [ ] **C1** table structure editing — queued.
 
-**Open thread:** typing `# Heading text` character-by-character into a blank document drops the
-space after the first word (`# Headingtext`). Found incidentally during A7; scope (heading-specific
-vs general IR, empty-doc vs any doc) under investigation at the harness layer. File a task if it
-reproduces outside the untitled path.
+**Open thread — the space drop.** Typing `# Untitled journey` character-by-character into a blank
+document produced `# Untitledjourney` during A7 (real VS Code, untitled doc). Investigated at the
+harness layer: **does NOT reproduce in plain IR** — 10 cells (heading vs plain text × empty vs
+non-empty document, plus slower delays, the space as a separate keypress, the exact reported
+phrase, and typing with zero settle after boot). Every space survived. That refutes the obvious
+theory (the marker-promotion/spin pass eating it when `# ` promotes a paragraph to a heading) —
+promotion into an empty document types cleanly.
+
+So it is either specific to the real webview (boot timing / untitled init / injected CSS) or an
+artefact of that spec's typing method. Remaining leg: the same typing in REAL VS Code on an
+ordinary `file:` document. If it reproduces there it affects anyone typing a heading into a fresh
+document and needs its own task; if it is untitled-only, it is narrow; if it does not reproduce at
+all, close the thread.
 
 Remaining journeys below are unstarted.
 
