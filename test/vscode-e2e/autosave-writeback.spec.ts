@@ -171,6 +171,17 @@ test('autosave lands the typed edit on disk without corrupting untouched blocks,
     // This is a NEGATIVE assertion — there is no future condition to poll for, so a fixed sleep
     // is the correct shape here (see the vmarkd-testing skill's "fixed sleep is still correct"
     // section), not a poll that would just declare victory at the first quiet instant.
+    //
+    // UNPROVEN (task 516): this assertion has no red-green-red proof. Two breaks were tried while
+    // landing this spec. Neutering applyOnce kills the marker poll above, so execution never
+    // reaches here. Forcing isEcho() to return false does make editor-session misclassify our own
+    // write as external — and the spec still passes, because syncToEditor short-circuits on
+    // `normalize(content) === normalize(document.getText())`: the round-tripped content is
+    // byte-identical, so no edit is issued and nothing re-dirties. So what actually guards this
+    // path is CONTENT EQUALITY, not echo suppression. A genuine red needs content DIVERGENCE on a
+    // no-op round-trip (corrupt the minimal-diff reserialization, or make the no-op check write
+    // non-baseline bytes) — deliberately not attempted, that break is invasive enough to test
+    // itself rather than this spec.
     await settle(frame, 3_000)
     const stillClean = await evaluateInVSCode(
       async (vscode: Vs, args: [string]) =>
