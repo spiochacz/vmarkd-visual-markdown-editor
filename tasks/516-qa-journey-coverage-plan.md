@@ -36,8 +36,17 @@ red, that is recorded in the spec rather than claimed as coverage.
 - [ ] **A7** untitled → Save As — journey confirmed working end-to-end; spec landing. Two
       gotchas for the 455 item: the URI path must end in `.md` to match the customEditors
       selector, and `files.simpleDialog.enable` is what makes Save As automatable at all.
-- [ ] **A8** dirty-close (Save / Don't Save) — in progress.
-- [ ] **A4** external change while dirty (+ revert) — in progress, probe-first.
+- [x] **A4** external change while dirty (+ revert) — `external-change-while-dirty.spec.ts` +
+      its probe. Contract is SAFE: no auto-reload of a dirty doc, and the save is REJECTED by
+      VS Code's conflict detection rather than overwriting either side. The disk/dirty half is
+      VS Code core, so it has no red proof; the revert half is ours and does.
+- [x] **A8** dirty-close — `dirty-close.spec.ts`, **half of it only**. The Don't-Save branch is
+      covered (and is the harness's unconditional default). The **Save branch is structurally
+      unreachable** and moved to the manual checklist: `vscode-test-playwright` always launches
+      with `--extensionTestsPath`, and VS Code's `showSaveConfirm` returns "Don't Save" without
+      rendering any dialog when `isExtensionDevelopment && extensionTestsLocationURI` — proven
+      from the compiled workbench source, not inferred from a timeout. No spec in this repo can
+      ever reach it under this runner.
 - [ ] **C1** table structure editing — queued.
 
 **Open thread:** typing `# Heading text` character-by-character into a blank document drops the
@@ -152,6 +161,10 @@ and only then trust it (measured 1/4 pass on identical runs for this class).
 Journeys the user should verify by hand per release — kept here so they're not silently dropped:
 
 - [ ] **Hot exit**: dirty vMarkd editor → close the VS Code window → relaunch → content restored from backup.
+- [ ] **"Save" in the close-confirmation dialog** — close a dirty tab and choose Save; the file
+      must contain the edit. UNAUTOMATABLE here by construction (see A8 above): the test runner
+      makes VS Code skip the dialog and always answer Don't Save. The Don't-Save branch IS
+      automated; only this one needs a human.
 - [ ] **Real OS-level IME** (CJK) and AltGr Polish input (xvfb/CDP composition covers the synthetic half — C5).
 - [ ] **OS-shell drag-and-drop** of a file from Explorer/Finder into the editor (Playwright can't originate OS-native drags; C7 covers the synthetic path).
 - [ ] **Workspace trust**: untrusted window → editor opens, image paste defers, no feature crashes. (= 455 open probe "untrusted/virtual workspace" — automate there if `vscode-test` restricted-mode launch proves workable; has a security edge via task 359's link allowlist.)
