@@ -47,7 +47,30 @@ red, that is recorded in the spec rather than claimed as coverage.
       rendering any dialog when `isExtensionDevelopment && extensionTestsLocationURI` — proven
       from the compiled workbench source, not inferred from a timeout. No spec in this repo can
       ever reach it under this runner.
-- [ ] **C1** table structure editing — queued.
+- [x] **C1** table structure editing — `table-structure.spec.ts` (harness). Every panel op
+      asserts the full serialized markdown. Undo works; an early "undo is broken" reading was a
+      measurement inside the 800 ms debounce window.
+- [x] **B1/B2** find beyond IR — `find-widget-modes.spec.ts`, `find-widget-navigation.spec.ts`.
+      B2 is narrower than planned, for a measured reason: the widget exposes no match count and
+      the scroll proxy does not identify a unique current match, so cycling ORDER and wrap-around
+      are not assertable from the DOM. Recorded in the spec rather than faked.
+- [x] **D2** Explorer outline tree — `outline-explorer.spec.ts`, both branches.
+- [x] **D5/D6** remote-image gate, `defaultModeByGlob` — `settings-live-d-tier.spec.ts`.
+      **D5 corrects this plan's own framing**: a plain remote image does NOT unblock live. CSP is
+      written once at panel creation and cannot be relaxed after parsing, so it needs a REOPEN;
+      only the geojson tiles case is a live JS gate.
+- [x] **D4** `css.external` live reload — **found a real bug**, pinned broken →
+      [task 520](520-external-css-never-live-reloads.md). Absolute paths are passed to
+      `createFileSystemWatcher` as string globs, which VS Code matches workspace-relative, so the
+      watcher can never fire. An in-host `workspace.fs.writeFile` also fails to reload, which
+      rules out inotify.
+
+### Still to do
+
+A5 (wiki chip rewrite on rename) · A6 (file deleted on disk) · B3 (matches in code/diagram/
+collapsed regions) · B4 (find × mode switch and save) · C2 (footnotes) · C3 (math) · C4 (emoji) ·
+C6 (HTML comments) · D1 (status bar) · D3 (wiki create-missing-page) · D7 (real wheel zoom gate) ·
+D8 (webview reload mid-edit) · D9 (large-doc editing) · D10 (keybinding scope release).
 
 **Open thread — the space drop.** Typing `# Untitled journey` character-by-character into a blank
 document produced `# Untitledjourney` during A7 (real VS Code, untitled doc). Investigated at the
