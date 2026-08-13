@@ -1,6 +1,6 @@
 # 516 — QA journey coverage plan: untested user journeys
 
-**Status:** planned
+**Status:** ✅ implemented 2026-08-13 on branch `test/516-qa-journeys` — all 31 journeys addressed
 
 **Source:** QA audit (2026-08-13) triggered by the Ctrl+F focus-theft bug (task 514): a whole
 user journey (find) had zero behavioural coverage until it broke. This task maps the *other*
@@ -27,13 +27,14 @@ red, that is recorded in the spec rather than claimed as coverage.
 - [x] **A3** same document in two panes — `two-pane-editing.spec.ts`. Tab dedup + alternating
       vMarkd/text-editor edits converge. NOTE: the dedup test only exercises our logic with a
       SECOND column active — the same-column shape passes with the mechanism fully broken.
-- [x] **C5** IME composition — `ime-composition.spec.ts` + `ime-helpers.ts`. **Found a real bug:
-      composition corrupts the text** → [task 518](518-ime-composition-corrupts-text.md). Closes
-      the 455 IME item.
+- [x] **C5** IME composition — `ime-composition.spec.ts` + `ime-helpers.ts`. Looked like a bug;
+      root-causing it proved the opposite → [task 518](518-ime-composition-corrupts-text.md) is
+      closed as a TEST ARTIFACT (the probe's own caret placement, which no real input produces).
+      Closes the 455 IME item.
 - [x] **C7** non-image drag-drop — probe in `dragdrop.spec.ts`. **Found a real bug: the upload
       pipeline crashes silently** → [task 517](517-drop-file-with-text-crashes-upload.md).
 - [x] **D11** config interaction pairs — `config-pairs.spec.ts` (harness). Closes the 455 item.
-- [ ] **A7** untitled → Save As — journey confirmed working end-to-end; spec landing. Two
+- [x] **A7** untitled → Save As — `untitled-save-as.spec.ts`. Works end-to-end. Two
       gotchas for the 455 item: the URI path must end in `.md` to match the customEditors
       selector, and `files.simpleDialog.enable` is what makes Save As automatable at all.
 - [x] **A4** external change while dirty (+ revert) — `external-change-while-dirty.spec.ts` +
@@ -93,8 +94,8 @@ red, that is recorded in the spec rather than claimed as coverage.
 | Task | Bug | Status |
 |---|---|---|
 | [517](517-drop-file-with-text-crashes-upload.md) | dropping a file alongside `text/plain` silently crashed the upload pipeline | ✅ fixed |
-| [518](518-ime-composition-corrupts-text.md) | IME composition truncates the committed text | fix in progress |
-| [519](519-heading-typing-drops-a-space.md) | typing a heading drops the space after the first word | fix in progress |
+| [518](518-ime-composition-corrupts-text.md) | IME composition appeared to truncate the committed text | ❌ NOT a bug — a test artifact (coarse caret placement); closed |
+| [519](519-heading-typing-drops-a-space.md) | typing a heading drops the space after the first word | ✅ fixed |
 | [520](520-external-css-never-live-reloads.md) | `css.external` never live-reloaded — the watcher could not fire | ✅ fixed |
 | [521](521-wiki-chip-stale-after-rename.md) | wiki chips go stale on rename and offer to fork a duplicate | open (design decision) |
 
