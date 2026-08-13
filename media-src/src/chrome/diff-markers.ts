@@ -36,20 +36,44 @@ const PRIORITY: Record<DiffChange['type'], number> = {
   added: 1,
 }
 
-// Locate a block's source line span by finding the first BLOCK_SAMPLE chars of
-// its text in the markdown. Returns null when the text is empty or not found.
+// Locate a block's source line span from its rendered (line-aware) text.
+//
+// A single-line block (paragraph, heading) still has its whole text as a
+// contiguous substring of the markdown, so the old "one sample, one indexOf"
+// trick worked. It breaks for blocks whose markdown syntax interleaves with
+// the text across several lines — a <ul> concatenates its <li> texts with no
+// "- " markers and no newlines between them (e.g. "first itemsecond item"),
+// which never appears verbatim in "- first item\n- second item\n" — so the
+// block was silently skipped (task 516: git gutter never rendered for lists).
+//
+// Fix: treat blockText as one line per source line (the caller passes
+// innerText, which renders <li>/<tr> etc. as separate lines) and anchor on
+// the FIRST non-empty line to find the start, then on the LAST non-empty
+// line — searched forward from the start — to find where the block ends.
+// This only requires each individual line to appear verbatim, not the whole
+// block, so it survives the markers/newlines markdown inserts between lines.
 function blockLineRange(
   blockText: string,
   md: string,
 ): { startLine: number; lineCount: number } | null {
-  const trimmed = blockText.trim()
-  if (!trimmed) return null
-  const sample = trimmed.substring(0, BLOCK_SAMPLE)
-  const idx = md.indexOf(sample)
+  const lines = blockText
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+  if (lines.length === 0) return null
+
+  const firstSample = lines[0].substring(0, BLOCK_SAMPLE)
+  const idx = md.indexOf(firstSample)
   if (idx < 0) return null
   const startLine = md.substring(0, idx).split('\n').length - 1
-  const endIdx = idx + trimmed.length
-  const nextNewline = md.indexOf('\n', endIdx)
+
+  const lastLine = lines[lines.length - 1]
+  const lastSample = lastLine.substring(0, BLOCK_SAMPLE)
+  // Search from idx (not 0) so an earlier, unrelated occurrence of the last
+  // line's text can't pull the end boundary before the start.
+  const lastIdx = md.indexOf(lastSample, idx)
+  const endSearchIdx = lastIdx >= 0 ? lastIdx : idx
+  const nextNewline = md.indexOf('\n', endSearchIdx)
   const stop = nextNewline >= 0 ? nextNewline : md.length
   const lineCount = md.substring(0, stop).split('\n').length - startLine
   return { startLine, lineCount: Math.max(1, lineCount) }
@@ -109,8 +133,15 @@ export function renderDiffMarkers(vditor: any, changes: DiffChange[]): number {
   for (const child of Array.from(editor.children)) {
     if (!(child instanceof HTMLElement)) continue
     if (child.classList.contains(MARKER_CLASS)) continue
+    // innerText renders block-level children (li, tr, ...) as separate lines,
+    // which blockLineRange needs to map multi-line blocks like lists/tables
+    // back to source lines (task 516). textContent concatenates them with no
+    // separator and is only a fallback for environments without innerText
+    // (e.g. jsdom in unit tests never reaches this DOM wrapper).
+    const text =
+      ('innerText' in child ? child.innerText : child.textContent) || ''
     blocks.push({
-      text: child.textContent || '',
+      text,
       top: child.offsetTop,
       height: child.offsetHeight,
     })

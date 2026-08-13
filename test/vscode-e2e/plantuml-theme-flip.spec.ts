@@ -16,8 +16,22 @@ import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-theme-flip.md')
-const LIGHT_FILL = '#3b3b3b' // Default Light Modern themed foreground (baked into the plantuml text)
-const DARK_FILL = '#cccccc' // Default Dark Modern themed foreground
+
+// The expected fill is DERIVED from the live content foreground, not hardcoded. PlantUML bakes
+// `getComputedStyle(body).color` — the CONTENT theme's foreground — into its `<text fill>`, which is
+// NOT `--vscode-editor-foreground`: measured with a throwaway probe, Light Modern gives editor fg
+// `#3b3b3b` but content fg `#202020`, Dark Modern `#cccccc` vs `#bbbebf`. This file used to assert
+// the editor-foreground constants and failed on both ends of the flip for that reason alone —
+// including on a clean `main`, so it was a stale expectation, not a product regression (task 516
+// full-suite triage). Deriving it also survives the next upstream palette tweak.
+const rgbToHex = (rgb: string): string => {
+  const m = rgb.match(/\d+/g)
+  if (!m || m.length < 3) return rgb.toLowerCase()
+  return `#${m
+    .slice(0, 3)
+    .map((n) => Number(n).toString(16).padStart(2, '0'))
+    .join('')}`
+}
 
 async function pumlState(frame: ReturnType<typeof wf>) {
   return frame.locator('body').evaluate(() => {
@@ -30,6 +44,7 @@ async function pumlState(frame: ReturnType<typeof wf>) {
       total: els.length,
       rendered,
       textFill: (firstText?.getAttribute('fill') ?? 'NONE').toLowerCase(),
+      contentFg: getComputedStyle(document.body).color,
       stats:
         (window as unknown as { __vmarkdPumlRethemeStats?: unknown })
           .__vmarkdPumlRethemeStats ?? null,
@@ -72,7 +87,10 @@ test('a theme flip re-renders every PlantUML block ONCE in the new colour', asyn
   const before = await pumlState(frame)
   expect(before.total, 'all three plantuml blocks present').toBe(3)
   expect(before.rendered, 'all rendered before the flip').toBe(3)
-  expect(before.textFill, 'starts in the light theme colour').toBe(LIGHT_FILL)
+  const lightFill = rgbToHex(before.contentFg)
+  expect(before.textFill, 'starts in the light theme content colour').toBe(
+    lightFill,
+  )
 
   // The workbench colour-theme flip (set-theme → reThemeMono → reRenderPlantuml).
   await evaluateInVSCode(async (vscode) => {
@@ -87,7 +105,12 @@ test('a theme flip re-renders every PlantUML block ONCE in the new colour', asyn
   const start = Date.now()
   while (Date.now() - start < 60_000) {
     after = await pumlState(frame)
-    if (after.rendered === after.total && after.textFill === DARK_FILL) break
+    if (
+      after.rendered === after.total &&
+      after.textFill === rgbToHex(after.contentFg) &&
+      after.textFill !== lightFill
+    )
+      break
     await frame
       .locator('body')
       .evaluate(() => new Promise((r) => setTimeout(r, 500)))
@@ -103,7 +126,15 @@ test('a theme flip re-renders every PlantUML block ONCE in the new colour', asyn
   expect(after.rendered, 'every block re-rendered (not stuck blank)').toBe(
     after.total,
   )
-  expect(after.textFill, 're-rendered in the dark theme colour').toBe(DARK_FILL)
+  // Two assertions, because either alone is weak: the fill must MATCH the new content foreground
+  // (it really re-rendered in the dark theme) and must DIFFER from the light one (the flip actually
+  // changed something, so a renderer that never re-themed cannot pass by accident).
+  expect(after.textFill, 're-rendered in the dark theme content colour').toBe(
+    rgbToHex(after.contentFg),
+  )
+  expect(after.textFill, 'the flip actually changed the baked colour').not.toBe(
+    lightFill,
+  )
   // The double-fire guard (task 411): no block gets cleared + redrawn TWICE in one flip — that was
   // the ~57s spinner-then-blank regression (see this file's own header comment). Task 411 originally
   // pinned this via `stats.calls === 1`, because at the time `reThemeMono` called `reRenderPlantuml`

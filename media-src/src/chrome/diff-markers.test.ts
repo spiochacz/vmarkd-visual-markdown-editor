@@ -61,4 +61,43 @@ describe('computeBlockMarkers', () => {
     const changes: DiffChange[] = [{ startLine: 0, endLine: 9, type: 'added' }]
     expect(computeBlockMarkers(blocks, md, changes)).toEqual([])
   })
+
+  // task 516: a <ul>'s DOM text has no "- " markers and no newlines between
+  // items ("first itemsecond item"), which never appears verbatim in the
+  // markdown ("- first item\n- second item\n"). The DOM wrapper now passes
+  // innerText (one line per <li>) instead of textContent, so blockLineRange
+  // must anchor on the first/last *line*, not the whole block text.
+  it('maps a multi-line list block by its first and last line', () => {
+    const listMd = ['- first item', '- second item', '- third item', ''].join(
+      '\n',
+    )
+    // innerText-shaped: one line per <li>, no "- " markers.
+    const listText = 'first item\nsecond item\nthird item'
+    const blocks = [box(listText, 0, 60)]
+    // "second item" is source line 1; a change touching it must still mark
+    // the whole list block (lines 0-2), not just that one line.
+    const changes: DiffChange[] = [
+      { startLine: 1, endLine: 2, type: 'modified' },
+    ]
+    expect(computeBlockMarkers(blocks, listMd, changes)).toEqual([
+      { top: 0, height: 60, type: 'modified' },
+    ])
+  })
+
+  it('does not mark a list block for a change strictly outside its line span', () => {
+    const listMd = [
+      'intro',
+      '',
+      '- first item',
+      '- second item',
+      '- third item',
+      '',
+      'outro',
+      '',
+    ].join('\n')
+    const listText = 'first item\nsecond item\nthird item'
+    const blocks = [box(listText, 40, 60)]
+    const changes: DiffChange[] = [{ startLine: 6, endLine: 7, type: 'added' }]
+    expect(computeBlockMarkers(blocks, listMd, changes)).toEqual([])
+  })
 })
