@@ -118,6 +118,43 @@ here; they need their own task rather than a drive-by fix inside a QA-coverage b
 The six flaky ones (`d2-render-sweep`, `emoji-insert`, `find-widget-focus`, `find-widget-modes`,
 `heading-space-drop`, `large-doc-editing`) all passed on retry.
 
+### The three pre-existing failures — all fixed here after all (2026-08-13)
+
+Left alone at first, then fixed on request. Each had a different cause and none was a regression:
+
+- **`plantuml-theme-flip`** — stale expectation. PlantUML bakes the CONTENT foreground
+  (`getComputedStyle(body).color`: `#202020` light, `#bbbebf` dark); the spec hardcoded
+  `--vscode-editor-foreground` (`#3b3b3b`/`#cccccc`). Now derived from the live theme, plus a second
+  assert that the flip actually CHANGED the colour — matching the current theme alone would also
+  pass for a renderer that never re-themed.
+- **`diff-gutter`** — two layers. The spec asserted a feature it never enabled: the test instance
+  opens a `/tmp/pwtest-*` workspace where the git extension reports ZERO repositories, so
+  `getHeadContent` returned null and no bar could ever render. It now builds its own temp git repo.
+  With that fixed the host posted a correct `diff-info` and the webview still drew nothing — a REAL
+  product bug: `blockLineRange` looked up a block's whole `textContent` in the markdown, and a
+  `<ul>` concatenates its items with no `- ` markers and no newlines, so no list ever got a bar.
+  Fixed by mapping on the first/last rendered LINE and feeding `innerText`. Tables remain broken by
+  the same mechanism — [task 523](523-diff-gutter-misses-tables.md).
+- **`prerender-style-parity`** — the instant-paint overlay is removed as soon as the live editor is
+  themed, and the hold that keeps it for the comparison is gated on `VMARKD_PRERENDER_PARITY_HOLD`,
+  which nothing set. Set per-file via `beforeAll`/`afterAll`, deliberately NOT in
+  `playwright.config.ts`: the harness copies `process.env` into VS Code at launch and each test boots
+  its own instance, so a config-level export would hold an overlay that covers the editor across
+  every spec in the suite. Verified the assertion is not merely green — perturbing an
+  overlay-scoped `h1` font-size fails it (`41px` vs `24.5px`), and it passes again with `main.css`
+  restored byte-identical.
+
+### `find-widget-modes` is not flaky — it reproduces task 514's bug
+
+Investigated on request. It fails ~1 run in 2 with `focus left the find box … host:"IFRAME.webview"`
+— the ORIGINAL reported symptom. Root-caused with wrapped `HTMLElement.prototype.focus` /
+`Selection.prototype.addRange` and captured stacks: `caret.ts`'s rAF loop re-asserts the caret on
+every frame with no `document.hasFocus()` gate, and Electron's find handshake hands the frame brief
+real focus, during which `addRange()` into the contenteditable takes the keystrokes. Full evidence
+and the fix options: [task 522](522-caret-raf-loop-steals-find-focus.md). Note the measurement
+explicitly refutes the tempting "IR is safe" reading — IR shows the same arming and the same focus
+flip at the same call volumes.
+
 ### `settle()` steals focus into the webview — the real cause of D10's failure
 
 `settle(frame, ms)` (`test/vscode-e2e/webview-helpers.ts`) waits by running `evaluate` INSIDE the
@@ -156,6 +193,9 @@ look for the same trap.
 | [519](519-heading-typing-drops-a-space.md) | typing a heading drops the space after the first word | ✅ fixed |
 | [520](520-external-css-never-live-reloads.md) | `css.external` never live-reloaded — the watcher could not fire | ✅ fixed |
 | [521](521-wiki-chip-stale-after-rename.md) | wiki chips go stale on rename and offer to fork a duplicate | open (design decision) |
+| — | the git gutter never rendered for LIST blocks (`blockLineRange` could not map them to source lines) | ✅ fixed here |
+| [522](522-caret-raf-loop-steals-find-focus.md) | the caret rAF loop steals focus from the find box — task 514's bug, second route | open (diagnosed, fix is a design call) |
+| [523](523-diff-gutter-misses-tables.md) | the git gutter still misses TABLES (same mechanism as the list gap) | open |
 
 **Open thread — the space drop.** Typing `# Untitled journey` character-by-character into a blank
 document produced `# Untitledjourney` during A7 (real VS Code, untitled doc). Investigated at the
