@@ -79,12 +79,34 @@ test.afterAll(() => {
   delete process.env.VMARKD_PRERENDER_PARITY_HOLD
 })
 
+// Put back what the test pinned, so this file does not become another entry on the list of specs
+// that leak a global theme into the shared profile (see the pin's comment in the test body).
+test.afterEach(async ({ evaluateInVSCode }) => {
+  await evaluateInVSCode(
+    async (vscode) => {
+      await vscode.workspace
+        .getConfiguration('vmarkd')
+        .update('theme.content', undefined, vscode.ConfigurationTarget.Global)
+    },
+    [] as unknown as [string],
+  )
+})
+
 test('host prerender and settled IR keep static Markdown styles identical', async ({
   workbox,
   evaluateInVSCode,
 }) => {
+  // Pin the content theme instead of inheriting one. ~40 specs write `vmarkd.theme.content` at
+  // ConfigurationTarget.Global and most never reset it, and the whole suite shares one profile — so
+  // whatever ran before decides the metrics here. That matters for THIS spec specifically: the host
+  // overlay picks its stylesheet at HTML-build time while the settled editor uses the live content
+  // theme, so an inherited theme can make the two disagree and the parity assert fails on a height
+  // that is nobody's bug (measured: 47 vs 56.39, only ever in a full-suite run, 12/12 green solo).
   await evaluateInVSCode(
     async (vscode, args) => {
+      await vscode.workspace
+        .getConfiguration('vmarkd')
+        .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',
@@ -124,5 +146,12 @@ test('host prerender and settled IR keep static Markdown styles identical', asyn
   await overlay.waitFor({ state: 'detached', timeout: 45_000 })
 
   const after = await readSnapshot(frame, '.vditor-ir .vditor-reset')
+  // Both snapshots in full, always. Playwright's deep-equal diff prints only the differing hunk
+  // WITHOUT naming which probe it belongs to, which made an intermittent height mismatch (47 vs
+  // 56.39, task 516 triage) impossible to attribute from a CI log alone.
+  // eslint-disable-next-line no-console
+  console.log(
+    `[parity] before=${JSON.stringify(before)}\n[parity] after=${JSON.stringify(after)}`,
+  )
   expect(after).toEqual(before)
 })
