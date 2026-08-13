@@ -71,6 +71,34 @@ volumes (12 requestCaret / 84 addRange in ir, 10/82 wysiwyg, 12/84 sv). `find-wi
 reading green 3/3 is a small sample of the same race, not architectural immunity. Do not assume IR
 is safe.
 
+## A fix attempt that did NOT work — do not repeat it (2026-08-13)
+
+Tried the most obvious candidate from the list below: gate the loop's write on "the editor already
+owns DOM focus" (`l.editor.contains(document.activeElement)`), leaving the FIRST placement ungated
+so `caret-on-open` and 439's lazy-block case keep working, and deferring rather than counting a miss
+so an unfocused second does not retire a resolvable intent. Unit tests stayed green (43/43).
+
+**It made no measurable difference.** `find-widget-modes.spec.ts` at `--repeat-each=10`:
+
+| | result | failing legs |
+|---|---|---|
+| gate ON | 8 passed, 1 failed, 1 flaky | wysiwyg, preview, sv |
+| gate OFF (same session) | 8 passed, 1 failed, 1 flaky | sv, sv, wysiwyg |
+
+An earlier `--repeat-each=5` pair looked like an improvement (1/2 → 1/10) and was pure noise; at this
+failure rate anything under ~10 repeats per side proves nothing. The change was reverted
+(`caret.ts` byte-identical to HEAD) rather than shipped on a hunch — it modifies the shared caret
+authority and bought nothing measurable.
+
+What this rules out: "the re-assertion loop is the ONLY theft path, and editor-focus is the
+discriminator". It does not rule out the loop being ONE path — the captured stack in the section
+above is still real.
+
+**The `preview` leg is the strongest remaining lead.** Preview has no contenteditable editor for a
+caret write to focus, yet it fails the same way, so at least one theft path is NOT the caret loop.
+Instrument that leg first: whatever steals focus there is either a second mechanism or the actual
+single mechanism, and either answer redirects this whole task.
+
 ## Fix — the design decision this needs
 
 `caret.ts` is the shared caret authority; tasks 439, 445 and 490 all route through it, so a gate
