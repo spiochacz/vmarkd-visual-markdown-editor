@@ -65,12 +65,33 @@ red, that is recorded in the spec rather than claimed as coverage.
       watcher can never fire. An in-host `workspace.fs.writeFile` also fails to reload, which
       rules out inotify.
 
+- [x] **A6** file deleted on disk — `delete-on-disk.spec.ts`. Safe: the editor survives, the doc
+      does not force-dirty, and saving RECREATES the file with the full content. No red lever
+      exists (we have no delete handling at all), stated in the spec.
+- [x] **A5** wiki chip on target rename — `wiki-rename-stale-chip.spec.ts`, **found a bug**,
+      pinned broken → [task 521](521-wiki-chip-stale-after-rename.md). The chip stays stale and
+      its offered repair forks a duplicate page at the old path.
+- [x] **D9** large-doc editing — `large-doc-editing.spec.ts`. Type/undo/save on a 744k-char
+      streamed document.
+- [x] **D8** webview reload mid-edit — probe. Content, dirty state, and a post-reload save all
+      survive.
+
 ### Still to do
 
-A5 (wiki chip rewrite on rename) · A6 (file deleted on disk) · B3 (matches in code/diagram/
-collapsed regions) · B4 (find × mode switch and save) · C2 (footnotes) · C3 (math) · C4 (emoji) ·
-C6 (HTML comments) · D1 (status bar) · D3 (wiki create-missing-page) · D7 (real wheel zoom gate) ·
-D8 (webview reload mid-edit) · D9 (large-doc editing) · D10 (keybinding scope release).
+B3 (matches in code/diagram/collapsed regions) · B4 (find × mode switch and save) · C4 (emoji) ·
+D3 (wiki create-missing-page) · D7 (real wheel zoom gate).
+C2 (footnotes) · C3 (math) · C6 (HTML comments) · D1 (status bar) · D10 (keybinding scope
+release) — written and reported green, pending my own verification.
+
+## Bugs this task has found
+
+| Task | Bug | Status |
+|---|---|---|
+| [517](517-drop-file-with-text-crashes-upload.md) | dropping a file alongside `text/plain` silently crashed the upload pipeline | ✅ fixed |
+| [518](518-ime-composition-corrupts-text.md) | IME composition truncates the committed text | fix in progress |
+| [519](519-heading-typing-drops-a-space.md) | typing a heading drops the space after the first word | fix in progress |
+| [520](520-external-css-never-live-reloads.md) | `css.external` never live-reloaded — the watcher could not fire | ✅ fixed |
+| [521](521-wiki-chip-stale-after-rename.md) | wiki chips go stale on rename and offer to fork a duplicate | open (design decision) |
 
 **Open thread — the space drop.** Typing `# Untitled journey` character-by-character into a blank
 document produced `# Untitledjourney` during A7 (real VS Code, untitled doc). Investigated at the
