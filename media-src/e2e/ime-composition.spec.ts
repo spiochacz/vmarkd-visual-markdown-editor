@@ -1,47 +1,56 @@
 import { test, expect } from './coverage-fixture'
 import type { Page } from '@playwright/test'
 import { composeAndCommit } from './ime-helpers'
-import { gotoMouseops, setDoc, caretToEnd, getValue } from './mouseops-helpers'
+import { gotoMouseops, setDoc, getValue } from './mouseops-helpers'
 
 // C5 (tasks/516, = task 455's highest-value dark item) — IME composition, driven for real via
 // CDP `Input.imeSetComposition`/`Input.insertText` (see ime-helpers.ts for the fidelity caveat).
-// Probe-first: this path was completely dark (zero `imeSetComposition` hits anywhere in the
-// suite before this file), so a failure here is a FINDING, not a regression in something that
-// used to work.
 //
-// FINDING: composing "にほんご" (4 kana) then committing to "日本語" (the IME's kanji
-// conversion) does NOT duplicate the text (the classically-warned bug) — it LOSES most of the
-// pre-edit and keeps only its LEADING characters, prefixed onto the committed text. This is
-// DETERMINISTIC (pinned exact strings below, verified across repeated runs) and reproduces in
-// BOTH surfaces this spec covers, so it is not specific to the WYSIWYG highlight machinery —
-// but that machinery makes it WORSE (loses more of the pre-edit), see the RED-GREEN-RED note on
-// the WYSIWYG test below.
+// TASK 518 UPDATE — premise correction. The original probe pinned a truncation finding
+// ("Helloにほ日本語" instead of "Hello日本語") and framed it as a defect in Vditor's/vmarkd's
+// editable surface (see tasks/518-ime-composition-corrupts-text.md's original root-cause trace).
+// Root-causing it for the fix turned up a different story:
 //
-// FOUR-LAYER TRACE (same discipline as the C7 finding, task 517):
-//  1. Symptom: `getValue()` after a compose+commit contains a truncated pre-edit + the full
-//     committed text glued together — not the clean committed text alone.
-//  2. Control (below, `bare contenteditable`): the IDENTICAL CDP sequence against a plain
-//     `contenteditable` div (no Vditor at all) commits CLEANLY — "Hello " + compose("にほんご")
-//     + commit("日本語") -> "Hello日本語", byte-exact, every run. So this is NOT a CDP-fidelity
-//     artifact; the corruption is specific to Vditor's/vmarkd's editable surface.
-//  3. Mechanism (Vditor, node_modules/vditor/dist/index.js, ir/wysiwyg `compositionend`
-//     listeners): on `compositionend` Vditor synchronously calls `input(vditor,
-//     getSelection().getRangeAt(0).cloneRange())`, which re-serialises the block via
-//     `SpinVditorIRDOM`/Lute — reading the DOM/selection at the instant the listener runs. The
-//     deterministic (not flaky) partial retention across dozens of runs points at that read
-//     racing the browser's own DOM mutation that applies the composition commit, rather than at
-//     genuine nondeterminism — but this spec does NOT change Vditor's vendored code to confirm
-//     that last step (out of scope for a probe; noted here for whoever picks up the fix).
-//  4. vmarkd-specific amplification (WYSIWYG only): `observeWysiwygCodeHighlight`
-//     (media-src/src/editing/wysiwyg-code-highlight.ts) re-highlights the code source on a
-//     rAF-scheduled `MutationObserver` callback, gated by a `composing` flag set from the same
-//     compositionstart/compositionend pair so it skips re-highlighting mid-composition. Verified
-//     during this investigation (temporarily changed `if (composing) return` to `if (false &&
-//     composing) return`, reran, reverted): with the gate disabled the corruption pattern
-//     FLIPS from truncation ("...1に日本語...") to DUPLICATION ("...1にほんご日本語...", the
-//     full pre-edit AND the full commit both survive) — so the gate is load-bearing (it's the
-//     only thing standing between "loses text" and "duplicates text"), it just isn't sufficient
-//     to make composition commit cleanly.
+//  1. The corruption is already present in the BROWSER's own native DOM mutation for the
+//     `input` event carrying the composition commit — before Vditor's `compositionend` handler
+//     (the thing the original trace blamed) ever runs. A patch that defers that handler by one
+//     animation frame changed nothing (proven: the pinned broken string was byte-identical
+//     before and after).
+//  2. Bisecting what actually flips the result found ONE variable: how the caret was placed
+//     BEFORE composing started, not anything downstream of it.
+//       - The old `caretToEnd()` helper (mouseops-helpers.ts) does
+//         `range.selectNodeContents(modeEl); range.collapse(false)` where `modeEl` is the WHOLE
+//         editable ROOT — a coarse, container-level collapsed range that lands between top-level
+//         block children, not adjacent to actual text. The WYSIWYG probe's old
+//         `focusCodeBlockEnd()` did the equivalent one level down (`selectNodeContents(code)`).
+//       - Re-doing the identical operation scoped to the actual paragraph/code element, OR
+//         placing the caret via genuine `page.keyboard` input (native browser caret, exactly
+//         what a real user's typing/mouse-click produces) → clean commit, both surfaces, every
+//         run.
+//       - A bare `<pre><p>Hello</p></pre>` with NO Vditor loaded, given the SAME coarse
+//         placement, stays clean — so Vditor's own listeners are a necessary co-factor for
+//         turning the coarse anchor into visible corruption. But nothing in vmarkd's real caret
+//         code (`caret.ts`, ADR-0007) or Vditor's own internal caret restoration
+//         (`setRangeByWbr`) ever produces that coarse container-level shape — those are always
+//         text-node/character-offset precise, by design (task 439). Real typing, real clicks,
+//         and every programmatic caret write vmarkd ships are all precise.
+//  3. The ORIGINAL control below (`bare contenteditable`) used a flat single-text-child `<div>`,
+//     where a coarse `selectNodeContents(container)` happens to be geometrically IDENTICAL to a
+//     precise position (the container's only child already IS the text). So the control
+//     validated CDP fidelity but never controlled for caret coarseness — it couldn't have caught
+//     this, and its clean result created the (wrong) impression that the corruption was
+//     Vditor-specific.
+//
+// Conclusion: no real user — real IME, real keyboard, real mouse click, or any of vmarkd's own
+// caret-placement code — can reach the state that triggers this. It is not reachable via any
+// actual product code path, so it is not a product bug. The two probes below are corrected to
+// assert the CLEAN commit, using caret placement a real user's input would actually produce.
+// `PROBE-C5-HARNESS-ARTIFACT` (new, below) keeps the coarse-placement repro alive as a documented
+// harness gotcha, so nobody re-discovers "composition looks broken" from `caretToEnd()` without
+// this context.
+//
+// The real-OS-IME manual check stays on task 516's checklist regardless (CDP composition is not
+// a real IME — see ime-helpers.ts).
 
 async function bareContentEditable(page: Page): Promise<void> {
   await page.setContent('<div id="ed" contenteditable="true">Hello </div>')
@@ -70,21 +79,18 @@ test('control: the same CDP composition sequence commits cleanly on a bare conte
   expect(text).toBe('Hello日本語')
 })
 
-test('PROBE-C5-IR: composing then committing in IR prose loses part of the pre-edit (finding, not fixed here)', async ({
+test('PROBE-C5-IR: composing then committing in IR prose at a genuinely-placed caret commits cleanly', async ({
   page,
 }) => {
   await gotoMouseops(page, 'ir')
-  await setDoc(page, 'Hello ')
-  await caretToEnd(page)
-  await page.evaluate(() => {
-    ;((window as any).__modeEl() as HTMLElement).focus()
-  })
+  await page.evaluate(() => ((window as any).__modeEl() as HTMLElement).focus())
+  // Real keyboard input, not caretToEnd()'s coarse selectNodeContents(root).collapse(false) —
+  // see the header note. This is how a real user's caret ends up positioned before they start
+  // composing: native, text-node-precise.
+  await page.keyboard.type('Hello')
   await composeAndCommit(page, { preedit: 'にほんご', committed: '日本語' })
 
-  // Pins the OBSERVED (buggy) value: NOT "Hello日本語\n" (clean commit, what a correct editor
-  // would produce — see the control above) and NOT "Helloにほんご日本語\n" (duplication, the
-  // classic composition bug this journey exists to catch). It's a THIRD shape: partial loss.
-  expect(await getValue(page)).toBe('Helloにほ日本語\n')
+  expect(await getValue(page)).toBe('Hello日本語\n')
 })
 
 async function gotoWysiwygHighlight(page: Page): Promise<void> {
@@ -108,41 +114,27 @@ async function focusCodeBlockEnd(page: Page): Promise<void> {
     ) as HTMLElement | null
     return !!pre && getComputedStyle(pre).display !== 'none'
   })
-  await page.evaluate(() => {
-    const code = document.querySelector(
-      '.vditor-wysiwyg__block[data-type="code-block"] pre.vditor-wysiwyg__pre > code',
-    ) as HTMLElement
-    const r = document.createRange()
-    r.selectNodeContents(code)
-    r.collapse(false)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    code.focus()
-  })
+  // Native End-key navigation, not selectNodeContents(code).collapse(false) — see the header
+  // note. The click above already lands the caret inside the code source; End moves it to the
+  // true end of the line the same way a real user's keyboard would.
+  await page.keyboard.press('End')
 }
 
-test('PROBE-C5-WYSIWYG: composing then committing inside a highlighted code block loses MORE of the pre-edit than plain IR (finding, not fixed here)', async ({
+test('PROBE-C5-WYSIWYG: composing then committing inside a highlighted code block at a genuinely-placed caret commits cleanly', async ({
   page,
 }) => {
   await gotoWysiwygHighlight(page)
   await focusCodeBlockEnd(page)
   await composeAndCommit(page, { preedit: 'にほんご', committed: '日本語' })
 
-  // Same corruption CLASS as the IR probe (partial pre-edit retention, not duplication), but
-  // MORE loss here: IR kept 2 of the 4 pre-edit chars ("にほ"), this surface keeps only 1
-  // ("に") — consistent with the highlight observer's rAF/MutationObserver churn adding more
-  // opportunity for the race described in the header trace, even though its `composing` gate
-  // (wysiwyg-code-highlight.ts) is what keeps this from being FULL duplication instead (see the
-  // RED-GREEN-RED note below).
   const value = await page.evaluate(() => (window as any).__getValue())
   expect(value).toBe(
-    'text before\n\n```js\nconst a = 1に日本語\n```\n\ntext after\n',
+    'text before\n\n```js\nconst a = 1日本語\n```\n\ntext after\n',
   )
 
-  // Despite the text corruption, the surrounding markdown structure and the live-highlight
-  // machinery itself stay intact: exactly one clean fenced block (wrapLuteFlatten did its job —
-  // no leaked `hljs`/`<span` reaching getValue()), and the block is still actively highlighted.
+  // Markdown structure and the live-highlight machinery stay intact: exactly one clean fenced
+  // block (wrapLuteFlatten did its job — no leaked `hljs`/`<span` reaching getValue()), and the
+  // block is still actively highlighted.
   expect(value.match(/```js/g)?.length).toBe(1)
   expect(value.match(/```/g)?.length).toBe(2)
   expect(value).not.toContain('<span')
@@ -151,4 +143,29 @@ test('PROBE-C5-WYSIWYG: composing then committing inside a highlighted code bloc
     (window as any).__sourceTokenClasses(),
   )
   expect(tokenClasses).toContain('hljs-keyword')
+})
+
+// HARNESS ARTIFACT (not a vmarkd assertion) — keeps today's coarse-placement repro alive as a
+// documented gotcha rather than letting it silently vanish when the two probes above flipped. If
+// this ever starts failing, something changed about `caretToEnd()`'s placement or Chromium's
+// composition-range handling for it — re-investigate before assuming it's a real regression, and
+// see the header note for the full trace of why this shape (and only this shape) corrupts.
+test('PROBE-C5-HARNESS-ARTIFACT: caretToEnd()-style coarse placement (selectNodeContents(root).collapse(false)) still corrupts composition — this is the harness gotcha the two probes above used to conflate with a product bug, not something a real user can reach', async ({
+  page,
+}) => {
+  await gotoMouseops(page, 'ir')
+  await setDoc(page, 'Hello ')
+  await page.evaluate(() => {
+    const el = (window as any).__modeEl() as HTMLElement
+    el.focus()
+    const r = document.createRange()
+    r.selectNodeContents(el) // coarse: the whole editable root, not the paragraph
+    r.collapse(false)
+    const s = window.getSelection()
+    s?.removeAllRanges()
+    s?.addRange(r)
+  })
+  await composeAndCommit(page, { preedit: 'にほんご', committed: '日本語' })
+
+  expect(await getValue(page)).toBe('Helloにほ日本語\n')
 })

@@ -77,6 +77,13 @@ export function selectWithin(page: Page, selector: string): Promise<string> {
 
 // Collapse a caret at the very end of the editable content (append point), for any
 // mode — sv has no <p> structure, so a per-block selector doesn't generalize.
+//
+// WARNING (task 518): this produces a COARSE, container-level collapsed range (the whole
+// editable root, not the text), which is NOT equivalent to a real caret for
+// composition/IME-adjacent testing — it triggered a false "IME corrupts text" finding that
+// root-caused to this placement, not a product bug (see tasks/518-ime-composition-corrupts-text.md
+// and media-src/e2e/ime-composition.spec.ts's PROBE-C5-HARNESS-ARTIFACT). If a spec needs to
+// compose/type immediately after positioning the caret, prefer real `page.keyboard` input instead.
 export function caretToEnd(page: Page): Promise<void> {
   return page.evaluate(() => {
     const el = (window as any).__modeEl() as HTMLElement

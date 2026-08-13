@@ -21,11 +21,16 @@ tier (task 449) — see `test/backend/probe-tier-convention.test.ts`.
 
 - [x] **IME composition** — DONE 2026-08-13 via task 516 journey C5
       (`media-src/e2e/ime-composition.spec.ts`, harness layer + CDP, no VS Code boot needed).
-      This item's own hunch was right and then some: composition IS broken, just not in the
-      predicted direction — it TRUNCATES the pre-edit rather than duplicating it
-      (`Helloにほ日本語`), and the WYSIWYG highlight path loses more than plain IR. A bare
-      contenteditable control commits cleanly, so it is our surface.
-      Bug + trace: [task 518](../518-ime-composition-corrupts-text.md).
+      Initially LOOKED broken — composing then committing appeared to truncate the pre-edit
+      (`Helloにほ日本語`) rather than duplicate it, worse in the WYSIWYG highlight path than
+      plain IR, with a bare-contenteditable control committing cleanly. Root-caused same day and
+      **reclassified as a test-harness artifact, not a real bug**: the probe's own caret-placement
+      code (`caretToEnd()`) produces a coarse, container-level collapsed range no real user input
+      (keyboard, mouse, or vmarkd's own precise caret code) can ever produce; the bare-DOM control
+      happened to be geometrically equivalent to a precise position, so it never controlled for
+      this. With a genuinely-placed caret, composition commits cleanly on both surfaces, every
+      run. No product code changed. Full evidence chain:
+      [task 518](../518-ime-composition-corrupts-text.md) (closed, not a bug).
 - [x] **Untitled → save-as** — DONE 2026-08-13 via [task 516](../516-qa-journey-coverage-plan.md)
       journey A7: `test/vscode-e2e/untitled-save-as.spec.ts`. The journey WORKS end to end. Two
       gotchas worth keeping: the URI path must end in `.md` for the `filenamePattern: "*.md"` +
