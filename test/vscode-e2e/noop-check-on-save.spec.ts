@@ -59,7 +59,8 @@ async function markerResidue(
 // assertions are the flakiest class it has; re-focusing is cheaper and more honest than pressing
 // harder.
 async function focusEditLine(
-  workbox: import('@playwright/test').Page,
+  // Kept for call-site symmetry with the other helpers here, which do drive the page.
+  _workbox: import('@playwright/test').Page,
   frame: ReturnType<typeof wf>,
 ) {
   await frame

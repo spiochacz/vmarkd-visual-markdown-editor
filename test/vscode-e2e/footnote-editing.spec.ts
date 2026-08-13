@@ -68,9 +68,7 @@ async function placeCaretAtEndOf(
         n = walker.nextNode() as Text | null
       ) {
         if (!n.textContent?.includes(anchor)) continue
-        const owner = (n.parentElement as HTMLElement | null)?.closest(
-          selector,
-        )
+        const owner = (n.parentElement as HTMLElement | null)?.closest(selector)
         if (!owner) continue
         target = n
         break
@@ -125,14 +123,20 @@ test('editing a footnote reference paragraph and its definition body round-trips
   await settle(frame, 500)
 
   await expect
-    .poll(async () => (await docText(evaluateInVSCode, tmp)).includes('Appended.'), {
-      message: 'the definition edit reached the saved TextDocument',
-    })
+    .poll(
+      async () => (await docText(evaluateInVSCode, tmp)).includes('Appended.'),
+      {
+        message: 'the definition edit reached the saved TextDocument',
+      },
+    )
     .toBe(true)
 
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.commands.executeCommand('workbench.action.files.save')
-  }, [] as [string])
+  await evaluateInVSCode(
+    async (vscode: typeof import('vscode')) => {
+      await vscode.commands.executeCommand('workbench.action.files.save')
+    },
+    [] as [string],
+  )
   await settle(frame, 500)
 
   const after = readFileSync(tmp, 'utf8')

@@ -33,10 +33,9 @@ async function open(
   const frame = wf(workbox)
   await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
   await expect
-    .poll(
-      () => frame.locator('.vditor-ir .katex').count(),
-      { message: 'both formulas rendered as KaTeX' },
-    )
+    .poll(() => frame.locator('.vditor-ir .katex').count(), {
+      message: 'both formulas rendered as KaTeX',
+    })
     .toBeGreaterThanOrEqual(2)
   // page-level keyboard focus into the nested iframe (see block-fidelity.spec.ts).
   await frame
@@ -52,11 +51,14 @@ async function open(
 // here renders `output:'html'` only — no `<annotation encoding="application/x-tex">` MathML
 // escape hatch to scrape instead, measured via a throwaway DOM probe.)
 async function getValue(frame: ReturnType<typeof wf>): Promise<string> {
-  return frame.locator('body').evaluate(
-    () =>
-      (window as unknown as { vditor?: { getValue?: () => string } }).vditor
-        ?.getValue?.() ?? '',
-  )
+  return frame
+    .locator('body')
+    .evaluate(
+      () =>
+        (
+          window as unknown as { vditor?: { getValue?: () => string } }
+        ).vditor?.getValue?.() ?? '',
+    )
 }
 
 // Count of rendered `.katex` nodes — the re-render signal: after an edit + caret-leave this must
@@ -94,24 +96,25 @@ async function placeCaretInMath(
               ?.closest('[data-type="inline-node"]') as HTMLElement | null)
       if (!node) return false
       node.classList.add('vditor-ir__node--expand')
-      const source = (dataType === 'math-block'
-        ? node.querySelector('.vditor-ir__marker--pre')
-        : node.querySelector(
-            'code[data-type="math-inline"]',
-          )) as HTMLElement | null
+      const source = (
+        dataType === 'math-block'
+          ? node.querySelector('.vditor-ir__marker--pre')
+          : node.querySelector('code[data-type="math-inline"]')
+      ) as HTMLElement | null
       if (!source) return false
-      const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
-      let target: Text | null = null
-      for (
-        let n = walker.nextNode() as Text | null;
-        n;
-        n = walker.nextNode() as Text | null
-      ) {
-        if (n.textContent?.includes(anchor)) {
-          target = n
-          break
+      // Extracted so this evaluate stays under the cognitive-complexity gate.
+      const findTextNode = (root: HTMLElement, needle: string): Text | null => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        for (
+          let n = walker.nextNode() as Text | null;
+          n;
+          n = walker.nextNode() as Text | null
+        ) {
+          if (n.textContent?.includes(needle)) return n
         }
+        return null
       }
+      const target = findTextNode(source, anchor)
       if (!target) return false
       const idx = (target.textContent ?? '').indexOf(anchor) + anchor.length
       const r = document.createRange()
@@ -141,11 +144,7 @@ test('editing inline and block math re-renders and round-trips on save', async (
   expect(before).toContain('x^2 + y^2 = z^2')
   expect(before).toContain('a + b = c')
 
-  const gotInline = await placeCaretInMath(
-    frame,
-    'math-inline',
-    'z^2',
-  )
+  const gotInline = await placeCaretInMath(frame, 'math-inline', 'z^2')
   expect(gotInline, 'placed the caret inside the inline formula source').toBe(
     true,
   )
@@ -163,9 +162,12 @@ test('editing inline and block math re-renders and round-trips on save', async (
   await settle(frame, 600)
 
   await expect
-    .poll(async () => (await docText(evaluateInVSCode, tmp)).includes('+ w^2'), {
-      message: 'the inline math edit reached the saved TextDocument',
-    })
+    .poll(
+      async () => (await docText(evaluateInVSCode, tmp)).includes('+ w^2'),
+      {
+        message: 'the inline math edit reached the saved TextDocument',
+      },
+    )
     .toBe(true)
   await expect
     .poll(async () => (await docText(evaluateInVSCode, tmp)).includes('+ d'), {
@@ -188,9 +190,12 @@ test('editing inline and block math re-renders and round-trips on save', async (
     'both formulas re-rendered as KaTeX (neither vanished/errored)',
   ).toBeGreaterThanOrEqual(2)
 
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.commands.executeCommand('workbench.action.files.save')
-  }, [] as [string])
+  await evaluateInVSCode(
+    async (vscode: typeof import('vscode')) => {
+      await vscode.commands.executeCommand('workbench.action.files.save')
+    },
+    [] as [string],
+  )
   await settle(frame, 500)
   const saved = readFileSync(tmp, 'utf8')
   rmSync(tmp, { force: true })
@@ -244,13 +249,18 @@ test('backspacing right after the inline-math boundary does not corrupt the docu
   await workbox.keyboard.press('Backspace')
   await settle(frame, 500)
 
-  const value = await frame.locator('body').evaluate(
-    () =>
-      (window as unknown as { vditor?: { getValue?: () => string } }).vditor
-        ?.getValue?.() ?? '',
-  )
+  const value = await frame
+    .locator('body')
+    .evaluate(
+      () =>
+        (
+          window as unknown as { vditor?: { getValue?: () => string } }
+        ).vditor?.getValue?.() ?? '',
+    )
   // eslint-disable-next-line no-console
-  console.log(`[math-editing] after boundary backspace: ${JSON.stringify(value)}`)
+  console.log(
+    `[math-editing] after boundary backspace: ${JSON.stringify(value)}`,
+  )
 
   // Well-formedness, not a guess at exactly which characters vditor chose to delete: dollar signs
   // stay balanced (no half-open `$...` left dangling)…

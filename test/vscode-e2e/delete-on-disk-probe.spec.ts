@@ -2,7 +2,7 @@ import { settle, wf } from './webview-helpers'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { expect, test } from 'vscode-test-playwright'
+import { test } from 'vscode-test-playwright'
 
 // Journey A6 (tasks/516-qa-journey-coverage-plan.md, Phase 1), probe-first — the file backing an
 // open vMarkd editor is deleted EXTERNALLY (`fs.rmSync`, not a VS Code API — the same shape as an
@@ -113,7 +113,9 @@ test('@probe probe: file deleted on disk while open — survival, dirty state, t
         `webviewStillHasIR=${webviewStillHasIR} toastText=${JSON.stringify(notice1.toastText)} ` +
         `hasDialog=${notice1.hasDialog} dialogText=${JSON.stringify(notice1.dialogText)}`,
     )
-    console.log(`[delete-on-disk] webview body preview: ${JSON.stringify(webviewBodyText)}`)
+    console.log(
+      `[delete-on-disk] webview body preview: ${JSON.stringify(webviewBodyText)}`,
+    )
 
     if (notice1.hasDialog && notice1.dialogButtons.length > 0) {
       console.log(
@@ -168,7 +170,9 @@ test('@probe probe: file deleted on disk while open — survival, dirty state, t
           .locator('.monaco-dialog-box button')
           .first()
           .textContent()
-        console.log(`[delete-on-disk] dismissing save dialog via button "${btn}"`)
+        console.log(
+          `[delete-on-disk] dismissing save dialog via button "${btn}"`,
+        )
         await workbox.locator('.monaco-dialog-box button').first().click()
         await settle(frame, 1000)
       }

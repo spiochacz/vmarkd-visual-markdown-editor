@@ -1,7 +1,7 @@
 import { settle, wf } from './webview-helpers'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { expect, test } from 'vscode-test-playwright'
+import { test } from 'vscode-test-playwright'
 
 // Journey A5 (tasks/516-qa-journey-coverage-plan.md, Phase 1) = 455's open item ("no spec matches
 // `renameFile`"), probe-first. `a.md` holds a `[[b]]` wiki chip; `b.md` (the target) is renamed to
@@ -111,11 +111,12 @@ test('@probe probe: renaming a wiki-chip TARGET file — does the chip text foll
     await workbox.keyboard.press('Control+Enter')
     await settle(frame, 2000)
 
-    const openTabs = await evaluateInVSCode(async (vscode: typeof import('vscode')) =>
-      vscode.window.tabGroups.all
-        .flatMap((g) => g.tabs)
-        .filter((t) => t.input instanceof vscode.TabInputCustom)
-        .map((t) => (t.input as import('vscode').TabInputCustom).uri.fsPath),
+    const openTabs = await evaluateInVSCode(
+      async (vscode: typeof import('vscode')) =>
+        vscode.window.tabGroups.all
+          .flatMap((g) => g.tabs)
+          .filter((t) => t.input instanceof vscode.TabInputCustom)
+          .map((t) => (t.input as import('vscode').TabInputCustom).uri.fsPath),
     )
     const toast = await workbox.evaluate(() => {
       const toasts = document.querySelector('.notifications-toasts')

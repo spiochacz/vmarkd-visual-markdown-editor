@@ -46,54 +46,53 @@ async function open(
 
 // The collapsed preview text vmarkd's decoration injects (html-comment.ts's decorateHtmlBlock).
 async function previewText(frame: ReturnType<typeof wf>): Promise<string> {
-  return frame.locator('body').evaluate(
-    () =>
-      document.querySelector(
-        '.vditor-ir [data-type="html-block"] .vmarkd-comment',
-      )?.textContent ?? '',
-  )
+  return frame
+    .locator('body')
+    .evaluate(
+      () =>
+        document.querySelector(
+          '.vditor-ir [data-type="html-block"] .vmarkd-comment',
+        )?.textContent ?? '',
+    )
 }
 
 async function expandAndPlaceCaretAfter(
   frame: ReturnType<typeof wf>,
   anchor: string,
 ) {
-  return frame.locator('body').evaluate(
-    (_el, anchor) => {
-      const node = document.querySelector(
-        '.vditor-ir [data-type="html-block"]',
-      ) as HTMLElement | null
-      if (!node) return false
-      node.classList.add('vditor-ir__node--expand')
-      const source = node.querySelector(
-        'pre.vditor-ir__marker--pre, .vditor-ir__marker--pre',
-      ) as HTMLElement | null
-      if (!source) return false
-      const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
-      let target: Text | null = null
-      for (
-        let n = walker.nextNode() as Text | null;
-        n;
-        n = walker.nextNode() as Text | null
-      ) {
-        if (n.textContent?.includes(anchor)) {
-          target = n
-          break
-        }
+  return frame.locator('body').evaluate((_el, anchor) => {
+    const node = document.querySelector(
+      '.vditor-ir [data-type="html-block"]',
+    ) as HTMLElement | null
+    if (!node) return false
+    node.classList.add('vditor-ir__node--expand')
+    const source = node.querySelector(
+      'pre.vditor-ir__marker--pre, .vditor-ir__marker--pre',
+    ) as HTMLElement | null
+    if (!source) return false
+    const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
+    let target: Text | null = null
+    for (
+      let n = walker.nextNode() as Text | null;
+      n;
+      n = walker.nextNode() as Text | null
+    ) {
+      if (n.textContent?.includes(anchor)) {
+        target = n
+        break
       }
-      if (!target) return false
-      const idx = (target.textContent ?? '').indexOf(anchor) + anchor.length
-      const r = document.createRange()
-      r.setStart(target, idx)
-      r.collapse(true)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(r)
-      source.focus()
-      return true
-    },
-    anchor,
-  )
+    }
+    if (!target) return false
+    const idx = (target.textContent ?? '').indexOf(anchor) + anchor.length
+    const r = document.createRange()
+    r.setStart(target, idx)
+    r.collapse(true)
+    const sel = window.getSelection()
+    sel?.removeAllRanges()
+    sel?.addRange(r)
+    source.focus()
+    return true
+  }, anchor)
 }
 
 test('caret-in reveals the raw comment markers; editing round-trips on save', async ({
@@ -107,13 +106,16 @@ test('caret-in reveals the raw comment markers; editing round-trips on save', as
   // Collapsed: our decoration shows the styled preview text, not raw markers.
   const collapsed = await previewText(frame)
   // eslint-disable-next-line no-console
-  console.log(`[html-comment-edit] collapsed preview: ${JSON.stringify(collapsed)}`)
+  console.log(
+    `[html-comment-edit] collapsed preview: ${JSON.stringify(collapsed)}`,
+  )
   expect(collapsed).toContain('Original comment body')
 
   const placed = await expandAndPlaceCaretAfter(frame, 'Original comment body')
-  expect(placed, 'expanded the node and placed the caret in the raw source').toBe(
-    true,
-  )
+  expect(
+    placed,
+    'expanded the node and placed the caret in the raw source',
+  ).toBe(true)
   await workbox.keyboard.type(' plus edit', { delay: 40 })
   // Leave the node — collapses again, decoration re-applies.
   await frame.locator('.vditor-ir').getByText('untouched by any edit').click()
@@ -128,14 +130,20 @@ test('caret-in reveals the raw comment markers; editing round-trips on save', as
 
   const recollapsed = await previewText(frame)
   // eslint-disable-next-line no-console
-  console.log(`[html-comment-edit] recollapsed preview: ${JSON.stringify(recollapsed)}`)
-  expect(recollapsed, 'the decoration re-applies with the edited text').toContain(
-    'plus edit',
+  console.log(
+    `[html-comment-edit] recollapsed preview: ${JSON.stringify(recollapsed)}`,
   )
+  expect(
+    recollapsed,
+    'the decoration re-applies with the edited text',
+  ).toContain('plus edit')
 
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.commands.executeCommand('workbench.action.files.save')
-  }, [] as [string])
+  await evaluateInVSCode(
+    async (vscode: typeof import('vscode')) => {
+      await vscode.commands.executeCommand('workbench.action.files.save')
+    },
+    [] as [string],
+  )
   await settle(frame, 500)
   const saved = readFileSync(tmp, 'utf8')
   rmSync(tmp, { force: true })

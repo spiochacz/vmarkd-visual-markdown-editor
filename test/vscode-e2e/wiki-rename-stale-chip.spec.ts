@@ -69,8 +69,12 @@ test('renaming a wiki-chip TARGET file leaves the chip stale, and activating it 
 
   // The chip stays stale — still targets "b", never "c" — and the document text/dirty state are
   // completely untouched by the rename.
-  await expect(frame.locator('.wiki-link-chip[data-wiki-target="b"]')).toHaveCount(1)
-  await expect(frame.locator('.wiki-link-chip[data-wiki-target="c"]')).toHaveCount(0)
+  await expect(
+    frame.locator('.wiki-link-chip[data-wiki-target="b"]'),
+  ).toHaveCount(1)
+  await expect(
+    frame.locator('.wiki-link-chip[data-wiki-target="c"]'),
+  ).toHaveCount(0)
   const afterRename = await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const doc = vscode.workspace.textDocuments.find(
@@ -129,7 +133,9 @@ test('renaming a wiki-chip TARGET file leaves the chip stale, and activating it 
     .toContain('was not found')
   const toastButtons = await workbox.evaluate(() =>
     Array.from(
-      document.querySelectorAll('.notifications-toasts a.monaco-button, .notifications-toasts button'),
+      document.querySelectorAll(
+        '.notifications-toasts a.monaco-button, .notifications-toasts button',
+      ),
     ).map((b) => b.textContent?.trim()),
   )
   expect(toastButtons).toContain('Create Page')

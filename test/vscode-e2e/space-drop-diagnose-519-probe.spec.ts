@@ -16,10 +16,7 @@ test('@probe diagnose: per-keystroke DOM + getValue trace', async ({
   evaluateInVSCode,
 }) => {
   test.setTimeout(120_000)
-  const target = path.join(
-    tmpdir(),
-    `vmarkd-space-drop-diag-${Date.now()}.md`,
-  )
+  const target = path.join(tmpdir(), `vmarkd-space-drop-diag-${Date.now()}.md`)
   writeFileSync(target, '')
 
   try {
@@ -52,8 +49,9 @@ test('@probe diagnose: per-keystroke DOM + getValue trace', async ({
       w.__spaceDropLog = []
       // Bisect hook (task 519): gap-paragraph.ts and message-router.ts push here — TEMP,
       // installed from the diagnostic so production stays a no-op check.
-      ;(window as unknown as { __spaceDropTrace?: unknown[] }).__spaceDropTrace =
-        w.__spaceDropLog
+      ;(
+        window as unknown as { __spaceDropTrace?: unknown[] }
+      ).__spaceDropTrace = w.__spaceDropLog
       const blockText = () =>
         (
           document.querySelector(

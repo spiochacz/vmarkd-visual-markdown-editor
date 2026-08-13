@@ -14,13 +14,17 @@ const SECTIONS = 1200
 // budget as stream-large-file.spec.ts).
 function buildLargeMarkdown(): string {
   const parts: string[] = ['# Large-doc editing fixture\n\n']
-  parts.push('CARET-ANCHOR paragraph the test edits after the doc streams in.\n\n')
+  parts.push(
+    'CARET-ANCHOR paragraph the test edits after the doc streams in.\n\n',
+  )
   for (let i = 0; i < SECTIONS; i++) {
     // No trailing space before the paragraph's closing newline — Lute's markdown serializer
     // (getValue() round-trips through it) trims trailing whitespace on re-serialize, which made a
     // byte-for-byte equality check against a `.repeat(50)` fixture with a trailing space fail on
     // ALL 1200 sections even before any edit — a fixture artifact, not a real undo/save bug.
-    parts.push(`## Section ${i}\n\n${Array(50).fill('lorem ipsum').join(' ')}\n\n`)
+    parts.push(
+      `## Section ${i}\n\n${Array(50).fill('lorem ipsum').join(' ')}\n\n`,
+    )
   }
   // Single trailing newline at EOF — Lute's serializer (getValue()) normalizes a trailing BLANK
   // line away on every round-trip (not undo/save-specific), so a fixture ending in `\n\n` fails a
@@ -157,9 +161,10 @@ test('type, undo, and save on a >700k-char streamed document', async ({
       .toBe(false)
 
     const onDisk = fs.readFileSync(file, 'utf8')
-    expect(onDisk, 'saved bytes must match the edited (undo-then-redo) document').toBe(
-      editedText,
-    )
+    expect(
+      onDisk,
+      'saved bytes must match the edited (undo-then-redo) document',
+    ).toBe(editedText)
     expect(onDisk).toContain(MARKER)
   } finally {
     fs.rmSync(file, { force: true })

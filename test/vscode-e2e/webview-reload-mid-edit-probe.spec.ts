@@ -97,10 +97,15 @@ test('@probe probe: reload webviews with an unsaved edit — does content and di
     // Re-locate the webview iframe — it may be a genuinely new DOM node post-reload.
     const frameAfter = wf(workbox)
     const irCount = await frameAfter.locator('.vditor-ir').count()
-    console.log(`[webview-reload] webview .vditor-ir present after reload: count=${irCount}`)
+    console.log(
+      `[webview-reload] webview .vditor-ir present after reload: count=${irCount}`,
+    )
 
     if (irCount > 0) {
-      await frameAfter.locator('.vditor-ir').first().waitFor({ timeout: 30_000 })
+      await frameAfter
+        .locator('.vditor-ir')
+        .first()
+        .waitFor({ timeout: 30_000 })
       const webviewText = await frameAfter
         .locator('body')
         .evaluate(() => document.body.innerText.slice(0, 500))
@@ -109,10 +114,12 @@ test('@probe probe: reload webviews with an unsaved edit — does content and di
         .evaluate(() => (window as any).vditor?.getValue?.() ?? null)
       console.log(
         `[webview-reload] webview repainted text preview=${JSON.stringify(webviewText.slice(0, 200))} ` +
-          `webviewGetValueHasMarker=${typeof webviewValue === 'string' ? webviewValue.includes(MARKER) : 'N/A (' + webviewValue + ')'}`,
+          `webviewGetValueHasMarker=${typeof webviewValue === 'string' ? webviewValue.includes(MARKER) : `N/A (${webviewValue})`}`,
       )
     } else {
-      console.log('[webview-reload] webview did NOT come back with .vditor-ir after reload')
+      console.log(
+        '[webview-reload] webview did NOT come back with .vditor-ir after reload',
+      )
     }
 
     // Now try saving — does the (still?) dirty document, if any, save correctly post-reload?

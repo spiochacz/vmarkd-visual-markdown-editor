@@ -1910,16 +1910,24 @@ describe('patchSetRangeByWbrHeadingMarker (task 519 — heading typing drops a s
   it('widens the same Chrome-bug branch to also cover the heading marker span', () => {
     const patched = patchSetRangeByWbrHeadingMarker(selectionSource)
     // The original EM/STRONG/S check must survive untouched — this widens, not replaces.
-    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "EM"')
-    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "STRONG"')
-    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "S"')
+    expect(patched).toContain(
+      'wbrElement.previousElementSibling.tagName === "EM"',
+    )
+    expect(patched).toContain(
+      'wbrElement.previousElementSibling.tagName === "STRONG"',
+    )
+    expect(patched).toContain(
+      'wbrElement.previousElementSibling.tagName === "S"',
+    )
     expect(patched).toContain(
       '(wbrElement.previousElementSibling as HTMLElement).classList.contains("vditor-ir__marker--heading")',
     )
     // Still inside the SAME isChrome() guard, not a separate unconditional branch.
     const chromeIdx = patched.indexOf('if (isChrome() && (')
     const headingIdx = patched.indexOf('vditor-ir__marker--heading')
-    const closeIdx = patched.indexOf('range.insertNode(document.createTextNode(Constants.ZWSP));')
+    const closeIdx = patched.indexOf(
+      'range.insertNode(document.createTextNode(Constants.ZWSP));',
+    )
     expect(chromeIdx).toBeGreaterThan(0)
     expect(headingIdx).toBeGreaterThan(chromeIdx)
     expect(closeIdx).toBeGreaterThan(headingIdx)
@@ -1935,9 +1943,9 @@ describe('patchSetRangeByWbrHeadingMarker (task 519 — heading typing drops a s
   })
 
   it('throws (fails the build loudly) if the anchor drifts on a Vditor bump', () => {
-    expect(() => patchSetRangeByWbrHeadingMarker('// unrelated source')).toThrow(
-      /patchSetRangeByWbrHeadingMarker/,
-    )
+    expect(() =>
+      patchSetRangeByWbrHeadingMarker('// unrelated source'),
+    ).toThrow(/patchSetRangeByWbrHeadingMarker/)
   })
 })
 

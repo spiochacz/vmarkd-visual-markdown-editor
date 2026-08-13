@@ -80,9 +80,7 @@ test('file deleted on disk while open: editor survives, content is recoverable b
       .evaluate(() => document.body.innerText)
     expect(bodyText).toContain('CARET-ANCHOR paragraph')
     // No error surfaced to the user for the delete itself.
-    const dialogCount = await workbox
-      .locator('.monaco-dialog-box')
-      .count()
+    const dialogCount = await workbox.locator('.monaco-dialog-box').count()
     expect(dialogCount).toBe(0)
 
     const afterDelete = await docState()
@@ -127,12 +125,14 @@ test('file deleted on disk while open: editor survives, content is recoverable b
       .toBe(false)
 
     const onDisk = readFileSync(tmp, 'utf8')
-    expect(onDisk, 'the recreated file must contain the original content').toContain(
-      '# Delete on disk',
-    )
-    expect(onDisk, 'the recreated file must contain the new edit too').toContain(
-      MARKER,
-    )
+    expect(
+      onDisk,
+      'the recreated file must contain the original content',
+    ).toContain('# Delete on disk')
+    expect(
+      onDisk,
+      'the recreated file must contain the new edit too',
+    ).toContain(MARKER)
   } finally {
     rmSync(tmp, { force: true })
   }

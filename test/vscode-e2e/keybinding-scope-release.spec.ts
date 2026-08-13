@@ -31,11 +31,14 @@ const FIXTURE_BODY =
   '# Keybinding scope fixture\n\nPlain paragraph text for scope release checks.\n'
 
 async function getVmarkdValue(frame: ReturnType<typeof wf>): Promise<string> {
-  return frame.locator('body').evaluate(
-    () =>
-      (window as unknown as { vditor?: { getValue?: () => string } }).vditor
-        ?.getValue?.() ?? '',
-  )
+  return frame
+    .locator('body')
+    .evaluate(
+      () =>
+        (
+          window as unknown as { vditor?: { getValue?: () => string } }
+        ).vditor?.getValue?.() ?? '',
+    )
 }
 
 test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused vMarkd panel for the same file', async ({
@@ -109,9 +112,10 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
   // it. (If the `when` clause leaked, this is exactly where a stray `~~`/`- `/`#` would show up —
   // format.strike/list/headings all mutate via a `trigger-toolbar-hotkey` postMessage, not the
   // text document directly, so this in-webview read is the one that would catch it.)
-  expect(after, 'the vMarkd panel content is untouched by keys pressed in the text editor').toBe(
-    before,
-  )
+  expect(
+    after,
+    'the vMarkd panel content is untouched by keys pressed in the text editor',
+  ).toBe(before)
 
   rmSync(tmp, { force: true })
 })

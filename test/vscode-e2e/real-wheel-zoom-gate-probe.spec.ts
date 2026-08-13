@@ -70,7 +70,6 @@ async function getPaneScrollTop(frame: ReturnType<typeof wf>): Promise<number> {
   })
 }
 
-
 test('@probe measure what a REAL wheel and Ctrl+wheel do over a gated diagram', async ({
   workbox,
   evaluateInVSCode,

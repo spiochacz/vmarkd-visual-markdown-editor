@@ -79,9 +79,7 @@ test('word count in the status bar updates while typing, and the mode indicator 
       },
       { message: 'the status-bar word count increased after typing' },
     )
-    .toBeGreaterThan(
-      Number(/(\d+) words/.exec(before)?.[1] ?? 0),
-    )
+    .toBeGreaterThan(Number(/(\d+) words/.exec(before)?.[1] ?? 0))
 
   // Mode indicator: default is WYSIWYG label (IR/WYSIWYG both show it, per status-bar.ts); switch
   // to split (sv) through the toolbar's edit-mode panel and confirm the label follows.
@@ -90,7 +88,9 @@ test('word count in the status bar updates while typing, and the mode indicator 
   console.log(`[status-bar] mode before: ${JSON.stringify(modeBefore)}`)
   expect(modeBefore).toMatch(/WYSIWYG/)
 
-  await frame.locator('body').evaluate(() => new Promise((r) => setTimeout(r, 500)))
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 500)))
   await frame.locator('body').evaluate(() => {
     const v = (
       window as unknown as {
