@@ -97,6 +97,20 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
+## Full-suite progression across four runs (2026-08-13 → 14)
+
+| Run | passed | failed | flaky | what changed before it |
+|---|---|---|---|---|
+| 1 | 262 | 4 | 6 | — (baseline, 54.4 min) |
+| 2 | 265 | 2 | 5 | the three pre-existing failures + the settle-focus fix |
+| 3 | 268 | **0** | 4 | emoji-insert, outline-explorer, keybinding budget |
+| 4 | 270 | **0** | 2 | the save race, the theme-code leak, the overlay dblclick |
+
+The two still-flaky after run 4 — `flip-skip` and `prerender-style-parity` — both pass 12/12 in
+isolation; the parity one was then pinned against inherited themes (see [524](524-e2e-specs-leak-global-settings.md)).
+`two-pane-editing` failed run 3 on `Timed out waiting for VSCodeTestServer address`, i.e. VS Code
+did not boot — harness under load, not a test defect.
+
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
 `xvfb-run -a npm run test:vscode`: **262 passed, 4 failed, 6 flaky, 2 skipped, 54.4 min.**
@@ -196,6 +210,8 @@ look for the same trap.
 | — | the git gutter never rendered for LIST blocks (`blockLineRange` could not map them to source lines) | ✅ fixed here |
 | [522](522-caret-raf-loop-steals-find-focus.md) | the caret rAF loop steals focus from the find box — task 514's bug, second route | open (diagnosed, fix is a design call) |
 | [523](523-diff-gutter-misses-tables.md) | the git gutter still misses TABLES (same mechanism as the list gap) | open |
+| — | a save immediately after a revert-to-baseline left the tab DIRTY with no backstop able to clean it (an in-flight sync tick landing after the willSave correction; `applyEdit` always dirties) | ✅ fixed here |
+| [524](524-e2e-specs-leak-global-settings.md) | e2e specs leak GLOBAL settings into the shared profile — the real cause behind three "timing" flakes | open (the three victims are fixed) |
 
 **Open thread — the space drop.** Typing `# Untitled journey` character-by-character into a blank
 document produced `# Untitledjourney` during A7 (real VS Code, untitled doc). Investigated at the
