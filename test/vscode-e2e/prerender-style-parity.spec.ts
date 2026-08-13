@@ -57,6 +57,24 @@ function readSnapshot(
   ) as Promise<Snapshot>
 }
 
+// The overlay is ephemeral: `removePrerenderOverlay` deletes it the moment the live editor is
+// themed, and the hold that keeps it around for this comparison is gated on
+// VMARKD_PRERENDER_PARITY_HOLD (html-builder.ts) — which nothing set. So the spec waited 45 s for an
+// element that had already been removed and failed on a clean `main` too; the product was fine
+// (task 516 full-suite triage).
+//
+// Set it here rather than in playwright.config: `vscode-test-playwright` copies `process.env` into
+// VS Code at LAUNCH, and each test boots its own instance, so a file-scoped beforeAll/afterAll gives
+// exactly this file's tests the hold. A config-level export would hold the overlay for every spec in
+// the suite — the overlay covers the editor, so that would break unrelated tests. Files share a
+// worker sequentially, never concurrently, so the window really is bounded.
+test.beforeAll(() => {
+  process.env.VMARKD_PRERENDER_PARITY_HOLD = '1'
+})
+test.afterAll(() => {
+  process.env.VMARKD_PRERENDER_PARITY_HOLD = undefined
+})
+
 test('host prerender and settled IR keep static Markdown styles identical', async ({
   workbox,
   evaluateInVSCode,
