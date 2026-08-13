@@ -54,6 +54,7 @@ import {
   patchEchartsErrorBox,
   patchMindmapErrorBox,
   patchInsertHtmlDelete,
+  patchSetRangeByWbrHeadingMarker,
   patchClipboardCollapsed,
   patchCutDeleteSync,
   patchUndoCaretSplitRestore,
@@ -1888,6 +1889,54 @@ describe('patchInsertHtmlDelete (task 393 — paste over a selection)', () => {
   it('throws (fails the build loudly) if the anchor drifts on a Vditor bump', () => {
     expect(() => patchInsertHtmlDelete('// unrelated source')).toThrow(
       /patchInsertHtmlDelete/,
+    )
+  })
+})
+
+describe('patchSetRangeByWbrHeadingMarker (task 519 — heading typing drops a space)', () => {
+  it('the shipped source gates the Chrome-bug ZWSP anchor to EM/STRONG/S only (pre-patch)', () => {
+    expect(selectionSource).toContain(
+      'wbrElement.previousElementSibling.tagName === "EM"',
+    )
+    expect(selectionSource).toContain(
+      'wbrElement.previousElementSibling.tagName === "STRONG"',
+    )
+    expect(selectionSource).toContain(
+      'wbrElement.previousElementSibling.tagName === "S"',
+    )
+    expect(selectionSource).not.toContain('vditor-ir__marker--heading')
+  })
+
+  it('widens the same Chrome-bug branch to also cover the heading marker span', () => {
+    const patched = patchSetRangeByWbrHeadingMarker(selectionSource)
+    // The original EM/STRONG/S check must survive untouched — this widens, not replaces.
+    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "EM"')
+    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "STRONG"')
+    expect(patched).toContain('wbrElement.previousElementSibling.tagName === "S"')
+    expect(patched).toContain(
+      '(wbrElement.previousElementSibling as HTMLElement).classList.contains("vditor-ir__marker--heading")',
+    )
+    // Still inside the SAME isChrome() guard, not a separate unconditional branch.
+    const chromeIdx = patched.indexOf('if (isChrome() && (')
+    const headingIdx = patched.indexOf('vditor-ir__marker--heading')
+    const closeIdx = patched.indexOf('range.insertNode(document.createTextNode(Constants.ZWSP));')
+    expect(chromeIdx).toBeGreaterThan(0)
+    expect(headingIdx).toBeGreaterThan(chromeIdx)
+    expect(closeIdx).toBeGreaterThan(headingIdx)
+  })
+
+  it('leaves the ZWSP-insert body and the rest of setRangeByWbr untouched', () => {
+    const patched = patchSetRangeByWbrHeadingMarker(selectionSource)
+    expect(patched).toContain(
+      'range.insertNode(document.createTextNode(Constants.ZWSP));',
+    )
+    expect(patched).toContain('range.collapse(false);')
+    expect(patched).toContain('wbrElement.remove();')
+  })
+
+  it('throws (fails the build loudly) if the anchor drifts on a Vditor bump', () => {
+    expect(() => patchSetRangeByWbrHeadingMarker('// unrelated source')).toThrow(
+      /patchSetRangeByWbrHeadingMarker/,
     )
   })
 })

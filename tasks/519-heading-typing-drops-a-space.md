@@ -1,6 +1,6 @@
 # 519 — typing a heading drops the space after the first word
 
-**Status:** 📋 OPEN — bug, found by QA probe · **Impact:** 🔴 high — hits anyone who types a
+**Status:** ✅ FIXED 2026-08-13 — bug, found by QA probe · **Impact:** 🔴 high — hits anyone who types a
 multi-word heading, which is close to every user · **Found:** 2026-08-13 while implementing
 [task 516](516-qa-journey-coverage-plan.md) (incidental to journey A7, chased down separately).
 

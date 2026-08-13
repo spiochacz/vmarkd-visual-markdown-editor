@@ -904,6 +904,52 @@ export function patchInsertHtmlDelete(code) {
   )
 }
 
+// Task 519 — typing a multi-word heading drops the space after the first word (`# Untitled
+// journey` → `# Untitledjourney`), real-VS-Code-webview only. Root-caused by wrapping Lute's
+// entry points at runtime (test/vscode-e2e/space-drop-caller-probe.spec.ts): the SPACE that
+// disappears was never actually eaten as a keystroke — it lands in the DOM, then a later
+// `SpinVditorIRDOM` receives `<span class="vditor-ir__marker vditor-ir__marker--heading">#
+// Untitled <wbr></span>` (the ENTIRE typed run sitting INSIDE the marker span) and correctly
+// re-splits that into marker `# ` + text `Untitled`, consuming the boundary space as the
+// delimiter. So every keystroke after `# ` promotion was landing INSIDE the marker span instead
+// of as a sibling of it — confirmed at the DOM-shape level too (an isolated Node Lute probe: `Md2
+// VditorIRDOM`/`SpinVditorIRDOM` on `'# Untitled '` puts the wbr as `<h1>`'s marker-span
+// sibling, exactly where a correct caret restore should land).
+//
+// `setRangeByWbr` (right below `patchInsertHtmlDelete`'s target in this same file) is WHERE that
+// goes wrong: it already documents this as a "Chrome set range bug" (see the `**c**` comment
+// below) — Chrome's native contenteditable typing does not reliably treat a collapsed Range at an
+// ELEMENT-offset boundary right after an inline element as "start a new sibling"; it can instead
+// extend the END of that preceding element. Vditor's own fix is to insert a ZWSP text node right
+// after the marker so Chrome has an unambiguous text-node anchor to type into — but it is gated to
+// `tagName === "EM" || "STRONG" || "S"` (bold/italic/strikethrough) only. The heading marker
+// (`SPAN.vditor-ir__marker--heading`) produces the IDENTICAL DOM shape after promotion
+// (`<span class="…marker--heading">#&nbsp;</span><wbr>`) and hits the exact same Chrome bug, but
+// was never added to the list — so it gets no anchor, and typing accumulates inside the marker
+// until the next real spin drops the boundary space. Widen the tag check to also cover it.
+//
+// (Real-webview-only because the harness's own 10 typed-heading cells never happened to chain
+// "promote, then immediately continue typing in the SAME burst" against this exact seeded-leading-
+// block shape — the bug is a Chrome contenteditable quirk, not something the harness structurally
+// cannot reach; `isChrome()` is true in both environments.)
+const SET_RANGE_BY_WBR_CHROME_FIX = `                if (isChrome() && (wbrElement.previousElementSibling.tagName === "EM" ||
+                    wbrElement.previousElementSibling.tagName === "STRONG" ||
+                    wbrElement.previousElementSibling.tagName === "S")) {`
+export function patchSetRangeByWbrHeadingMarker(code) {
+  if (!code.includes(SET_RANGE_BY_WBR_CHROME_FIX)) {
+    throw new Error(
+      'patchSetRangeByWbrHeadingMarker: Chrome-bug tag-check anchor not found in vditor util/selection.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    SET_RANGE_BY_WBR_CHROME_FIX,
+    `                if (isChrome() && (wbrElement.previousElementSibling.tagName === "EM" ||
+                    wbrElement.previousElementSibling.tagName === "STRONG" ||
+                    wbrElement.previousElementSibling.tagName === "S" ||
+                    (wbrElement.previousElementSibling as HTMLElement).classList.contains("vditor-ir__marker--heading"))) {`,
+  )
+}
+
 // The same collapsed-caret story on the COPY side, in split mode only. `sv`'s copy handler writes
 // `getSelectText(...)` to text/plain with no empty-selection guard (IR and WYSIWYG both have one),
 // so a Ctrl+C with nothing selected sets text/plain to "" — it does not merely fail to copy, it
@@ -2340,7 +2386,8 @@ export const VDITOR_TS_PATCHES = [
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]selection\.ts$/,
-    transform: patchInsertHtmlDelete,
+    transform: (code) =>
+      patchSetRangeByWbrHeadingMarker(patchInsertHtmlDelete(code)),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]sv[/\\]index\.ts$/,
