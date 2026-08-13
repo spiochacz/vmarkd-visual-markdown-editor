@@ -17,8 +17,15 @@ export function createUploadHandler(
 ) {
   return async function handler(files: File[]) {
     const opts = getImageOptions() ?? {}
+    // Task 517 — Vditor's uploadFiles reads `event.dataTransfer.items` UNFILTERED and slices it by
+    // filesMax, so a drop carrying both a file and a `text/plain` payload (dragging a link and a
+    // file together, or any browser drag that stamps both) hands us the STRING item, whose
+    // getAsFile() is null. convertForUpload then read `.name` off null and threw inside an
+    // unawaited promise: no upload, no insertion, no error — the drop just did nothing at all.
+    const uploadable = files.filter((f): f is File => f instanceof File)
+    if (uploadable.length === 0) return
     const fileInfos = await Promise.all(
-      files.map(async (f) => {
+      uploadable.map(async (f) => {
         const { blob, name } = await convertForUpload(f, {
           // imageFormat is the raw setting string; convertForUpload treats any non-'webp'
           // value as 'original' (safe degrade), so the cast is sound.

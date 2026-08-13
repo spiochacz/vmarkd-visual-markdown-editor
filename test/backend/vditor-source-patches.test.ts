@@ -11,6 +11,7 @@ import {
   patchWysiwygLinkClick,
   patchWysiwygCodeClickCaret,
   patchListToggle,
+  patchUploadFilesKindFilter,
   patchFixListOutdent,
   patchOutlineCurrent,
   patchMathRender,
@@ -68,6 +69,9 @@ const undoSource = read(
 )
 const fixBrowserSource = read(
   '../../media-src/node_modules/vditor/src/ts/util/fixBrowserBehavior.ts',
+)
+const uploadSource = read(
+  '../../media-src/node_modules/vditor/src/ts/upload/index.ts',
 )
 const mathSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mathRender.ts',
@@ -2031,5 +2035,32 @@ describe('list marker forms a list on the space (task 441)', () => {
     for (const no of ['text 1. ', '1.', '- x', '1234567890. ', '', ' - ']) {
       expect(re.test(no), no).toBe(false)
     }
+  })
+})
+
+describe('patchUploadFilesKindFilter (task 517 — mixed string+file drop)', () => {
+  // Confirms the shipped source slices by filesMax BEFORE inspecting entry kinds. That order is
+  // the bug: with a text/plain sibling, Chromium enumerates the STRING item first, so files[0]
+  // is a string whose getAsFile() is null and the real File is never reached.
+  it('the shipped Vditor source slices by filesMax before filtering by kind (pre-patch)', () => {
+    expect(uploadSource).toContain(
+      'const filesMax = vditor.options.upload.multiple === true ? files.length : 1;',
+    )
+    expect(uploadSource).not.toContain('entry.kind === "file"')
+  })
+
+  it('drops non-file DataTransfer entries before the filesMax slice', () => {
+    const patched = patchUploadFilesKindFilter(uploadSource)
+    expect(patched).toContain('entry.kind === "file"')
+    // The filter must come BEFORE the slice, or it changes nothing.
+    expect(patched.indexOf('entry.kind === "file"')).toBeLessThan(
+      patched.indexOf('const filesMax ='),
+    )
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchUploadFilesKindFilter('// unrelated source')).toThrow(
+      /patchUploadFilesKindFilter/,
+    )
   })
 })

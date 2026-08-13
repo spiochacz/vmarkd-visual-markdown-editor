@@ -385,6 +385,33 @@ export function patchWysiwygCodeClickCaret(code) {
 // ALL sibling <li>; a sibling without a checkbox throws on `.remove()` of null.
 // Add optional chaining so the toggle never crashes on a mixed list. (The wider
 // "mutates all siblings" scoping is a separate, runtime-repro-first change.)
+// Task 517 — `uploadFiles` slices its input by `filesMax` (1 unless upload.multiple) BEFORE
+// looking at what the entries are. A drop that carries both a file and a `text/plain` payload —
+// dragging a link and a file together, or any browser drag that stamps both — enumerates the
+// STRING item first in Chromium's DataTransferItemList regardless of add order, so `files[0]` is
+// the string, `getAsFile()` returns null, and the real File is never reached. The user saw
+// nothing at all happen. Filter to file-kind entries first, so the slice counts real files.
+const UPLOAD_FILES_ANCHOR = `        let fileList = [];
+        const filesMax = vditor.options.upload.multiple === true ? files.length : 1;`
+export function patchUploadFilesKindFilter(code) {
+  if (!code.includes(UPLOAD_FILES_ANCHOR)) {
+    throw new Error(
+      'patchUploadFilesKindFilter: anchor not found in vditor upload/index.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    UPLOAD_FILES_ANCHOR,
+    `        let fileList = [];
+        // vmarkd (task 517): drop non-file entries BEFORE the filesMax slice. A mixed
+        // string+file DataTransfer otherwise puts a text item at index 0, whose getAsFile()
+        // is null, and the real File is never uploaded.
+        const fileEntries = Array.from(files as ArrayLike<unknown>).filter(
+            (entry: any) => !(entry instanceof DataTransferItem) || entry.kind === "file",
+        ) as typeof files;
+        files = fileEntries;
+        const filesMax = vditor.options.upload.multiple === true ? files.length : 1;`,
+  )
+}
 const LIST_TOGGLE_ANCHOR = 'item.querySelector("input").remove()'
 export function patchListToggle(code) {
   if (!code.includes(LIST_TOGGLE_ANCHOR)) {
@@ -2326,6 +2353,11 @@ export const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]setLute\.ts$/,
     transform: patchLuteHook,
+  },
+  {
+    // Task 517 — non-file DataTransfer entries must be dropped before the filesMax slice.
+    file: /vditor[/\\]src[/\\]ts[/\\]upload[/\\]index\.ts$/,
+    transform: patchUploadFilesKindFilter,
   },
   {
     // chain the preview/index.ts patches (copy-tip translation + block-level morph, task 187 +
