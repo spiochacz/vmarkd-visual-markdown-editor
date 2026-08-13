@@ -107,7 +107,7 @@ test('empty doc under the reporter settings: is the caret paintable, and can you
   // leaking from here is what made `d2-render-sweep`'s code-highlight case flaky, because
   // `resolveCodeStyle` (src/shared/theme-registry.ts) honours an explicit non-'auto' code theme
   // verbatim and ignores the content theme, so that spec's content-theme flips became permanent
-  // no-ops for token colour. Reset them in a `finally` below.
+  // no-ops for token colour. The `afterEach` above resets them.
   await evaluateInVSCode(
     async (vscode) => {
       const g = vscode.ConfigurationTarget.Global
