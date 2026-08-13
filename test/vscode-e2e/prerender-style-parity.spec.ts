@@ -72,7 +72,11 @@ test.beforeAll(() => {
   process.env.VMARKD_PRERENDER_PARITY_HOLD = '1'
 })
 test.afterAll(() => {
-  process.env.VMARKD_PRERENDER_PARITY_HOLD = undefined
+  // `delete`, NOT `= undefined`: assigning undefined to process.env stores the STRING "undefined",
+  // which is truthy, so html-builder would keep emitting the hold for every spec that runs later in
+  // this worker. That shipped once and made preview-widgets.spec.ts flaky — it waits for
+  // `#vmarkd-prerender` to detach and the overlay was being held forever.
+  delete process.env.VMARKD_PRERENDER_PARITY_HOLD
 })
 
 test('host prerender and settled IR keep static Markdown styles identical', async ({
