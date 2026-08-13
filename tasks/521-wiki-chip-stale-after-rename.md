@@ -1,6 +1,7 @@
 # 521 — renaming a wiki page leaves stale chips that offer to fork a duplicate
 
-**Status:** 📋 OPEN — bug, found by QA journey · **Impact:** 🟠 silent: the link keeps LOOKING
+**Status:** 📋 OPEN — **deferred by decision 2026-08-13**: today's behaviour stays and is pinned by
+a test; this file is now the spec for doing it properly when someone picks it up. Found by QA journey · **Impact:** 🟠 silent: the link keeps LOOKING
 valid, and the offered repair creates a duplicate page instead of reaching the renamed file ·
 **Found:** 2026-08-13 implementing [task 516](516-qa-journey-coverage-plan.md) journey A5
 (= an open item in [task 455](parked/455-dark-journey-probe-backlog.md)).
@@ -54,34 +55,78 @@ Two consequences, both load-bearing:
   a real feature in order to soften the symptom of a different problem, and it would not even
   distinguish the two cases it was meant to distinguish.
 
-## Fix direction (not implemented)
+## Decision taken (2026-08-13)
 
-The remaining choice is only about SCOPE of the rewrite:
+**Ship nothing for now; keep the current behaviour and pin it.** Rationale: every other fix in this
+batch changed editor behaviour where the user was already working. This one writes to the user's
+OTHER files, which is a different class of action and deserves a deliberate design pass rather than
+being patched in passing while adjacent work was in flight.
 
-1. **Rewrite chips on rename.** Listen to `onDidRenameFiles`; when a renamed file is inside the
-   wiki root, rewrite `[[old]]` → `[[new]]` across wiki documents (at minimum the open ones; ideally
-   every page in the wiki root, via the existing wiki cache). Must preserve pipe display labels
-   (`[[old|Label]]` → `[[new|Label]]`) — see `media-src/src/links/wiki-serialize.ts` and
-   `src/shared/wiki-core.ts`.
-   - **Open documents only**: changes are visible and undoable with Ctrl+Z because they go through
-     ordinary edits. But chips in closed files stay stale, so the problem is only half solved.
-   - **The whole wiki root**: actually solves it, at the cost of writing files the user never
-     opened, with no undo. Deserves a setting, and probably a confirmation.
+The rest of this file is the spec for doing it properly.
 
-Either way this mutates the user's OTHER files, which is a different class of action from the rest
-of the fixes in this batch — those changed editor behaviour where the user was already working.
-That is why this one waits for a deliberate decision rather than being patched in passing.
+## How to do it properly
+
+### 1. Decide the scope first — it drives everything else
+
+| Scope | Solves it? | Undo | Cost |
+|---|---|---|---|
+| Open documents only | Half — chips in closed files stay stale and, per the constraint above, become indistinguishable from intentional ones | Yes: ordinary edits, Ctrl+Z works | Low |
+| Whole `wiki.root` | Yes | **No** — writes files the user never opened | Needs a setting, probably a confirmation, and a progress/undo story |
+
+Recommendation: implement the whole-root rewrite behind a setting
+(`vmarkd.wiki.updateLinksOnRename`, values `prompt` / `always` / `never`, default `prompt`),
+mirroring how other editors handle the same problem. `prompt` keeps the destructive half opt-in per
+occurrence, which is what makes the no-undo cost acceptable.
+
+### 2. Implementation
+
+- Hook `vscode.workspace.onDidRenameFiles` — the ONLY point where `oldUri`/`newUri` coexist
+  (see the constraint section). There is exactly one listener today, in
+  `src/session/editor-session.ts`, and it handles the open document's own identity; this is a
+  separate concern and should not be bolted onto it.
+- Gate on: wiki enabled, and the renamed file inside `wiki.root`.
+- Resolve the old and new wiki KEYS with the same logic `cache.resolve()` uses, so a rewrite matches
+  exactly what resolution would have matched — do not hand-roll a second key derivation.
+- Rewrite `[[old]]` → `[[new]]`, **preserving pipe display labels** (`[[old|Label]]` →
+  `[[new|Label]]`) and any surrounding text. Reuse `src/shared/wiki-core.ts` /
+  `media-src/src/links/wiki-serialize.ts` rather than a regex over raw markdown.
+- For open documents, go through `WorkspaceEdit` so the change is visible and undoable. For closed
+  ones, a workspace edit still gives a single undo entry in VS Code — prefer that over raw
+  `fs.writeFile`.
+- Handle a rename that is really a MOVE inside the root (path changes, basename does not) and a
+  move OUT of the root (the link genuinely becomes unresolvable — do not rewrite it to something
+  wrong).
+
+### 3. Edge cases that will bite
+
+- Case-only renames (`b.md` → `B.md`) on case-insensitive filesystems.
+- Two pages whose keys collide after the rename.
+- A rename performed while a document holding a chip is DIRTY — do not silently discard the user's
+  unsaved edits (see `external-change-while-dirty.spec.ts` for the contract that already holds).
+- Undo of the rename itself: VS Code can undo a file rename; the link rewrite should not be left
+  behind pointing at a file that no longer has that name.
+- A chip pointing at a page that does not exist yet must be left ALONE — that is the legitimate
+  workflow the constraint section describes.
 
 ## Regression coverage already in place
 
-`test/vscode-e2e/wiki-rename-stale-chip.spec.ts` pins **today's broken contract**: the chip text is
+`test/vscode-e2e/wiki-rename-stale-chip.spec.ts` pins **today's behaviour**: the chip text is
 unchanged after the rename, and activating it produces the not-found prompt rather than navigating
-to the renamed file. Fixing this MUST flip that test — update it in the same commit, never delete it.
+to the renamed file. That is deliberate — it means the current state is a known, tested contract
+rather than an accident, and whoever implements the above MUST flip that test in the same commit.
 
-## Verification
+`test/vscode-e2e/wiki-create-missing-page.spec.ts` (journey D3) covers the create-page flow that
+must keep working untouched — it is the legitimate workflow this bug's obvious "fix" would have
+broken.
 
-- After renaming a wiki target, chips pointing at it either resolve to the new file or are visibly
-  broken — never silently stale.
-- No path offers to create a page at a name that was just renamed away.
-- Pipe display labels survive whatever rewrite is chosen.
-- The pinned test flipped to the new contract and green.
+## Verification (for whoever implements it)
+
+- Renaming a wiki target updates chips pointing at it, in open AND closed documents per the chosen
+  scope, with pipe display labels intact.
+- A chip pointing at a never-existing page is untouched, and `Create Page` still works — D3's spec
+  stays green.
+- The setting's `never` value really does nothing, and `prompt` does not fire on a rename outside
+  the wiki root.
+- A dirty document holding a chip does not lose unsaved edits.
+- `wiki-rename-stale-chip.spec.ts` flipped to the new contract, and a new case covers a
+  closed-document rewrite if that scope is chosen.
