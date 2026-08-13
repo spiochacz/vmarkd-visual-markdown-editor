@@ -97,6 +97,56 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
+## Full real-VS-Code suite — result and triage (2026-08-13)
+
+`xvfb-run -a npm run test:vscode`: **262 passed, 4 failed, 6 flaky, 2 skipped, 54.4 min.**
+
+Each failure was rerun in isolation, and every spec the branch does not own was rerun against a
+clean `main` build in a throwaway worktree, so "ours" and "pre-existing" are separated by
+measurement rather than by assumption:
+
+| Spec | In the suite | Alone | On clean `main` | Verdict |
+|---|---|---|---|---|
+| `diff-gutter` | fail | fail | **fail, same symptom** | pre-existing |
+| `plantuml-theme-flip` | fail | fail | **fail, same symptom** (`#3b3b3b` expected, `#202020` seen) | pre-existing |
+| `prerender-style-parity` | fail | fail | **fail, same symptom** (`release` undefined) | pre-existing |
+| `keybinding-scope-release` | fail | **pass** | n/a (new here) | ours — fixed below |
+
+The three pre-existing ones are NOT regressions from this task and are deliberately left alone
+here; they need their own task rather than a drive-by fix inside a QA-coverage branch.
+
+The six flaky ones (`d2-render-sweep`, `emoji-insert`, `find-widget-focus`, `find-widget-modes`,
+`heading-space-drop`, `large-doc-editing`) all passed on retry.
+
+### `settle()` steals focus into the webview — the real cause of D10's failure
+
+`settle(frame, ms)` (`test/vscode-e2e/webview-helpers.ts`) waits by running `evaluate` INSIDE the
+webview iframe, and touching the iframe pulls DOM keyboard focus into the panel.
+`keybinding-scope-release` settled between its key presses, so Ctrl+L/Ctrl+H were delivered to the
+FOCUSED webview and fired `format.list`/`format.strike` exactly as designed — the `* ~~~~` in the
+failure output was the product working correctly, reported as a `when`-clause leak. The test was
+asserting the opposite of what had happened.
+
+Measured with a throwaway focus probe (deleted): opening the plain text editor beside the panel
+gives it focus within 200 ms and keeps it indefinitely, across `evaluateInVSCode` round-trips too;
+every observed focus loss traced back to a webview-side evaluate. An earlier guess of mine — that
+`.monaco-editor:visible.last()` clicked the wrong editor — was wrong, and so was a second guess
+that the host query dropped the `.focused` class; both are recorded here because the wrong
+explanation is what makes this class of failure expensive.
+
+Fix, in the spec only (no product change): page-level `workbox.waitForTimeout` instead of `settle`
+after focus matters, focus forced through `showTextDocument({preserveFocus: false})` with a click
+fallback and a poll (opening beside wins focus only ~1-in-2 with a live webview beside it), a
+precondition assert that fails as "we never got focus" rather than degrading into a false leak, and
+a per-key focus trail in the log. Re-proved RED by widening the three `when` clauses to `"true"`:
+fails on the CONTENT assert with `focusTrail=Control+d:text-editor,…`, i.e. the first key demonstrably
+went to the text editor. `package.json` restored byte-identical (md5 verified), green 3/3 after.
+
+**Generalises:** any spec that needs focus OUTSIDE the webview must not use `settle`. Specs that
+type INTO the editor are unaffected — there the focus pull is harmless. `find-widget-focus` and
+`find-widget-modes` are flaky and assert focus in workbench chrome, so they are the first place to
+look for the same trap.
+
 ## Bugs this task has found
 
 | Task | Bug | Status |

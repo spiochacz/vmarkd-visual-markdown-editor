@@ -81,19 +81,83 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
     },
     [tmp] as [string],
   )
-  // The plain text editor is a monaco instance in the workbench chrome (not the webview iframe) —
-  // click it directly to make sure it, not the webview, holds keyboard focus. `:visible` matters:
-  // a bare `.monaco-editor` also matches a HIDDEN chat-input editor instance elsewhere in the
-  // workbench (measured — the first attempt at this test timed out clicking that one).
-  await workbox.locator('.monaco-editor:visible').last().click()
-  await settle(frame, 300)
+  // NOTHING below may use `settle(frame, …)` — that helper runs `evaluate` INSIDE the webview
+  // iframe, and touching the iframe pulls DOM keyboard focus into the panel. That is what actually
+  // broke this test in the full run: it settled between the key presses, so Ctrl+L/Ctrl+H landed in
+  // the FOCUSED webview and fired `format.list`/`format.strike` exactly as designed — the `* ~~~~`
+  // in the failure output was the product working, not a `when`-clause leak. Measured with a
+  // throwaway focus probe: opening the text editor beside already gives it focus within 200 ms and
+  // keeps it indefinitely, through `evaluateInVSCode` round-trips too; every observed focus loss
+  // traced back to a webview-side evaluate. Use `workbox.waitForTimeout` here instead.
+  const focusedEditor = workbox.locator(
+    '.editor-group-container.active .monaco-editor.focused',
+  )
+  // Opening the editor beside does not RELIABLY hand it DOM focus — measured at roughly 1-in-2 with
+  // the webview live next to it, and waiting longer does not help (the assert below auto-retries for
+  // 20 s and still timed out). Re-focus explicitly through the extension host, and fall back to a
+  // click, until monaco actually carries `.focused`.
+  await expect
+    .poll(
+      async () => {
+        await evaluateInVSCode(
+          async (vscode: typeof import('vscode'), args: string[]) => {
+            const doc = await vscode.workspace.openTextDocument(
+              vscode.Uri.file(args[0]),
+            )
+            await vscode.window.showTextDocument(doc, {
+              viewColumn: vscode.ViewColumn.Beside,
+              preserveFocus: false,
+            })
+          },
+          [tmp] as [string],
+        )
+        await workbox.waitForTimeout(300)
+        if (await focusedEditor.isVisible().catch(() => false)) return true
+        await workbox
+          .locator('.editor-group-container.active .monaco-editor:visible')
+          .first()
+          .click()
+          .catch(() => {})
+        await workbox.waitForTimeout(300)
+        return focusedEditor.isVisible().catch(() => false)
+      },
+      {
+        message: 'the plain text editor takes DOM keyboard focus',
+        timeout: 30_000,
+        intervals: [500, 1000],
+      },
+    )
+    .toBe(true)
 
-  await workbox.keyboard.press('Control+d')
-  await settle(frame, 300)
-  await workbox.keyboard.press('Control+l')
-  await settle(frame, 300)
-  await workbox.keyboard.press('Control+h')
-  await settle(frame, 300)
+  // Precondition, not decoration: everything below only means something if the plain TEXT editor is
+  // the focused surface. Asserting it here makes a focus mishap fail as "we never got focus" instead
+  // of silently degrading into "the keybinding leaked", which is the opposite conclusion.
+  await expect(
+    focusedEditor,
+    'the text editor holds DOM keyboard focus',
+  ).toBeVisible()
+  const focusedFsPath = await evaluateInVSCode(
+    async (vscode: typeof import('vscode')) =>
+      vscode.window.activeTextEditor?.document.uri.fsPath ?? '<none>',
+    [] as [string],
+  )
+  expect(
+    focusedFsPath,
+    'the plain text editor — not the webview — is the active editor before any key is pressed',
+  ).toBe(tmp)
+
+  // Page-level waits only (see the settle note above), and focus is RECORDED per key rather than
+  // asserted: a leak steals focus into the panel as its first effect, so a hard per-key focus assert
+  // fails before the content check and reports "lost focus" for what is really "the keybinding
+  // leaked" — measured while re-proving the red case. The content assert below stays the detector;
+  // this trail is here to tell the two apart when it does fire.
+  const focusTrail: string[] = []
+  for (const key of ['Control+d', 'Control+l', 'Control+h']) {
+    const hadFocus = await focusedEditor.isVisible().catch(() => false)
+    focusTrail.push(`${key}:${hadFocus ? 'text-editor' : 'NOT-text-editor'}`)
+    await workbox.keyboard.press(key)
+    await workbox.waitForTimeout(300)
+  }
 
   const textDocAfter = await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) =>
@@ -105,8 +169,14 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
   const after = await getVmarkdValue(frame)
   // eslint-disable-next-line no-console
   console.log(
-    `[keybinding-scope-release] before=${JSON.stringify(before)} after=${JSON.stringify(after)} textDoc=${JSON.stringify(textDocAfter)}`,
+    `[keybinding-scope-release] before=${JSON.stringify(before)} after=${JSON.stringify(after)} textDoc=${JSON.stringify(textDocAfter)} focusTrail=${focusTrail.join(',')}`,
   )
+  // First key is the one that matters: it decides whether the sequence was typed into the text
+  // editor at all. (Later entries can legitimately read NOT-text-editor once a leak has moved focus.)
+  expect(
+    focusTrail[0],
+    'the first key was pressed with the text editor focused',
+  ).toBe('Control+d:text-editor')
 
   // The unfocused vMarkd panel must be byte-identical: none of our format commands fired against
   // it. (If the `when` clause leaked, this is exactly where a stray `~~`/`- `/`#` would show up —
