@@ -86,6 +86,14 @@ red, that is recorded in the spec rather than claimed as coverage.
       existing synthetic-event gate specs do see it move. Either the Ctrl-to-interact gate needs
       a real hover/focus a bare `mouse.wheel` does not produce, or Playwright's wheel does not
       carry `ctrlKey` into the webview OOPIF. Recorded rather than asserted either way.
+      **Also still missing: the static-SVG half.** D7 splits across two engine families —
+      `zoom: 'gated'` (markmap/mindmap/Leaflet, `diagram-zoom-gate.ts`), which the probe covers,
+      and `zoom: 'static'` (mermaid/d2/graphviz…, `diagram-zoom.ts`), which does NOT. A spec for
+      the static family existed briefly (`diagram-wheel-real.spec.ts`) and I deleted it believing
+      it was a duplicate of the gated one — it was the complement, not a copy. Next step for
+      whoever picks this up: before assuming a product gap, verify that Playwright's `mouse.wheel`
+      reaches content inside the doubly-nested webview iframe AT ALL, with a non-diagram baseline
+      scroll test. That control decides whether D7's failures are product or harness.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
