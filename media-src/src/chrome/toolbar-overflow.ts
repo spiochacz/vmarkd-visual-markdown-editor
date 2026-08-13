@@ -1,6 +1,7 @@
 // Phase 5 (task 492) factored the aria-haspopup/aria-expanded pair out to toolbar-submenu-aria.ts
 // so the `emoji`/`headings`/`edit-mode` triggers there can share it instead of re-deriving it.
 import {
+  alignSubmenuPanel,
   closeSubmenuPanels,
   updateSubmenuExpanded,
 } from './toolbar-submenu-aria'
@@ -485,9 +486,10 @@ export function installToolbarOverflow(
   resizeObserver?.observe(document.documentElement)
   resizeObserver?.observe(document.body)
   window.addEventListener('resize', apply)
-  const moreStateObserver = new MutationObserver(() =>
-    updateSubmenuExpanded(moreButton, morePanel),
-  )
+  const moreStateObserver = new MutationObserver(() => {
+    updateSubmenuExpanded(moreButton, morePanel)
+    alignSubmenuPanel(morePanel)
+  })
   moreStateObserver.observe(morePanel, {
     attributes: true,
     attributeFilter: ['style'],

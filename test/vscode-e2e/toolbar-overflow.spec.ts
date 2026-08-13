@@ -142,6 +142,34 @@ test('responsive toolbar keeps pinned actions visible and restores overflow by k
   await toolbar.locator('[data-type="more"]').click()
   const morePanel = toolbar.locator('.vmarkd-toolbar-more > .vditor-hint')
   await expect(morePanel).toBeVisible()
+  // The panel must open UNDER the dots — unfolding rightwards while there is room, flipping to a
+  // right-aligned unfold only at the webview's edge (alignSubmenuPanel, toolbar-submenu-aria.ts).
+  // Real-webview net for two defects: `position: static` on `.vmarkd-toolbar-more`
+  // (vscode-chrome.css) took the item out of the positioned-ancestor chain, so `--left`'s
+  // `right: 0` resolved against the viewport and the menu opened flush with the window's right
+  // edge; and Vditor's toggleSubMenu (setToolbar.ts:113) flips on a hardcoded 250px threshold,
+  // wider than any of our menus, so it unfolded leftwards with room to spare.
+  const anchored = await morePanel.evaluate((open: HTMLElement) => {
+    const item = open.parentElement as HTMLElement
+    const itemBox = item.getBoundingClientRect()
+    const panelBox = open.getBoundingClientRect()
+    return {
+      itemLeft: itemBox.left,
+      itemRight: itemBox.right,
+      panelLeft: panelBox.left,
+      panelRight: panelBox.right,
+      limit: document.documentElement.clientWidth,
+    }
+  })
+  const fitsRightwards =
+    anchored.itemLeft + (anchored.panelRight - anchored.panelLeft) <=
+    anchored.limit
+  const anchorOffset = fitsRightwards
+    ? Math.abs(anchored.panelLeft - anchored.itemLeft)
+    : Math.abs(anchored.panelRight - anchored.itemRight)
+  expect(anchorOffset).toBeLessThanOrEqual(1)
+  expect(anchored.panelLeft).toBeGreaterThanOrEqual(0)
+  expect(anchored.panelRight).toBeLessThanOrEqual(anchored.limit)
   await expect(morePanel.locator('[data-type="settings"]')).toHaveText(
     'Settings',
   )
@@ -258,6 +286,18 @@ test('emoji/headings/edit-mode advertise their popup and menu semantics; upload 
     'aria-expanded',
     'true',
   )
+
+  // Every toolbar dropdown appears instantly, emoji included. It is the one Vditor builds as a
+  // `.vditor-panel` (Emoji.ts:16) rather than a `.vditor-hint`, and that class carries a bouncy
+  // `scale-in` (index.css:285-287) — so the picker popped while its sibling menus did not.
+  await toolbar.locator('[data-type="emoji"]').click()
+  const emojiPanel = toolbar.locator(
+    '.vditor-toolbar__item:has(> [data-type="emoji"]) > .vditor-panel',
+  )
+  await expect(emojiPanel).toBeVisible()
+  await expect(emojiPanel).toHaveCSS('animation-name', 'none')
+  await expect(headingsPanel).toHaveCSS('animation-name', 'none')
+  await toolbar.locator('[data-type="emoji"]').click()
 
   // `upload` is a real <button> (esbuild-shared.mjs's patchUploadTagName/patchUploadHiddenInput —
   // MenuItem.ts's div exception dropped, the file input moved to a hidden sibling instead of nested

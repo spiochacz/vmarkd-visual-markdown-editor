@@ -81,6 +81,26 @@ export function updateSubmenuExpanded(
   )
 }
 
+/** Decide which way an OPEN top-level dropdown unfolds, replacing Vditor's fixed heuristic:
+ *  toggleSubMenu (setToolbar.ts:113) tags a panel `vditor-panel--left` (`right: 0`, so it unfolds
+ *  leftwards) whenever its trigger sits within a hardcoded 250px of the toolbar's right edge —
+ *  wider than any of our menus, so `more` (always the last item) unfolded leftwards even with room
+ *  to spare on its right. Measure instead: keep the natural left-aligned unfold, and flip only when
+ *  the panel would actually run past the webview's right edge.
+ *
+ *  Only top-level dropdowns (panel's item is a direct child of the toolbar row) are re-decided. A
+ *  panel belonging to an overflowed item is a SIDE flyout inside the more menu, where `--left`
+ *  means `right: 100%` instead (vscode-chrome.css) — a different axis, left to Vditor. */
+export function alignSubmenuPanel(panel: HTMLElement): void {
+  const item = panel.parentElement
+  if (!item?.parentElement?.classList.contains('vditor-toolbar')) return
+  if (panel.style.display !== 'block') return
+  const width = panel.getBoundingClientRect().width
+  const { left } = item.getBoundingClientRect()
+  const overflowsRight = left + width > document.documentElement.clientWidth
+  panel.classList.toggle('vditor-panel--left', overflowsRight)
+}
+
 /** Close every open toolbar submenu panel (`more` + `emoji`/`headings`/`edit-mode`). The overflow
  *  pass (toolbar-overflow.ts) calls this whenever the overflow set changes: the layout each open
  *  panel describes is then stale — the more menu would show items that already returned to the row,
@@ -114,9 +134,10 @@ export function installToolbarSubmenuAria(toolbarEl: HTMLElement): () => void {
       item.setAttribute('role', 'menuitem')
 
     updateSubmenuExpanded(button, panel)
-    const observer = new MutationObserver(() =>
-      updateSubmenuExpanded(button, panel),
-    )
+    const observer = new MutationObserver(() => {
+      updateSubmenuExpanded(button, panel)
+      alignSubmenuPanel(panel)
+    })
     observer.observe(panel, { attributes: true, attributeFilter: ['style'] })
     observers.push(observer)
   }

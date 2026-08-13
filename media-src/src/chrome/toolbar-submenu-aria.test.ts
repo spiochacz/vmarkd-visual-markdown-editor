@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   SUBMENU_TRIGGER_NAMES,
+  alignSubmenuPanel,
   closeSubmenuPanels,
   installToolbarSubmenuAria,
   submenuMenuItems,
@@ -212,5 +213,68 @@ describe('installToolbarSubmenuAria', () => {
     toolbar.className = 'vditor-toolbar'
     document.body.append(toolbar)
     expect(() => installToolbarSubmenuAria(toolbar)).not.toThrow()
+  })
+})
+
+/** jsdom has no layout, so every box the decision reads is stubbed explicitly. */
+function stubBox(el: HTMLElement, left: number, width: number): void {
+  el.getBoundingClientRect = () =>
+    ({ left, right: left + width, width }) as DOMRect
+}
+
+function stubViewport(width: number): void {
+  Object.defineProperty(document.documentElement, 'clientWidth', {
+    configurable: true,
+    value: width,
+  })
+}
+
+describe('alignSubmenuPanel', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('unfolds rightwards while the panel fits on screen', () => {
+    const { more } = buildToolbar()
+    more.panel.classList.add('vditor-panel--left')
+    more.panel.style.display = 'block'
+    stubBox(more.wrapper, 780, 25)
+    stubBox(more.panel, 0, 106)
+    stubViewport(900)
+
+    alignSubmenuPanel(more.panel)
+    expect(more.panel.classList.contains('vditor-panel--left')).toBe(false)
+  })
+
+  it('flips to a right-aligned unfold when it would run off the right edge', () => {
+    const { more } = buildToolbar()
+    more.panel.style.display = 'block'
+    stubBox(more.wrapper, 646, 25)
+    stubBox(more.panel, 0, 189)
+    stubViewport(700)
+
+    alignSubmenuPanel(more.panel)
+    expect(more.panel.classList.contains('vditor-panel--left')).toBe(true)
+  })
+
+  it('leaves a closed panel and a nested flyout alone', () => {
+    const { more, emoji } = buildToolbar()
+    stubViewport(900)
+
+    // closed: nothing to place, and its box would measure 0 anyway
+    more.panel.classList.add('vditor-panel--left')
+    stubBox(more.wrapper, 780, 25)
+    stubBox(more.panel, 0, 106)
+    alignSubmenuPanel(more.panel)
+    expect(more.panel.classList.contains('vditor-panel--left')).toBe(true)
+
+    // overflowed into `more`: `--left` there means `right: 100%` (a side flyout), a different axis
+    more.panel.append(emoji.wrapper)
+    emoji.panel.style.display = 'block'
+    emoji.panel.classList.add('vditor-panel--left')
+    stubBox(emoji.wrapper, 10, 25)
+    stubBox(emoji.panel, 0, 106)
+    alignSubmenuPanel(emoji.panel)
+    expect(emoji.panel.classList.contains('vditor-panel--left')).toBe(true)
   })
 })

@@ -104,6 +104,66 @@ test('closes the more panel when overflow changes, and reopens on the next click
   await expect(panel.locator('[data-type="settings"]')).toHaveText('Settings')
 })
 
+// The menu must open UNDER the dots and unfold RIGHTWARDS while there is room, flipping only at the
+// webview's right edge (alignSubmenuPanel, toolbar-submenu-aria.ts). Two separate defects lived
+// here: `position: static` on `.vmarkd-toolbar-more` (vscode-chrome.css) took the item out of the
+// positioned-ancestor chain, so `--left`'s `right: 0` resolved against the VIEWPORT and the menu
+// opened flush with the window edge; and Vditor's own toggleSubMenu (setToolbar.ts:113) applies
+// `--left` on a hardcoded 250px-from-the-right threshold — wider than any of our menus — so the
+// panel unfolded leftwards even with room to spare.
+test('the more menu unfolds rightwards when it fits and flips at the edge', async ({
+  page,
+}) => {
+  await page.goto('/toolbar-overflow.html')
+  await page.waitForFunction(() => (window as any).__ready === true)
+  const moreButton = page.locator('.vmarkd-toolbar-more > [data-type="more"]')
+  const panel = page.locator('.vmarkd-toolbar-more > .vditor-hint')
+  const geometry = () =>
+    page.evaluate(() => {
+      const item = document.querySelector('.vmarkd-toolbar-more') as HTMLElement
+      const open = item.querySelector('.vditor-hint') as HTMLElement
+      const itemBox = item.getBoundingClientRect()
+      const panelBox = open.getBoundingClientRect()
+      return {
+        itemLeft: itemBox.left,
+        itemRight: itemBox.right,
+        panelLeft: panelBox.left,
+        panelRight: panelBox.right,
+        limit: document.documentElement.clientWidth,
+      }
+    })
+
+  // 900px is the discriminating width: the menu (106px here, nothing overflowed) still fits to the
+  // right of More, but the trigger IS within Vditor's hardcoded 250px of the toolbar's right edge,
+  // so its own heuristic would have flipped it. This is the reported case — room to spare and the
+  // menu still unfolded leftwards.
+  await page.setViewportSize({ width: 900, height: 700 })
+  await moreButton.click()
+  await expect(panel).toBeVisible()
+  const roomy = await geometry()
+  expect(Math.abs(roomy.panelLeft - roomy.itemLeft)).toBeLessThanOrEqual(1)
+  expect(roomy.panelRight).toBeLessThanOrEqual(roomy.limit)
+
+  // narrow enough that More ends up close to the right edge: the panel would run off-screen, so it
+  // flips and right-aligns to the trigger instead. Close it first — a resize that does not change
+  // the overflow set leaves the panel open, and the click below would then just toggle it shut.
+  await moreButton.click()
+  await expect(panel).toBeHidden()
+  await page.setViewportSize({ width: 700, height: 700 })
+  await moreButton.click()
+  await expect(panel).toBeVisible()
+  const cramped = await geometry()
+  // premise: unfolding rightwards from here really would run off-screen (the menu is also WIDER
+  // now — it holds the overflowed rows too), so the flip is the only way to keep it on screen
+  expect(
+    cramped.itemLeft + (cramped.panelRight - cramped.panelLeft),
+  ).toBeGreaterThan(cramped.limit)
+  expect(Math.abs(cramped.panelRight - cramped.itemRight)).toBeLessThanOrEqual(
+    1,
+  )
+  expect(cramped.panelLeft).toBeGreaterThanOrEqual(0)
+})
+
 // Task 504 extension: the same stale-open rule covers the OTHER submenu triggers
 // (emoji/headings/edit-mode, toolbar-submenu-aria.ts). An open panel must not survive an overflow
 // change — it would travel with its item into or out of `more`. Reproduced here with emoji: its
@@ -425,6 +485,16 @@ test('emoji/headings/edit-mode triggers advertise their popup and expose menu se
   )
   const emojiButtons = emojiItem.locator('.vditor-emojis > button')
   await expect(emojiButtons.first()).toHaveAttribute('role', 'menuitem')
+
+  // …and it opens with no animation, like every sibling menu. Emoji is the one toolbar dropdown
+  // Vditor builds as a `.vditor-panel` (Emoji.ts:16); that class carries a bouncy `scale-in`
+  // (index.css:285-287) which the `.vditor-hint` menus (more/headings/edit-mode) do not, so the
+  // picker used to pop while the others just appeared.
+  await expect(emojiItem.locator('.vditor-panel')).toHaveCSS(
+    'animation-name',
+    'none',
+  )
+  await expect(headingsPanel).toHaveCSS('animation-name', 'none')
 
   // emoji DOES use toggleSubMenu (Emoji.ts), so a second click on its own trigger closes it —
   // asserted as the contrasting case to headings above.

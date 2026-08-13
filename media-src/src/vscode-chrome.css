@@ -66,6 +66,17 @@
   top: 100% !important;
   margin-top: 0 !important;
 }
+/* The emoji picker is the ONE toolbar dropdown Vditor builds as a `.vditor-panel`
+   (Emoji.ts:16) — more/headings/edit-mode are all `.vditor-hint` (index.ts:46,
+   Headings.ts:17, EditMode.ts:160). `.vditor-panel` carries a bouncy `scale-in`
+   (index.css:285-287, cubic-bezier overshoot 1.5) that `.vditor-hint` does not, so
+   emoji popped open with an animation while every sibling menu appeared instantly.
+   VS Code's own menus don't animate — drop it so the chrome is consistent. Scoped
+   to .vditor-toolbar so the IR table toolbar (a .vditor-panel inside the editor
+   content, #fix-table-ir-wrapper) is left alone. */
+.vditor-toolbar .vditor-panel {
+  animation: none !important;
+}
 /* hovered / selected menu + hint item → VS Code menu selection highlight */
 .vditor-hint--current,
 .vditor-hint
@@ -343,9 +354,16 @@
 }
 
 /* More is an ordinary toolbar button. Vditor's legacy float/position rules must
-   not turn this one item into a right-pinned control. */
+   not turn this one item into a right-pinned control.
+   `position` stays RELATIVE (Vditor's own `.vditor-toolbar__item { position: relative }`,
+   index.css:374-377): the dropdown is an absolutely-positioned child, and
+   toggleSubMenu (setToolbar.ts:113) tags it `--left` (`right: 0`) whenever the trigger
+   sits within 250px of the toolbar's right edge — which More always does. With
+   `position: static` here the item stopped being the panel's containing block, so that
+   `right: 0` resolved against the toolbar/viewport and the menu opened flush with the
+   window's right edge instead of under the dots. */
 .vditor-toolbar > .vmarkd-toolbar-more {
-  position: static !important;
+  position: relative !important;
   float: none !important;
   inset: auto !important;
   margin: 0 !important;
