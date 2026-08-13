@@ -36,23 +36,41 @@ Resolution is by current text: `onOpenWikilink` (`src/session/asset-link-actions
 `cache.resolve(key)` with whatever the chip says; 0 matches → the warning + `Create Page`, which
 routes to `createWikiPage(root, key)` in `src/wiki/wiki.ts` (`newFileName = ${key}.md`).
 
+## The constraint that decides the design
+
+**A stale chip is indistinguishable from an intentionally-empty one.** `[[b]]` left behind by a
+rename and `[[Notes for 2027]]` written on purpose before the page exists are the SAME TEXT in the
+document. There is no history in the file, no marker, nothing recording that the target once
+existed. Any fix that inspects a broken chip after the fact cannot tell the two apart.
+
+Two consequences, both load-bearing:
+
+- **The only sound basis is the `onDidRenameFiles` event itself** — the single moment where
+  `oldUri` and `newUri` exist together. A second later that information is gone for good. So the
+  fix is either rename-time rewriting, or nothing.
+- **An earlier option in this file — "make the failure honest: stop offering Create Page / show
+  the chip as broken" — is WRONG and has been removed.** Offering to create the page is CORRECT
+  behaviour for an unresolved wiki link; that is the core wiki workflow. Weakening it would break
+  a real feature in order to soften the symptom of a different problem, and it would not even
+  distinguish the two cases it was meant to distinguish.
+
 ## Fix direction (not implemented)
 
-Options, roughly in order of cost:
+The remaining choice is only about SCOPE of the rewrite:
 
 1. **Rewrite chips on rename.** Listen to `onDidRenameFiles`; when a renamed file is inside the
    wiki root, rewrite `[[old]]` → `[[new]]` across wiki documents (at minimum the open ones; ideally
    every page in the wiki root, via the existing wiki cache). Must preserve pipe display labels
    (`[[old|Label]]` → `[[new|Label]]`) — see `media-src/src/links/wiki-serialize.ts` and
    `src/shared/wiki-core.ts`.
-2. **Or make the failure honest**: when a chip does not resolve, show it as visibly missing (the
-   chip already has a missing state — `wiki.spec.ts` covers known/missing rendering) and, in the
-   not-found prompt, offer to point it at an existing page rather than only "Create Page".
-3. **At minimum**, stop the duplicate-creation trap: if the prompt is the only mechanism, it should
-   not silently write to the old name when a plausible rename target exists.
+   - **Open documents only**: changes are visible and undoable with Ctrl+Z because they go through
+     ordinary edits. But chips in closed files stay stale, so the problem is only half solved.
+   - **The whole wiki root**: actually solves it, at the cost of writing files the user never
+     opened, with no undo. Deserves a setting, and probably a confirmation.
 
-Whichever route, decide deliberately — (1) mutates the user's other files, which deserves its own
-thought (and possibly a setting), so this is not a one-liner.
+Either way this mutates the user's OTHER files, which is a different class of action from the rest
+of the fixes in this batch — those changed editor behaviour where the user was already working.
+That is why this one waits for a deliberate decision rather than being patched in passing.
 
 ## Regression coverage already in place
 
