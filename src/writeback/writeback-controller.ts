@@ -68,6 +68,18 @@ export class WritebackController {
   // armDeferredNoopCheck/resolveNoopCheck.
   private noopCheckTimer: ReturnType<typeof setTimeout> | undefined
 
+  // Task 516 — a short window (armed by checkNoopOnWillSave, consulted by syncToEditor) during
+  // which a straggler tick that turns out to be a semantic no-op is skipped instead of written —
+  // see syncToEditor's own comment for the race this closes. `undefined` (not 0) is "never armed",
+  // matching cleanBaseline's own undefined-vs-empty-string sentinel discipline elsewhere in this
+  // class.
+  private willSaveGuardUntil: number | undefined = undefined
+  // How long that window stays open after a willSave correction. Comfortably above the ~800-900ms
+  // straggler latency measured (task 516: the reflow tick landing after checkNoopOnWillSave's
+  // correction) but bounded, not indefinite — an unrelated tick arriving long after the save should
+  // go through the normal (deferred) path, not keep paying this eager check forever.
+  private static WILLSAVE_GUARD_MS = 2000
+
   // Task 477 — applyToDocument is shared by two independent writers: the debounced tick
   // (syncToEditor) and the deferred no-op correction (resolveNoopCheck, armed
   // NOOP_CHECK_IDLE_MS after the last tick). Nothing used to stop a tick from firing its own
@@ -149,6 +161,43 @@ export class WritebackController {
     // legitimately `''`, which `||` would treat as unset and silently replace with the
     // (moving) current document text — see cleanBaseline's own field comment.
     const baseline = this.cleanBaseline ?? document.getText()
+    // Task 516 triage — a syncToEditor tick can arrive AFTER checkNoopOnWillSave already settled
+    // the document at the clean baseline AS PART OF A SAVE: e.g. a debounced webview reflow tick
+    // (Vditor's own post-undo DOM settling) that was already in flight when the user hit Ctrl+S
+    // mid-undo, landing moments after the save. Measured (task 516): 5/10 reproductions of "saving
+    // immediately after a revert-to-baseline" — disk bytes always landed correct
+    // (checkNoopOnWillSave's atomic save-time correction worked), but `isDirty` read true
+    // afterward, because THIS call would still see its stale, byte-different-but-semantically-noop
+    // `content`, fail the literal check above, and go on to write it — and
+    // `vscode.workspace.applyEdit` ALWAYS dirties a document; there is no "these bytes match disk,
+    // stay clean" case. Once that write landed, only the DEFERRED correction
+    // (armDeferredNoopCheck) could fix it, and that path can never clear `isDirty` either (only a
+    // real save can — see resolveNoopCheck's own comment). So the tab was left dirty with no
+    // future backstop able to un-dirty it.
+    //
+    // Catching it HERE, before any write happens, is the only place that can keep the tab clean —
+    // but ONLY inside a short window right after a willSave correction actually fired
+    // (willSaveGuardUntil, armed by checkNoopOnWillSave below). Gating on that, rather than just
+    // "the document currently equals the baseline", matters: the latter is also true on a
+    // document's FIRST tick after open/save with no willSave correction involved at all, which is
+    // exactly the case an existing test (`a single tick no longer restores the baseline
+    // synchronously…`) pins as MUST stay on the deferred path — task 434's whole point was to keep
+    // this expensive check off the common per-tick path. Scoping to the guard window keeps this
+    // fix to the narrow case it was measured against and preserves task 434's behaviour everywhere
+    // else; it also never shadows an explicit markup action (task 390's `explicitBlock` must
+    // always land).
+    const withinWillSaveGuard =
+      this.willSaveGuardUntil !== undefined &&
+      Date.now() < this.willSaveGuardUntil
+    if (
+      !explicitBlock &&
+      withinWillSaveGuard &&
+      normalize(document.getText()) === normalize(baseline) &&
+      this.isNoop(baseline, content)
+    ) {
+      this.deps.setLastSyncedContent(document.getText())
+      return
+    }
     // Task 434 — the whole-doc isSemanticNoop check used to run HERE, synchronously, on every
     // debounced tick (measured cost: real, see NOOP_CHECK_IDLE_MS's comment). It no longer does:
     // minimizeWriteback below still runs on EVERY tick exactly as before — typed content reaches
@@ -395,6 +444,11 @@ export class WritebackController {
     const current = document.getText()
     if (normalize(current) === normalize(baseline)) return []
     if (!this.isNoop(baseline, current)) return []
+    // Task 516 — arm syncToEditor's short post-save guard window (see its own comment): THIS
+    // correction is about to land atomically with the save, so any tick that was already in
+    // flight and lands moments later carrying stale-but-noop content should be skipped, not
+    // written (which would silently re-dirty a tab the save just cleaned).
+    this.willSaveGuardUntil = Date.now() + WritebackController.WILLSAVE_GUARD_MS
     // Task 434 defect #1 — this correction edit is applied by VS Code via `waitUntil`, which
     // fires the SAME `onDidChangeTextDocument` listener (editor-session.ts) as any other edit.
     // Every other write path here (applyToDocument) marks itself as an echo BEFORE the edit

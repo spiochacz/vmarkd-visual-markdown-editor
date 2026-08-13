@@ -72,6 +72,28 @@ const MEASURE_PAINT = () => {
   }
 }
 
+// An `afterEach`, not a `finally` inside the test: it runs even when an assertion throws, so a RED
+// run cannot leave the shared profile poisoned for every spec after it. `undefined` restores each
+// setting to its package.json default rather than pinning some other explicit value.
+test.afterEach(async ({ evaluateInVSCode }) => {
+  await evaluateInVSCode(
+    async (vscode) => {
+      const g = vscode.ConfigurationTarget.Global
+      const v = vscode.workspace.getConfiguration('vmarkd')
+      for (const key of [
+        'theme.content',
+        'theme.code',
+        'editor.fullWidth',
+        'editor.headingMarkers',
+        'diagram.mermaid.layout',
+      ]) {
+        await v.update(key, undefined, g)
+      }
+    },
+    [] as unknown as [string],
+  )
+})
+
 test('empty doc under the reporter settings: is the caret paintable, and can you type without clicking?', async ({
   workbox,
   evaluateInVSCode,
@@ -79,6 +101,13 @@ test('empty doc under the reporter settings: is the caret paintable, and can you
   test.setTimeout(120_000)
 
   // ── the reporter's own settings ──
+  //
+  // These are GLOBAL and the whole suite shares one worker-scoped VS Code profile, so leaving them
+  // behind poisons every spec that runs later — this is not hypothetical: `theme.code = 'a11y-light'`
+  // leaking from here is what made `d2-render-sweep`'s code-highlight case flaky, because
+  // `resolveCodeStyle` (src/shared/theme-registry.ts) honours an explicit non-'auto' code theme
+  // verbatim and ignores the content theme, so that spec's content-theme flips became permanent
+  // no-ops for token colour. Reset them in a `finally` below.
   await evaluateInVSCode(
     async (vscode) => {
       const g = vscode.ConfigurationTarget.Global

@@ -41,8 +41,29 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
     [DOC] as [string],
   )
   const frame = frameFor(workbox)
+  // Task 516 triage — `#vmarkd-prerender` (html-builder.ts) is a full-viewport
+  // `position:absolute;inset:0;z-index:5` instant-paint overlay carrying its OWN copy of
+  // `.vditor-ir img` (same class as the live editor — prerender-style-parity.spec.ts documents the
+  // mirroring), and it is not `pointer-events:none` — only its spinner is. `.vditor-ir img`'s
+  // `.first()` resolves to document order, which lands on the LIVE editor's img (the overlay markup
+  // comes later in the body), not the overlay's own copy — so waiting only for that img to be
+  // "visible" says nothing about whether the still-present overlay is sitting on top of it.
+  // `removePrerenderOverlay()` runs synchronously right after `applyVditorTheme` in the common case,
+  // normally a sub-second window, but under CPU contention it can still be in flight once the image
+  // is judged visible — reproduced deterministically with the VMARKD_PRERENDER_PARITY_HOLD test hook
+  // (preview-widgets-dblclick-probe, task 516): held open, the SAME dblclick this test issues times
+  // out with the exact "visible, enabled, stable" + hit-test-retry signature from the reported flake,
+  // and `document.elementFromPoint` at the image's center resolves inside `#vmarkd-prerender`, not the
+  // image. Waiting for the overlay's own removal (a real, observable DOM event) instead of a fixed
+  // delay removes the race without weakening the dblclick assertion.
   const image = frame.locator('.vditor-ir img').first()
   await image.waitFor({ timeout: 60_000 })
+  // `state: 'detached'` resolves immediately when the element never existed at all (an overlay-less
+  // open, e.g. no preRenderedHtml), so this is a no-op there — only a REAL still-present overlay
+  // makes it wait.
+  await frame
+    .locator('#vmarkd-prerender')
+    .waitFor({ state: 'detached', timeout: 60_000 })
   await image.dblclick()
   await expect(frame.locator('.vditor-img')).toHaveCount(0)
   await expect

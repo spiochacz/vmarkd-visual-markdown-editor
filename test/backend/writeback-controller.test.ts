@@ -603,3 +603,84 @@ describe('WritebackController.checkNoopOnWillSave (task 434)', () => {
     expect(edits[0].newText).toBe('')
   })
 })
+
+// Task 516 — a real, measured race (5/10 reproductions in the real-VS-Code suite): a debounced
+// syncToEditor tick already in flight when the user saves can land moments AFTER
+// checkNoopOnWillSave's atomic save-time correction, re-dirtying a tab the save just cleaned with
+// stale-but-semantically-noop content — and unlike checkNoopOnWillSave's own correction (applied
+// atomically WITH the save), nothing downstream can ever clear `isDirty` again without another
+// real save. These pin the fix: a short guard window, armed only when checkNoopOnWillSave actually
+// corrects, during which a straggler no-op tick is skipped instead of written.
+describe('WritebackController — task 516 post-save straggler guard', () => {
+  beforeEach(() => {
+    mock.reset()
+    vi.mocked(isSemanticNoop).mockReset().mockReturnValue(false)
+    vi.mocked(minimalDiffWriteback).mockReset()
+    vi.mocked(minimalDiffWriteback).mockImplementation(
+      (_original: string, next: string) => next,
+    )
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('skips a straggler tick that lands shortly after a willSave correction, instead of re-dirtying the just-saved document', () => {
+    const { ctrl, deps, doc } = makeController('baseline text\n\n\n') // already reflowed vs baseline
+    ctrl.setCleanBaseline('baseline text\n')
+    vi.mocked(isSemanticNoop).mockReturnValueOnce(true) // the willSave correction itself
+    const edits = ctrl.checkNoopOnWillSave(doc)
+    expect(edits).toHaveLength(1)
+    // Mirror what VS Code + editor-session.ts's onDidSaveTextDocument do: the willSave edit lands
+    // and the save completes, adopting the corrected text as the new clean baseline.
+    doc.__setText('baseline text\n')
+    ctrl.setCleanBaseline('baseline text\n')
+
+    vi.advanceTimersByTime(500) // well inside the 2000ms guard window
+    vi.mocked(isSemanticNoop).mockClear()
+    vi.mocked(isSemanticNoop).mockReturnValueOnce(true) // the straggler's own content: also a no-op
+    return ctrl.syncToEditor('baseline text\n\n\n').then(() => {
+      // The straggler's isNoop check DID run (this is the eager path, not the deferred one)...
+      expect(isSemanticNoop).toHaveBeenCalledTimes(1)
+      // ...but no write landed: the tab stays exactly as the save left it.
+      expect(mock.calls.appliedEdits).toHaveLength(0)
+      expect(deps.setLastSyncedContent).toHaveBeenCalledWith('baseline text\n')
+    })
+  })
+
+  it('writes a straggler tick normally once the guard window has elapsed', async () => {
+    const { ctrl, doc } = makeController('baseline text\n\n\n')
+    ctrl.setCleanBaseline('baseline text\n')
+    vi.mocked(isSemanticNoop).mockReturnValueOnce(true)
+    ctrl.checkNoopOnWillSave(doc)
+    doc.__setText('baseline text\n')
+    ctrl.setCleanBaseline('baseline text\n')
+
+    vi.advanceTimersByTime(2_001) // past WILLSAVE_GUARD_MS
+    vi.mocked(isSemanticNoop).mockClear()
+    await ctrl.syncToEditor('baseline text\n\n\n')
+    // Guard expired — this is an ordinary tick again: it writes and defers the no-op decision,
+    // exactly like the (unguarded) task 434 behaviour.
+    expect(mock.calls.appliedEdits).toHaveLength(1)
+    expect(mock.calls.appliedEdits[0].replacements[0].content).toBe(
+      'baseline text\n\n\n',
+    )
+  })
+
+  it('still writes a straggler tick that is a GENUINE edit, not a no-op, even inside the guard window', async () => {
+    const { ctrl, doc } = makeController('baseline text\n\n\n')
+    ctrl.setCleanBaseline('baseline text\n')
+    vi.mocked(isSemanticNoop).mockReturnValueOnce(true)
+    ctrl.checkNoopOnWillSave(doc)
+    doc.__setText('baseline text\n')
+    ctrl.setCleanBaseline('baseline text\n')
+
+    vi.advanceTimersByTime(500)
+    vi.mocked(isSemanticNoop).mockReturnValueOnce(false) // a real change, not a no-op
+    await ctrl.syncToEditor('baseline text CHANGED\n')
+    expect(mock.calls.appliedEdits).toHaveLength(1)
+    expect(mock.calls.appliedEdits[0].replacements[0].content).toBe(
+      'baseline text CHANGED\n',
+    )
+  })
+})
