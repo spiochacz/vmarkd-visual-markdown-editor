@@ -76,12 +76,17 @@ red, that is recorded in the spec rather than claimed as coverage.
 - [x] **D8** webview reload mid-edit — probe. Content, dirty state, and a post-reload save all
       survive.
 
-### Still to do
+- [x] **B3/B4** find in special regions, find × lifecycle · **C2/C3/C6** footnotes, math, HTML
+      comments · **C4** emoji insertion · **D1** status bar · **D3** wiki create-missing-page ·
+      **D10** keybinding scope release — all landed and verified.
+- [~] **D7** real wheel zoom gate — landed as a MEASUREMENT PROBE, not a net. The pane-scrolls
+      half is unfalsifiable (nothing in the webview document overflows, so a zero delta proves
+      nothing), and a REAL Ctrl+wheel did not move the markmap transform at all, while the
+      existing synthetic-event gate specs do see it move. Either the Ctrl-to-interact gate needs
+      a real hover/focus a bare `mouse.wheel` does not produce, or Playwright's wheel does not
+      carry `ctrlKey` into the webview OOPIF. Recorded rather than asserted either way.
 
-B3 (matches in code/diagram/collapsed regions) · B4 (find × mode switch and save) · C4 (emoji) ·
-D3 (wiki create-missing-page) · D7 (real wheel zoom gate).
-C2 (footnotes) · C3 (math) · C6 (HTML comments) · D1 (status bar) · D10 (keybinding scope
-release) — written and reported green, pending my own verification.
+**All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
 ## Bugs this task has found
 
