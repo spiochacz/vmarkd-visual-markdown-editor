@@ -117,7 +117,13 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
           .locator('.editor-group-container.active .monaco-editor:visible')
           .first()
           .click()
-          .catch(() => {})
+          // A click that misses is not fatal here — the poll retries, and the assert after it is
+          // what decides. Swallow it so a transient miss does not abort the whole attempt.
+          .catch((err: Error) => {
+            console.log(
+              `[keybinding-scope-release] focus click missed: ${err.message}`,
+            )
+          })
         await workbox.waitForTimeout(300)
         return focusedEditor.isVisible().catch(() => false)
       },
