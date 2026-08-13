@@ -64,16 +64,30 @@ test('clicking an emoji in the toolbar picker inserts it into the saved document
     await smileButton.click()
 
     // Vditor hides the panel and re-renders the block synchronously on click (Emoji.ts's own
-    // handler) — settle for our debounced host sync (edit-sync.ts, 250ms) before reading the doc.
-    await settle(frame, 500)
-
-    const text = await evaluateInVSCode(
-      async (vscode: Vs, args: [string]) =>
-        vscode.workspace.textDocuments
-          .find((d) => d.uri.fsPath === args[0])
-          ?.getText() ?? '<not found>',
-      [target] as [string],
-    )
+    // handler), but the host sync is NOT a flat 250ms: IR mode's own internal debounce
+    // (ir/process.ts's processAfterRender, keyed off `vditor.options.undoDelay` — 800ms,
+    // DEFAULT_UNDO_DELAY in edit-sync-tuning.ts) has to fire FIRST, calling our `input` hook,
+    // before edit-sync's 250ms debounce (edit-sync.ts) even starts — a designed ~1.05s worst
+    // case for one discrete edit, not a bug (measured directly via an instrumented probe: the
+    // saved doc is provably correct — DOM + `vditor.getValue()` — within ~200ms of the click;
+    // only the HOST's copy lags on Vditor's own debounce). Poll instead of a fixed sleep so this
+    // isn't sensitive to the exact interleaving of Vditor's two debounce stages.
+    let text = '<not found>'
+    await expect
+      .poll(
+        async () => {
+          text = await evaluateInVSCode(
+            async (vscode: Vs, args: [string]) =>
+              vscode.workspace.textDocuments
+                .find((d) => d.uri.fsPath === args[0])
+                ?.getText() ?? '<not found>',
+            [target] as [string],
+          )
+          return text
+        },
+        { timeout: 15_000, intervals: [250, 500] },
+      )
+      .toMatch(/😄|:smile:/)
     console.log(`[emoji] document after insert: ${JSON.stringify(text)}`)
     // Vditor may serialize either the unicode char or its :shortcode: — accept either, the
     // journey is "the picker puts the emoji into the saved document".

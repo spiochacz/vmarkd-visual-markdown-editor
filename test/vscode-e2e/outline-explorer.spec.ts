@@ -65,6 +65,17 @@ test('clicking an outline item scrolls and flashes the heading in the open vMark
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.commands.executeCommand('workbench.action.closeAllEditors')
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      // `vmarkd.editor.defaultMode` defaults to 'remember' (task 282 session stickiness), which
+      // can restore whatever mode an EARLIER spec in the shared user-data dir left behind (host-
+      // side 'vmarkd.options' globalState — src/platform/state-keys.ts / default-mode.ts). Force
+      // a specific mode so this test's own outcome never depends on what ran before it — the same
+      // defensive pattern default-open-mode.spec.ts uses. This alone does NOT fix the hang below
+      // (proven by direct reproduction — see the `surface` comment): even with mode correctly
+      // resolving to 'ir', the wait still locked onto a hidden `.vditor-wysiwyg`, because Vditor
+      // keeps EVERY mode's element in the DOM once built. The real fix is the `:visible` selector.
+      await vscode.workspace
+        .getConfiguration('vmarkd')
+        .update('editor.defaultMode', 'ir', vscode.ConfigurationTarget.Global)
       await vscode.commands.executeCommand(
         'vscode.openWith',
         vscode.Uri.file(args[0]),
@@ -74,7 +85,17 @@ test('clicking an outline item scrolls and flashes the heading in the open vMark
     [FIXTURE] as [string],
   )
   const frame = wf(workbox)
-  const surface = frame.locator('.vditor-ir, .vditor-wysiwyg').first()
+  // Vditor keeps EVERY mode's element in the DOM (only the active one is shown/hidden via CSS),
+  // and `.first()` on a plain `.vditor-ir, .vditor-wysiwyg` locator returns whichever matches
+  // FIRST IN DOM ORDER — not whichever is actually visible. Confirmed by direct reproduction: a
+  // session that had wysiwyg's element built earlier (e.g. from ANY prior mode switch/leftover
+  // session state) puts `.vditor-wysiwyg` before `.vditor-ir` in the DOM, so `.first()` locks onto
+  // the (correctly, permanently) hidden wysiwyg element even while `.vditor-ir` is already visible
+  // right next to it — a 60s hang, not a race. `:visible` (the pattern anchor-links.spec.ts's `wf`
+  // variant already uses for this exact class of problem) selects the one that's actually shown.
+  const surface = frame
+    .locator('.vditor-ir:visible, .vditor-wysiwyg:visible')
+    .first()
   await surface.waitFor({ timeout: 60_000 })
   await frame
     .locator('body')

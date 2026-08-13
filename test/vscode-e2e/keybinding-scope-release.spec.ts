@@ -45,6 +45,10 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
   workbox,
   evaluateInVSCode,
 }) => {
+  // Above the config's 90s default: the focus-acquisition poll below can legitimately spend a
+  // minute on a loaded machine (measured in a full-suite run), and it must be the thing that
+  // reports the failure, not the test budget expiring underneath it.
+  test.setTimeout(180_000)
   const tmp = path.join(TEMP_DIR, 'vmarkd-keybinding-scope.md')
   writeFileSync(tmp, FIXTURE_BODY)
 
@@ -129,8 +133,14 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
       },
       {
         message: 'the plain text editor takes DOM keyboard focus',
-        timeout: 30_000,
-        intervals: [500, 1000],
+        // 30s was not enough in a full-suite run: this timed out once at 33.5s wall clock while the
+        // retry passed in 5.3s, i.e. the machine was loaded, not the focus path broken. The budget
+        // is a setup cost, not an assertion — paying more of it costs nothing when focus arrives
+        // early (the poll returns immediately) and only matters on a slow boot. Kept BELOW the
+        // per-test budget raised just above, so a genuine never-focuses failure still reports as
+        // this poll's message rather than as an opaque test timeout.
+        timeout: 60_000,
+        intervals: [500, 1000, 2000],
       },
     )
     .toBe(true)
