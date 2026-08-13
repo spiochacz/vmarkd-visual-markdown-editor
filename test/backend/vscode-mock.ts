@@ -401,6 +401,11 @@ function freshState() {
 let state = freshState()
 
 interface MockWatcher {
+  // The pattern the watcher was created with. Recorded because HOW a watcher is constructed is
+  // load-bearing: VS Code matches a plain STRING glob against workspace-relative paths, so an
+  // absolute path passed as a string silently watches nothing (task 520 shipped exactly that,
+  // and every mocked test still passed because nobody asserted this).
+  pattern: unknown
   onDidChange: EventEmitter['event']
   onDidCreate: EventEmitter['event']
   onDidDelete: EventEmitter['event']
@@ -565,11 +570,12 @@ export const workspace = {
     }
     return true
   }),
-  createFileSystemWatcher: vi.fn((_pattern: unknown): MockWatcher => {
+  createFileSystemWatcher: vi.fn((pattern: unknown): MockWatcher => {
     const change = new EventEmitter()
     const create = new EventEmitter()
     const del = new EventEmitter()
     const watcher: MockWatcher = {
+      pattern,
       onDidChange: change.event,
       onDidCreate: create.event,
       onDidDelete: del.event,

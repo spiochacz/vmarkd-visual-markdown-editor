@@ -66,6 +66,33 @@ describe('PanelConfigController', () => {
     expect(mock.calls.fileSystemWatchers).toHaveLength(3)
   })
 
+  // Task 520 — the watcher must be built from a RelativePattern, never the bare absolute path.
+  // VS Code matches a plain STRING GlobPattern against workspace-RELATIVE paths, so an absolute
+  // path silently matches nothing: the watcher constructs, returns a disposable, and never fires.
+  // Every other test in this file passed throughout that bug, because they all drive the mock
+  // watcher's events directly and so never depended on the pattern being able to match anything.
+  // This is the one assertion that would have caught it.
+  it('refreshExternalCssWatchers() watches via a RelativePattern anchored on the file directory', () => {
+    mock.setWorkspaceFolder('/ws')
+    mock.setConfig({ 'css.external': ['a.css', '/outside/b.css'] })
+    const { ctrl } = makeController()
+    ctrl.refreshExternalCssWatchers()
+
+    const patterns = mock.calls.fileSystemWatchers.map((w) => w.pattern)
+    expect(patterns).toHaveLength(2)
+    for (const p of patterns) {
+      expect(
+        typeof p,
+        'a bare string pattern can never match an absolute path',
+      ).not.toBe('string')
+    }
+    expect(patterns).toEqual([
+      expect.objectContaining({ pattern: 'a.css' }),
+      // Outside every workspace folder — only reachable at all via RelativePattern.
+      expect.objectContaining({ pattern: 'b.css' }),
+    ])
+  })
+
   it('a watched external CSS file change re-posts external-css', () => {
     mock.setWorkspaceFolder('/ws')
     mock.setConfig({ 'css.external': ['a.css'] })

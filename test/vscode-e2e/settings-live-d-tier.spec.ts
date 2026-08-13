@@ -15,11 +15,10 @@ const REMOTE_IMAGE_SRC = path.join(__dirname, 'fixtures', 'remote-image.md')
 type Vs = typeof import('vscode')
 
 test.describe('D4 — css.external live reload', () => {
-  // A real workspace FOLDER, with both the doc and the CSS file placed INSIDE it — i.e. the most
-  // favourable possible setup for the watcher. It still never fires (see the pinned assertions
-  // below). An earlier draft of this comment guessed that being inside a watched root was what
-  // made the difference; measurement says otherwise, and the distinction matters: the failure is
-  // NOT about where the file lives.
+  // A real workspace FOLDER, with both the doc and the CSS file placed INSIDE it. Note that
+  // where the file lives was NOT the cause of task 520 — the watcher failed even in this, the
+  // most favourable setup, because the pattern itself could never match (see below). Kept as a
+  // workspace anyway so the test exercises the ordinary configuration.
   const WORKSPACE = path.join(tmpdir(), `vmarkd-d4-workspace-${process.pid}`)
   test.use({ baseDir: WORKSPACE })
 
@@ -27,7 +26,7 @@ test.describe('D4 — css.external live reload', () => {
   // applies live; `css.external` is a DIFFERENT mechanism entirely (panel-config.ts's
   // `refreshExternalCssWatchers`: a `FileSystemWatcher` on the configured file path, not a
   // config-change listener) and was untested. This edits the FILE ON DISK, not the setting.
-  test('editing the external CSS file on disk does NOT restyle the open editor (task 520, pinned broken)', async ({
+  test('editing the external CSS file on disk restyles the open editor without reopening', async ({
     workbox,
     evaluateInVSCode,
   }) => {
@@ -121,27 +120,21 @@ test.describe('D4 — css.external live reload', () => {
         `[d4] vscode.workspace.fs.writeFile (in-host API) live-reload observed=${sawApiReload}`,
       )
 
-      // PINNED BROKEN (task 520). Both legs were measured NOT to reload — including the in-host
-      // `vscode.workspace.fs.writeFile` one, which removes cross-process inotify delivery from
-      // the question entirely. So this is our wiring, not the environment.
-      //
-      // Root cause: `resolveExternalCssPaths` (src/platform/editor-config.ts) returns ABSOLUTE
-      // filesystem paths, and `refreshExternalCssWatchers` (src/webview-host/panel-config.ts)
-      // hands each one to `vscode.workspace.createFileSystemWatcher(p)` as a plain STRING glob.
-      // VS Code matches a string GlobPattern against workspace-RELATIVE paths, so an absolute
-      // path matches nothing and the watcher never fires — while still constructing fine, which
-      // is why the wiring reads as correct and returns a disposable. Watching a specific file
-      // needs `new vscode.RelativePattern(vscode.Uri.file(dir), basename)`.
-      //
-      // Fixing task 520 MUST flip these two assertions to `true` in the same commit.
-      expect(
-        sawLiveReload,
-        'PINNED BROKEN (520): an external CSS edit from another process does not live-reload',
-      ).toBe(false)
+      // Task 520 (FIXED). Both legs must live-reload. Before the fix neither did, because
+      // `resolveExternalCssPaths` returns ABSOLUTE paths and they were handed to
+      // `createFileSystemWatcher` as plain STRING globs — which VS Code matches against
+      // workspace-RELATIVE paths, so the pattern matched nothing while still constructing a
+      // valid disposable. The in-host `workspace.fs.writeFile` leg is the control that rules out
+      // cross-process inotify delivery: if only that one regressed, suspect the environment; if
+      // BOTH regress, suspect the watcher pattern again.
       expect(
         sawApiReload,
-        'PINNED BROKEN (520): even an in-host vscode.workspace.fs.writeFile does not live-reload, which isolates the fault to our watcher wiring rather than inotify',
-      ).toBe(false)
+        "an external CSS edit written through VS Code's own API must live-reload the open editor (task 520)",
+      ).toBe(true)
+      expect(
+        sawLiveReload,
+        'an external CSS edit from another process must live-reload the open editor (task 520)',
+      ).toBe(true)
     } finally {
       await evaluateInVSCode(async (vscode: Vs) => {
         await vscode.workspace

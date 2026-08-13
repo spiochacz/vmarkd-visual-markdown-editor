@@ -1,3 +1,4 @@
+import NodePath from 'node:path'
 import * as vscode from 'vscode'
 import {
   cfgFor,
@@ -61,7 +62,18 @@ export class PanelConfigController {
     }
     this.externalCssWatcher = vscode.Disposable.from(
       ...paths.map((p) => {
-        const w = vscode.workspace.createFileSystemWatcher(p)
+        // Task 520 — MUST be a RelativePattern, not the bare path string. `resolveExternalCssPaths`
+        // returns ABSOLUTE paths, and VS Code matches a string GlobPattern against
+        // workspace-RELATIVE paths, so an absolute string matches nothing: the watcher constructs
+        // fine, returns a disposable, and then never fires. A RelativePattern anchored on the
+        // file's own directory also covers stylesheets outside every workspace folder, which the
+        // string form could never watch.
+        const w = vscode.workspace.createFileSystemWatcher(
+          new vscode.RelativePattern(
+            vscode.Uri.file(NodePath.dirname(p)),
+            NodePath.basename(p),
+          ),
+        )
         return vscode.Disposable.from(
           w,
           w.onDidChange(() => this.postExternalCss()),

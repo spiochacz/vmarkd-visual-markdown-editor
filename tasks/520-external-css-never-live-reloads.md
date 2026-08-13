@@ -1,6 +1,6 @@
 # 520 — `css.external` never live-reloads (the watcher can never fire)
 
-**Status:** 📋 OPEN — bug, found by QA journey · **Impact:** 🟠 a documented feature does nothing:
+**Status:** ✅ FIXED 2026-08-13 — bug, found by QA journey · **Impact:** 🟠 a documented feature does nothing:
 edit your external stylesheet and the editor ignores it until you reopen the tab ·
 **Found:** 2026-08-13 implementing [task 516](516-qa-journey-coverage-plan.md) journey D4.
 
@@ -46,19 +46,23 @@ The in-host write is the decisive control: it removes cross-process inotify deli
 question entirely. Both legs failing puts the fault in our wiring, not the environment (this was
 first suspected to be a WSL2/inotify quirk — it is not).
 
-## Fix
+## Fix — DONE
 
-- Build the watcher from a `RelativePattern` per file, as above.
-- Then verify the out-of-workspace case too: an absolute path to a stylesheet outside every
+- [x] Build the watcher from a `RelativePattern` per file, as above (`panel-config.ts`).
+- [x] The out-of-workspace case is now reachable too: an absolute path to a stylesheet outside every
   workspace folder is a legitimate configuration (`resolveExternalCssPaths` explicitly supports
   absolute paths) and should also live-reload once the pattern is right.
-- Check `onDidCreate`/`onDidDelete` behave sanely (stylesheet created later, or removed).
+- [ ] `onDidCreate`/`onDidDelete` (stylesheet created later, or removed) are wired and unit-covered, but not exercised end-to-end — left as follow-up.
 
-## Regression coverage already in place
+## Regression coverage
 
-`test/vscode-e2e/settings-live-d-tier.spec.ts` → D4 pins **today's broken behaviour**: both write
-legs asserted `false`, with the root cause in the test's own comment. Fixing this MUST flip both
-assertions to `true` in the same commit as the fix — do not delete the test.
+- `test/vscode-e2e/settings-live-d-tier.spec.ts` → D4 asserts BOTH write legs live-reload. It was
+  first landed pinning the broken behaviour (`false`/`false`) and flipped to `true`/`true` by this
+  fix, so it is known to fail without it.
+- `test/backend/panel-config.test.ts` → asserts the watcher is built from a `RelativePattern`, not
+  a bare string. This is the assertion that was MISSING: every other unit test in that file passed
+  throughout the bug, because they fire the mock watcher's events directly and so never depended on
+  the pattern being able to match anything. The mock now records the pattern for this purpose.
 
 ## Verification
 
