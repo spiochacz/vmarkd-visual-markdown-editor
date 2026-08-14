@@ -23,7 +23,7 @@ xvfb-run -a npm run test:vscode                 # real VS Code, EVERYTHING excep
 npm run lint:ci                                 # Biome lint gate (whole tree)
 ```
 
-Details, troubleshooting, coverage commands: [`DEVELOPMENT.md` → Running tests headless](DEVELOPMENT.md#running-tests-headless-xvfb). Full testing playbook (which layer, real-VS-Code spec patterns, booting the WASM in a vitest vm-context, gotchas): the **`vmarkd-testing`** skill.
+Details, troubleshooting, coverage commands: [`DEVELOPMENT.md` → Running tests headless](DEVELOPMENT.md#running-tests-headless-xvfb). Full testing playbook (which layer, real-VS-Code spec patterns, booting the WASM in a vitest vm-context, gotchas): the **`vmarkd-testing`** skill — which also covers **debugging** a flaky/order-dependent spec, and MUST be read before diagnosing one. A spec that passes alone and fails in the full run is almost never a race here: replay its real predecessor chain and bisect before touching a timeout.
 
 ## Quality-metrics toolchain
 

@@ -1,6 +1,6 @@
 ---
 name: vmarkd-testing
-description: ALWAYS use whenever the task adds or changes vMarkd functionality and needs tests — picking the test layer (vitest unit / chromium harness e2e / REAL-VS-Code e2e / @visual golden), writing a real-VS-Code webview spec (test/vscode-e2e), booting the compile-only WASM in a vitest vm-context, verifying coverage, or running the lint/typecheck/test gates headless. Covers the MANDATE (every webview/renderer feature MUST ship a real-VS-Code e2e you WRITE and RUN), the exact headless commands (xvfb IS installed), the spec patterns (frame locators, evaluateInVSCode, interaction via defaultPrevented, data: URIs, fixtures), unit/WASM recipes, and the gotchas. Read it BEFORE calling a feature done so you never defer real-webview verification to the user.
+description: ALWAYS use for vMarkd tests — BOTH writing them AND debugging them. Writing: picking the test layer (vitest unit / chromium harness e2e / REAL-VS-Code e2e / @visual golden), writing a real-VS-Code webview spec (test/vscode-e2e), booting the compile-only WASM in a vitest vm-context, verifying coverage, running the lint/typecheck/test gates headless. DEBUGGING (use it here too, before touching the spec): any FLAKY, intermittent or order-dependent test, a spec that passes alone but fails in the full suite, a suite failure you are about to explain as "a race" or "a timing issue", or one you are tempted to fix with a longer sleep/timeout — in this repo that reading was wrong five times out of five; the skill has the replay-the-real-order + bisect method, the cross-spec state leaks that cause it, and the sample sizes a flake claim needs. Also covers the MANDATE (every webview/renderer feature MUST ship a real-VS-Code e2e you WRITE and RUN), the exact headless commands (xvfb IS installed), spec patterns (frame locators, evaluateInVSCode, defaultPrevented, data: URIs, fixtures), unit/WASM recipes, and the gotchas (settle() steals webview focus; theme flips need scrollIntoView). Read it BEFORE calling a feature done, and BEFORE diagnosing a flaky spec.
 ---
 
 # vMarkd testing
@@ -8,6 +8,12 @@ description: ALWAYS use whenever the task adds or changes vMarkd functionality a
 How to test a vMarkd change properly — which layer, how to write it, how to RUN it headless, how to
 prove coverage. The companion doc is `DEVELOPMENT.md` (build layout + all commands); the mandate lives
 in `AGENTS.md` (always loaded). This skill is the on-demand HOW.
+
+**Debugging an existing test counts as "testing".** If a spec is flaky, order-dependent, or you are
+about to describe a failure as a race, jump to
+[A spec that passes alone and fails in the full run](#a-spec-that-passes-alone-and-fails-in-the-full-run--do-this-first)
+BEFORE editing the spec — that section exists because the intuitive fix (a longer wait) was the wrong
+call in every measured case so far.
 
 ## ⭐ THE RULE (non-negotiable)
 
@@ -102,6 +108,61 @@ Patterns that matter:
   `data:` URIs in fixtures so they load offline.
 - Console errors: attach `page().on('console', …)` and log them; structural asserts beat screenshots here.
 
+## A spec that passes alone and fails in the full run — DO THIS FIRST
+
+The default reading of an intermittent real-VS-Code failure is "a race, add a wait". In this repo
+that reading has been **wrong five times out of five** (task 516's triage, 2026-08-13/14). Every one
+was a *precondition the spec never pinned*, left in a state by a spec that ran earlier. The suite
+shares ONE worker-scoped VS Code profile, and `ConfigurationTarget.Global` writes persist across
+tests, so whatever ran before decides your test's configuration.
+
+**The method — replay the real order, then bisect. Do not start with sleeps.**
+
+1. Get the ACTUAL predecessor chain from a full-run log (the suite runs alphabetically, but read the
+   log rather than trusting that):
+
+   ```bash
+   grep -oE "[0-9]+ [a-z0-9-]+\.spec\.ts" tmp/full-suite.log | uniq   # order as it really ran
+   ```
+
+2. Replay ~10 predecessors plus the victim in ONE command (one worker, one profile — that is what
+   makes the state carry over):
+
+   ```bash
+   cd test/vscode-e2e && xvfb-run -a npx playwright test <pred1>.spec.ts … <pred10>.spec.ts <victim>.spec.ts
+   ```
+
+3. Bisect the chain by halves until one pair reproduces. Each step is a normal run, so it is minutes,
+   not guesswork.
+
+4. Fix by **pinning what the assertion depends on** in the victim, and resetting it in an `afterEach`
+   so the victim does not become the next polluter. `afterEach`, never a `finally` inside the test —
+   a RED run must not leave the profile poisoned for everything after it.
+
+**Single predecessors and stress loops are not a substitute for the chain.** An investigation that
+tried individual predecessors, CPU stress (10×`yes`) and forced theme changes measured **0/20** and
+reported "not determined"; replaying the real 11-spec chain reproduced it on the **first** attempt,
+and a two-step bisect pinned it to one pair.
+
+### What "state" actually means here
+
+| Leak | Bites as | Real example |
+|---|---|---|
+| `vmarkd.theme.content` (~40 specs set it, most never reset) | a re-theme "race" | `echarts-theme` → `flip-skip`: with an explicit content theme inherited, a workbench flip changes nothing the renderers key off, so the spec's own CONTROL ("the first flip re-renders") fails |
+| `vmarkd.theme.code` | flips silently doing nothing | `caret-empty-typing` → `d2-render-sweep`: `resolveCodeStyle` honours an explicit code theme verbatim, so every later content-theme flip is a permanent no-op for token colour |
+| `workbench.colorTheme` | an unrelated spec's geometry | `plantuml-theme-flip` → `preview-spacing`: `theme.content: 'auto'` RESOLVES to `vscode-*-2026` under a VS Code default theme, `markdown-body` lands on the body, and the edit surface inherits `line-height: 1.6` instead of Vditor's 1.5 |
+| `vmarkd.editor.defaultMode` (defaults to `remember`) | a hung open | `outline-explorer` waited 60 s on a `.vditor-wysiwyg` that a previous spec's Preview overlay had left hidden |
+| `process.env` test hooks | an overlay/flag stuck ON for the rest of the worker | `process.env.X = undefined` stores the STRING `"undefined"` — truthy. Use `delete process.env.X` |
+
+Standing gap: task 524 (a shared pin/restore helper). Until it exists, pin per spec.
+
+### When it really is timing
+
+Only after the chain replay comes back clean. Then: poll the actual condition, never `sleep` longer.
+And measure both sides — at a ~1-in-10 failure rate, **anything under ~10 repeats per side proves
+nothing**. A gate change once looked like it improved 1/2 → 1/10 at `--repeat-each=5`; at
+`--repeat-each=10` both sides measured an identical 8/1/1 and the change was reverted.
+
 ## Unit recipes
 
 - **Pure render output** (`d2-render.test.ts`): build a hand-made `Layout`/`D2Graph` literal, call
@@ -134,6 +195,17 @@ e2e for the feature. Run `npx biome format --write <changed files>` BEFORE lint 
 
 ## Gotchas
 
+- **`settle(frame, ms)` STEALS DOM focus into the webview** (task 516). It waits by running
+  `evaluate` INSIDE the webview iframe, and touching the iframe moves keyboard focus there. Harmless
+  when the test types INTO the editor — fatal when the test needs focus somewhere else (a workbench
+  editor, the find box, a panel): use page-level `workbox.waitForTimeout()` there instead. This
+  inverted a whole diagnosis once: `keybinding-scope-release` settled between key presses, so
+  Ctrl+L/Ctrl+H were delivered to the now-focused webview and fired `format.list`/`format.strike`
+  exactly as designed — and the resulting `* ~~~~` in the panel was reported as a `when`-clause leak,
+  i.e. the product working correctly was scored as the bug. When a spec's outcome depends on WHO has
+  focus, assert the precondition (`.editor-group-container.active .monaco-editor.focused` plus
+  `activeTextEditor`) BEFORE the keys, so a focus mishap fails as "we never got focus" instead of
+  silently becoming the opposite conclusion.
 - **A theme-flip spec must scroll its target into view — the failure mode is silent** (task 412/475).
   Task 412's viewport gate (`diagram-retheme.ts`'s `gateAndRender`) defers a diagram's re-render —
   ECharts/mindmap, the mono SVG group (plantuml/graphviz/abc/wavedrom/nomnoml), geo, and D2 — for
