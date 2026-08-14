@@ -72,6 +72,9 @@ export function applyBodyOptions(options: BodyOptions | undefined): void {
     'data-use-vscode-theme-color',
     options?.useVscodeThemeColor ? '1' : '0',
   )
+  // Mirrors html-builder's `data-content-theme` (task 516 follow-up) so a LIVE theme change (not
+  // just first paint) keeps main.css's code-box mirror rule scoped correctly too.
+  setAttr('data-content-theme', options?.contentTheme || 'auto')
   applyContentTheme(options?.contentTheme)
   setAttr('data-full-width', options?.enableFullWidth ? '1' : '0')
   setAttr('data-highlight-headings', options?.highlightHeadings ? '1' : '0')

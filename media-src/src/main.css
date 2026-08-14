@@ -1450,6 +1450,89 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
   overflow-x: auto;
   padding: 1em;
 }
+/* The "constant across every hljs theme" claim above is false for exactly one pair: vscode-dark-2026
+   and vscode-light-2026 (media/markdown-themes/vscode-{dark,light}-2026.css) both carry their own
+   `.markdown-body .hljs { background/border/padding:16px/font-family:var(--vscode-editor-font-family) }`
+   — a FIXED box (not `1em`, not the universal hljs font/line-height), not just a colour swap. `auto`
+   pairs with either theme the moment `workbench.colorTheme` is one of VS Code's own default themes
+   (theme-registry's resolveAutoContentTheme) — i.e. on an out-of-the-box VS Code, the common case, not
+   an edge one. Without the overrides below, the un-highlighted mirror above still gives `1em` padding
+   in Vditor's OWN `mononoki` stack, no border, and (worse) incidentally inherits the THEME'S OWN
+   inline-code rule (`.markdown-body code:not(.hljs):not(.highlight-chroma) { line-height: 1.357em }`,
+   below — written for inline code, but its selector has no way to exclude a not-yet-highlighted BLOCK
+   code element) — while the settled `.hljs` box is 16px padding + a 1px border + the VS Code editor
+   font, its line-height simply INHERITING `.markdown-body`'s own `line-height: 1.6` (nothing overrides
+   it for `.hljs`). Every one of those is a real, independent axis the block visibly snaps to the
+   moment highlight.js lands — exactly the jump this file's mirroring exists to prevent (task 516
+   full-suite triage, prerender-style-parity.spec.ts: height 47 → 51 (padding) → 54.39 (+font-family,
+   +line-height:inherit to restore the 1.6 the inline-code rule was overriding) → 56.39 (+border, this
+   rule) — matching the settled value at every step confirmed which axis was still open). Scoped via
+   `data-content-theme` (html-builder.ts / live-config.ts) because `.markdown-body` alone can't tell
+   this theme pair apart from github/material, which DO stay at the universal 1em/mononoki/`normal`
+   pairing and must not get any of this. Same selector/exclusion list as the rule above, narrowed to
+   each theme value (border/background colour differs between the two, so each needs its own
+   declaration block) and placed after it so the fixed values win on the themes that need them. */
+body[data-content-theme="vscode-dark-2026"] .vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
+    :has(
+        > :is(
+            .language-mermaid,
+            .language-echarts,
+            .language-flowchart,
+            .language-graphviz,
+            .language-plantuml,
+            .language-mindmap,
+            .language-markmap,
+            .language-abc,
+            .language-smiles,
+            .language-wavedrom,
+            .language-nomnoml,
+            .language-geojson,
+            .language-topojson,
+            .language-d2,
+            .language-math
+          )
+      )
+  )
+  > code:not(.hljs):not(.highlight-chroma),
+body[data-content-theme="vscode-light-2026"] .vditor-reset
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
+    :has(
+        > :is(
+            .language-mermaid,
+            .language-echarts,
+            .language-flowchart,
+            .language-graphviz,
+            .language-plantuml,
+            .language-mindmap,
+            .language-markmap,
+            .language-abc,
+            .language-smiles,
+            .language-wavedrom,
+            .language-nomnoml,
+            .language-geojson,
+            .language-topojson,
+            .language-d2,
+            .language-math
+          )
+      )
+  )
+  > code:not(.hljs):not(.highlight-chroma) {
+  /* Values come FROM the theme file (--vmarkd-code-box-* on .markdown-body in
+     media/markdown-themes/vscode-{dark,light}-2026.css), not copied here: a mirror that repeated the
+     hex codes would drift the day either theme is retouched, and the symptom would be this exact jump
+     again. The fallbacks are the same numbers so the rule still degrades sanely if a theme ever drops
+     them. One rule for both themes — the two differ only in those variables. */
+  padding: var(--vmarkd-code-box-padding, 16px);
+  border: 1px solid var(--vmarkd-code-box-border, transparent);
+  background-color: var(--vmarkd-code-box-bg, transparent);
+  font-family: var(--vscode-editor-font-family, ui-monospace, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace);
+  /* Restores `.markdown-body`'s inherited `line-height: 1.6` over the inline-code rule's `1.357em` —
+     see the block comment above. NOT `normal`: unitless 1.6 inherited is a specific ratio, not the UA
+     font-metric default (measured smaller). */
+  line-height: inherit;
+}
 /* …and the COLOURS must match the settled state too, not just the geometry above. Until
    highlight.js tags `.hljs`, the content themes' INLINE-code styling leaks onto block code:
    material-dark's `code:not(.hljs)` green (#98c379) plus the dark `--vmarkd-code-bg` tint

@@ -102,7 +102,14 @@ function buildBodyAttrs(config: HtmlBuildConfig): string {
     `data-use-vscode-theme-color="${config.useVscodeThemeColor ? '1' : '0'}" ` +
     `data-full-width="${config.enableFullWidth ? '1' : '0'}" ` +
     `data-highlight-headings="${config.highlightHeadings ? '1' : '0'}" ` +
-    `data-heading-markers="${config.showHeadingMarkers === false ? '0' : '1'}"`
+    `data-heading-markers="${config.showHeadingMarkers === false ? '0' : '1'}" ` +
+    // The RESOLVED content theme (task 516 follow-up): `contentTheme` is already `effectiveContentTheme`'s
+    // output, so `auto` paired with a VS Code default colour theme arrives here as a concrete value
+    // (e.g. `vscode-dark-2026`), not the literal string `auto`. main.css needs this to scope the
+    // un-highlighted code-box mirror rule to the ONE theme pair whose `.hljs` padding isn't the
+    // universal `1em` (see the rule's comment) — `markdown-body` alone can't distinguish that theme
+    // from github/material, which all share the class.
+    `data-content-theme="${config.contentTheme}"`
   )
 }
 

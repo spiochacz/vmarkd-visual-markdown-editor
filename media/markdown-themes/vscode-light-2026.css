@@ -66,6 +66,13 @@ body.markdown-body .vditor .vditor-reset {
 }
 /* code block = textCodeBlock.background + widget.border (markdown.css draws a 1px border on pre);
    keep hljs token colours, override bg + size. */
+/* See the dark twin: these are consumed by main.css's un-highlighted code-box mirror, so the values
+   live here once instead of being copied into a rule that would drift away from them. */
+.markdown-body {
+  --vmarkd-code-box-bg: #eaeaea;
+  --vmarkd-code-box-border: #e2e2e5;
+  --vmarkd-code-box-padding: 16px;
+}
 .markdown-body .hljs { background-color: #eaeaea !important; border: 1px solid #e2e2e5; }
 .markdown-body code,
 .markdown-body .hljs { font-size: 1em !important; }

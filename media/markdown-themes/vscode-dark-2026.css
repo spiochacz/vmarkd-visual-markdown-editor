@@ -66,6 +66,15 @@ body.markdown-body .vditor .vditor-reset {
 }
 /* code block = textCodeBlock.background + widget.border (markdown.css draws a 1px border on pre);
    keep hljs token colours, override bg + size. */
+/* Published as variables too (task 516 follow-up): main.css mirrors this box onto NOT-YET-highlighted
+   preview code so the block does not visibly snap when highlight.js lands. Declaring them here keeps
+   the values in ONE place — a mirror that hardcoded them would silently drift the day this theme is
+   retouched, which is the same jump bug again, just harder to find. */
+.markdown-body {
+  --vmarkd-code-box-bg: #242526;
+  --vmarkd-code-box-border: #2a2b2c;
+  --vmarkd-code-box-padding: 16px;
+}
 .markdown-body .hljs { background-color: #242526 !important; border: 1px solid #2a2b2c; }
 .markdown-body code,
 .markdown-body .hljs { font-size: 1em !important; }
