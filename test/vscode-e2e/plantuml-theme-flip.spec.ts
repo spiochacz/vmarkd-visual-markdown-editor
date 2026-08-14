@@ -14,6 +14,13 @@ import { wf } from './webview-helpers'
 // block is re-rendered in the new theme's colour, and reRenderPlantuml fired EXACTLY ONCE.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
+
+// Flipping the workbench theme is the behaviour under test, so this spec cannot stop writing —
+// but it left `colorTheme` on 'Default Dark Modern', and `theme.content: 'auto'` RESOLVES to a real
+// theme under any VS Code default. `preview-spacing.spec.ts` then measured an edit surface that had
+// inherited `markdown-body`'s line-height and failed on the first attempt (task 516 triage / 524).
+useSettingsRestore(test, ['vmarkd.theme.content', 'workbench.colorTheme'])
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-theme-flip.md')
 

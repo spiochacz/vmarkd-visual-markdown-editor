@@ -1,6 +1,15 @@
-import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
+import { wf } from './webview-helpers'
+
+// This spec rewrites `theme.content` four times and cannot stop — the content theme IS what it
+// tests. What it must not do is leave the last one behind: it runs immediately before
+// `flip-skip.spec.ts` in the suite's own order, whose control ("the first flip re-renders mermaid")
+// silently stops holding once a content theme is pinned, because a workbench flip then changes
+// nothing the renderers key off. Measured: this pair reproduced that failure on the first attempt
+// (task 516 triage / task 524).
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 // ECharts + mindmap must follow the CONTENT theme regardless of the VS Code window mode.
 // Ground truth = the PAINTED canvas pixels (getImageData), not getOption(). Run light/dark as
