@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // Task 166 — viewport-gate the mermaid theme-flip re-render, real VS Code, headless. On a tall 12-mermaid
 // doc, a genuine dark<->light flip used to re-render ALL 12 in one main-thread burst (~90% offscreen). Now
@@ -11,29 +12,28 @@ import { expect, test } from 'vscode-test-playwright'
 const FIXTURE = path.join(__dirname, 'fixtures', 'mermaid-flip-gate.md')
 const N = 12
 
+// PRECONDITION: the content theme must FOLLOW the editor ('auto'). This spec asserts that flipping
+// the workbench theme re-renders mermaid — which is only true when the flip actually moves the
+// webview foreground. With `theme.content` PINNED to a fixed theme, a workbench flip changes nothing
+// in the webview and the (correctly) foreground-gated re-theme does nothing: 0 re-renders, and this
+// spec fails through no fault of the product. Several sibling specs (echarts-theme, d2-theme, …) pin
+// `theme.content` GLOBALLY and never restore it, so in a full-suite run this spec inherits their
+// setting — the real mechanism behind its "passes solo, fails in the suite" reputation (reproduced:
+// `echarts-theme.spec.ts mermaid-flip-gate.spec.ts` fails, alone it passes). Pinning it here makes the
+// spec self-defending instead of dependent on predecessors. Applied before each test (and hence before
+// the document opens below), matching the original inline write's timing — a content-theme switch
+// fires the mono re-theme, which clears a block (innerHTML='') before re-rendering it, and landing that
+// on a block whose first render is still in flight discards the only copy of its source.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
+// `workbench.colorTheme` is flipped TWICE mid-test (light baseline, then the light->dark flip that is
+// the actual behaviour under test), so it can't be pinned — only cleaned up after.
+useSettingsRestore(test, ['workbench.colorTheme'])
+
 test('theme flip re-renders only visible mermaid; offscreen defer + render on scroll-in (task 166)', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(150_000)
-  // PRECONDITION: the content theme must FOLLOW the editor ('auto'). This spec asserts that flipping
-  // the workbench theme re-renders mermaid — which is only true when the flip actually moves the
-  // webview foreground. With `theme.content` PINNED to a fixed theme, a workbench flip changes nothing
-  // in the webview and the (correctly) foreground-gated re-theme does nothing: 0 re-renders, and this
-  // spec fails through no fault of the product. Several sibling specs (echarts-theme, d2-theme, …) pin
-  // `theme.content` GLOBALLY and never restore it, so in a full-suite run this spec inherits their
-  // setting — the real mechanism behind its "passes solo, fails in the suite" reputation (reproduced:
-  // `echarts-theme.spec.ts mermaid-flip-gate.spec.ts` fails, alone it passes). Setting it here makes
-  // the spec self-defending instead of dependent on predecessors.
-  //
-  // Set BEFORE opening the document: a content-theme switch fires the mono re-theme, which clears a
-  // block (innerHTML='') before re-rendering it — landing that on a block whose first render is still
-  // in flight discards the only copy of its source and leaves it empty for good.
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]

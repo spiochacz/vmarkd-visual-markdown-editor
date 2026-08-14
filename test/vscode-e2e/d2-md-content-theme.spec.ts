@@ -16,8 +16,12 @@ import { wf } from './webview-helpers'
 // (The harness DOES pin the cascade rule itself — content-theme.spec.ts — but not the pipeline.)
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Set once, up front, before opening, and never changed again mid-test.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'github-light' })
 
 interface DiagDiag {
   d2Blocks: number
@@ -64,15 +68,6 @@ test('a github-themed page does not restyle the inside of a d2 |md| label', asyn
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'theme.content',
-        'github-light',
-        vscode.ConfigurationTarget.Global,
-      )
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

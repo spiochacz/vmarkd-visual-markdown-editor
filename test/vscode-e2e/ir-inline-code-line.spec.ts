@@ -17,8 +17,11 @@ import { wf } from './webview-helpers'
 // the backtick.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // Row 6 of the renderer table is `SVG post-processing` glued to `` `currentColor` `` with no space —
 // the shape that has no break opportunity of its own. The FIXTURE had a space there until task 370:
@@ -68,11 +71,6 @@ test('collapsed inline code stays in the text line, and its markers return for e
   evaluateInVSCode,
 }) => {
   test.setTimeout(240_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

@@ -9,8 +9,13 @@ import { wf } from './webview-helpers'
 // live setting flip re-renders (paths ⇄ primitives).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'd2-sketch.md')
+
+// Both tests flip `vmarkd.diagram.d2.sketch` on/off multiple times (reopen + live setting flip) to
+// observe the render change, so it can't be pinned to one value.
+useSettingsRestore(test, ['vmarkd.diagram.d2.sketch'])
 
 // Close any prior editor (workers:1 → same VS Code instance), set the sketch setting, then open the
 // fixture. collectConfigOptions reads the setting at OPEN. `sketch` is a plain boolean.
@@ -191,7 +196,4 @@ test('sketch mode: a custom-fill node label matches an unstyled node label (task
     'no unstyled grid-cell label found to compare against',
   ).not.toBeNull()
   expect(r.styledFill).toBe(r.plainFill)
-
-  // Reset so later specs see the default.
-  await updateSketch(evaluateInVSCode, false)
 })

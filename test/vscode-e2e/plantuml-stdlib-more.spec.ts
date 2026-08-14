@@ -8,8 +8,13 @@ import { wf } from './webview-helpers'
 // never names C4.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-stdlib-more.md')
+
+// The two `test.skip()` cases below set `vmarkd.theme.content`; the active test doesn't, so this is
+// restore-only (harmless no-op for the active test, cleans up if/when the skipped ones run).
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 test('7 stdlib icon libs render offline (+ k8s pulls its C4 dependency)', async ({
   workbox,

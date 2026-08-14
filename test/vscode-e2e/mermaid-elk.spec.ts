@@ -12,9 +12,14 @@ import { wf } from './webview-helpers'
 // per-diagram directive pulls the adapter even under a dagre global.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'mermaid-elk.md')
 const DIRECTIVE = path.join(__dirname, 'fixtures', 'mermaid-elk-directive.md')
+
+// Both tests flip diagram.mermaid.layout live (dagre↔elk) — the behaviour under test — and to
+// different values across tests, so it can't be pinned.
+useSettingsRestore(test, ['vmarkd.diagram.mermaid.layout'])
 
 // Close any prior editor (workers:1 → same VS Code instance; reopening the same custom-editor URI would
 // reveal the previous webview instead of a fresh one), set the layout setting, then open the fixture.
@@ -234,7 +239,4 @@ test('a per-diagram %%{init:{layout:elk}}%% directive pulls the adapter even und
   expect(state.globalLayout).not.toBe('elk') // the GLOBAL setting never became elk…
   expect(state.bundle).toBe(true) // …yet docRequestsMermaidElk pulled the adapter for the directive
   expect(state.registered).toBe(true)
-
-  // Reset so later specs see the default.
-  await updateLayout(evaluateInVSCode, 'dagre')
 })

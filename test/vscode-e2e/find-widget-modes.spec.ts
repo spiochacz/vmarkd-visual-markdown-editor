@@ -17,6 +17,7 @@ import { settle, wf } from './webview-helpers'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 mkdirSync(TEMP_DIR, { recursive: true })
@@ -37,15 +38,12 @@ writeFileSync(
   ].join('\n'),
 )
 
+// `editor.defaultMode` is reopened with a different value each leg (wysiwyg/sv/preview) — mid-test,
+// so it can't be pinned; restored via the helper below.
+useSettingsRestore(test, ['vmarkd.editor.defaultMode'])
+
 test.afterEach(async ({ evaluateInVSCode }) => {
   await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
   })
 })

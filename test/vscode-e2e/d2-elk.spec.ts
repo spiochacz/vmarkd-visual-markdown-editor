@@ -12,8 +12,13 @@ import { wf } from './webview-helpers'
 // no real config plumbing).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Select the vmarkd layout engine (default: ELK + refinement) BEFORE opening
+// (collectConfigOptions reads it at open) — set once, never changed again mid-test.
+usePinnedSettings(test, { 'vmarkd.diagram.d2.layout': 'vmarkd' })
 
 test('D2 renders via the ELK engine on the webview main thread', async ({
   workbox,
@@ -22,11 +27,6 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      // Select the vmarkd layout engine (default: ELK + refinement) BEFORE opening
-      // (collectConfigOptions reads it at open).
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('diagram.d2.layout', 'vmarkd', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',
@@ -119,11 +119,4 @@ test('D2 renders via the ELK engine on the webview main thread', async ({
   console.log(`[d2-elk] render: ${JSON.stringify(render)}`)
   expect(render.anyElk).toBe(true)
   expect(render.elkHasSvg).toBe(true)
-
-  // Reset the setting so other specs see the default (vmarkd).
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('diagram.d2.layout', undefined, true)
-  })
 })

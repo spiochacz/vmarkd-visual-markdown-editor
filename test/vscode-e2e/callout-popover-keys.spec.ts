@@ -12,8 +12,12 @@ import { wf } from './webview-helpers'
 // must poll for it, not assume it.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'callout-popover-keys.md')
+
+// Set once, up front, before opening the document, and never changed again mid-test.
+usePinnedSettings(test, { 'vmarkd.editor.defaultMode': 'wysiwyg' })
 
 // See wiki-chip-focus.spec.ts's identical helper: getValue() goes through the double-`.vditor`
 // inner instance's `lute`, assigned asynchronously well after the DOM is rendered.
@@ -32,21 +36,6 @@ function getValue(frame: ReturnType<typeof wf>): Promise<string> {
   return frame.locator('body').evaluate(() => (window as any).vditor.getValue())
 }
 
-// `editor.defaultMode` is Global + persistent across boots in this harness (see
-// preview-spacing.spec.ts's identical note) — reset unconditionally so a later spec doesn't
-// inherit 'wysiwyg'.
-test.afterEach(async ({ evaluateInVSCode }) => {
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-  })
-})
-
 test('Ctrl+Enter focuses the callout popover controls, and getValue() is unchanged throughout', async ({
   workbox,
   evaluateInVSCode,
@@ -55,13 +44,6 @@ test('Ctrl+Enter focuses the callout popover controls, and getValue() is unchang
 
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update(
-          'editor.defaultMode',
-          'wysiwyg',
-          vscode.ConfigurationTarget.Global,
-        )
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

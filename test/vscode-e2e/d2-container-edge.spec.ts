@@ -10,20 +10,18 @@ import { wf } from './webview-helpers'
 // because asserting through the default engine would prove nothing about dagre at all.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'd2-container-edge.md')
+
+// Set once, up front, before opening — the layout engine is read into the webview at init.
+usePinnedSettings(test, { 'vmarkd.diagram.d2.layout': 'dagre' })
 
 test('a D2 diagram with container-endpoint edges renders under the dagre engine', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(120_000)
-  // Set BEFORE opening — the layout engine is read into the webview at init.
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('diagram.d2.layout', 'dagre', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

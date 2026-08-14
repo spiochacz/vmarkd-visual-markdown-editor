@@ -14,8 +14,11 @@ import { wf } from './webview-helpers'
 // the content-theme pairing path in the shared resolver, not just the `github` fallback.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const DOC = path.join(__dirname, 'fixtures', 'frontmatter-code.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'material-dark' })
 
 test('the hljs stylesheet ships in the initial HTML and Vditor never tears it down (task 431)', async ({
   workbox,
@@ -25,9 +28,6 @@ test('the hljs stylesheet ships in the initial HTML and Vditor never tears it do
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'material-dark', true)
       await vscode.commands.executeCommand(
         'vscode.openWith',
         vscode.Uri.file(args[0]),

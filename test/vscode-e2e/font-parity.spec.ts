@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // Task 443 — the vscode-*-2026 content themes exist to REPRODUCE VS Code's own Markdown preview,
 // so this asserts prose typography parity against that preview directly: same file, same VS Code
@@ -99,26 +100,30 @@ const MEASURE = (_body: Element, probeText: string) => {
 
 const px = (v: string | undefined) => (v ? Number.parseFloat(v) : Number.NaN)
 
+// editor.fontSize / markdown.preview.* / headingMarkers are identical across both generated tests
+// below, so they're pinned. vmarkd.theme.content varies per test (dark vs light) and can't be
+// pinned to one shared value — restored only, inline write stays in the test body.
+usePinnedSettings(test, {
+  'editor.fontSize': 14,
+  'markdown.preview.fontSize': 14,
+  'markdown.preview.lineHeight': 1.6,
+  'vmarkd.editor.headingMarkers': true,
+})
+useSettingsRestore(test, ['vmarkd.theme.content'])
+
 for (const contentTheme of ['vscode-dark-2026', 'vscode-light-2026']) {
   test(`${contentTheme} prose typography matches VS Code's own markdown preview`, async ({
     workbox,
     evaluateInVSCode,
   }) => {
-    // Pin every input both sides derive from, so the comparison can't drift with local settings.
+    // Every other input both sides derive from is pinned above; only the per-test content theme is
+    // written here (it varies between the two generated tests, so it can't be pinned).
     await evaluateInVSCode(
       async (vscode, args) => {
         const [theme] = args as [string]
-        const g = vscode.ConfigurationTarget.Global
         await vscode.workspace
-          .getConfiguration('editor')
-          .update('fontSize', 14, g)
-        const md = vscode.workspace.getConfiguration('markdown')
-        await md.update('preview.fontSize', 14, g)
-        await md.update('preview.lineHeight', 1.6, g)
-        const vmarkd = vscode.workspace.getConfiguration('vmarkd')
-        await vmarkd.update('theme.content', theme, g)
-        // the gutter-marker measurements need the markers ON (the default)
-        await vmarkd.update('editor.headingMarkers', true, g)
+          .getConfiguration('vmarkd')
+          .update('theme.content', theme, vscode.ConfigurationTarget.Global)
       },
       [contentTheme] as [string],
     )

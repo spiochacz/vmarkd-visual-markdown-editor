@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Graphviz (Viz.js) must (1) RENDER in the VS Code webview and (2) be PALETTE-PAIRED with the content
 // theme: we inject palette colours as DOT graph/node/edge default statements so Graphviz colours the
@@ -15,6 +16,8 @@ const LINE = '#48a0c7' // vscode-dark-2026 line/accent (borders + edges)
 const FG = '#bbbebf' // vscode-dark-2026 foreground (text)
 const SURFACE = '#232425' // derived node fill (mix(bg,fg,0.1))
 
+usePinnedSettings(test, { 'vmarkd.theme.content': 'vscode-dark-2026' })
+
 test('graphviz renders + is palette-paired with the content theme', async ({
   workbox,
   evaluateInVSCode,
@@ -22,9 +25,6 @@ test('graphviz renders + is palette-paired with the content theme', async ({
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'vscode-dark-2026', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

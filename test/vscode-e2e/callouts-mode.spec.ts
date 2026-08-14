@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Callouts must stay coloured across edit-mode switches (and preview round-trips). observeCallouts
 // is wired once at init; binding it to the active-mode element only covered THAT mode, so a user in
@@ -11,6 +12,9 @@ import { expect, test } from 'vscode-test-playwright'
 // which left WYSIWYG callouts undecorated. Real-VS-Code because it depends on the live mode DOM.
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 
+// Set once, up front, before opening the document, and never changed again mid-test.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'vscode-dark-2026' })
+
 test('callouts stay coloured in WYSIWYG after switching from IR', async ({
   workbox,
   evaluateInVSCode,
@@ -18,9 +22,6 @@ test('callouts stay coloured in WYSIWYG after switching from IR', async ({
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'vscode-dark-2026', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

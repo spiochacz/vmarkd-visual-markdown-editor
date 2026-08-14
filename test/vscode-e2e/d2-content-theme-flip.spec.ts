@@ -27,8 +27,15 @@ import { wf } from './webview-helpers'
 // re-compiling, so the compile count is what a coincidental colour match cannot fake.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Set once, up front, before either open, and never changed again mid-test.
+usePinnedSettings(test, { 'vmarkd.diagram.d2.theme': 'auto' })
+// theme.content is set once up front, THEN flipped live mid-test — the genuine content-theme
+// change this spec observes — so it can't be pinned.
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 // Every distinct stroke colour across all D2 SVGs — the palette fingerprint.
 async function d2Strokes(frame: ReturnType<typeof wf>): Promise<string[]> {
@@ -60,13 +67,13 @@ test('a cached-on-open D2 render still repaints on a live content-theme change',
       [FIXTURE] as [string],
     )
 
-  // Pin D2→content pairing and a concrete DARK content theme BEFORE opening, so both opens share the
-  // SAME cache themeKey (→ the re-open is a genuine HIT) and the flip below moves only the content
-  // fragment, not the editor's light/dark mode.
+  // Pin D2→content pairing (usePinnedSettings above) and a concrete DARK content theme BEFORE
+  // opening, so both opens share the SAME cache themeKey (→ the re-open is a genuine HIT) and the
+  // flip below moves only the content fragment, not the editor's light/dark mode.
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    const cfg = vscode.workspace.getConfiguration('vmarkd')
-    await cfg.update('diagram.d2.theme', 'auto', true)
-    await cfg.update('theme.content', 'github-dark', true)
+    await vscode.workspace
+      .getConfiguration('vmarkd')
+      .update('theme.content', 'github-dark', true)
   })
 
   // Pass 1 — a MISS (freshStart store): render live, then let the finished SVGs be PUT to the host.
@@ -165,10 +172,4 @@ test('a cached-on-open D2 render still repaints on a live content-theme change',
     compiles,
     'the flip re-compiled every D2 block (not served a poisoned cache entry)',
   ).toBeGreaterThan(11)
-
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    const cfg = vscode.workspace.getConfiguration('vmarkd')
-    await cfg.update('diagram.d2.theme', undefined, true)
-    await cfg.update('theme.content', undefined, true)
-  })
 })

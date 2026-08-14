@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Task 110 — pins the preview-vs-VS Code block-rhythm parity CSS in main.css (search "Task 110"),
 // and the half of ADR-0003 it must NOT touch: the edit surfaces (.vditor-ir) keep Vditor's own
@@ -67,27 +68,22 @@ const READ_METRICS = `(root) => {
 // SHARED and PERSISTENT across boots (`userDataDir ?? path.join(cachePath, 'user-data')` in
 // vscode-test-playwright, and playwright.config.ts does not override it). Leaving `preview` set
 // would make every LATER spec in the run open into the Preview overlay, where `.vditor-ir` is
-// hidden — a suite-wide poison that only shows up when the specs run together. Reset unconditionally
-// (afterEach, not a finally) so a failure or timeout above still cleans up.
-test.afterEach(async ({ evaluateInVSCode }) => {
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-    // The theme pins this spec adds (see the test body) get the same treatment as defaultMode
-    // above — leaving 'Monokai' behind would be a new suite-wide poison of exactly the kind this
-    // hook already exists to prevent.
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', undefined, vscode.ConfigurationTarget.Global)
-    await vscode.workspace
-      .getConfiguration('workbench')
-      .update('colorTheme', undefined, vscode.ConfigurationTarget.Global)
-  })
+// hidden — a suite-wide poison that only shows up when the specs run together.
+//
+// Pin the WORKBENCH theme too, not just our own settings. The edit-surface assertion below
+// describes Vditor's own rhythm with NO content theme active — but `theme.content: 'auto'`
+// RESOLVES to vscode-{dark,light}-2026 whenever `workbench.colorTheme` is one of VS Code's
+// default themes (resolveAutoContentTheme, src/shared/theme-registry.ts), and a resolved theme
+// puts `markdown-body` on the body, whose `line-height: 1.6` the edit surface then inherits —
+// legitimately, so the 1.5 assertion is simply measuring a different configuration.
+// Reproduced deterministically: `plantuml-theme-flip.spec.ts` leaves `colorTheme` at 'Default
+// Dark Modern' and never resets it, and running it immediately before this spec fails the ratio
+// at 1.6 on the first attempt (task 516 triage; the general hygiene problem is task 524).
+// 'Monokai' is a built-in theme that appears in NEITHER pairing list, so 'auto' stays unpaired.
+usePinnedSettings(test, {
+  'workbench.colorTheme': 'Monokai',
+  'vmarkd.theme.content': 'auto',
+  'vmarkd.editor.defaultMode': 'preview',
 })
 
 test('preview block rhythm matches VS Code, edit surface and code stay untouched', async ({
@@ -96,29 +92,6 @@ test('preview block rhythm matches VS Code, edit surface and code stay untouched
 }) => {
   test.setTimeout(120_000)
   await evaluateInVSCode(async (vscode, uri) => {
-    // Pin the WORKBENCH theme too, not just our own settings. The edit-surface assertion below
-    // describes Vditor's own rhythm with NO content theme active — but `theme.content: 'auto'`
-    // RESOLVES to vscode-{dark,light}-2026 whenever `workbench.colorTheme` is one of VS Code's
-    // default themes (resolveAutoContentTheme, src/shared/theme-registry.ts), and a resolved theme
-    // puts `markdown-body` on the body, whose `line-height: 1.6` the edit surface then inherits —
-    // legitimately, so the 1.5 assertion is simply measuring a different configuration.
-    // Reproduced deterministically: `plantuml-theme-flip.spec.ts` leaves `colorTheme` at 'Default
-    // Dark Modern' and never resets it, and running it immediately before this spec fails the ratio
-    // at 1.6 on the first attempt (task 516 triage; the general hygiene problem is task 524).
-    // 'Monokai' is a built-in theme that appears in NEITHER pairing list, so 'auto' stays unpaired.
-    await vscode.workspace
-      .getConfiguration('workbench')
-      .update('colorTheme', 'Monokai', vscode.ConfigurationTarget.Global)
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        'preview',
-        vscode.ConfigurationTarget.Global,
-      )
     await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
     await vscode.commands.executeCommand(
       'vscode.openWith',

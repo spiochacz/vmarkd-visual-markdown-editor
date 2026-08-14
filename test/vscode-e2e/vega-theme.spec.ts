@@ -7,8 +7,12 @@ import { wf } from './webview-helpers'
 // changes. Assert the axis text colour tracks a live flip. Real-VS-Code-only (vega SVG render).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Flips vmarkd.theme.content mid-test to observe live re-theming, so this can't be pinned.
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 test('vega axis colour follows the content theme on a live flip', async ({
   workbox,

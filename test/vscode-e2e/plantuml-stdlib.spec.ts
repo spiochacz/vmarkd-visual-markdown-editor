@@ -9,9 +9,14 @@ import { wf } from './webview-helpers'
 // and only the referenced lib maps are fetched.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-stdlib.md')
 const FIXTURE_ALL = path.join(__dirname, 'fixtures', 'plantuml-stdlib-all.md')
+
+// The second test below cycles `workbench.colorTheme` and `vmarkd.theme.content` through 3 different
+// values across its loop to observe theming per-theme, so it can't be pinned.
+useSettingsRestore(test, ['workbench.colorTheme', 'vmarkd.theme.content'])
 
 test('stdlib includes and synthesized aggregators render offline', async ({
   workbox,

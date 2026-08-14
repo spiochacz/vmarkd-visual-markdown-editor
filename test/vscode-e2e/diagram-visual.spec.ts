@@ -27,8 +27,13 @@ import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { PNG } from 'pngjs'
 import pixelmatch from 'pixelmatch'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Each of the 5 generated tests below sets a DIFFERENT `workbench.colorTheme` / `vmarkd.theme.content`
+// pair (that's the whole point of the loop), so neither key can be pinned to one shared value.
+useSettingsRestore(test, ['workbench.colorTheme', 'vmarkd.theme.content'])
 
 // The engines whose render is a reusable static SVG, i.e. the ones the cache paints as a COPY into a
 // second pane: CACHEABLE_LANGS (custom + cacheable) + NATIVE_CACHE_LANGS. Engines excluded from

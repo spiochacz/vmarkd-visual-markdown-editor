@@ -6,10 +6,13 @@ import { wf } from './webview-helpers'
 // in the fixture) — every fill/stroke must be currentColor / transparent / none.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 
 const BAKED = ['#33322e', '#eee8d5', '#fdf6e3'] // nomnoml's hard-coded defaults — must be recoloured
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'github-dark' })
 
 test('nomnoml follows the theme (no baked palette survives, incl. nested) on dark', async ({
   workbox,
@@ -18,9 +21,6 @@ test('nomnoml follows the theme (no baked palette survives, incl. nested) on dar
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'github-dark', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

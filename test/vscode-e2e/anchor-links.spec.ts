@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Task 243 — real-VS-Code coverage for both halves of the fix:
 //   1. `{#custom-id}` heading ids: SetHeadingID(true) (esbuild-shared.mjs patchLuteHook) must
@@ -14,6 +15,10 @@ import { expect, test } from 'vscode-test-playwright'
 // ONE test() — every additional test() pays a full VS Code boot (AGENTS.md).
 
 const MAIN = path.join(__dirname, 'fixtures', 'anchor-links-main.md')
+
+// Cleared defensively at the start of every run (in case a prior spec left an override) — see the
+// test body's own comment on why task 468 means no override value is actually needed here.
+usePinnedSettings(test, { 'workbench.editorAssociations': undefined })
 
 function wf(workbox: import('@playwright/test').Page) {
   return workbox
@@ -292,19 +297,12 @@ test('anchor links: {#custom-id} carries the id + round-trips, same-doc and cros
     async (vscode: typeof import('vscode')) => {
       await vscode.commands.executeCommand('workbench.action.closeAllEditors')
       // Task 468 fix in production means this test needs NO `workbench.editorAssociations`
-      // override (there used to be one here) — onOpenLink now forces `vscode.openWith(…,
-      // 'vmarkd.editor')` for a markdown target whenever the SOURCE panel is itself vMarkd,
-      // regardless of the user's own association. Explicitly clear any override anyway, so a
-      // prior run in this worker's shared test profile can't leave a false "it works without
-      // one" result unverified — this run is the actual proof 468 works, not just that the
-      // workaround was removed.
-      await vscode.workspace
-        .getConfiguration('workbench')
-        .update(
-          'editorAssociations',
-          undefined,
-          vscode.ConfigurationTarget.Global,
-        )
+      // override — onOpenLink now forces `vscode.openWith(…, 'vmarkd.editor')` for a markdown
+      // target whenever the SOURCE panel is itself vMarkd, regardless of the user's own
+      // association. The override is cleared defensively before this test (usePinnedSettings
+      // above), so a prior run in this worker's shared test profile can't leave a false "it
+      // works without one" result unverified — this run is the actual proof 468 works, not just
+      // that the workaround was removed.
     },
     [] as unknown as [string],
   )

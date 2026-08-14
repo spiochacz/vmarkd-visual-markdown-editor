@@ -3,6 +3,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Journey A2 (tasks/516-qa-journey-coverage-plan.md, Phase 1) — `files.autoSave: afterDelay`
 // interplay with the writeback pipeline. Everything else in this suite that exercises the
@@ -33,32 +34,14 @@ const UNTOUCHED = [
 
 type Vs = typeof import('vscode')
 
-async function setAutoSave(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  autoSave: string | undefined,
-  autoSaveDelay: number | undefined,
-) {
-  await evaluateInVSCode(
-    async (vscode: Vs, args: [string, string]) => {
-      const [as, delay] = args
-      const cfg = vscode.workspace.getConfiguration('files')
-      await cfg.update(
-        'autoSave',
-        as === '' ? undefined : as,
-        vscode.ConfigurationTarget.Global,
-      )
-      await cfg.update(
-        'autoSaveDelay',
-        delay === '' ? undefined : Number(delay),
-        vscode.ConfigurationTarget.Global,
-      )
-    },
-    [
-      autoSave ?? '',
-      autoSaveDelay === undefined ? '' : String(autoSaveDelay),
-    ] as [string, string],
-  )
-}
+// Set once, up front, before opening the document, and never changed again mid-test.
+usePinnedSettings(test, {
+  'files.autoSave': 'afterDelay',
+  // Short delay (well under the writeback controller's own 1200ms deferred no-op window, so
+  // this test's autosave has a real chance of firing before/around it rather than always long
+  // after).
+  'files.autoSaveDelay': 400,
+})
 
 test('autosave lands the typed edit on disk without corrupting untouched blocks, and clears the dirty flag', async ({
   workbox,
@@ -67,10 +50,6 @@ test('autosave lands the typed edit on disk without corrupting untouched blocks,
   test.setTimeout(90_000)
   const before = readFileSync(SRC, 'utf8')
   writeFileSync(TMP, before)
-
-  // Short delay (well under the writeback controller's own 1200ms deferred no-op window, so this
-  // test's autosave has a real chance of firing before/around it rather than always long after).
-  await setAutoSave(evaluateInVSCode, 'afterDelay', 400)
 
   try {
     await evaluateInVSCode(
@@ -201,6 +180,5 @@ test('autosave lands the typed edit on disk without corrupting untouched blocks,
     ).toBe(after)
   } finally {
     rmSync(TMP, { force: true })
-    await setAutoSave(evaluateInVSCode, undefined, undefined)
   }
 })

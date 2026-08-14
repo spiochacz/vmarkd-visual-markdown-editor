@@ -24,8 +24,20 @@ import { wf } from './webview-helpers'
 // visibility-based one.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// `diagram.mermaid.theme` / `diagram.echarts.theme` / `theme.content` are set once up front and
+// never touched again → pinned. `theme.content` MUST be 'auto', or the control below is not a
+// control at all — see the comment on `setTheme` calls further down for why. `workbench.colorTheme`
+// is flipped mid-test (the flip IS the behaviour under test) → restore-only, kept inline.
+usePinnedSettings(test, {
+  'vmarkd.diagram.mermaid.theme': 'dracula',
+  'vmarkd.diagram.echarts.theme': 'dark',
+  'vmarkd.theme.content': 'auto',
+})
+useSettingsRestore(test, ['workbench.colorTheme'])
 
 test('mermaid + echarts SKIP re-render on a mode-independent flip (task 164 §1/§2)', async ({
   workbox,
@@ -36,19 +48,16 @@ test('mermaid + echarts SKIP re-render on a mode-independent flip (task 164 §1/
   // Explicit engine themes → resolveMermaidInit/resolveEchartsTheme ignore the mode, so a dark↔light
   // flip resolves to the SAME init/spec. Start from a known dark theme so the first flip is a real
   // change. Set before opening so the initial render happens in dark with no stored signature yet.
+  //
+  // …and `theme.content` MUST be 'auto' (pinned above), or the control below is not a control at
+  // all. The first flip is only "a real change" if flipping the workbench theme also moves the
+  // CONTENT theme; with an explicit content theme pinned, a dark→light workbench flip changes
+  // nothing the renderers care about, nothing re-renders, the marker survives, and the control fails
+  // with "first flip re-renders mermaid (marker lost → detector is sensitive)". This is not
+  // hypothetical: `echarts-theme.spec.ts` used to leave `theme.content` set from an earlier run —
+  // task 524 fixed that class of leak across the suite.
   await evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update(
-        'diagram.mermaid.theme',
-        'dracula',
-        vscode.ConfigurationTarget.Global,
-      )
-      await cfg.update(
-        'diagram.echarts.theme',
-        'dark',
-        vscode.ConfigurationTarget.Global,
-      )
       await vscode.workspace
         .getConfiguration('workbench')
         .update(
@@ -56,21 +65,6 @@ test('mermaid + echarts SKIP re-render on a mode-independent flip (task 164 §1/
           'Default Dark Modern',
           vscode.ConfigurationTarget.Global,
         )
-      // …and `theme.content` MUST be 'auto', or the control below is not a control at all. The
-      // first flip is only "a real change" if flipping the workbench theme also moves the CONTENT
-      // theme; with an explicit content theme pinned, a dark→light workbench flip changes nothing
-      // the renderers care about, nothing re-renders, the marker survives, and the control fails
-      // with "first flip re-renders mermaid (marker lost → detector is sensitive)".
-      //
-      // This is not hypothetical: `echarts-theme.spec.ts` sets `theme.content` four times and never
-      // resets it, and it runs immediately before this spec in the suite's own order. Reproduced
-      // deterministically — `echarts-theme.spec.ts flip-skip.spec.ts` in one command fails on the
-      // first attempt, and this spec passes 20/20 alone. (General hygiene problem: task 524.)
-      await cfg.update(
-        'theme.content',
-        'auto',
-        vscode.ConfigurationTarget.Global,
-      )
     },
     [] as [],
   )
@@ -167,25 +161,4 @@ test('mermaid + echarts SKIP re-render on a mode-independent flip (task 164 §1/
     afterSecond.canvas,
     'echarts re-render SKIPPED on the mode-independent flip (marker survives)',
   ).toBe(true)
-
-  // Restore global config so we don't leak settings into other specs.
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update(
-        'diagram.mermaid.theme',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-      await cfg.update(
-        'diagram.echarts.theme',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-      await vscode.workspace
-        .getConfiguration('workbench')
-        .update('colorTheme', undefined, vscode.ConfigurationTarget.Global)
-    },
-    [] as [],
-  )
 })

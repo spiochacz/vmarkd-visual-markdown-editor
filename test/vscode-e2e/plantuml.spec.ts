@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // PlantUML (offline TeaVM) must (1) RENDER an inline <svg> in the real VS Code webview and (2) be
 // PALETTE-PAIRED with the content theme: we inject a modern `<style>` block built from the active
@@ -15,6 +16,10 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 const TINT = '#48a0c7' // vscode-dark-2026 line/accent — the "is it actually paired?" signal
 const FG = '#bbbebf' // vscode-dark-2026 foreground (themed text fill)
 
+usePinnedSettings(test, {
+  'vmarkd.theme.content': 'vscode-dark-2026',
+})
+
 test('plantuml renders + is palette-paired with the content theme', async ({
   workbox,
   evaluateInVSCode,
@@ -22,9 +27,6 @@ test('plantuml renders + is palette-paired with the content theme', async ({
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'vscode-dark-2026', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

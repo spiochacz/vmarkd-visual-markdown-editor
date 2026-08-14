@@ -2,6 +2,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 // @probe — excluded from the default run; run with `npm --prefix test/vscode-e2e run test:probes`
 // (task 449).
@@ -41,6 +42,11 @@ import { expect, test } from 'vscode-test-playwright'
 // execution — flagged in the handoff report, not silently assumed.
 
 const SRC = path.join(__dirname, 'fixtures', 'torture.md')
+
+// vmarkd.editor.fullWidth is the trigger mechanism (flipped to fire a config-changed message) and
+// already restores itself to undefined within flipFullWidthSetting — this is a safety net in case
+// a run fails between the two writes.
+useSettingsRestore(test, ['vmarkd.editor.fullWidth'])
 
 type Observation = {
   origin: string

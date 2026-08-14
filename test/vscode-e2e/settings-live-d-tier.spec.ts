@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // Phase 4, journeys D4/D5/D6 (tasks/516-qa-journey-coverage-plan.md) — three small,
 // individually cheap settings journeys, batched into one file (each still its own boot/test() —
@@ -21,6 +22,12 @@ test.describe('D4 — css.external live reload', () => {
   // workspace anyway so the test exercises the ordinary configuration.
   const WORKSPACE = path.join(tmpdir(), `vmarkd-d4-workspace-${process.pid}`)
   test.use({ baseDir: WORKSPACE })
+
+  // `css.external` is set once up front (before opening the editor) and never changed again during
+  // the test — the FILE on disk is what changes, not the setting. Kept as an inline write (its
+  // value is the workspace-scoped `cssFile` path computed inside the test) with just the cleanup
+  // declared here.
+  useSettingsRestore(test, ['vmarkd.css.external'])
 
   // NET — `settings-live-apply.spec.ts` already proves `css.custom` (an inline string setting)
   // applies live; `css.external` is a DIFFERENT mechanism entirely (panel-config.ts's
@@ -136,17 +143,18 @@ test.describe('D4 — css.external live reload', () => {
         'an external CSS edit from another process must live-reload the open editor (task 520)',
       ).toBe(true)
     } finally {
-      await evaluateInVSCode(async (vscode: Vs) => {
-        await vscode.workspace
-          .getConfiguration('vmarkd')
-          .update('css.external', undefined, vscode.ConfigurationTarget.Global)
-      })
+      // `css.external` cleanup is handled by the `useSettingsRestore` afterEach above.
       rmSync(WORKSPACE, { recursive: true, force: true })
     }
   })
 })
 
 test.describe('D5 — remote-image gate', () => {
+  // `image.allowRemote` is explicitly reset to a known baseline up front, then flipped mid-test
+  // (the live-flip-does-nothing-until-reopen behaviour IS the test), so it can't be pinned — just
+  // declared for cleanup.
+  useSettingsRestore(test, ['vmarkd.image.allowRemote'])
+
   // NET — the map-tiles variant of the remote-image gate is covered by geojson-tiles.spec.ts; a
   // PLAIN `![]()` markdown image is not. Deliberately offline-safe: `example.invalid` is an
   // RFC 2606-reserved TLD that never resolves, and the assertion reads the CSP META TAG'S own
@@ -269,15 +277,7 @@ test.describe('D5 — remote-image gate', () => {
         'a REOPEN picks up the new allowRemote value',
       ).toBe(true)
     } finally {
-      await evaluateInVSCode(async (vscode: Vs) => {
-        await vscode.workspace
-          .getConfiguration('vmarkd')
-          .update(
-            'image.allowRemote',
-            undefined,
-            vscode.ConfigurationTarget.Global,
-          )
-      })
+      // `image.allowRemote` cleanup is handled by the `useSettingsRestore` afterEach above.
       rmSync(tmp, { force: true })
     }
   })
@@ -302,16 +302,9 @@ test.describe('D6 — defaultModeByGlob', () => {
   // any workspace folder never gets one.
   test.use({ baseDir: WORKSPACE })
 
-  test.afterEach(async ({ evaluateInVSCode }) => {
-    await evaluateInVSCode(async (vscode: Vs) => {
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update(
-          'editor.defaultModeByGlob',
-          undefined,
-          vscode.ConfigurationTarget.Global,
-        )
-    })
+  // Set once up front, before any assertions, and never changed again in the test below.
+  usePinnedSettings(test, {
+    'vmarkd.editor.defaultModeByGlob': { 'docs/**': 'wysiwyg' },
   })
 
   // Reading the live Vditor instance, same pattern as default-open-mode.spec.ts.
@@ -333,13 +326,6 @@ test.describe('D6 — defaultModeByGlob', () => {
   }) => {
     test.setTimeout(150_000)
     await evaluateInVSCode(async (vscode: Vs) => {
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update(
-          'editor.defaultModeByGlob',
-          { 'docs/**': 'wysiwyg' },
-          vscode.ConfigurationTarget.Global,
-        )
       await vscode.commands.executeCommand('workbench.action.closeAllEditors')
     })
 

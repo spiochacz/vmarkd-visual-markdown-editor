@@ -8,9 +8,14 @@ import { wf } from './webview-helpers'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'probe-cloudogu.md')
 const OUT = path.join(__dirname, '..', '..', 'tmp', 'icons', 'probe-cloudogu')
+
+// Each looped test() below sets a DIFFERENT colorTheme/theme.content pair, so this can't be
+// pinned to one shared value — just declare the keys for cleanup.
+useSettingsRestore(test, ['workbench.colorTheme', 'vmarkd.theme.content'])
 
 for (const theme of [
   { content: 'github-dark', vscode: 'Default Dark Modern' },

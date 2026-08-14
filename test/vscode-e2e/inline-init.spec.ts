@@ -4,21 +4,16 @@ import { wf } from './webview-helpers'
 // the inline payload + nonce + custom-editor resource pipeline only exist in the actual webview.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'inline-init.md')
 
 // Task 470 — `vmarkd.editor.toolbar` is an INIT_ONLY_OPTIONS setting (live-config.ts): changing it
 // makes message-router.ts's handleConfigChanged call initVditor() again in the SAME page (a real
-// Vditor re-init, not a reload). Reset unconditionally so a failure mid-test doesn't leak the
-// setting into later specs sharing this run's user-data dir (same reasoning as
-// default-open-mode.spec.ts's afterEach).
-test.afterEach(async ({ evaluateInVSCode }) => {
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('editor.toolbar', undefined, vscode.ConfigurationTarget.Global)
-  })
-})
+// Vditor re-init, not a reload). Flipped mid-test to trigger that re-init, so it can't be pinned;
+// restored so a failure mid-test doesn't leak the setting into later specs sharing this run's
+// user-data dir (same reasoning as default-open-mode.spec.ts's afterEach).
+useSettingsRestore(test, ['vmarkd.editor.toolbar'])
 
 test('boots from the inlined #vmark-init payload', async ({
   workbox,

@@ -3,6 +3,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 // NET+PROBE (task 190 P1) — settings must apply to an OPEN editor without reopening (J27, which
 // had no real-wire coverage). Two mechanisms: a pure live CSS swap (css.custom → reload-css →
@@ -10,6 +11,11 @@ import { expect, test } from 'vscode-test-playwright'
 // (codeLineNumbers → initOnlyChanged → re-init with content preserved). We assert an `outline`
 // rule (no specificity war with the theme) applies AND updates, and that the re-init keeps content.
 const SRC = path.join(__dirname, 'fixtures', 'torture.md')
+
+// This spec's whole point is applying `css.custom` and `editor.codeLineNumbers` live to an
+// ALREADY-OPEN editor, so the writes and their timing relative to the assertions can't be pinned
+// up front — just declare the keys for cleanup.
+useSettingsRestore(test, ['vmarkd.css.custom', 'vmarkd.editor.codeLineNumbers'])
 
 test('css.custom and a re-init setting apply live to the open editor', async ({
   workbox,
@@ -87,9 +93,8 @@ test('css.custom and a re-init setting apply live to the open editor', async ({
       true,
     )
   } finally {
-    // Restore globals so the setting change doesn't leak into other specs / the user's config.
-    await setConfig('css.custom', '')
-    await setConfig('editor.codeLineNumbers', false)
+    // Global settings cleanup is handled by the `useSettingsRestore` afterEach above (undefined,
+    // not a fallback value — see settings-helpers.ts rule 2 for why that matters).
     rmSync(tmp, { force: true })
   }
 })

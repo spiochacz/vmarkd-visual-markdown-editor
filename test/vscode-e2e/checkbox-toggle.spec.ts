@@ -15,23 +15,21 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const SRC = path.join(__dirname, 'fixtures', 'checkbox-toggle.md')
 // Untouched neighbours that must survive the toggle byte-for-byte.
 const UNTOUCHED = ['bravo', 'A plain paragraph that must stay untouched.']
 
+// The two test() blocks below (ir / wysiwyg) each write a DIFFERENT value for defaultMode, so it
+// can't be pinned to one shared value — declared here for automatic afterEach cleanup only.
+useSettingsRestore(test, ['vmarkd.editor.defaultMode'])
+
 test.afterEach(async ({ evaluateInVSCode }) => {
   // `defaultMode` persists in the shared user-data dir across boots (see default-open-mode.spec.ts) —
-  // reset unconditionally so a failure mid-test doesn't leak into later specs.
+  // close editors unconditionally so a failure mid-test doesn't leak into later specs.
   await evaluateInVSCode(async (vscode) => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
   })
 })
 

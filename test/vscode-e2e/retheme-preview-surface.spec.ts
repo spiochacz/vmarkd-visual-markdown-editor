@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // Task 412 follow-up — CONFIRMED HIGH bug: every viewport-gated retheme path resolved its scan root
 // from `activeModeElement(window.vditor)`, which is ONLY the active mode's own element
@@ -42,6 +43,14 @@ const TAG_ATTR = 'data-preflip-412'
 // `.vditor-preview` pane redraws every same-lang diagram on a flip, not just the first.
 const TAG_ATTR_2 = 'data-preflip-466-second'
 
+// `vmarkd.theme.content` is set once up front and never changed again (see the precondition
+// comment inside `openFlipAndTag`) — pinned. `workbench.colorTheme` is flipped mid-test (light ->
+// dark is the behaviour under test), so it can't be pinned — just declared for cleanup.
+usePinnedSettings(test, {
+  'vmarkd.theme.content': 'auto',
+})
+useSettingsRestore(test, ['workbench.colorTheme'])
+
 // Shared setup for both tests below: open the fixture, switch to sv (split) mode, wait for every
 // engine's first render, tag each lang's CURRENT rendered child (a redraw replaces the whole
 // child — innerHTML='' + fresh render — so the tag vanishes with it; an untouched/stale node keeps
@@ -57,12 +66,9 @@ async function openFlipAndTag(
 ): Promise<import('@playwright/test').FrameLocator> {
   // Same preconditions as retheme-flip-matrix.spec.ts / mermaid-flip-gate.spec.ts, same reasons:
   // `theme.content` must FOLLOW the editor ('auto') or a workbench flip never reaches the webview
-  // foreground; set BEFORE opening (a content-theme switch landing mid-first-render can permanently
-  // empty a block — task 363).
+  // foreground (pinned above); set `colorTheme` BEFORE opening (a content-theme switch landing
+  // mid-first-render can permanently empty a block — task 363).
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
     await vscode.workspace
       .getConfiguration('workbench')
       .update(

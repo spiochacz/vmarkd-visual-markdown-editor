@@ -12,24 +12,16 @@ import { wf } from './webview-helpers'
 // just a reopen; see task 450 on why extra `test()` blocks are the expensive unit here).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'caret-on-open-text.md')
 
 // `ConfigurationTarget.Global` persists: the harness's user-data dir is SHARED across boots
 // (`userDataDir ?? path.join(cachePath, 'user-data')` in vscode-test-playwright; playwright.config.ts
 // does not override it). Whatever mode the last leg leaves behind would then decide how documents
-// open in every LATER spec of the run. Reset unconditionally, so a failure mid-test still cleans up.
-test.afterEach(async ({ evaluateInVSCode }) => {
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-  })
-})
+// open in every LATER spec of the run. This test flips `editor.defaultMode` across sv/preview/remember
+// within the same test to observe how each legs opens — mid-test, so it can't be pinned.
+useSettingsRestore(test, ['vmarkd.editor.defaultMode'])
 
 test('the configured default mode decides how a document opens', async ({
   workbox,

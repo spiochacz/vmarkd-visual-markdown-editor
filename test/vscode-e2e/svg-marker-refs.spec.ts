@@ -11,8 +11,11 @@ import { wf } from './webview-helpers'
 // url(#id) in a pane's SVG, the FIRST element with that id in the document must be in the SAME pane.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 const CHECK = `(() => {
   const pv = window.vditor.vditor.preview.previewElement
@@ -42,11 +45,6 @@ test('mermaid/flowchart marker references resolve inside the visible pane', asyn
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

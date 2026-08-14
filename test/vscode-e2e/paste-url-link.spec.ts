@@ -3,6 +3,7 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 // Task 392 — pasting a URL produces a markdown link.
 //
@@ -21,6 +22,12 @@ import { expect, test } from 'vscode-test-playwright'
 // every poll that could otherwise throw is `.catch()`-guarded, so one case's failure/timeout can't
 // abort the cases after it (verified: see the task file — an assertion was deliberately broken and
 // the other cases' soft assertions still ran and reported).
+
+// `vmarkd.paste.urlAsLink` is toggled off then back to undefined mid-test (inside a try/finally, so
+// the next case in the SAME test sees the right default) — that inline reset must stay. This is a
+// belt-and-suspenders safety net for the case the settings-helpers.ts header warns about: a test
+// timeout aborting execution before the `finally` block runs.
+useSettingsRestore(test, ['vmarkd.paste.urlAsLink'])
 
 const writeClip = (
   evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,

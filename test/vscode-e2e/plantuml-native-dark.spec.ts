@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Task 384 — on a dark theme we now tell every stdlib diagram which page it draws for
 // (`injectPumlMode` writes BOTH `PUML_MODE` and `$PUML_MODE`; they are two different preprocessor
@@ -19,23 +20,16 @@ import { expect, test } from 'vscode-test-playwright'
 //    the tripwire for that flag — the mode-aware halves above are independent of it and still hold.
 const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-native-dark.md')
 
+usePinnedSettings(test, {
+  'workbench.colorTheme': 'Default Dark Modern',
+  'vmarkd.theme.content': 'github-dark',
+})
+
 test('mode-aware libs keep their own dark palette; mode-blind libs are left untouched', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(300_000)
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('workbench')
-      .update(
-        'colorTheme',
-        'Default Dark Modern',
-        vscode.ConfigurationTarget.Global,
-      )
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'github-dark', vscode.ConfigurationTarget.Global)
-  }, [])
   await evaluateInVSCode(
     async (vscode, args) => {
       const [uri] = args as [string]

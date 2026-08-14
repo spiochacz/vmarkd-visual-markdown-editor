@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // NET+PROBE (task 190 P1) — a VS Code theme flip must (a) re-colour the diagram engines and
 // (b) NOT duplicate or drop any render (the same "a global re-render event corrupts family Y"
@@ -45,17 +46,30 @@ const CENSUS = `(() => {
   return { out, colourLen: colours.length, colourDigest: colours.slice(0, 4000) }
 })()`
 
+// PRECONDITION: the content theme must FOLLOW the editor ('auto') — this spec asserts that a
+// workbench flip re-colours the engines, which only holds when the flip moves the webview
+// foreground. Sibling specs (echarts-theme, d2-theme, …) PIN `theme.content` globally and never
+// restore it, so in a full-suite run this spec would otherwise inherit a pinned theme, the flip
+// would legitimately re-colour nothing, and assertion (b) would fail on the product's correct
+// behaviour. Pinned here so the spec does not depend on what ran before it — never changed again
+// mid-test, unlike `workbench.colorTheme` below.
+usePinnedSettings(test, {
+  'vmarkd.theme.content': 'auto',
+})
+// `workbench.colorTheme` and `vmarkd.diagram.d2.layout` are flipped mid-test (the theme flip and
+// the D2-cache-scope change are the behaviour under test), so they can't be pinned — just declare
+// them for cleanup.
+useSettingsRestore(test, ['workbench.colorTheme', 'vmarkd.diagram.d2.layout'])
+
 test('a theme flip re-colours engines without duplicating or dropping any render', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  // PRECONDITION: the content theme must FOLLOW the editor ('auto') — this spec asserts that a
-  // workbench flip re-colours the engines, which only holds when the flip moves the webview
-  // foreground. Sibling specs (echarts-theme, d2-theme, …) PIN `theme.content` globally and never
-  // restore it, so in a full-suite run this spec would otherwise inherit a pinned theme, the flip
-  // would legitimately re-colour nothing, and assertion (b) would fail on the product's correct
-  // behaviour. Set it explicitly so the spec does not depend on what ran before it.
+  // Set the WORKBENCH theme before opening too (task 436). The two flips below now mean
+  // something specific — the first is a no-op, the second a real light/dark change — and that
+  // only holds if the starting theme is known. Global config persists in the test profile
+  // between runs, so without this the document could open in either mode.
   //
   // Set it BEFORE opening the document, not after: a content-theme switch triggers the mono
   // re-theme, and reRenderLang clears a block (innerHTML='') before re-rendering it. Landing that on
@@ -63,13 +77,6 @@ test('a theme flip re-colours engines without duplicating or dropping any render
   // block stays empty forever — observed with the two slowest WASM engines (graphviz's Viz.js and
   // plantuml's TeaVM), which then never drew at all, even given 120s.
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-    // …and pin the WORKBENCH theme before opening too (task 436). The two flips below now mean
-    // something specific — the first is a no-op, the second a real light/dark change — and that
-    // only holds if the starting theme is known. Global config persists in the test profile
-    // between runs, so without this the document could open in either mode.
     await vscode.workspace
       .getConfiguration('workbench')
       .update(

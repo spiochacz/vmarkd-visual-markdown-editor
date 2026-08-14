@@ -14,6 +14,7 @@ import { wf } from './webview-helpers'
 // `<code class="language-js">`. Measured here: the code element is the SAME DOM node across toggles.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // The fixture is the one that EMPIRICALLY reproduces, and the choice is load-bearing: verified by
 // mutation, the bug does NOT surface on `all-renderers.md` (too much engine churn — the morph falls
@@ -87,16 +88,15 @@ const EDIT_SETTLED = `(() => {
   return v.preview.element.style.display === 'none'
 })()`
 
+usePinnedSettings(test, {
+  'vmarkd.theme.content': 'auto',
+})
+
 test('code stays highlighted after repeated IR -> Preview toggles', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(300_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

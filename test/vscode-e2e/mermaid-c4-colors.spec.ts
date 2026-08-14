@@ -1,12 +1,15 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Mermaid's C4 renderer bypasses themeVariables: relationship labels/lines/boundaries are emitted
 // #444444 and EVERY in-box label #FFFFFF (2.0:1 on mermaid's own light-blue `component` fill). The
 // post-render hook repaints box labels against their own box and the rest against the page.
 // Real-webview net — the hook runs off Vditor's patched mermaidRender, not the harness path.
 const FIXTURE = path.join(__dirname, 'fixtures', 'mermaid-c4-colors.md')
+
+usePinnedSettings(test, { 'vmarkd.diagram.mermaid.theme': 'vscode-dark-2026' })
 
 test('C4 boxes, labels and relationships are readable on a dark palette', async ({
   workbox,
@@ -16,9 +19,6 @@ test('C4 boxes, labels and relationships are readable on a dark palette', async 
     async (vscode, args) => {
       const [uri] = args as [string]
       await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('diagram.mermaid.theme', 'vscode-dark-2026', true)
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',

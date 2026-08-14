@@ -2,6 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const DIR = path.join(tmpdir(), 'vmarkd-task-212')
 const DOC = path.join(DIR, 'widgets.md')
@@ -10,6 +11,10 @@ const frameFor = (workbox: import('@playwright/test').Page) =>
   workbox
     .frameLocator('iframe.webview')
     .frameLocator('iframe[title="vMarkd"], #active-frame')
+
+usePinnedSettings(test, {
+  'vmarkd.editor.codeLineNumbers': true,
+})
 
 test('CSP-safe image and code widgets neither lock scrolling nor lose copy', async ({
   workbox,
@@ -24,13 +29,6 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
   )
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update(
-          'editor.codeLineNumbers',
-          true,
-          vscode.ConfigurationTarget.Global,
-        )
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
       await vscode.commands.executeCommand(
         'vscode.openWith',
@@ -99,14 +97,5 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
     // Vditor prepends visual line numbers in this mode. The custom copy bridge must use the
     // underlying code textarea, not the rendered gutter, or users get "1 const copyMe...".
     .toBe('const copyMe = 42;')
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.codeLineNumbers',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-  })
   rmSync(DIR, { recursive: true, force: true })
 })

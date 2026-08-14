@@ -16,8 +16,12 @@ import { wf } from './webview-helpers'
 // is exactly the bug being guarded.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Flips vmarkd.theme.content mid-render (deliberately, see header comment) so this can't be pinned.
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 // The mono engines the live re-theme re-renders in place.
 const LANGS = ['graphviz', 'plantuml', 'abc']
@@ -113,11 +117,5 @@ test('flipping the content theme mid-render does not blank a slow diagram', asyn
     problems,
     'a diagram was destroyed by the mid-render theme flip',
   ).toEqual([])
-
-  // Restore so a sibling spec does not inherit github-light.
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
+  // Cleanup is handled by the `useSettingsRestore` afterEach above.
 })

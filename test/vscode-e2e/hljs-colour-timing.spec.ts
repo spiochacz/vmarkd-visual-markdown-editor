@@ -15,8 +15,11 @@ import { wf } from './webview-helpers'
 // rAF never advances. Round-trip polling gives ~10 ms resolution — ample for a window a human sees.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const DOC = path.join(__dirname, 'fixtures', 'frontmatter-code.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'material-dark' })
 
 type Sample = {
   t: number
@@ -37,10 +40,8 @@ test('code/frontmatter colour timeline on open (tasks 427 + 431 probe)', async (
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
-      // The reported configuration: material content theme (→ paired atom-one-dark code style).
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'material-dark', true)
+      // The reported configuration: material content theme (→ paired atom-one-dark code style),
+      // pinned above.
       await vscode.commands.executeCommand(
         'vscode.openWith',
         vscode.Uri.file(args[0]),

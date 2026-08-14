@@ -1,6 +1,21 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 import { wf } from './webview-helpers'
+
+// Every Global key any case in this sweep writes (label-halo's theme.content, multiline-label's
+// and parallel-lane's diagram.d2.layout, code-highlight's diagram.d2.theme/theme.content/
+// theme.code). Case 7 (code-highlight) already resets its three keys itself before this was added
+// (see its own comment); this is the safety net for a failure that happens before case 7's
+// cleanup runs, and for diagram.d2.layout, which the sweep deliberately never reset (see case 5/6
+// comments — writing the default value is a no-op WITHIN this test, but a real Global override
+// all the same).
+useSettingsRestore(test, [
+  'vmarkd.theme.content',
+  'vmarkd.diagram.d2.layout',
+  'vmarkd.diagram.d2.theme',
+  'vmarkd.theme.code',
+])
 
 // Task 511 cross-file boot merge. One shared VS Code boot for 7 D2 render-and-assert specs, none of
 // which mutate a document and whose only settings mutations are either no-ops (equal to the
@@ -771,12 +786,11 @@ async function runParallelLane(
 // ---- case 7: d2-code-highlight.spec.ts (MUST run LAST) -----------------------------------------
 // The only case in this sweep that sets NON-default settings mid-test (`diagram.d2.theme='auto'`,
 // `theme.code='auto'` — task 516, see below — `theme.content='github-dark'`, then later
-// `theme.content='material-dark'`) — but it explicitly resets all three keys to `undefined` at the
-// very end, in a `finally`, so its deviation never has to coexist with an assumption in a later
-// case. Ordering it last means nothing else in the sweep ever observes the non-default state. Do
-// NOT reorder this case ahead of the others, and do NOT drop the reset even if a future case is
-// appended after this one — the reset is part of what makes this sweep safe, not incidental
-// cleanup.
+// `theme.content='material-dark'`). Ordering it last means nothing else in the sweep ever
+// observes the non-default state; cleanup for all three keys is now handled by the
+// `useSettingsRestore` afterEach declared at the top of this file (used to be a manual `finally`
+// reset here — the helper subsumes it, including the failure case). Do NOT reorder this case
+// ahead of the others.
 
 type CodeShapeState = { tokens: number; fill: string }
 
@@ -802,73 +816,63 @@ async function runCodeHighlight(
   evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
   workbox: import('@playwright/test').Page,
 ) {
-  try {
-    await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update('diagram.d2.theme', 'auto', true)
-      await cfg.update('theme.content', 'github-dark', true)
-      // Task 516 root cause — this case's WHOLE assertion is "the code-shape token colour follows
-      // `theme.content`'s PAIRED hljs style" (resolveCodeStyle: an explicit, non-'auto' `theme.code`
-      // wins outright and makes a content-theme flip a no-op for this colour, regardless of how long
-      // you poll). `theme.code` was left at its ambient value here — normally 'auto', the default,
-      // so this held silently — but a FULL-SUITE run shares one VS Code profile across every spec
-      // (`vscode-test-playwright` copies `process.env`/the temp dir once per WORKER, not per test),
-      // and `caret-empty-typing.spec.ts` sets `theme.code='a11y-light'` via
-      // `ConfigurationTarget.Global` and never resets it. When that spec runs before this one in the
-      // same worker, this case silently inherited the pin: reproduced deterministically (task 516,
-      // zero timing/contention involved) — `before.fill` and `after.fill` both read a11y-light's own
-      // #7928a1 = `rgb(121, 40, 161)`, the exact value from the reported flake, and `after` never
-      // differs from `before` no matter how long the poll below runs. Pinning `theme.code` to 'auto'
-      // here — explicitly, not by assumption — makes this case self-sufficient regardless of what any
-      // other spec in the suite leaks.
-      await cfg.update('theme.code', 'auto', true)
-    })
-    const frame = await boot(evaluateInVSCode, workbox, FIXTURES.codeHighlight)
-    await frame.locator('.language-d2 svg').first().waitFor({ timeout: 60_000 })
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    const cfg = vscode.workspace.getConfiguration('vmarkd')
+    await cfg.update('diagram.d2.theme', 'auto', true)
+    await cfg.update('theme.content', 'github-dark', true)
+    // Task 516 root cause — this case's WHOLE assertion is "the code-shape token colour follows
+    // `theme.content`'s PAIRED hljs style" (resolveCodeStyle: an explicit, non-'auto' `theme.code`
+    // wins outright and makes a content-theme flip a no-op for this colour, regardless of how long
+    // you poll). `theme.code` was left at its ambient value here — normally 'auto', the default,
+    // so this held silently — but a FULL-SUITE run shares one VS Code profile across every spec
+    // (`vscode-test-playwright` copies `process.env`/the temp dir once per WORKER, not per test),
+    // and `caret-empty-typing.spec.ts` sets `theme.code='a11y-light'` via
+    // `ConfigurationTarget.Global` and never resets it. When that spec runs before this one in the
+    // same worker, this case silently inherited the pin: reproduced deterministically (task 516,
+    // zero timing/contention involved) — `before.fill` and `after.fill` both read a11y-light's own
+    // #7928a1 = `rgb(121, 40, 161)`, the exact value from the reported flake, and `after` never
+    // differs from `before` no matter how long the poll below runs. Pinning `theme.code` to 'auto'
+    // here — explicitly, not by assumption — makes this case self-sufficient regardless of what any
+    // other spec in the suite leaks.
+    await cfg.update('theme.code', 'auto', true)
+  })
+  const frame = await boot(evaluateInVSCode, workbox, FIXTURES.codeHighlight)
+  await frame.locator('.language-d2 svg').first().waitFor({ timeout: 60_000 })
 
-    await expect
-      .poll(async () => (await codeShapeState(frame)).tokens, {
-        timeout: 30_000,
-      })
-      .toBeGreaterThan(1)
-      .catch(() => {
-        // best-effort — see d2-imports's comment above for why this must not throw here.
-      })
-    const before = await codeShapeState(frame)
-    expect
-      .soft(before.tokens, '[d2-code-highlight] hljs tokens present')
-      .toBeGreaterThan(1)
-    expect
-      .soft(before.fill, '[d2-code-highlight] token fill resolved')
-      .not.toBe('')
+  await expect
+    .poll(async () => (await codeShapeState(frame)).tokens, {
+      timeout: 30_000,
+    })
+    .toBeGreaterThan(1)
+    .catch(() => {
+      // best-effort — see d2-imports's comment above for why this must not throw here.
+    })
+  const before = await codeShapeState(frame)
+  expect
+    .soft(before.tokens, '[d2-code-highlight] hljs tokens present')
+    .toBeGreaterThan(1)
+  expect
+    .soft(before.fill, '[d2-code-highlight] token fill resolved')
+    .not.toBe('')
 
-    await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-      await vscode.workspace
-        .getConfiguration('vmarkd')
-        .update('theme.content', 'material-dark', true)
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    await vscode.workspace
+      .getConfiguration('vmarkd')
+      .update('theme.content', 'material-dark', true)
+  })
+  await expect
+    .poll(async () => (await codeShapeState(frame)).fill, { timeout: 45_000 })
+    .not.toBe(before.fill)
+    .catch(() => {
+      // best-effort — see d2-imports's comment above for why this must not throw here.
     })
-    await expect
-      .poll(async () => (await codeShapeState(frame)).fill, { timeout: 45_000 })
-      .not.toBe(before.fill)
-      .catch(() => {
-        // best-effort — see d2-imports's comment above for why this must not throw here.
-      })
-    const after = await codeShapeState(frame)
-    expect
-      .soft(
-        after.fill,
-        '[d2-code-highlight] token fill followed the content-theme flip',
-      )
-      .not.toBe(before.fill)
-  } finally {
-    // Unconditional reset — this is what makes the case safe to run inside a shared boot at all.
-    await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update('diagram.d2.theme', undefined, true)
-      await cfg.update('theme.content', undefined, true)
-      await cfg.update('theme.code', undefined, true)
-    })
-  }
+  const after = await codeShapeState(frame)
+  expect
+    .soft(
+      after.fill,
+      '[d2-code-highlight] token fill followed the content-theme flip',
+    )
+    .not.toBe(before.fill)
 }
 
 test('D2 render sweep: dimensions, feature parity, imports, label halo, multiline labels, parallel lanes, code highlight', async ({

@@ -13,8 +13,11 @@ import { wf } from './webview-helpers'
 // for.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'table-nav.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 const FIND_SCROLLER = `function findScroller(el) {
   let n = el;
@@ -52,11 +55,6 @@ test('arrowing down a tall table keeps the caret on screen', async ({
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

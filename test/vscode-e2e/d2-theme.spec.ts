@@ -11,8 +11,13 @@ import { wf } from './webview-helpers'
 // Neither reproduces in the Playwright harness (no real config plumbing; D2 is test.fixme there).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Flips `diagram.d2.theme` across several catalog/editor-paired themes, and `theme.content` once
+// more near the end, all mid-test — can't be pinned.
+useSettingsRestore(test, ['vmarkd.diagram.d2.theme', 'vmarkd.theme.content'])
 
 async function openWithTheme(
   evaluateInVSCode: (
@@ -66,45 +71,37 @@ test('D2 themes preserve their background and colour contracts', async ({
   evaluateInVSCode,
 }) => {
   test.setTimeout(240_000)
-  try {
-    for (const variant of [
-      { theme: 'github-dark', pageBg: false },
-      { theme: 'd2-original', pageBg: true },
-    ]) {
-      await openWithTheme(evaluateInVSCode, variant.theme)
-      const info = await readD2(wf(workbox))
-      expect.soft(info.theme, `${variant.theme}: selected`).toBe(variant.theme)
-      expect.soft(info.count, `${variant.theme}: SVG count`).toBeGreaterThan(0)
-      expect
-        .soft(info.hasPageBg, `${variant.theme}: page background`)
-        .toBe(variant.pageBg)
-      expect.soft(info.hasHexStroke, `${variant.theme}: colour`).toBe(true)
-    }
-    await evaluateInVSCode(
-      async (vscode, args) => {
-        const [uri] = args as [string]
-        const cfg = vscode.workspace.getConfiguration('vmarkd')
-        await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-        await cfg.update('diagram.d2.theme', 'auto', true)
-        await cfg.update('theme.content', 'github-dark', true)
-        await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
-        await vscode.commands.executeCommand(
-          'vscode.openWith',
-          vscode.Uri.file(uri),
-          'vmarkd.editor',
-        )
-      },
-      [FIXTURE] as [string],
-    )
-    const auto = await readD2(wf(workbox))
-    expect.soft(auto.theme, 'auto: selected').toBe('auto')
-    expect.soft(auto.hasPageBg, 'auto: transparent').toBe(false)
-    expect.soft(auto.hasHexStroke, 'auto: coloured').toBe(true)
-  } finally {
-    await evaluateInVSCode(async (vscode) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update('diagram.d2.theme', undefined, true)
-      await cfg.update('theme.content', undefined, true)
-    }, [])
+  for (const variant of [
+    { theme: 'github-dark', pageBg: false },
+    { theme: 'd2-original', pageBg: true },
+  ]) {
+    await openWithTheme(evaluateInVSCode, variant.theme)
+    const info = await readD2(wf(workbox))
+    expect.soft(info.theme, `${variant.theme}: selected`).toBe(variant.theme)
+    expect.soft(info.count, `${variant.theme}: SVG count`).toBeGreaterThan(0)
+    expect
+      .soft(info.hasPageBg, `${variant.theme}: page background`)
+      .toBe(variant.pageBg)
+    expect.soft(info.hasHexStroke, `${variant.theme}: colour`).toBe(true)
   }
+  await evaluateInVSCode(
+    async (vscode, args) => {
+      const [uri] = args as [string]
+      const cfg = vscode.workspace.getConfiguration('vmarkd')
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+      await cfg.update('diagram.d2.theme', 'auto', true)
+      await cfg.update('theme.content', 'github-dark', true)
+      await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        vscode.Uri.file(uri),
+        'vmarkd.editor',
+      )
+    },
+    [FIXTURE] as [string],
+  )
+  const auto = await readD2(wf(workbox))
+  expect.soft(auto.theme, 'auto: selected').toBe('auto')
+  expect.soft(auto.hasPageBg, 'auto: transparent').toBe(false)
+  expect.soft(auto.hasHexStroke, 'auto: coloured').toBe(true)
 })

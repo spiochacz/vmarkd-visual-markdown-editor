@@ -29,8 +29,11 @@ import { wf } from './webview-helpers'
 // message, so a merge failure still names exactly which one broke.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // The reusable-SVG CUSTOM engines (CACHEABLE_LANGS in render-cache-client) present in the fixture,
 // plus the Vditor-NATIVE ones the reuse map also covers in the full Preview pane. The natives
@@ -135,13 +138,6 @@ async function open(
   workbox: import('@playwright/test').Page,
   evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
 ) {
-  // Pin the content theme BEFORE opening: a sibling spec's leftover would change the theme key (and
-  // a flip racing the first render blanks slow engines — task 363).
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

@@ -21,16 +21,14 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
+
+// `files.simpleDialog.enable` is turned on mid-test (right before driving Save As), so it's not a
+// pinnable up-front setting — restore-only.
+useSettingsRestore(test, ['files.simpleDialog.enable'])
 
 test.afterEach(async ({ evaluateInVSCode }) => {
   await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('files')
-      .update(
-        'simpleDialog.enable',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
   })
 })

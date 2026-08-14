@@ -7,8 +7,13 @@ import { wf } from './webview-helpers'
 // Real-VS-Code-only (WaveDrom SVG render).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// The tests below set different vmarkd.theme.content values (github-dark vs auto), so this can't
+// be pinned to one shared value for the whole file — restore-only.
+useSettingsRestore(test, ['vmarkd.theme.content', 'workbench.colorTheme'])
 
 test('wavedrom wave lines follow the theme foreground (not baked black) on dark', async ({
   workbox,

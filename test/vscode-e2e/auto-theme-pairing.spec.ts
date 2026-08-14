@@ -1,8 +1,17 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 import { wf } from './webview-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'auto-theme-pairing.md')
+
+// This spec's whole point is flipping `workbench.colorTheme` and `vmarkd.theme.content` live during
+// the test, so it can't pin them — but it must not leak the flips into later specs.
+useSettingsRestore(test, [
+  'vmarkd.theme.content',
+  'markdown.preview.fontFamily',
+  'workbench.colorTheme',
+])
 
 async function activeContentTheme(frame: ReturnType<typeof wf>): Promise<{
   link: string | null
@@ -105,24 +114,6 @@ test('auto mode pairs with the active standard VS Code content theme', async ({
   await expect
     .poll(() => activeContentTheme(frame), { timeout: 45_000 })
     .toMatchObject({ fontFamily: 'Georgia, serif' })
-
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', undefined, vscode.ConfigurationTarget.Global)
-    await vscode.workspace
-      .getConfiguration('markdown')
-      .update(
-        'preview.fontFamily',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-    await vscode.workspace
-      .getConfiguration('workbench')
-      .update(
-        'colorTheme',
-        'Default Dark Modern',
-        vscode.ConfigurationTarget.Global,
-      )
-  })
+  // Cleanup is handled by the `useSettingsRestore` afterEach above (undefined, not a pinned
+  // fallback value — see settings-helpers.ts rule 2 for why that matters).
 })

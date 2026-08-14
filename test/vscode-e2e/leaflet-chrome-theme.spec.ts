@@ -13,8 +13,14 @@ import { wf } from './webview-helpers'
 // editor's own surface and inverts with the theme), not a pinned colour value.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// vmarkd.theme.content is always written as 'auto' (never varies), so it's pinned. workbench.colorTheme
+// flips mid-test to observe live re-theming — that's the behaviour under test — so it can't be pinned.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
+useSettingsRestore(test, ['workbench.colorTheme'])
 
 // Perceived lightness of a computed `rgb(...)`, 0..255. Comparing luminance rather than exact
 // strings keeps this robust to VS Code changing its own token values between releases.
@@ -34,9 +40,6 @@ test('the Leaflet zoom control follows the editor theme in both light and dark',
   const setTheme = async (name: string) => {
     await evaluateInVSCode(
       async (vscode: typeof import('vscode'), args: string[]) => {
-        await vscode.workspace
-          .getConfiguration('vmarkd')
-          .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
         await vscode.workspace
           .getConfiguration('workbench')
           .update('colorTheme', args[0], vscode.ConfigurationTarget.Global)

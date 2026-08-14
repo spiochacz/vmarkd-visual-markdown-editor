@@ -14,8 +14,11 @@ import { wf } from './webview-helpers'
 //      (where the sparse fallback fails worst), not a loose scroll fraction.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 const FIND_SCROLLER = `function findScroller(el) {
   let n = el;
@@ -47,12 +50,6 @@ async function open(
   workbox: import('@playwright/test').Page,
   evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
 ) {
-  // Content theme pinned to the default so a sibling spec's leftover cannot change block metrics.
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

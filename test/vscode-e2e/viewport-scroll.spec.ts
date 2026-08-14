@@ -1,6 +1,10 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
+
+// Flips vmarkd.editor.fullWidth mid-test to compare narrow vs full-width, so this can't be pinned.
+useSettingsRestore(test, ['vmarkd.editor.fullWidth'])
 
 // The webview must have a SINGLE scroller: Vditor's bounded `.vditor-reset` (overflow:auto). The
 // iframe viewport (html/body/#app) is clamped `overflow:hidden`, so a transient height/focus shift

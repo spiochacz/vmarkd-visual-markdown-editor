@@ -12,8 +12,13 @@ import { wf } from './webview-helpers'
 // red while the diagram is fine. Real-VS-Code-only (flowchart.js SVG render).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// Flips `theme.content` mid-test (github-dark → github-light) to observe the live re-render —
+// can't be pinned.
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 test('flowchart follows the content theme foreground (open + live flip)', async ({
   workbox,

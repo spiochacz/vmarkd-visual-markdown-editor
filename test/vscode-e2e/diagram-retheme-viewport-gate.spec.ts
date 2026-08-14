@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 // Task 412 — generalizes task 166's mermaid-only viewport gate (mermaid-flip-gate.spec.ts) to the
 // OTHER retheme paths: the mono SVG group (plantuml/graphviz/abc/wavedrom/nomnoml) and D2. On a doc
@@ -25,21 +26,16 @@ const FIXTURE = path.join(
 const PLANTUML_BLOCKS = 4
 const D2_BLOCKS = 3
 
+// `theme.content` is set once up front and never touched again → pinned. `workbench.colorTheme` is
+// flipped twice mid-test (that flip is the behaviour under test) → restore-only, kept inline.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
+useSettingsRestore(test, ['workbench.colorTheme'])
+
 test('theme flip re-renders only visible plantuml/D2; offscreen defer + render on scroll-in (task 412)', async ({
   workbox,
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  // Same two preconditions as mermaid-flip-gate.spec.ts / retheme-flip-matrix.spec.ts, and for the
-  // same reasons: `theme.content` must FOLLOW the editor ('auto') or a workbench flip never reaches
-  // the webview foreground and the (correctly) foreground-gated mono poll never fires; set it BEFORE
-  // opening, since a content-theme switch landing mid-first-render can permanently empty a block
-  // (task 363).
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

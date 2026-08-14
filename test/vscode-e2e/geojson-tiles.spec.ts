@@ -4,8 +4,12 @@ import { wf } from './webview-helpers'
 // no-key basemap UNDER the geometry; the CSP only allows the https tiles when that setting is on.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// The two tests below set DIFFERENT values (true/false) for the same key, so it can't be pinned.
+useSettingsRestore(test, ['vmarkd.image.allowRemote'])
 
 async function open(
   evaluateInVSCode: any,

@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 // Side margins must match VS Code's BUILT-IN markdown preview. Its markdown.css puts
 // `padding: 0 26px` on `html, body` — BOTH — so the text really sits 52px from the webview edge;
@@ -14,6 +15,13 @@ import { expect, test } from 'vscode-test-playwright'
 // live setPadding() Vditor runs on the real pane — the chromium harness cannot see all three.
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 const GUTTER = 52
+
+// `editor.fullWidth` differs between the two tests below (true / false) and `editor.headingMarkers`
+// is flipped mid-test — neither can be pinned to one shared value.
+useSettingsRestore(test, [
+  'vmarkd.editor.fullWidth',
+  'vmarkd.editor.headingMarkers',
+])
 
 // Distance from the PANE's left edge to where the text actually starts, plus the right padding.
 async function gutters(frame: ReturnType<typeof wf>) {
@@ -87,12 +95,6 @@ test('full-width editor uses the VS Code preview gutter, and markers do not move
   const off = await gutters(frame)
   expect(Math.round(off.left)).toBe(GUTTER)
   expect(Math.round(off.right)).toBe(GUTTER)
-
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('editor.headingMarkers', true, true)
-  })
 })
 
 // Narrow view is the ONE thing allowed to change the margin — and only upwards: the 800px column
@@ -128,10 +130,4 @@ test('narrow view widens the margin (centred 800px column), never shrinks it', a
   expect(m.left).toBeGreaterThanOrEqual(GUTTER)
   // centred: both sides equal (the column, not a left-aligned block)
   expect(Math.abs(m.left - m.right)).toBeLessThan(2)
-
-  await evaluateInVSCode(async (vscode) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('editor.fullWidth', true, true)
-  })
 })

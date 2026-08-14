@@ -1,6 +1,7 @@
 import { wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 // Edit↔Preview parity in the REAL webview (real content theme + custom-editor pipeline). A
 // collapsed IR document must render at the SAME size/spacing as the full Preview overlay, so
@@ -15,6 +16,17 @@ import { expect, test } from 'vscode-test-playwright'
 //  - inline math (`$x$`) must stay inline (block-collapse rule must not match `inline-node`).
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+// PRECONDITION: the DEFAULT content theme ('auto'). This spec was authored and calibrated under it,
+// but several sibling specs (flowchart-theme, d2-theme, vega-theme, …) pin `theme.content` GLOBALLY
+// and never restore it, so in a full-suite run this one silently inherited e.g. 'github-light'.
+// Under that theme the d2 block at index 96 renders 9px taller in IR than in Preview (133 vs 124) —
+// reproducible in ~1min with `flowchart-theme.spec.ts parity.spec.ts`. That delta is REAL but it is
+// NOT this spec's target (the phantom-height bug it guards was 58–72px, which is why the threshold
+// is >8px); it is a diagram-sizing question, tracked in tasks/362. Pinning the precondition makes the
+// run deterministic WITHOUT masking anything: the 9px case stays reproducible on demand, and the
+// threshold is untouched.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // Cross-mode metrics, evaluated against `.vditor-ir .vditor-reset` or `.vditor-preview .vditor-reset`.
 const METRICS = `(sel => {
@@ -52,23 +64,6 @@ test('IR (collapsed) renders at the same size/spacing as Preview', async ({
   workbox,
   evaluateInVSCode,
 }) => {
-  // PRECONDITION: the DEFAULT content theme ('auto'). This spec was authored and calibrated under it,
-  // but several sibling specs (flowchart-theme, d2-theme, vega-theme, …) pin `theme.content` GLOBALLY
-  // and never restore it, so in a full-suite run this one silently inherited e.g. 'github-light'.
-  // Under that theme the d2 block at index 96 renders 9px taller in IR than in Preview (133 vs 124) —
-  // reproducible in ~1min with `flowchart-theme.spec.ts parity.spec.ts`. That delta is REAL but it is
-  // NOT this spec's target (the phantom-height bug it guards was 58–72px, which is why the threshold
-  // is >8px); it is a diagram-sizing question, tracked in tasks/362. Stating the precondition makes
-  // the run deterministic WITHOUT masking anything: the 9px case stays reproducible on demand, and
-  // the threshold is untouched.
-  // Set BEFORE opening: a content-theme switch fires the mono re-theme, which clears a block
-  // (innerHTML='') before re-rendering it — landing that on a block whose first render is still in
-  // flight discards the only copy of its source and leaves it empty for good.
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(async (vscode, uri) => {
     await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
     await vscode.commands.executeCommand(

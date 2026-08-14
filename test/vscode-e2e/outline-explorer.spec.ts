@@ -15,21 +15,17 @@ import { wf } from './webview-helpers'
 //      `showTextDocument` + reveals the heading's line in the plain editor.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'outline-explorer.md')
+
+// Only the first test below sets `editor.defaultMode` (to 'ir'); the second relies on it being
+// unset, so the two tests can't share a single pinned value — restore-only instead.
+useSettingsRestore(test, ['vmarkd.editor.defaultMode'])
 
 test.afterEach(async ({ evaluateInVSCode }) => {
   await evaluateInVSCode(async (vscode) => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-    // A stray leftover from another concurrent spec's run can pin `editor.defaultMode` in the
-    // SHARED user-data dir (see default-open-mode.spec.ts) — reset unconditionally.
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update(
-        'editor.defaultMode',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
   })
 })
 

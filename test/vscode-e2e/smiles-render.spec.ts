@@ -9,9 +9,14 @@ import { wf } from './webview-helpers'
 // to WYSIWYG (persists mode=wysiwyg), close, reopen → a DIRECT wysiwyg render.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 const ERROR_FIXTURE = path.join(__dirname, 'fixtures', 'smiles-error.md')
+
+// Only the first test below sets vmarkd.theme.content (the second doesn't care about it), so this
+// can't be pinned for the whole file — restore-only.
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 test('smiles renders on a direct WYSIWYG open (not flattened to style-text)', async ({
   workbox,

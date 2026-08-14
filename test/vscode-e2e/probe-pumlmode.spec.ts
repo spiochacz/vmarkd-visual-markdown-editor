@@ -7,9 +7,15 @@ import { wf } from './webview-helpers'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'probe-pumlmode.md')
 const OUT = path.join(__dirname, '..', '..', 'tmp', 'icons', 'probe-pumlmode')
+
+usePinnedSettings(test, {
+  'workbench.colorTheme': 'Default Dark Modern',
+  'vmarkd.theme.content': 'github-dark',
+})
 
 test('probe: PUML_MODE injection across libs (github-dark) @probe', async ({
   workbox,
@@ -19,16 +25,6 @@ test('probe: PUML_MODE injection across libs (github-dark) @probe', async ({
   mkdirSync(OUT, { recursive: true })
   await evaluateInVSCode(async (vscode) => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
-    await vscode.workspace
-      .getConfiguration('workbench')
-      .update(
-        'colorTheme',
-        'Default Dark Modern',
-        vscode.ConfigurationTarget.Global,
-      )
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'github-dark', vscode.ConfigurationTarget.Global)
   }, [])
   await evaluateInVSCode(
     async (vscode, args) => {

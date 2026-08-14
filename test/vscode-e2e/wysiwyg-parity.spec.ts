@@ -13,8 +13,11 @@ import { wf } from './webview-helpers'
 //     margin changes the box height on collapse⇄expand).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // Every engine whose render is reused across panes, so its markup must be identical in all three.
 const LANGS = [
@@ -77,11 +80,6 @@ async function openAndSweep(
   workbox: import('@playwright/test').Page,
   evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
 ) {
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

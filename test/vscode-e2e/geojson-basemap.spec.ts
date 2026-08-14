@@ -6,21 +6,18 @@ import { wf } from './webview-helpers'
 // only (Leaflet tiles + the custom-editor CSP pipeline).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 
-// Reset the globally-written settings after each test so this spec doesn't pollute others sharing the
-// VS Code instance (geojson-tiles.spec.ts relies on the DEFAULT geoBasemap — leaking `none` here would
-// break its ON case). `update(key, undefined, true)` drops the global override → back to the default.
-async function reset(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-) {
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    const cfg = vscode.workspace.getConfiguration('vmarkd')
-    await cfg.update('diagram.geo.basemap', undefined, true)
-    await cfg.update('image.allowRemote', undefined, true)
-  }, [])
-}
+// The test flips `diagram.geo.basemap` through osm/voyager/none WITHIN the one test (that's the
+// behaviour under test), so it can't be pinned. Restored after each test so this spec doesn't
+// pollute others sharing the VS Code instance (geojson-tiles.spec.ts relies on the DEFAULT
+// geoBasemap — leaking `none` here would break its ON case).
+useSettingsRestore(test, [
+  'vmarkd.diagram.geo.basemap',
+  'vmarkd.image.allowRemote',
+])
 
 async function open(
   evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
@@ -80,36 +77,30 @@ test('geoBasemap variants load only their selected tile source', async ({
 }) => {
   const frame = wf(workbox)
   test.setTimeout(180_000)
-  try {
-    for (const variant of [
-      { basemap: 'osm', tile: 'OpenStreetMap', visible: true },
-      { basemap: 'voyager', tile: 'CARTO Voyager', visible: true },
-      { basemap: 'none', tile: 'none', visible: false },
-    ] as const) {
-      await open(evaluateInVSCode, variant.basemap)
-      await waitForMap(frame)
-      const info = await tileInfo(frame)
-      console.log(
-        `[geojson-basemap ${variant.basemap}] ${JSON.stringify(info)}`,
-      )
-      if (variant.visible) {
-        expect
-          .soft(info.tileCount, `${variant.basemap}: has tiles`)
-          .toBeGreaterThan(0)
-        expect
-          .soft(info.anyMono, `${variant.basemap}: not mono CARTO`)
-          .toBe(false)
-      } else {
-        expect.soft(info.tileCount, `${variant.basemap}: no tiles`).toBe(0)
-      }
+  for (const variant of [
+    { basemap: 'osm', tile: 'OpenStreetMap', visible: true },
+    { basemap: 'voyager', tile: 'CARTO Voyager', visible: true },
+    { basemap: 'none', tile: 'none', visible: false },
+  ] as const) {
+    await open(evaluateInVSCode, variant.basemap)
+    await waitForMap(frame)
+    const info = await tileInfo(frame)
+    console.log(`[geojson-basemap ${variant.basemap}] ${JSON.stringify(info)}`)
+    if (variant.visible) {
       expect
-        .soft(info.anyOsm, `${variant.basemap}: OSM`)
-        .toBe(variant.basemap === 'osm')
+        .soft(info.tileCount, `${variant.basemap}: has tiles`)
+        .toBeGreaterThan(0)
       expect
-        .soft(info.anyVoyager, `${variant.basemap}: Voyager`)
-        .toBe(variant.basemap === 'voyager')
+        .soft(info.anyMono, `${variant.basemap}: not mono CARTO`)
+        .toBe(false)
+    } else {
+      expect.soft(info.tileCount, `${variant.basemap}: no tiles`).toBe(0)
     }
-  } finally {
-    await reset(evaluateInVSCode)
+    expect
+      .soft(info.anyOsm, `${variant.basemap}: OSM`)
+      .toBe(variant.basemap === 'osm')
+    expect
+      .soft(info.anyVoyager, `${variant.basemap}: Voyager`)
+      .toBe(variant.basemap === 'voyager')
   }
 })

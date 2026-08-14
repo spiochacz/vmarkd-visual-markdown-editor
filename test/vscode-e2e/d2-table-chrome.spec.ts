@@ -12,10 +12,16 @@
 // the FIRST d2 block, which has no sql_table — so it would have stayed green through this whole bug.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 const wf = (w: any) =>
   w.frameLocator('iframe.webview').frameLocator('#active-frame')
+
+// colorTheme is the same value in both loop iterations below → pinned. theme.content differs per
+// iteration (that's the whole point of the loop) → restore-only, kept inline.
+usePinnedSettings(test, { 'workbench.colorTheme': 'Default Dark Modern' })
+useSettingsRestore(test, ['vmarkd.theme.content'])
 
 // Both the default (`auto` → the zinc fallback) and a pinned content theme: they resolve through
 // different palette paths and BOTH were broken.
@@ -27,13 +33,6 @@ for (const content of ['auto', 'vscode-dark-2026'] as const) {
     test.setTimeout(300_000)
     await evaluateInVSCode(
       async (vscode: typeof import('vscode'), args: string[]) => {
-        await vscode.workspace
-          .getConfiguration('workbench')
-          .update(
-            'colorTheme',
-            'Default Dark Modern',
-            vscode.ConfigurationTarget.Global,
-          )
         await vscode.workspace
           .getConfiguration('vmarkd')
           .update('theme.content', args[0], vscode.ConfigurationTarget.Global)

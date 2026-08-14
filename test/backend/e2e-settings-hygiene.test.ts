@@ -15,10 +15,12 @@ import { describe, expect, it } from 'vitest'
 
 const E2E_DIR = path.join(__dirname, '..', 'vscode-e2e')
 
-// The measured count on 2026-08-15, the day the helper landed. LOWER THIS as specs are converted;
-// never raise it. If this fails on a spec you just wrote, use `usePinnedSettings` instead of writing
-// the setting inline — that is the fix, not a bumped number.
-const MAX_FILES_WITH_RAW_GLOBAL_WRITES = 67
+// ZERO — the conversion finished the same day the helper landed, so this is now a hard rule rather
+// than a ratchet. NEVER raise it. If this fails on a spec you just wrote: declare your keys with
+// `usePinnedSettings` (set once, up front) or `useSettingsRestore` (writes happen mid-test, which is
+// legitimate — a theme-flip spec cannot pin its way out of flipping the theme). Writing the setting
+// inline without either is what made five separate failures look like races.
+const MAX_FILES_WITH_RAW_GLOBAL_WRITES = 0
 
 function specFiles(): string[] {
   return readdirSync(E2E_DIR).filter((f) => f.endsWith('.spec.ts'))

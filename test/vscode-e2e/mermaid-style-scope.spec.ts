@@ -14,8 +14,11 @@ import { wf } from './webview-helpers'
 //     rewrite that renames both sides but corrupts a hex colour (`fill:#111` vs `id="111"`).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
+
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // getComputedStyle resolves cascaded values on a display:none subtree too, so the hidden IR pane is
 // still comparable — which is what makes the cross-pane check possible while only one pane is shown.
@@ -46,11 +49,6 @@ test('a reused mermaid keeps its id-scoped stylesheet (same colours in both pane
   evaluateInVSCode,
 }) => {
   test.setTimeout(180_000)
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

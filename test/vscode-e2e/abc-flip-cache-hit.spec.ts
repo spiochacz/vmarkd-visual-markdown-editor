@@ -14,8 +14,15 @@ import { wf } from './webview-helpers'
 // force a real HIT, and only then flip the theme.
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
+import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'abc-flip-cache.md')
+
+// Content theme follows the editor and is set once, before either open, and never changed again.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
+// workbench.colorTheme is flipped twice mid-test (the genuine flip this spec observes), so it
+// can't be pinned.
+useSettingsRestore(test, ['workbench.colorTheme'])
 
 test('a cached abc render survives a theme flip (task 361 cache-hit path)', async ({
   workbox,
@@ -36,13 +43,7 @@ test('a cached abc render survives a theme flip (task 361 cache-hit path)', asyn
     )
 
   // PRECONDITION: content theme follows the editor, so the workbench flip below actually moves the
-  // webview foreground and triggers the re-theme (sibling specs pin `theme.content` globally without
-  // restoring it — see mermaid-flip-gate for the full explanation).
-  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
-    await vscode.workspace
-      .getConfiguration('vmarkd')
-      .update('theme.content', 'auto', vscode.ConfigurationTarget.Global)
-  })
+  // webview foreground and triggers the re-theme (pinned above via usePinnedSettings).
 
   // Pass 1 — a MISS: render live/offscreen, then let the finished SVG be PUT to the host cache.
   await openIt()
