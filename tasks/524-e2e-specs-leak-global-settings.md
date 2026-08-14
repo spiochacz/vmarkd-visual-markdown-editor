@@ -1,9 +1,40 @@
 # 524 — real-VS-Code specs leak GLOBAL settings into the shared profile
 
-**Status:** 📋 OPEN — the three specs it actually broke are fixed; the hygiene problem itself is
-not · **Impact:** 🟠 order-dependent flakiness across the suite, and failures that look like
-timing/product bugs but are not · **Found:** 2026-08-13/14 during
+**Status:** 🚧 IN PROGRESS — the helper and the ratchet are in (2026-08-15); 67 spec files still
+write Global settings by hand · **Impact:** 🟠 order-dependent flakiness across the suite, and
+failures that look like timing/product bugs but are not · **Found:** 2026-08-13/14 during
 [task 516](516-qa-journey-coverage-plan.md)'s full-suite triage.
+
+## What decided this — the flaky set ROTATES
+
+Fixing victims one at a time does not converge. Three consecutive full runs, each after fixing that
+run's failures, ended with a DIFFERENT pair:
+
+| run | flaky |
+|---|---|
+| 5 | flip-skip, prerender-style-parity |
+| 6 | flip-skip, preview-spacing |
+| 7 | math-editing, mermaid-flip-gate |
+
+Same count, new names — the signature of one systemic cause, not N independent defects. At ~50 min
+per full run, each round of whack-a-mole costs an hour to learn which two specs drew the short straw.
+
+## Done so far (2026-08-15)
+
+- `test/vscode-e2e/settings-helpers.ts` — `usePinnedSettings(test, values)` (pin before each test,
+  remove after) and `useSettingsRestore(test, keys)` for specs whose writes are load-bearing: a
+  theme-flip spec cannot pin its way out of flipping the theme, but it can stop LEAKING. Restore
+  writes `undefined` (back to the package.json default) rather than the previous value, which would
+  just re-pin something for the next spec, and it runs in an `afterEach` so a red run cannot cascade.
+- `test/backend/e2e-settings-hygiene.test.ts` — a ratchet on the number of spec files that write
+  Global settings WITHOUT the helper. 67 today, may only go down. A hard ban would have meant
+  converting 77 files in one untestable diff; the ratchet lets conversions land incrementally and
+  makes a new offender fail immediately.
+- Converted the two measured polluters: `echarts-theme` (→ `flip-skip`) and `plantuml-theme-flip`
+  (→ `preview-spacing`).
+
+Remaining: convert the other 67, cheapest-first (the theme-mutating ones are the highest value —
+they are what the measured pairs all involved), lowering the ratchet as they go.
 
 ## The problem
 
