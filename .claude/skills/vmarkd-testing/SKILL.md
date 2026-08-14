@@ -1,6 +1,6 @@
 ---
 name: vmarkd-testing
-description: ALWAYS use for vMarkd tests — BOTH writing them AND debugging them. Writing: picking the test layer (vitest unit / chromium harness e2e / REAL-VS-Code e2e / @visual golden), writing a real-VS-Code webview spec (test/vscode-e2e), booting the compile-only WASM in a vitest vm-context, verifying coverage, running the lint/typecheck/test gates headless. DEBUGGING (use it here too, before touching the spec): any FLAKY, intermittent or order-dependent test, a spec that passes alone but fails in the full suite, a suite failure you are about to explain as "a race" or "a timing issue", or one you are tempted to fix with a longer sleep/timeout — in this repo that reading was wrong five times out of five; the skill has the replay-the-real-order + bisect method, the cross-spec state leaks that cause it, and the sample sizes a flake claim needs. Also covers the MANDATE (every webview/renderer feature MUST ship a real-VS-Code e2e you WRITE and RUN), the exact headless commands (xvfb IS installed), spec patterns (frame locators, evaluateInVSCode, defaultPrevented, data: URIs, fixtures), unit/WASM recipes, and the gotchas (settle() steals webview focus; theme flips need scrollIntoView). Read it BEFORE calling a feature done, and BEFORE diagnosing a flaky spec.
+description: ALWAYS use for vMarkd tests — BOTH writing them AND debugging them, and for the RED-GREEN-RED discipline every test change owes (see it fail, fix, break the fix and see it fail the same way, restore). Writing: picking the test layer (vitest unit / chromium harness e2e / REAL-VS-Code e2e / @visual golden), writing a real-VS-Code webview spec (test/vscode-e2e), booting the compile-only WASM in a vitest vm-context, verifying coverage, running the lint/typecheck/test gates headless. DEBUGGING (use it here too, before touching the spec): any FLAKY, intermittent or order-dependent test, a spec that passes alone but fails in the full suite, a suite failure you are about to explain as "a race" or "a timing issue", or one you are tempted to fix with a longer sleep/timeout — in this repo that reading was wrong five times out of five; the skill has the replay-the-real-order + bisect method, the cross-spec state leaks that cause it, and the sample sizes a flake claim needs. Also covers the MANDATE (every webview/renderer feature MUST ship a real-VS-Code e2e you WRITE and RUN), the exact headless commands (xvfb IS installed), spec patterns (frame locators, evaluateInVSCode, defaultPrevented, data: URIs, fixtures), unit/WASM recipes, and the gotchas (settle() steals webview focus; theme flips need scrollIntoView). Read it BEFORE calling a feature done, and BEFORE diagnosing a flaky spec.
 ---
 
 # vMarkd testing
@@ -26,6 +26,21 @@ call in every measured case so far.
 - **`xvfb` IS installed** (`/usr/bin/xvfb-run`, DISPLAY=:0) → the real-VS-Code suite runs headless.
   There is no "can't run headless / no display" excuse. If you doubt it, run `which xvfb-run` — do NOT
   trust a memory that says otherwise (environment memories go stale; this one did).
+- **RED-GREEN-RED. Always. A green test proves nothing until you have seen it go red.**
+  1. **RED** — before the fix, run the test and watch it FAIL, with the symptom you set out to fix.
+     A new test that has never failed may be asserting nothing: several in this repo passed against
+     a deliberately broken build until the assertion itself was fixed.
+  2. **GREEN** — apply the fix, rerun, it passes.
+  3. **RED again** — deliberately break the fix (revert the one line, disarm the CSS selector, widen
+     the `when` clause), confirm the test fails with the SAME signature, then restore and confirm
+     green. This is the step that proves the test is watching the fix and not something incidental.
+     Restore EXACTLY: verify with `md5sum`/`git diff`, not by eye — the vendored Vditor source is
+     compiled from a gitignored tree, so `git status` can look clean while a patch is still applied.
+  Announce a deliberate break before making it, and confirm the revert afterwards. If a fix cannot
+  be red-proved, say so explicitly rather than shipping it on a hunch — one caret-focus gate this
+  session looked correct, could not be red-proved, measured identical to baseline over 10+10 runs,
+  and was reverted. For an INTERMITTENT bug, "red" means a measured failure RATE on both sides, not
+  one red run (see the flaky section below).
 
 ## The four layers (pick by what you're proving)
 
@@ -138,6 +153,10 @@ tests, so whatever ran before decides your test's configuration.
 4. Fix by **pinning what the assertion depends on** in the victim, and resetting it in an `afterEach`
    so the victim does not become the next polluter. `afterEach`, never a `finally` inside the test —
    a RED run must not leave the profile poisoned for everything after it.
+
+5. Red-green-red still applies, using the reproducing ORDER as the red: the pair/chain must fail
+   before the pin and pass after it. `<polluter>.spec.ts <victim>.spec.ts` in one command is the
+   cheapest red you will get — keep using it as the proof, not a solo run of the victim.
 
 **Single predecessors and stress loops are not a substitute for the chain.** An investigation that
 tried individual predecessors, CPU stress (10×`yes`) and forced theme changes measured **0/20** and
