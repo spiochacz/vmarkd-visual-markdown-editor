@@ -173,7 +173,30 @@ and a two-step bisect pinned it to one pair.
 | `vmarkd.editor.defaultMode` (defaults to `remember`) | a hung open | `outline-explorer` waited 60 s on a `.vditor-wysiwyg` that a previous spec's Preview overlay had left hidden |
 | `process.env` test hooks | an overlay/flag stuck ON for the rest of the worker | `process.env.X = undefined` stores the STRING `"undefined"` — truthy. Use `delete process.env.X` |
 
-Standing gap: task 524 (a shared pin/restore helper). Until it exists, pin per spec.
+### Settings in a spec — use the helper, it is now enforced
+
+`test/vscode-e2e/settings-helpers.ts` (task 524). Writing `ConfigurationTarget.Global` inline fails
+the unit gate `test/backend/e2e-settings-hygiene.test.ts`, which is a hard **zero** — all 69 specs
+that used to do it are converted.
+
+```ts
+// Set once, up front, before opening — pinned for you and removed afterwards.
+usePinnedSettings(test, { 'vmarkd.theme.content': 'auto', 'workbench.colorTheme': 'Monokai' })
+
+// Writes happen DURING the test (a theme-flip spec cannot pin its way out of flipping the theme).
+// Declare the keys and they are cleaned up, pass or fail.
+useSettingsRestore(test, ['vmarkd.theme.content', 'workbench.colorTheme'])
+```
+
+Restore writes `undefined` (back to the package.json default), never "the previous value" — the
+latter just re-pins something for the next spec. And pin what your assertions DEPEND on, not only
+what you write: cleaning up protects the specs after you, pinning is what makes yours independent of
+whatever ran before.
+
+One trap worth knowing: `vmarkd.theme.content: 'auto'` is not "no theme". It RESOLVES to
+`vscode-{dark,light}-2026` whenever `workbench.colorTheme` is a VS Code default
+(`resolveAutoContentTheme`), which then puts `markdown-body` on the body. If your spec needs genuinely
+NO content theme, pin a workbench theme outside both pairing lists (e.g. `Monokai`).
 
 ### When it really is timing
 
