@@ -56,6 +56,21 @@ test('mermaid + echarts SKIP re-render on a mode-independent flip (task 164 §1/
           'Default Dark Modern',
           vscode.ConfigurationTarget.Global,
         )
+      // …and `theme.content` MUST be 'auto', or the control below is not a control at all. The
+      // first flip is only "a real change" if flipping the workbench theme also moves the CONTENT
+      // theme; with an explicit content theme pinned, a dark→light workbench flip changes nothing
+      // the renderers care about, nothing re-renders, the marker survives, and the control fails
+      // with "first flip re-renders mermaid (marker lost → detector is sensitive)".
+      //
+      // This is not hypothetical: `echarts-theme.spec.ts` sets `theme.content` four times and never
+      // resets it, and it runs immediately before this spec in the suite's own order. Reproduced
+      // deterministically — `echarts-theme.spec.ts flip-skip.spec.ts` in one command fails on the
+      // first attempt, and this spec passes 20/20 alone. (General hygiene problem: task 524.)
+      await cfg.update(
+        'theme.content',
+        'auto',
+        vscode.ConfigurationTarget.Global,
+      )
     },
     [] as [],
   )
