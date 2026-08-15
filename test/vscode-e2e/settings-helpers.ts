@@ -97,11 +97,7 @@ export async function clearSettings(
  * `vscode-test-playwright`, and a second import of Playwright's own `test` in this file would be a
  * different runner instance.
  */
-export function usePinnedSettings(
-  // biome-ignore lint/suspicious/noExplicitAny: the harness's TestType, whose fixtures vary per spec
-  test: any,
-  values: SettingValues,
-): void {
+export function usePinnedSettings(test: any, values: SettingValues): void {
   const keys = Object.keys(values)
   test.beforeEach(
     async ({ evaluateInVSCode }: { evaluateInVSCode: Evaluate }) => {
@@ -124,11 +120,7 @@ export function usePinnedSettings(
  * useSettingsRestore(test, ['workbench.colorTheme', 'vmarkd.theme.content'])
  * ```
  */
-export function useSettingsRestore(
-  // biome-ignore lint/suspicious/noExplicitAny: the harness's TestType, whose fixtures vary per spec
-  test: any,
-  keys: string[],
-): void {
+export function useSettingsRestore(test: any, keys: string[]): void {
   test.afterEach(
     async ({ evaluateInVSCode }: { evaluateInVSCode: Evaluate }) => {
       await clearSettings(evaluateInVSCode, keys)

@@ -66,9 +66,7 @@ test('editing a list renders one modified gutter bar on the list', async ({
               const exports = ext?.isActive
                 ? ext.exports
                 : await ext?.activate()
-              // biome-ignore lint/suspicious/noExplicitAny: untyped built-in extension API
               const git = (exports as any)?.getAPI?.(1)
-              // biome-ignore lint/suspicious/noExplicitAny: untyped built-in extension API
               return (git?.repositories ?? []).some((r: any) =>
                 repoDir.startsWith(r.rootUri.fsPath),
               )

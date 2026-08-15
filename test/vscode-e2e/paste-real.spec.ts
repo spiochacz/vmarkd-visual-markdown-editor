@@ -53,6 +53,30 @@ test('a real Ctrl+V paste reaches the document + disk, and one Ctrl+Z rolls back
     s.removeAllRanges()
     s.addRange(r)
   })
+  // Verify the caret really is in the editable BEFORE sending Ctrl+V. Without this, a setup that
+  // silently failed shows up much later as "undo did not roll back the paste" — a product-shaped
+  // symptom for what is really "the keys went nowhere". This spec failed exactly that way in a full
+  // run (task 516 round 8) and the message named the undo, not the focus.
+  await expect
+    .poll(
+      () =>
+        frame.locator('body').evaluate(() => {
+          // querySelectorAll, not querySelector with a list: Vditor keeps ALL mode elements in the
+          // DOM and only shows one, so the first match is often the hidden `.vditor-ir` while the
+          // caret sits in the visible `.vditor-wysiwyg` — the check would then always read false.
+          const panes = Array.from(
+            document.querySelectorAll(
+              '.vditor-ir, .vditor-wysiwyg, .vditor-sv',
+            ),
+          )
+          const sel = window.getSelection()
+          if (!sel?.rangeCount) return false
+          const node = sel.getRangeAt(0).startContainer as Node
+          return panes.some((pane) => pane.contains(node))
+        }),
+      { message: 'the caret is inside the editable before the paste' },
+    )
+    .toBe(true)
   await workbox.keyboard.press('Control+v')
 
   // The paste lands in the live TextDocument (all three blocks)…

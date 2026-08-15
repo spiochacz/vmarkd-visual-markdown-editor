@@ -38,7 +38,7 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { clickIntoEditor, settle, wf } from './webview-helpers'
 
 type Vs = typeof import('vscode')
 
@@ -69,8 +69,7 @@ test('typing "# Untitled journey" char-by-char keeps the space after the first w
     await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
     await settle(frame, 300)
 
-    await frame.locator('.vditor-ir').click({ position: { x: 20, y: 12 } })
-    await settle(frame, 200)
+    await clickIntoEditor(frame, workbox)
     await workbox.keyboard.type('# Untitled journey', { delay: 60 })
     await settle(frame, 500)
 
@@ -119,8 +118,7 @@ test('control: "alpha beta" (no heading marker) typed the same way stays clean',
     await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
     await settle(frame, 300)
 
-    await frame.locator('.vditor-ir').click({ position: { x: 20, y: 12 } })
-    await settle(frame, 200)
+    await clickIntoEditor(frame, workbox)
     await workbox.keyboard.type('alpha beta', { delay: 60 })
     await settle(frame, 500)
 
@@ -164,8 +162,7 @@ test('control: a discrete Space keypress, separated from the surrounding keystro
     await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
     await settle(frame, 300)
 
-    await frame.locator('.vditor-ir').click({ position: { x: 20, y: 12 } })
-    await settle(frame, 200)
+    await clickIntoEditor(frame, workbox)
     // Discrete actions, NOT one continuous type() stream — this is the control the bug never hit.
     await workbox.keyboard.type('#', { delay: 60 })
     await settle(frame, 200)
