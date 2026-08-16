@@ -230,10 +230,17 @@ truncating the list). Whole-file % is dominated by unrelated branches — check 
 
 ## Gates before "done"
 
-1. `npm test` (all green) · 2. `npm run typecheck` (clean) · 3. `npm run lint:ci` (biome whole tree —
-**7 pre-existing warnings in `parity.spec.ts` are expected**; anything else is yours). 4. The real-VS-Code
-e2e for the feature. Run `npx biome format --write <changed files>` BEFORE lint — biome's
-"File content differs from formatting output" is an **error**, not a warning, and fails the gate.
+1. `npm test` (all green) · 2. `npm run typecheck` (clean) · 3. **`npm run typecheck:vscode-e2e`
+(clean)** · 4. `npm run lint:ci` (biome whole tree — **7 pre-existing warnings in `parity.spec.ts`
+are expected**; anything else is yours). 5. The real-VS-Code e2e for the feature. Run
+`npx biome format --write <changed files>` BEFORE lint — biome's "File content differs from
+formatting output" is an **error**, not a warning, and fails the gate.
+
+**There are TWO typecheck scripts and `npm run quality` runs NEITHER.** `typecheck` covers
+`media-src` only (`media-src/tsconfig.typecheck.json`); `typecheck:vscode-e2e` covers the spec tree
+(`test/vscode-e2e/tsconfig.json`). A green `quality` is not evidence that the tree typechecks —
+task 516 found defects hiding behind both on the same day, one of them a `never`-narrowing that had
+silently disabled a runtime fallback in shipped code. Run both by hand until they are wired in.
 
 ## Gotchas
 
