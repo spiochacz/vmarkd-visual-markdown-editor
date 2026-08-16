@@ -165,15 +165,15 @@ export const stickySelection = async <A, R>(
       // A retry that succeeds still gets logged, but the two outcomes that reach this line are not
       // the same thing. If the write MOVED the selection (`!wroteNothing`), the editor was
       // clobbering it and has now stopped — "held after N attempts" is accurate, and it is only
-      // worth logging past the first attempt. If the write never moved the selection at all
-      // (`wroteNothing`), the accepted selection is whatever was ALREADY there before `apply` ran:
-      // legitimate when the caller is re-asserting a caret that's already at the target, but
-      // indistinguishable from a write that silently found nothing — so it is logged unconditionally,
-      // worded so a reader scanning the suite log can tell this call placed nothing and knows to
-      // check whether the spec's own targeting is still finding what it means to find.
+      // worth logging past the first attempt. If the structural path did not change (`wroteNothing`),
+      // that is weaker than "the write did nothing": SELECTION_SNAPSHOT deliberately ignores offset,
+      // so a write that moves the caret WITHIN the node it already occupied — offset 0 of a text node
+      // it was already inside, say — reports identically to a write that landed nowhere. Both are
+      // logged unconditionally, worded to state only the node-level observation rather than guess
+      // which of the two happened.
       if (wroteNothing) {
         console.log(
-          `[stickySelection] selection never moved after ${attempt + 1} attempts — accepting the existing selection as already at the target; if that assumption is wrong, this call placed nothing and the spec's own targeting should be checked`,
+          `[stickySelection] selection stayed in the same node after ${attempt + 1} attempts — SELECTION_SNAPSHOT compares structural path, not offset, so this also matches a caret write within a node the selection already occupied (the common case); it's also what a write that found nothing looks like, so worth a look if the spec around it fails`,
         )
       } else if (attempt > 0) {
         console.log(`[stickySelection] held after ${attempt + 1} attempts`)

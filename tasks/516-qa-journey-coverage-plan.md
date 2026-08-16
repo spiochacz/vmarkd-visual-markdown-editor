@@ -97,7 +97,7 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
-## Full-suite progression across seven runs (2026-08-13 → 16)
+## Full-suite progression across eight runs (2026-08-13 → 16)
 
 | Run | passed | failed | flaky | what changed before it |
 |---|---|---|---|---|
@@ -108,6 +108,10 @@ red, that is recorded in the spec rather than claimed as coverage.
 | 5 | 270 | **0** | 2 | the caret-verification helper (4e33768); 59.1 min, 2 skipped |
 | 6 | 268 | 1 | 3 | the `stickySelection` sweep; 1.1 h — the 1 failed + 1 flaky were the sweep's own and are now exempted, the other 2 flaky are untouched specs |
 | 7 | 271 | **0** | 1 | the `stickySelection` sweep committed (`53e37fc` render-cache fix, `5d13366` the caret-helper sweep, `a42a8c4` docs); 1.0 h, 2 skipped — the single flaky was `block-fidelity.spec.ts:293` (IR), green in all eight earlier full runs |
+| 8 | 272 | **0** | **0** | the block-fidelity caret fix (`4237c8c`), the diff-markers typecheck fix (`c98a1da`), the `stickySelection` log split (`344c2f3`); 1.2 h, 2 skipped |
+
+Run 8 is the first fully clean full run — zero failures AND zero flakes. The previous best was run
+5's 270 passed with 2 flaky; every run between them carried at least one flake.
 
 ### Run 5's two flakes — a synthetic `Range` is not caret authority (2026-08-15)
 
@@ -259,14 +263,22 @@ as it is undefined`. The gotcha is recorded in the `vmarkd-testing` skill. Conse
 two-round-trip ambiguity in `stickySelection` is a KNOWN, ACCEPTED limitation, not something still
 to be fixed.
 
-**Open follow-up — "selection never moved" hits in passing specs.** The new log line now
-identifies call sites where a `stickySelection` write places nothing and the spec passes anyway.
+**Open follow-up — "selection stayed in the same node" hits in passing specs.** The original
+wording of this log line ("selection never moved") claimed more than `SELECTION_SNAPSHOT` can see.
+That snapshot compares only the structural PATH of the anchor/focus nodes, deliberately ignoring
+offset (see its comment in `webview-helpers.ts`), so what the line actually reports is narrower:
+the write left the selection in the same NODE it was in before, which the check cannot distinguish
+from a no-op. A large share of the hits are benign BY CONSTRUCTION rather than by luck: any call
+site whose `apply` places the caret inside a node the selection already occupies — `list-enter-start`
+placing it at offset 0 of a list item it is already inside is the concrete example — will always
+report this, and the write did land, just within the node rather than across a node boundary.
 Observed in a targeted run of `cross-diagram-edit`, `cross-diagram-edit-ir`, `list-enter-start`,
 `prose-fast-edit`, `sv-split` (5 occurrences across those specs; exact per-spec attribution still
 to be done, because console output in a full-suite log interleaves and cannot be attributed
-reliably). These are candidates for specs asserting something weaker than intended — they need
-triage: either the caret was genuinely already at the target (benign) or the spec's targeting has
-drifted and the assertion is not testing what it claims.
+reliably). The residual question is narrower than the first framing of this entry suggested, and
+is still open: distinguishing the benign within-node case from a write that was genuinely reverted
+needs a probe that records the anchor OFFSET alongside the path at these call sites, which has not
+been run.
 
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
