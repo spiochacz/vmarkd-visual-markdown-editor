@@ -101,23 +101,32 @@ async function drainProbe(
 }
 
 async function flipFullWidthSetting(evaluateInVSCode: EvaluateInVSCode) {
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      const cfg = vscode.workspace.getConfiguration('vmarkd')
-      await cfg.update(
-        'editor.fullWidth',
-        true,
-        vscode.ConfigurationTarget.Global,
-      )
-      await new Promise((r) => setTimeout(r, 300))
-      await cfg.update(
-        'editor.fullWidth',
-        undefined,
-        vscode.ConfigurationTarget.Global,
-      )
-    },
-    [] as [],
-  )
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    const cfg = vscode.workspace.getConfiguration('vmarkd')
+    // Must write `false` here, not `true`: `vmarkd.editor.fullWidth` declares
+    // `"default": true` in package.json, so writing `true` is a no-op — the
+    // EFFECTIVE value never changes, EditorSession's config listener guards on
+    // the resource-scoped `affectsConfiguration('vmarkd', this.activeUri)` (which
+    // correctly reports no change), `postLiveConfig()` never runs, and no message
+    // reaches the webview. Measured on 2026-08-16: flipping to `true` fired the
+    // resource-scoped `affectsConfiguration` 0 times (unscoped fired 2, so the
+    // config write itself did happen) and the webview captured no messages;
+    // flipping to `false` instead fired the resource-scoped check 2 times and the
+    // webview captured `config-changed` x2 and `reload-css` x4. If the declared
+    // default in package.json is ever flipped to `false`, this trigger must flip
+    // to `true` in step, or it silently goes back to measuring nothing.
+    await cfg.update(
+      'editor.fullWidth',
+      false,
+      vscode.ConfigurationTarget.Global,
+    )
+    await new Promise((r) => setTimeout(r, 300))
+    await cfg.update(
+      'editor.fullWidth',
+      undefined,
+      vscode.ConfigurationTarget.Global,
+    )
+  })
 }
 
 test('measures e.origin/e.source stability across messages, a webview recreate, and a second panel @probe', async ({
