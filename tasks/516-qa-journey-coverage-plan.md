@@ -267,22 +267,55 @@ as it is undefined`. The gotcha is recorded in the `vmarkd-testing` skill. Conse
 two-round-trip ambiguity in `stickySelection` is a KNOWN, ACCEPTED limitation, not something still
 to be fixed.
 
-**Open follow-up — "selection stayed in the same node" hits in passing specs.** The original
-wording of this log line ("selection never moved") claimed more than `SELECTION_SNAPSHOT` can see.
-That snapshot compares only the structural PATH of the anchor/focus nodes, deliberately ignoring
-offset (see its comment in `webview-helpers.ts`), so what the line actually reports is narrower:
-the write left the selection in the same NODE it was in before, which the check cannot distinguish
-from a no-op. A large share of the hits are benign BY CONSTRUCTION rather than by luck: any call
-site whose `apply` places the caret inside a node the selection already occupies — `list-enter-start`
-placing it at offset 0 of a list item it is already inside is the concrete example — will always
-report this, and the write did land, just within the node rather than across a node boundary.
-Observed in a targeted run of `cross-diagram-edit`, `cross-diagram-edit-ir`, `list-enter-start`,
-`prose-fast-edit`, `sv-split` (5 occurrences across those specs; exact per-spec attribution still
-to be done, because console output in a full-suite log interleaves and cannot be attributed
-reliably). The residual question is narrower than the first framing of this entry suggested, and
-is still open: distinguishing the benign within-node case from a write that was genuinely reverted
-needs a probe that records the anchor OFFSET alongside the path at these call sites, which has not
-been run.
+**"Selection stayed in the same node" hits in passing specs — resolved, correcting two earlier
+claims (2026-08-16).** The entry above left this open pending a probe that records the anchor/focus
+OFFSETS that `SELECTION_SNAPSHOT` deliberately omits (see its comment in `webview-helpers.ts`),
+because a full-suite log interleaves output from concurrent specs and cannot be attributed to a
+spec reliably. That probe ran: `stickySelection` was temporarily instrumented to read and log those
+offsets immediately before and after `apply` whenever the structural path was unchanged, the five
+candidate specs were run ONE AT A TIME so each log line is attributable, and the instrumentation
+was reverted afterwards (the file verified identical by checksum).
+
+Two claims from the original framing were wrong.
+
+*The spec list.* Only two of the five candidates produce the hit: `cross-diagram-edit` (2
+occurrences) and `prose-fast-edit` (3). `cross-diagram-edit-ir`, `list-enter-start` and `sv-split`
+produce none at all — the earlier list of five was an artifact of interleaved attribution in a
+full-suite log, not five real sources.
+
+*The "benign within-node move" explanation.* The entry above argued that a call site whose `apply`
+places the caret inside a node the selection already occupies — `list-enter-start` at offset 0 of a
+list item it's already inside was the example — would legitimately hit this line, invisible to a
+path-only check because the caret still moved, just within the node. The measured offsets refute
+that mechanism for the occurrences that actually exist: `offsetChanged=false` in all five. The caret
+did not move at all, by any amount, not even within the node.
+
+What is actually happening is two distinct, spec-specific things, not one shared cause.
+`prose-fast-edit` (3 hits) is genuinely benign, now proven rather than assumed: its `apply` places
+the caret at the end of the last text node of the "Edit here" paragraph, and the caret was already
+exactly there. The offsets (31, 37, 1) track that paragraph's text growing across the spec's
+successive edit cycles, and each sits at the end of its anchor node — precisely what `apply` asks
+for.
+
+`cross-diagram-edit` (2 hits) was a misuse of the helper, now fixed. Its `apply` is not a caret
+placement: it sets a Range and performs the whole edit with `document.execCommand('insertText')` in
+the same callback, then sleeps 3.5 s for the preview morph. `stickySelection` retries whatever
+callback it is given, up to 5 times, whenever the selection does not move — and here the post-write
+selection sits wherever the insert left it, which equals the pre-write selection on every later
+attempt, so it retried on every attempt. The insert itself did not repeat (the probe captured
+identical anchor text immediately before and after attempt 5, and the document ends with exactly
+one insertion), but nothing in the retry loop guaranteed that — it held by accident, not by design.
+Each wasted attempt still paid the 3.5 s sleep. Fix: `stickySelection` was never needed at this call
+site — it guards the window between writing a synthetic Range and typing into it, and this callback
+does both within one `evaluate` turn, so no such window exists to guard. Replaced with a plain
+`frame.locator('body').evaluate`. Measured **58.8 s → 30.5 s** for the spec, against a predicted 2
+calls × 4 wasted attempts × 3.5 s = 28 s. Commit `c310815`.
+
+The generalisable lesson, worth stating so it is not re-derived later: `stickySelection` retries
+whatever callback it is handed. That is correct for a caret placement, where the retry re-applies
+the same target, and wrong for anything that MUTATES the document, where the retry re-runs the
+mutation. Any future call site whose `apply` types, inserts, deletes, or executes a command belongs
+outside the helper — a plain `evaluate` — not inside it.
 
 ### The other typecheck gate — also red, and not wired into `quality` either (2026-08-16)
 
