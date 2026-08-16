@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Arrow navigation into a COLLAPSED callout in the real VS Code IR webview (task 484 — this
 // handler shipped with zero coverage at any layer; callout-nav.test.ts covers the unit-testable
 // decision logic, this file is the AGENTS.md-mandated real-webview proof). A collapsed callout's
@@ -37,7 +37,7 @@ const CALLOUT_STATE = () => {
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // The `vmarkd.diagram.geo.basemap` setting picks the basemap UNDER geojson/topojson maps. Default `auto`
 // is themed monochrome CARTO (covered by geojson-tiles.spec.ts); here we verify the override values
 // load the right tile source: `osm` → OpenStreetMap, `voyager` → CARTO Voyager (colored), `none` →
@@ -19,10 +19,7 @@ useSettingsRestore(test, [
   'vmarkd.image.allowRemote',
 ])
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-  basemap: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, basemap: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: [string, string]) => {
       const [uri, geoBasemap] = args

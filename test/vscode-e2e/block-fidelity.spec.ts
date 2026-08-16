@@ -1,4 +1,5 @@
 import {
+  type EvaluateInVSCode,
   docText,
   placeCaretAtEndOf,
   stickySelection,
@@ -23,10 +24,7 @@ const SRC = path.join(__dirname, 'fixtures', 'block-fidelity.md')
 const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 mkdirSync(TEMP_DIR, { recursive: true })
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, file: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.commands.executeCommand('workbench.action.closeAllEditors')
@@ -71,7 +69,7 @@ async function waitForInitialRender(frame: ReturnType<typeof wf>) {
 // checks next, then do one more real read so the caller gets a value it can pass to
 // `assertBlocksSurvived` — the poll's return is a boolean, not the document text.
 async function waitForDocText(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   tmp: string,
   suffix: string,
 ) {

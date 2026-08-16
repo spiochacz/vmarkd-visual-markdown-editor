@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, docText, settle, wf } from './webview-helpers'
 // C3 (task 516) — math editing. Today only rendering (echarts-theme-style specs) and open-cost
 // (katex-open-cost.spec.ts) are covered; nothing edits a live inline `$x$` or block `$$...$$`
 // formula and checks the re-render + save fidelity, and nothing checks that backspacing across
@@ -15,7 +15,7 @@ mkdirSync(TEMP_DIR, { recursive: true })
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   file: string,
 ) {
   await evaluateInVSCode(
@@ -194,12 +194,12 @@ test('editing inline and block math re-renders and round-trips on save', async (
     'both formulas re-rendered as KaTeX (neither vanished/errored)',
   ).toBeGreaterThanOrEqual(2)
 
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      await vscode.commands.executeCommand('workbench.action.files.save')
-    },
-    [] as [string],
-  )
+  // No-arg overload: the callback ignores its args, so the fixture's `evaluateInVSCode(fn)`
+  // overload applies directly instead of a `[] as [string]` cast (TS rejects narrowing an empty
+  // array literal to the 1-tuple `[string]`).
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    await vscode.commands.executeCommand('workbench.action.files.save')
+  })
   await settle(frame, 500)
   const saved = readFileSync(tmp, 'utf8')
   rmSync(tmp, { force: true })

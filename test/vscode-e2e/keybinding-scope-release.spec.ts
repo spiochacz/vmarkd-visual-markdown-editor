@@ -152,10 +152,12 @@ test('Ctrl+D / Ctrl+L / Ctrl+H in a plain text editor do not reach the unfocused
     focusedEditor,
     'the text editor holds DOM keyboard focus',
   ).toBeVisible()
+  // No-arg overload: the callback ignores its args, so the fixture's `evaluateInVSCode(fn)`
+  // overload applies directly instead of a `[] as [string]` cast (TS rejects narrowing an empty
+  // array literal to the 1-tuple `[string]`).
   const focusedFsPath = await evaluateInVSCode(
     async (vscode: typeof import('vscode')) =>
       vscode.window.activeTextEditor?.document.uri.fsPath ?? '<none>',
-    [] as [string],
   )
   expect(
     focusedFsPath,

@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { type EvaluateInVSCode, settle } from './webview-helpers'
 import { rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -36,7 +36,7 @@ const wf = (w: import('@playwright/test').Page) =>
 let bootCount = 0
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const dir = path.join(
@@ -112,9 +112,7 @@ async function boot(
   return { dir, main, frame }
 }
 
-async function readHostProbeLog(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) {
+async function readHostProbeLog(evaluateInVSCode: EvaluateInVSCode) {
   return evaluateInVSCode(
     async () => {
       const g = globalThis as unknown as {
@@ -213,7 +211,7 @@ async function rawHrefs(frame: ReturnType<typeof wf>, surfaceSelector: string) {
 }
 
 async function openTabFsPaths(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<string[]> {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
@@ -283,7 +281,7 @@ async function probeSurface(
   label: string,
   frame: ReturnType<typeof wf>,
   surfaceSelector: string,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   main: string,
 ) {
   const hrefs = await rawHrefs(frame, surfaceSelector)

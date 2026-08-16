@@ -1,4 +1,11 @@
-import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  ev,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -29,10 +36,7 @@ import { useSettingsRestore } from './settings-helpers'
 // timeout aborting execution before the `finally` block runs.
 useSettingsRestore(test, ['vmarkd.paste.urlAsLink'])
 
-const writeClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  text: string,
-) =>
+const writeClip = (evaluateInVSCode: EvaluateInVSCode, text: string) =>
   ev(
     evaluateInVSCode,
     async (vscode: typeof import('vscode'), args: string[]) => {
@@ -44,7 +48,7 @@ const writeClip = (
 let bootCount = 0
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
   body: string,
@@ -124,7 +128,7 @@ const URL = 'https://example.com/a-paper'
 // shared test() below) — the `expect.soft()` calls that follow each call site report the real
 // pass/fail with full diagnostics regardless of whether this settled in time.
 async function settleDoc(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   tmp: string,
   contains: string,
   message: string,

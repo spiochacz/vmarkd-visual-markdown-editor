@@ -1,4 +1,10 @@
-import { docText, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -18,10 +24,7 @@ import { expect, test } from 'vscode-test-playwright'
 // because the whole defect is in what the handlers do to the SYSTEM clipboard.
 const SRC = path.join(__dirname, 'fixtures', 'torture.md')
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, file: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
@@ -35,18 +38,13 @@ async function open(
   )
 }
 
-const readClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) =>
+const readClip = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode')) => vscode.env.clipboard.readText(),
     [] as unknown as [string],
   ) as Promise<string>
 
-const writeClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  text: string,
-) =>
+const writeClip = (evaluateInVSCode: EvaluateInVSCode, text: string) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.env.clipboard.writeText(args[0])
@@ -98,7 +96,7 @@ const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 mkdirSync(TEMP_DIR, { recursive: true })
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
 ) {

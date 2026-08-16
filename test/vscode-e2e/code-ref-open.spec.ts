@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { type EvaluateInVSCode, settle } from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -53,7 +53,7 @@ const wf = (w: import('@playwright/test').Page) =>
     .frameLocator('iframe[title="vMarkd"], #active-frame')
 
 async function openTabInfo(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<Array<{ fsPath: string; viewType: string | undefined }>> {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
@@ -75,7 +75,7 @@ async function openTabInfo(
 }
 
 async function activeSelection(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<{ line: number; character: number } | null> {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
@@ -89,7 +89,7 @@ async function activeSelection(
 }
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   await evaluateInVSCode(

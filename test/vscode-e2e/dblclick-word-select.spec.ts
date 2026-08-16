@@ -2,7 +2,7 @@ import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { ev, settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, ev, settle, wf } from './webview-helpers'
 
 // Task 485 — user report: double-click on a word selects the word AND the trailing space. This
 // matches a documented Windows-only Chromium/Blink behaviour (see the task file) that does NOT
@@ -18,7 +18,7 @@ import { ev, settle, wf } from './webview-helpers'
 let bootCount = 0
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   body: string,
 ) {

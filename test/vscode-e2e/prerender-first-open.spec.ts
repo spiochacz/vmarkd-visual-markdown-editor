@@ -17,6 +17,7 @@
 // the custom-editor resolve back to back, which is the closest this harness gets to the real cold path
 // (VS Code starting with a .md already open). An `await activate()` first would hand the event loop the
 // turn that `setTimeout(0)` needs, warming Lute and answering a different question than the one asked.
+import type { EvaluateInVSCode } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -36,7 +37,7 @@ function wf(workbox: import('@playwright/test').Page) {
 
 async function openAndReadTeaserFlag(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   uri: string,
 ): Promise<boolean> {
   await evaluateInVSCode(

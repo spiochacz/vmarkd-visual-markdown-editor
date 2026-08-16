@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Opt-in ELK layout for mermaid graph diagrams (vmarkd.diagram.mermaid.layout=elk, task 112) —
 // real-VS-Code only.
 //
@@ -27,7 +27,7 @@ useSettingsRestore(test, ['vmarkd.diagram.mermaid.layout'])
 // element, and setting 'dagre' explicitly is behaviourally the default (no ELK). collectConfigOptions
 // reads the setting at OPEN.
 async function openFresh(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   uri: string,
   layout: string,
 ) {
@@ -52,7 +52,7 @@ async function openFresh(
 // Update the live setting WITHOUT reopening — exercises the onDidChangeConfiguration → config-changed →
 // rethemeDiagrams live re-render path.
 async function updateLayout(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   layout: string,
 ) {
   await evaluateInVSCode(

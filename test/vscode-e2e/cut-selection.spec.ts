@@ -1,4 +1,11 @@
-import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  ev,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -17,17 +24,12 @@ import { expect, test } from 'vscode-test-playwright'
 // build — it cut correctly) — the bug needs surrounding document complexity to manifest, so a
 // "clean" fixture stripped down further than this would silently stop testing anything.
 
-const readClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) =>
+const readClip = (evaluateInVSCode: EvaluateInVSCode) =>
   ev(evaluateInVSCode, async (vscode: typeof import('vscode')) =>
     vscode.env.clipboard.readText(),
   ) as Promise<string>
 
-const writeClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  text: string,
-) =>
+const writeClip = (evaluateInVSCode: EvaluateInVSCode, text: string) =>
   ev(
     evaluateInVSCode,
     async (vscode: typeof import('vscode'), args: string[]) => {
@@ -90,7 +92,7 @@ const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 mkdirSync(TEMP_DIR, { recursive: true })
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
   body = FIXTURE,

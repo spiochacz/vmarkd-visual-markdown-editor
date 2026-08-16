@@ -1,3 +1,4 @@
+import type { EvaluateInVSCode } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -13,7 +14,7 @@ const SRC = path.join(__dirname, 'fixtures', 'git-conflict.md')
 const CLEAN = path.join(__dirname, 'fixtures', 'torture.md')
 
 async function openWithVmarkd(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   file: string,
 ) {
   await evaluateInVSCode(
@@ -30,10 +31,7 @@ async function openWithVmarkd(
 }
 
 /** Which editor actually ended up showing the file: the custom webview, or the plain text one. */
-const activeEditorKind = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) =>
+const activeEditorKind = (evaluateInVSCode: EvaluateInVSCode, file: string) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const inText = vscode.window.visibleTextEditors.some(

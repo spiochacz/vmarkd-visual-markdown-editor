@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Opt-in hand-drawn "sketch" look for D2 diagrams (vmarkd.diagram.d2.sketch, task 120) — real-VS-Code
 // only. We own D2's SVG (toSVG), so sketch is a drop-in on the per-shape emit: rough.js turns each leaf
 // shape + edge into wobbly multi-stroke <path>s. rough.js rides the lazy d2-main.js chunk (imported by
@@ -20,7 +20,7 @@ useSettingsRestore(test, ['vmarkd.diagram.d2.sketch'])
 // Close any prior editor (workers:1 → same VS Code instance), set the sketch setting, then open the
 // fixture. collectConfigOptions reads the setting at OPEN. `sketch` is a plain boolean.
 async function openFresh(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   uri: string,
   sketch: boolean,
 ) {
@@ -45,7 +45,7 @@ async function openFresh(
 // Update the live setting WITHOUT reopening — exercises onDidChangeConfiguration → config-changed →
 // rethemeDiagrams (d2SketchChanged) → reRenderD2.
 async function updateSketch(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   sketch: boolean,
 ) {
   await evaluateInVSCode(

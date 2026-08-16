@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Task 165 — the D2 render+layout pipeline (dagre + d2-render + elk-layout + …) is code-split into a
 // lazy media/vditor/dist/js/d2/d2-main.js, loaded on demand inside renderD2()'s compile .then and read
 // off window.__vmarkdD2. Two real-VS-Code proofs:
@@ -12,10 +12,7 @@ import { expect, test } from 'vscode-test-playwright'
 const ALL = path.join(__dirname, 'fixtures', 'all-renderers.md')
 const NO_D2 = path.join(__dirname, 'fixtures', 'no-d2.md')
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-  uri: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, uri: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

@@ -1,4 +1,4 @@
-import { stickySelection, wf } from './webview-helpers'
+import { type EvaluateInVSCode, stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -9,9 +9,7 @@ import { expect, test } from 'vscode-test-playwright'
 // settle and asserts the outcome in the host TextDocument + the rendered DOM.
 const FIXTURE = path.join(__dirname, 'fixtures', 'perf-prose.md')
 
-const readDoc = (
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-) =>
+const readDoc = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const doc = vscode.workspace.textDocuments.find(
@@ -24,7 +22,7 @@ const readDoc = (
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

@@ -1,4 +1,11 @@
-import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  ev,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -103,7 +110,7 @@ async function caretAfter(
 let bootCount = 0
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
 ) {
@@ -139,7 +146,7 @@ async function boot(
 
 /** Leave the vMarkd tab for a plain text editor, then come back to it. */
 async function leaveAndReturn(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   other: string,
 ) {

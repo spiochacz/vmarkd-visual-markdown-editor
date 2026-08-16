@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // NET (task 366) — WYSIWYG is the THIRD editing surface and had no parity coverage at all. It has
 // its own render path (Vditor rebuilds the block DOM differently from IR), and the sweep that
 // produced this spec found two real divergences there:
@@ -78,7 +78,7 @@ type Snap = {
 
 async function openAndSweep(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

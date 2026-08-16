@@ -1,4 +1,9 @@
-import { settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -15,7 +20,9 @@ const SRC = path.join(__dirname, 'fixtures', 'delete-on-disk.md')
 const MARKER = 'DELETEDONDISKMARKER'
 
 type Vs = typeof import('vscode')
-type EvalInVSCode = (fn: unknown, args: unknown) => Promise<unknown>
+// Reuses the shared type from webview-helpers.ts (see its comment) instead of a second
+// hand-copied literal that pinned the arg as mandatory.
+type EvalInVSCode = EvaluateInVSCode
 
 async function hostState(evaluateInVSCode: EvalInVSCode, tmp: string) {
   return evaluateInVSCode(

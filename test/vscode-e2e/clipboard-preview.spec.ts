@@ -1,4 +1,8 @@
-import { settle, stickySelection } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  settle,
+  stickySelection,
+} from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -31,7 +35,7 @@ const wf = (w: import('@playwright/test').Page) =>
 let bootCount = 0
 
 async function bootInSv(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   // Unique path per test: VS Code keeps a TextDocument alive per fsPath.
@@ -81,18 +85,13 @@ async function bootInSv(
   return { tmp, frame }
 }
 
-const readClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) =>
+const readClip = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode')) => vscode.env.clipboard.readText(),
     [] as unknown as [string],
   ) as Promise<string>
 
-const writeClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  text: string,
-) =>
+const writeClip = (evaluateInVSCode: EvaluateInVSCode, text: string) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), a: string[]) => {
       await vscode.env.clipboard.writeText(a[0])

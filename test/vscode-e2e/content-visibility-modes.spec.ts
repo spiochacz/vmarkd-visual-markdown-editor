@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -23,10 +23,7 @@ const BIG = `# Big doc\n\n${Array.from(
     `Paragraph ${i} — filler prose that exists only to push this document over the 100,000-character content-visibility threshold.`,
 ).join('\n\n')}\n`
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, file: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // NET (task 365) — a diagram must look the SAME in IR and in the full Preview pane.
 //
 // It did not. The render cache's reserve+request is a ONE-SHOT at open, and the full Preview pane
@@ -137,7 +137,7 @@ const TO_EDIT = () => {
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

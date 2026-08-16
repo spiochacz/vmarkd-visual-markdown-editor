@@ -1,4 +1,10 @@
-import { docText, placeCaretAtEndOf, settle, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  placeCaretAtEndOf,
+  settle,
+  wf,
+} from './webview-helpers'
 // C2 (task 516) — footnote editing. The chromium harness only exercises footnote *resolution*
 // while streaming (media-src/e2e/stream.spec.ts); nothing edits a `[^label]` reference or its
 // `[^label]: ...` definition through a real keystroke and reads the saved bytes back. Both sides
@@ -16,7 +22,7 @@ mkdirSync(TEMP_DIR, { recursive: true })
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   file: string,
 ) {
   await evaluateInVSCode(
@@ -98,12 +104,12 @@ test('editing a footnote reference paragraph and its definition body round-trips
     )
     .toBe(true)
 
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      await vscode.commands.executeCommand('workbench.action.files.save')
-    },
-    [] as [string],
-  )
+  // No-arg overload: the callback ignores its args, so the fixture's `evaluateInVSCode(fn)`
+  // overload applies directly instead of a `[] as [string]` cast (TS rejects narrowing an empty
+  // array literal to the 1-tuple `[string]`).
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    await vscode.commands.executeCommand('workbench.action.files.save')
+  })
   await settle(frame, 500)
 
   const after = readFileSync(tmp, 'utf8')

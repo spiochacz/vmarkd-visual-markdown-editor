@@ -1,4 +1,11 @@
-import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  ev,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -20,7 +27,7 @@ const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 mkdirSync(TEMP_DIR, { recursive: true })
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
   body: string,

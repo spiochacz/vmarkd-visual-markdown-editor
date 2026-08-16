@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { type EvaluateInVSCode, settle } from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -37,9 +37,7 @@ const wf = (w: import('@playwright/test').Page) =>
     .frameLocator('iframe.webview')
     .frameLocator('iframe[title="vMarkd"], #active-frame')
 
-async function registerProbeUriHandler(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) {
+async function registerProbeUriHandler(evaluateInVSCode: EvaluateInVSCode) {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
       const g = globalThis as unknown as {
@@ -79,9 +77,7 @@ async function registerProbeUriHandler(
   ) as Promise<{ registered: boolean; error: string | null }>
 }
 
-async function readUriHandlerCalls(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) {
+async function readUriHandlerCalls(evaluateInVSCode: EvaluateInVSCode) {
   return evaluateInVSCode(
     async () => {
       return (
@@ -96,7 +92,7 @@ async function readUriHandlerCalls(
 let bootCount = 0
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const dir = path.join(

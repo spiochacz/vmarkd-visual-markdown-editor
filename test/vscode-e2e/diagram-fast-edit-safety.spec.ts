@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -9,9 +9,7 @@ import { expect, test } from 'vscode-test-playwright'
 // the host TextDocument round-trips correctly through both the skip path and an escape-hatch (Enter).
 const FIXTURE = path.join(__dirname, 'fixtures', 'mermaid-label-edit.md')
 
-const readDoc = (
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-) =>
+const readDoc = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const [uri] = args
@@ -25,7 +23,7 @@ const readDoc = (
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

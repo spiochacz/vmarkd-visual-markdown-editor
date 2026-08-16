@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Edit-cycle MONITOR for diagram rendering — the regression net that was missing.
 //
 // Earlier diagram specs were "open → assert the final state" snapshots; they could not catch a
@@ -18,7 +18,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'diagram-edit-monitor.md')
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

@@ -1,3 +1,4 @@
+import type { EvaluateInVSCode } from './webview-helpers'
 // Pin-and-restore for VS Code settings in the real-VS-Code suite (task 524).
 //
 // WHY THIS EXISTS. The suite runs in ONE worker-scoped VS Code profile whose user-data dir persists
@@ -26,7 +27,10 @@
 // A spec should ALSO pin what it depends on, not just clean up after itself: cleaning up only helps
 // the specs after you, while pinning is what makes YOUR assertions independent of what ran before.
 
-type Evaluate = (fn: unknown, args: [string]) => Promise<unknown>
+// Reuses the shared type from webview-helpers.ts (see its comment) rather than a second
+// hand-copied literal — pinning the arg as mandatory here previously forced no-arg call sites
+// elsewhere into a lying `[] as [string]` cast.
+type Evaluate = EvaluateInVSCode
 
 /** `{ 'vmarkd.theme.content': 'auto', 'workbench.colorTheme': 'Monokai' }` — fully-qualified keys. */
 export type SettingValues = Record<string, unknown>

@@ -1,4 +1,10 @@
-import { docText, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -24,7 +30,9 @@ const WEBVIEW_MARKER = 'WEBVIEWDIRTYXYZ'
 const EXTERNAL_MARKER = 'rewritten from outside while dirty XYZ'
 
 type Vs = typeof import('vscode')
-type EvalInVSCode = (fn: unknown, args: unknown) => Promise<unknown>
+// Reuses the shared type from webview-helpers.ts (see its comment) instead of a second
+// hand-copied literal that pinned the arg as mandatory.
+type EvalInVSCode = EvaluateInVSCode
 
 async function openVmarkd(evaluateInVSCode: EvalInVSCode, tmp: string) {
   await evaluateInVSCode(

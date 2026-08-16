@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // NET (task 364) — IR ⇄ full Preview mode switching must not move the reader.
 //
 // The pre-existing scroll-preserve.spec.ts asserts only `pvFrac > 0.3` after scrolling to 0.5, so a
@@ -48,7 +48,7 @@ const ANCHOR = `((sel, fs) => {
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

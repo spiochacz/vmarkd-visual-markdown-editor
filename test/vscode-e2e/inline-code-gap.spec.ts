@@ -1,4 +1,9 @@
-import { docText, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -17,10 +22,7 @@ import { expect, test } from 'vscode-test-playwright'
 // character, and read the TextDocument the way any other tab would.
 const SRC = path.join(__dirname, 'fixtures', 'inline-code-gap.md')
 
-async function open(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) {
+async function open(evaluateInVSCode: EvaluateInVSCode, file: string) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()

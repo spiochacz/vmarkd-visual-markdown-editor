@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, settle, wf } from './webview-helpers'
 // PROBE (investigation, no task file — see AGENTS.md convention for probes like
 // caret-on-open-probe.spec.ts) — measures whether a REAL first click into the editor drops the
 // caret/selection in the real VS Code webview ("click once, no caret; click again, caret sticks"),
@@ -22,7 +22,7 @@ const TEXT_FIXTURE = path.join(__dirname, 'fixtures', 'caret-on-open-text.md')
 
 async function openFixture(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
 ) {
   await evaluateInVSCode(
@@ -191,7 +191,7 @@ function logTimeline(fixtureLabel: string, log: unknown[]) {
 
 async function probeFirstClick(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
   fixtureLabel: string,
 ) {

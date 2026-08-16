@@ -17,21 +17,28 @@ export function wf(workbox: import('@playwright/test').Page) {
     .frameLocator('iframe[title="vMarkd"], #active-frame')
 }
 
-export const ev = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  fn: unknown,
-  arg = '',
-) => evaluateInVSCode(fn, [arg] as [string])
+/**
+ * The playwright fixture's REAL `evaluateInVSCode` type (vscode-test-playwright's
+ * `VSCodeTestFixtures`) is overloaded: a no-arg call is legitimate (`evaluateInVSCode(fn)`), and
+ * a second overload adds an `arg`. Specs that pass the fixture down into their own local helper
+ * functions need to re-annotate it (the real overloaded type doesn't survive being destructured
+ * into a plain parameter), and hand-written re-annotations used to pin that second parameter as
+ * always-required and typed to a specific tuple (e.g. `[string]`). That forced genuinely no-arg
+ * call sites into a lying `[] as [string]` cast (TS2352) and broke every call that correctly
+ * omitted the argument (TS2554). Keeping the argument optional and untyped here reproduces both
+ * real overloads without a cast, in one place instead of a hand-copied literal per spec.
+ */
+export type EvaluateInVSCode = (fn: unknown, arg?: unknown) => Promise<unknown>
+
+export const ev = (evaluateInVSCode: EvaluateInVSCode, fn: unknown, arg = '') =>
+  evaluateInVSCode(fn, [arg] as [string])
 
 export const settle = (frame: ReturnType<typeof wf>, ms: number) =>
   frame
     .locator('body')
     .evaluate((_el, d) => new Promise((r) => setTimeout(r, d as number)), ms)
 
-export const docText = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  file: string,
-) =>
+export const docText = (evaluateInVSCode: EvaluateInVSCode, file: string) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) =>
       vscode.workspace.textDocuments

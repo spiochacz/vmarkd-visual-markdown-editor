@@ -70,12 +70,12 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
     )
     .toBe('')
 
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      await vscode.env.clipboard.writeText('task-212-sentinel')
-    },
-    [] as [string],
-  )
+  // No-arg overload: the callback takes no vscode args, so the fixture's `evaluateInVSCode(fn)`
+  // overload applies directly instead of a `[] as [string]` cast (which TS rejects — an empty
+  // array literal can't be narrowed to the 1-tuple `[string]`).
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    await vscode.env.clipboard.writeText('task-212-sentinel')
+  })
   const codeBlock = frame
     .locator('.vditor-ir__preview')
     .filter({ hasText: 'copyMe' })
@@ -87,10 +87,9 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
   await expect
     .poll(
       () =>
-        evaluateInVSCode(
-          async (vscode: typeof import('vscode')) =>
-            vscode.env.clipboard.readText(),
-          [] as [string],
+        // Same no-arg overload as above.
+        evaluateInVSCode(async (vscode: typeof import('vscode')) =>
+          vscode.env.clipboard.readText(),
         ),
       { timeout: 15_000, intervals: [250, 500, 1000] },
     )

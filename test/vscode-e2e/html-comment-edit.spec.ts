@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, docText, settle, wf } from './webview-helpers'
 // C6 (task 516) — HTML-comment editing. Unit (html-comment.test.ts) and the chromium harness
 // cover the DECORATION (collapsed `<!-- ... -->` shown as visible text via
 // `applyCommentPreviews`/`decorateHtmlBlock`, media-src/src/editing/html-comment.ts); no
@@ -15,7 +15,7 @@ mkdirSync(TEMP_DIR, { recursive: true })
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   file: string,
 ) {
   await evaluateInVSCode(
@@ -142,12 +142,12 @@ test('caret-in reveals the raw comment markers; editing round-trips on save', as
     'the decoration re-applies with the edited text',
   ).toContain('plus edit')
 
-  await evaluateInVSCode(
-    async (vscode: typeof import('vscode')) => {
-      await vscode.commands.executeCommand('workbench.action.files.save')
-    },
-    [] as [string],
-  )
+  // No-arg overload: the callback ignores its args, so the fixture's `evaluateInVSCode(fn)`
+  // overload applies directly instead of a `[] as [string]` cast (TS rejects narrowing an empty
+  // array literal to the 1-tuple `[string]`).
+  await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
+    await vscode.commands.executeCommand('workbench.action.files.save')
+  })
   await settle(frame, 500)
   const saved = readFileSync(tmp, 'utf8')
   rmSync(tmp, { force: true })

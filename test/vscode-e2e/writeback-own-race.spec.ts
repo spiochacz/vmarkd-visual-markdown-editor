@@ -1,4 +1,4 @@
-import { stickySelection, wf } from './webview-helpers'
+import { type EvaluateInVSCode, stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -33,7 +33,8 @@ import { expect, test } from 'vscode-test-playwright'
 // overlap and no error ever surfaces.
 const SRC = path.join(__dirname, 'fixtures', 'undo-dirty.md')
 
-type EvaluateInVSCode = (fn: unknown, args: unknown[]) => Promise<unknown>
+// EvaluateInVSCode imported from webview-helpers.ts (see its comment) instead of a local
+// hand-copied literal that pinned the arg as mandatory.
 
 interface LogEntry {
   start: number

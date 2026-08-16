@@ -1,7 +1,12 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 
 // Task 505 — "one owner per key, one source of truth" rewrite of task 492 Phase 4's original spec.
 // Root cause fixed here: Vditor's OWN hotkey table (media-src/node_modules/vditor/src/ts/util/
@@ -132,7 +137,7 @@ const caretOffsetOf = (frame: ReturnType<typeof wf>) =>
     }) as Promise<number>
 
 async function openDoc(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   frame: ReturnType<typeof wf>,
   docPath: string,
   content: string,

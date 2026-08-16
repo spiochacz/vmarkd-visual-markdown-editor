@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -11,9 +11,7 @@ import { expect, test } from 'vscode-test-playwright'
 // the patch: inLen === outLen (no strip) and the spin re-parses the whole svg.
 const FIXTURE = path.join(__dirname, 'fixtures', 'diagram-edit.md')
 
-const readDoc = (
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-) =>
+const readDoc = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const [uri] = args

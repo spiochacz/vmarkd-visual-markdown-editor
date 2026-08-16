@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, settle, wf } from './webview-helpers'
 // PROBE for task 445, round 6 — pins the exact CALL SITE of the DOM mutation identified in round
 // 5 (caret-click-during-init-probe.spec.ts): a real click within ~0-300ms of the editable first
 // appearing places a caret whose anchor text node then gets mutated (characterData write, plus a
@@ -353,7 +353,7 @@ function logStacks(label: string, log: unknown[]) {
 
 async function openFixture(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
 ) {
   await evaluateInVSCode(
@@ -376,7 +376,7 @@ async function openFixture(
 
 async function probeStackTrace(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
   fixtureLabel: string,
   delayMs: number,

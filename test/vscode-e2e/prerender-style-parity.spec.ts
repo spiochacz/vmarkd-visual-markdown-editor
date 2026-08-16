@@ -14,48 +14,53 @@ const probes = {
   code: ':scope > div[data-type="code-block"]',
 } as const
 
-type Snapshot = Record<keyof typeof probes, Record<string, string | number>>
+type Metrics = Record<string, string | number>
+type Snapshot = Record<keyof typeof probes, Metrics>
 
 function readSnapshot(
   frame: ReturnType<typeof wf>,
   rootSelector: string,
 ): Promise<Snapshot> {
+  // Built with a typed `reduce` (keyed by the actual `probes` names) rather than
+  // `Object.fromEntries`, whose lib.es2019 typing always widens to a `{ [k: string]: V }` index
+  // signature — that shape can never satisfy `Snapshot`'s named keys, which is what made the old
+  // `as Promise<Snapshot>` on the whole call an unsound cast (TS2352). Typing the builder itself
+  // makes `evaluate`'s return type infer as `Snapshot` directly, so no cast is needed here at all.
   return frame.locator('body').evaluate(
     (_body, { rootSelector, probes }) => {
       const root = document.querySelector(rootSelector)
       if (!root) throw new Error(`missing parity root: ${rootSelector}`)
-      return Object.fromEntries(
-        Object.entries(probes).map(([name, selector]) => {
-          const element = root.querySelector(selector) as HTMLElement | null
+      return (Object.keys(probes) as (keyof typeof probes)[]).reduce(
+        (acc, name) => {
+          const element = root.querySelector(probes[name]) as HTMLElement | null
           if (!element) throw new Error(`missing parity probe: ${name}`)
           const style = getComputedStyle(element)
           const rect = element.getBoundingClientRect()
-          return [
-            name,
-            {
-              backgroundColor: style.backgroundColor,
-              color: style.color,
-              fontFamily: style.fontFamily,
-              fontSize: style.fontSize,
-              fontWeight: style.fontWeight,
-              lineHeight: style.lineHeight,
-              marginBottom: style.marginBottom,
-              marginTop: style.marginTop,
-              paddingBottom: style.paddingBottom,
-              paddingLeft: style.paddingLeft,
-              paddingRight: style.paddingRight,
-              paddingTop: style.paddingTop,
-              height: Math.round(rect.height * 100) / 100,
-              width: Math.round(rect.width * 100) / 100,
-              x: Math.round(rect.x * 100) / 100,
-              y: Math.round(rect.y * 100) / 100,
-            },
-          ]
-        }),
+          acc[name] = {
+            backgroundColor: style.backgroundColor,
+            color: style.color,
+            fontFamily: style.fontFamily,
+            fontSize: style.fontSize,
+            fontWeight: style.fontWeight,
+            lineHeight: style.lineHeight,
+            marginBottom: style.marginBottom,
+            marginTop: style.marginTop,
+            paddingBottom: style.paddingBottom,
+            paddingLeft: style.paddingLeft,
+            paddingRight: style.paddingRight,
+            paddingTop: style.paddingTop,
+            height: Math.round(rect.height * 100) / 100,
+            width: Math.round(rect.width * 100) / 100,
+            x: Math.round(rect.x * 100) / 100,
+            y: Math.round(rect.y * 100) / 100,
+          }
+          return acc
+        },
+        {} as Snapshot,
       )
     },
     { rootSelector, probes },
-  ) as Promise<Snapshot>
+  )
 }
 
 // The overlay is ephemeral: `removePrerenderOverlay` deletes it the moment the live editor is

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -41,7 +41,7 @@ const NEWPAGE = path.join(__dirname, 'fixtures', 'plantuml-newpage.md')
 const SPRITE_SIZE = path.join(__dirname, 'fixtures', 'plantuml-sprite-size.md')
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   uri: string,
 ) {

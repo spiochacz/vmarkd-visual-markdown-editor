@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Task 173/174 — the 3 synchronous, before-paint decorators (code-source.ts, callouts.ts,
 // html-comment.ts) were changed to scope their re-decoration to the top-level block(s) a
 // MutationObserver batch actually touched, instead of a whole-editor querySelectorAll on every
@@ -23,7 +23,7 @@ const EMPTY_FIXTURE = path.join(
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
 ) {
   await evaluateInVSCode(

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Task 439 — scope (revised): place the caret ONLY when a document opens genuinely EMPTY, in the
 // real webview (caret/focus only reproduces there — see the probe spec and
 // [[webview-focus-scroll-not-in-harness]]). A document with any content must be left exactly at
@@ -91,7 +91,7 @@ type Measurement = ReturnType<typeof measure>
 
 async function openFixture(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
 ) {
   await evaluateInVSCode(

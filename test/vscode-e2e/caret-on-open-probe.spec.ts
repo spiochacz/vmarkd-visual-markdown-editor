@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // PROBE (task 439, "Current behaviour" step) — measures, WITHOUT any click/keypress, where the
 // caret/focus/scroll actually land right after a document opens in the default IR mode. This is
 // pure measurement: no fix lives here, nothing in the task's checklist gets ticked from this file.
@@ -106,7 +106,7 @@ function logMeasurement(label: string, fixture: string, m: Measurement) {
 
 async function probe(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
   label: string,
 ) {

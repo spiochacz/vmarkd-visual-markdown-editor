@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { type EvaluateInVSCode, settle, wf } from './webview-helpers'
 // PROBE for task 445 (first click into the editor loses the caret; only the second click makes
 // it stick — NOT REPRODUCED after four rounds of probing, see tasks/445-*.md). Every prior probe
 // (caret-first-click-probe.spec.ts and friends) settled 1.5-3s after open BEFORE the first click.
@@ -22,7 +22,7 @@ const TEXT_FIXTURE = path.join(__dirname, 'fixtures', 'caret-on-open-text.md')
 
 async function openFixture(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
 ) {
   await evaluateInVSCode(
@@ -182,7 +182,7 @@ function logTimeline(label: string, log: unknown[]) {
 
 async function probeClickTiming(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
   fixtureLabel: string,
   delayMs: number,

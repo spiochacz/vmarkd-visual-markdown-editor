@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { type EvaluateInVSCode, settle } from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -50,7 +50,7 @@ const wf = (w: import('@playwright/test').Page) =>
     .frameLocator('iframe[title="vMarkd"], #active-frame')
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   await evaluateInVSCode(
@@ -105,7 +105,7 @@ async function boot(
 }
 
 async function openTabFsPaths(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<string[]> {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
@@ -133,7 +133,7 @@ async function openTabFsPaths(
 // after a link click for the first time). Returns BOTH so a regression back to "opens as plain
 // text" fails here, not just silently in whatever feature next assumed a vmarkd webview exists.
 async function openTabInfo(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<Array<{ fsPath: string; viewType: string | undefined }>> {
   return evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
@@ -156,9 +156,7 @@ async function openTabInfo(
 
 // Extension-host-side patch of showErrorMessage — plain mutable object there (unlike the
 // webview's non-writable acquireVsCodeApi() handle, see local-link-open-probe.spec.ts).
-async function installErrorSpy(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-) {
+async function installErrorSpy(evaluateInVSCode: EvaluateInVSCode) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
       const g = globalThis as unknown as { __linkOpenErrors?: string[] }
@@ -174,7 +172,7 @@ async function installErrorSpy(
 }
 
 async function readErrorSpy(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<string[]> {
   return evaluateInVSCode(
     async () => {

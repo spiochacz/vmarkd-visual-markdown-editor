@@ -1,3 +1,4 @@
+import type { EvaluateInVSCode } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { usePinnedSettings } from './settings-helpers'
@@ -248,7 +249,7 @@ async function resetScrollToTop(frame: ReturnType<typeof wf>): Promise<void> {
 // waiting on any webview locator, so a regression reads as "not a vmarkd editor" instead of an
 // opaque iframe timeout — now proving 468 stays fixed, not working around 468 being broken.
 async function expectTabOpenedAsVmarkd(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fsPathSuffix: string,
 ): Promise<void> {
   const info = (await evaluateInVSCode(

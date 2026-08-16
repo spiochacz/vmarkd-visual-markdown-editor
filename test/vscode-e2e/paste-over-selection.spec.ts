@@ -1,4 +1,11 @@
-import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
+import {
+  type EvaluateInVSCode,
+  docText,
+  ev,
+  settle,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -21,10 +28,7 @@ import { expect, test } from 'vscode-test-playwright'
 // Asserted with EXACT equality, not `toContain` — a `toContain` check passes on the mangled
 // result too (it contains every original line), which is how this survived unnoticed.
 
-const writeClip = (
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
-  text: string,
-) =>
+const writeClip = (evaluateInVSCode: EvaluateInVSCode, text: string) =>
   ev(
     evaluateInVSCode,
     async (vscode: typeof import('vscode'), args: string[]) => {
@@ -37,7 +41,7 @@ let bootCount = 0
 const TEMP_DIR = path.join(__dirname, '..', '..', 'tmp', 'vscode-e2e')
 
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   name: string,
   body: string,

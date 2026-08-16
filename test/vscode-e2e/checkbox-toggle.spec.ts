@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // NET (task 516 A1) — a REAL Playwright mouse click on a rendered `- [ ]` task checkbox must flip
 // the source marker on the actual save wire (edit → host writeback → WorkspaceEdit → disk), in both
 // IR and WYSIWYG. This confirms the 190 §5 deferral that never made it into 455's rehomed list:
@@ -34,7 +34,7 @@ test.afterEach(async ({ evaluateInVSCode }) => {
 })
 
 async function openFixture(
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   tmp: string,
   mode: 'ir' | 'wysiwyg',
 ) {

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // Editing around `<hr>` thematic breaks in the real VS Code IR webview (task 100). Two bugs:
 //   1. a `---` typed under another `---` (or at EOF) stayed as literal `--- ` text — the block-scoped
 //      SpinVditorIRDOM never promotes the LAST one. Fix: promoteThematicBreaks renders a left-behind
@@ -51,7 +51,7 @@ const STATE = () => {
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string = FIXTURE,
 ) {
   await evaluateInVSCode(

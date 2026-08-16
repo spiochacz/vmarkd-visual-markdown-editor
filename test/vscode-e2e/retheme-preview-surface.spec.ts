@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { usePinnedSettings, useSettingsRestore } from './settings-helpers'
@@ -62,7 +62,7 @@ useSettingsRestore(test, ['workbench.colorTheme'])
 // webview frame so each caller does its own polling/assertions against whichever lang(s) it owns.
 async function openFlipAndTag(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args?: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ): Promise<import('@playwright/test').FrameLocator> {
   // Same preconditions as retheme-flip-matrix.spec.ts / mermaid-flip-gate.spec.ts, same reasons:
   // `theme.content` must FOLLOW the editor ('auto') or a workbench flip never reaches the webview

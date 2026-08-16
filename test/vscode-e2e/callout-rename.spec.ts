@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // An UNKNOWN callout type must render as RAW blockquote text, not a styled (blue) callout — like
 // GitHub, only known alert names are callouts (user: "niepoprawny typ powinien być surowym tekstem").
 // Covers both the static case and renaming a valid callout to an unknown type. Real VS Code (IR).
@@ -9,7 +9,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'callout-edit-name.md')
 
 async function open(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

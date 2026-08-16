@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 
 // Task 511 cross-file boot merge. One shared VS Code boot for the 4 `diagram-*` specs that survived
 // the family audit (tasks/511-e2e-cross-file-shared-boot.md, "`diagram-*` audit" table) — none of
@@ -46,7 +46,7 @@ const FIXTURES = {
 // shared test(), not a new VS Code launch (that only happens once, at this test()'s own boot, task
 // 448).
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   fixture: string,
 ) {
@@ -83,7 +83,7 @@ async function boot(
 // Runs FIRST in this sweep — see the CACHE CONSEQUENCE comment at the top of the file.
 
 async function runDiagramBg(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.allRenderers)
@@ -133,7 +133,7 @@ async function runDiagramBg(
 // `boot()` closes and reopens a fresh one, so it cannot leak into case 3 or 4.
 
 async function runDiagramZoom(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.allRenderers)
@@ -243,7 +243,7 @@ async function runDiagramZoom(
 // next case's `boot()` closes and reopens a fresh panel.
 
 async function runDiagramInlineZoom(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.allRenderers)
@@ -534,7 +534,7 @@ async function runDiagramInlineZoom(
 // is never affected by the cases-1-3 cache concern described at the top of this file.
 
 async function runDiagramZoomKeys(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.zoomKeys)

@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { type EvaluateInVSCode, settle } from './webview-helpers'
 // PROBE (investigation follow-up, no task file) — every prior probe (caret-on-open-probe.spec.ts,
 // caret-first-click-probe.spec.ts) opened its fixture as the harness's FIRST action, when the VS
 // Code window had no real OS focus (`document.hasFocus() === false`). placeInitialCaret
@@ -34,7 +34,7 @@ function wf(workbox: import('@playwright/test').Page) {
 }
 
 async function openViaCommand(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   fixture: string,
   closeFirst: boolean,
 ) {
@@ -60,7 +60,7 @@ async function openViaCommand(
 // click's focus handover is measured stable. Uses the with-text fixture as the "focus donor".
 async function focusWindowViaClick(
   workbox: import('@playwright/test').Page,
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
 ) {
   await openViaCommand(evaluateInVSCode, TEXT_FIXTURE, true)
   const frame = wf(workbox)

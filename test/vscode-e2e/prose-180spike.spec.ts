@@ -1,4 +1,4 @@
-import { stickySelection, wf } from './webview-helpers'
+import { type EvaluateInVSCode, stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -8,9 +8,7 @@ import { expect, test } from 'vscode-test-playwright'
 // structure, AND that markdown-active keystrokes (heading) still form (fall through to the real spin).
 const FIXTURE = path.join(__dirname, 'fixtures', 'perf-prose.md')
 
-const readDoc = (
-  evaluateInVSCode: (fn: unknown, args: unknown) => Promise<unknown>,
-) =>
+const readDoc = (evaluateInVSCode: EvaluateInVSCode) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {
       const [uri] = args

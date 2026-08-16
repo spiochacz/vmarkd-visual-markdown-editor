@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { useSettingsRestore } from './settings-helpers'
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 
 // Every Global key any case in this sweep writes (label-halo's theme.content, multiline-label's
 // and parallel-lane's diagram.d2.layout, code-highlight's diagram.d2.theme/theme.content/
@@ -52,7 +52,7 @@ const FIXTURES = {
 // (task 450): a fresh close-all + reopen INSIDE the shared test(), not a new VS Code launch (that
 // only happens once, at this test()'s own boot, task 448).
 async function boot(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   fixture: string,
 ) {
@@ -81,7 +81,7 @@ async function boot(
 // ---- case 1: d2-explicit-dimensions.spec.ts ------------------------------------------------
 
 async function runExplicitDimensions(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(
@@ -132,7 +132,7 @@ async function runExplicitDimensions(
 // section-18 D2 blocks in fixtures/all-renderers.md.
 
 async function runFeatureParity(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.allRenderers)
@@ -310,7 +310,7 @@ async function runFeatureParity(
 // compile error it replaces.
 
 async function runImports(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   const frame = await boot(evaluateInVSCode, workbox, FIXTURES.imports)
@@ -424,7 +424,7 @@ const LABEL_HALO_READ = `(() => {
 })()`
 
 async function runLabelHalo(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
@@ -526,7 +526,7 @@ async function readD2Ready(frame: ReturnType<typeof wf>) {
 }
 
 async function runMultilineLabel(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
@@ -653,7 +653,7 @@ async function runMultilineLabel(
 const D2_PARALLEL_LANE_MIN_GAP = 20
 
 async function runParallelLane(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   // A straight, axis-aligned stretch of one connection: its constant coordinate plus its extent.
@@ -813,7 +813,7 @@ async function codeShapeState(
 }
 
 async function runCodeHighlight(
-  evaluateInVSCode: (fn: unknown, args: [string]) => Promise<unknown>,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
 ) {
   await evaluateInVSCode(async (vscode: typeof import('vscode')) => {
