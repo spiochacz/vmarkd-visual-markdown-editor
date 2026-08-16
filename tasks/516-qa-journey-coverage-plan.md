@@ -97,7 +97,7 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
-## Full-suite progression across five runs (2026-08-13 → 15)
+## Full-suite progression across seven runs (2026-08-13 → 16)
 
 | Run | passed | failed | flaky | what changed before it |
 |---|---|---|---|---|
@@ -107,6 +107,7 @@ red, that is recorded in the spec rather than claimed as coverage.
 | 4 | 270 | **0** | 2 | the save race, the theme-code leak, the overlay dblclick |
 | 5 | 270 | **0** | 2 | the caret-verification helper (4e33768); 59.1 min, 2 skipped |
 | 6 | 268 | 1 | 3 | the `stickySelection` sweep; 1.1 h — the 1 failed + 1 flaky were the sweep's own and are now exempted, the other 2 flaky are untouched specs |
+| 7 | 271 | **0** | 1 | the `stickySelection` sweep committed (`53e37fc` render-cache fix, `5d13366` the caret-helper sweep, `a42a8c4` docs); 1.0 h, 2 skipped — the single flaky was `block-fidelity.spec.ts:293` (IR), green in all eight earlier full runs |
 
 ### Run 5's two flakes — a synthetic `Range` is not caret authority (2026-08-15)
 
@@ -189,6 +190,83 @@ The two still-flaky after run 4 — `flip-skip` and `prerender-style-parity` —
 isolation; the parity one was then pinned against inherited themes (see [524](524-e2e-specs-leak-global-settings.md)).
 `two-pane-editing` failed run 3 on `Timed out waiting for VSCodeTestServer address`, i.e. VS Code
 did not boot — harness under load, not a test defect.
+
+### Run 7's flake — a click at the corner beats a Range at the target (2026-08-16)
+
+`block-fidelity.spec.ts:293` ("IR preserves fragile blocks and stays stable across a second edit")
+failed with `Error: the keystroke reached the saved TextDocument (expected "...TYPE-HERE anchor
+paragraph.Z")`, a 20 s poll timeout — the typed `Z` never reached the document.
+
+The spec was green in all eight earlier full runs (2026-08-13 to 15, logs
+`tmp/full-suite-516*.log`); it first flaked in the run immediately after the sweep converted its
+`typeElsewhere` helper to `stickySelection`, so it is attributable to the sweep rather than a
+pre-existing flake.
+
+Root cause: `typeElsewhere` clicked the editor container at `{x: 4, y: 4}`, planting the editor's
+own declarative caret intent in whatever block sits at that corner, then wrote a `Range` into a
+DIFFERENT block (the paragraph containing `TYPE-HERE`). Vditor re-resolves that intent every
+animation frame and reverted the caret to the corner block, so the keystroke landed there.
+`stickySelection` structurally cannot catch this: it verifies BEFORE the keystroke, and the revert
+happens after it returns.
+
+Fix: `placeCaretAtEndOf(frame, workbox, `${mode} p`, 'TYPE-HERE')` — it clicks the TARGET
+paragraph, so the editor's intent and the test's target are the same block, then presses `End` and
+re-verifies. `typeElsewhereSv` keeps `stickySelection`: split mode's source view is a flat span
+soup with no `<p>` to target.
+
+Measured on the real predecessor chain, from the run log — `abc-edit-collapse`, `abc-edit-jump`,
+`abc-flip-cache-hit`, `anchor-links`, `auto-theme-pairing`, `autosave-writeback`, then
+`block-fidelity` — run in ONE command with `--retries=0`: **1 failure in 5 runs** before, **0 in
+10** after. Solo runs do not reproduce it at all. This is the sixth time in this task that the
+chain replay reproduced something a solo run would not have, reinforcing the method already
+documented in the testing skill.
+
+Commit: `4237c8c`.
+
+### Two other defects found on the way (2026-08-16)
+
+**A typecheck regression the branch was carrying.** `npm run typecheck` was RED on
+`test/516-qa-journeys` and clean on `main`:
+`media-src/src/chrome/diff-markers.ts(142,55): error TS2339: Property 'textContent' does not exist
+on type 'never'`. Introduced by branch commit `9392c10` (the git-gutter list-block fix).
+`renderDiffMarkers` reads a block's text via `innerText` — which renders block-level children on
+separate lines the way `blockLineRange` needs — and falls back to `textContent` where `innerText`
+does not exist (jsdom). The guard was written `'innerText' in child`, but the DOM lib types
+declare `innerText` as always present on `HTMLElement`, so tsc narrowed the else branch to `never`
+and rejected the fallback. Fixed by reading `innerText` through an alias that types it optional,
+preserving the runtime check and identical semantics in all three cases (present, empty, absent).
+Commit `c98a1da`. Process point: `npm run quality` does not include `typecheck`, which is why this
+sat unnoticed on the branch.
+
+**`stickySelection`'s retry log described two outcomes as one.** The line `[stickySelection] held
+after N attempts` was reached by two different situations: a write that MOVED the selection and
+then stuck (the editor was clobbering it and stopped — the message is accurate), and a write that
+never moved the selection on any attempt, where the accepted selection is whatever was already
+there. The second is legitimate when the caller re-asserts a caret already at its target, but is
+indistinguishable from a write that silently found nothing — and it fired six times in run 7, all
+in passing specs, so it must NOT become an error. Now logged as its own line, unconditionally,
+naming what to check. Control flow unchanged: the last attempt still falls through to the settle
+and the stability re-check, so nothing returns unverified. Commit `344c2f3`.
+
+Not done: the alternative fix — running `apply` and the snapshot in ONE `evaluate` so `want` is by
+construction what `apply` produced — was attempted and abandoned as impossible. `locator.evaluate`
+does not invoke a string as a function even though its TypeScript type permits a string; it
+evaluates the string as an expression and serialises the resulting function object back as
+`undefined`. Measured on plain chromium: all four syntactic forms (sync arrow, async arrow,
+parenthesised async arrow, async function expression) returned `undefined`, and the five specs
+built on it failed with `TypeError: Cannot destructure property 'result' of '(intermediate value)'
+as it is undefined`. The gotcha is recorded in the `vmarkd-testing` skill. Consequence: the
+two-round-trip ambiguity in `stickySelection` is a KNOWN, ACCEPTED limitation, not something still
+to be fixed.
+
+**Open follow-up — "selection never moved" hits in passing specs.** The new log line now
+identifies call sites where a `stickySelection` write places nothing and the spec passes anyway.
+Observed in a targeted run of `cross-diagram-edit`, `cross-diagram-edit-ir`, `list-enter-start`,
+`prose-fast-edit`, `sv-split` (5 occurrences across those specs; exact per-spec attribution still
+to be done, because console output in a full-suite log interleaves and cannot be attributed
+reliably). These are candidates for specs asserting something weaker than intended — they need
+triage: either the caret was genuinely already at the target (benign) or the spec's targeting has
+drifted and the assertion is not testing what it claims.
 
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
