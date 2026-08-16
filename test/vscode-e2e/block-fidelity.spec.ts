@@ -1,4 +1,9 @@
-import { docText, stickySelection, wf } from './webview-helpers'
+import {
+  docText,
+  placeCaretAtEndOf,
+  stickySelection,
+  wf,
+} from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -80,11 +85,19 @@ async function waitForDocText(
 
 /**
  * Type one character at the end of the TYPE-HERE paragraph — a block that shares nothing with the
- * code blocks and definitions under test. The page-level click first: `focus()` below is DOM-level
- * INSIDE the iframe while `workbox.keyboard` dispatches to the top Electron window, and without it
- * the keystroke is silently dropped (see doc-sync.spec.ts).
+ * code blocks and definitions under test.
  *
- * task 451: this used to end with a blind 2500ms sleep waiting for the keystroke to reach
+ * This used to click the editor container at a fixed `{ x: 4, y: 4 }` and then write a `Range` into
+ * the TYPE-HERE paragraph via `stickySelection`. That click planted the editor's own click-intent in
+ * whatever block sits at that corner — a DIFFERENT block from the one the Range targeted — and
+ * Vditor re-resolves its declarative caret intent every animation frame, so it kept reverting the
+ * caret back to the click position. `stickySelection` verifies the write BEFORE the keystroke, which
+ * cannot catch a revert that happens after it returns; measured at 1 failure in 5 chain replays, all
+ * with the keystroke landing in the clicked block instead of the anchor paragraph. `placeCaretAtEndOf`
+ * closes that gap by clicking the TARGET element itself — so the click-intent and the test's target
+ * are the same block — then pressing `End` and re-verifying the caret landed before it returns.
+ *
+ * task 451: this also used to end with a blind 2500ms sleep waiting for the keystroke to reach
  * `vscode.workspace.textDocuments` (the writeback debounce is 250ms — edit-sync.ts — so 2500ms was
  * a 10x margin). That settle is now a poll AT EACH CALL SITE instead of in here: it needs
  * `evaluateInVSCode` + the temp file path, neither of which this helper has, and the exact string
@@ -96,28 +109,7 @@ async function typeElsewhere(
   workbox: import('@playwright/test').Page,
   mode: '.vditor-ir' | '.vditor-wysiwyg',
 ) {
-  await frame
-    .locator(mode)
-    .first()
-    .click({ position: { x: 4, y: 4 } })
-  await stickySelection(
-    frame,
-    (_el, sel) => {
-      const p = [...document.querySelectorAll(`${sel} p`)].find((x) =>
-        x.textContent?.includes('TYPE-HERE'),
-      ) as HTMLElement | undefined
-      const t = p?.lastChild as Text | null
-      if (!t) throw new Error('TYPE-HERE anchor not found')
-      const r = document.createRange()
-      r.setStart(t, (t.textContent ?? '').length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p?.focus()
-    },
-    mode,
-  )
+  await placeCaretAtEndOf(frame, workbox, `${mode} p`, 'TYPE-HERE')
   await workbox.keyboard.type('Z', { delay: 40 })
 }
 
