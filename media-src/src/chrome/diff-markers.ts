@@ -137,9 +137,14 @@ export function renderDiffMarkers(vditor: any, changes: DiffChange[]): number {
     // which blockLineRange needs to map multi-line blocks like lists/tables
     // back to source lines (task 516). textContent concatenates them with no
     // separator and is only a fallback for environments without innerText
-    // (e.g. jsdom in unit tests never reaches this DOM wrapper).
-    const text =
-      ('innerText' in child ? child.innerText : child.textContent) || ''
+    // (e.g. jsdom in unit tests never reaches this DOM wrapper). The lib DOM
+    // types declare innerText as always present on HTMLElement, so a
+    // `'innerText' in child` guard narrows the false branch to never and tsc
+    // rejects the textContent fallback; read it through an alias that widens
+    // innerText to optional instead, so a missing property (undefined, same
+    // as jsdom's un-narrowed access) falls through to textContent via ??.
+    const box = child as HTMLElement & { innerText?: string }
+    const text = box.innerText ?? child.textContent ?? ''
     blocks.push({
       text,
       top: child.offsetTop,
