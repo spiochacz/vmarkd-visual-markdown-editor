@@ -369,6 +369,61 @@ a done thing: wiring both typecheck scripts into `scripts/quality.mjs` has not b
 a call on whether `typecheck:vscode-e2e` should gate at zero — it would have to be fixed on `main`
 too, which it now effectively is via this branch, once merged.
 
+### First `@probe`/`@spike` tier run, against a `4e33768` baseline (2026-08-16)
+
+Both the `stickySelection` sweep and the later `EvaluateInVSCode` typecheck sweep touched specs in
+the `@probe` and `@spike` tiers — excluded from the default suite, so those edits had been
+typechecked but never executed. Both tiers were run to close that gap.
+
+Neither tier is part of routine work and neither had been run in a long time, so a raw failure list
+says nothing on its own. Both were therefore also run at `4e33768` — the last commit before this
+session's work — on a detached checkout with a rebuild, and the failure sets compared:
+
+| tier | baseline `4e33768` | branch HEAD |
+|---|---|---|
+| `probes` | 328 passed, 3 failed, 1 flaky, 2 skipped, 1.1 h | 328 passed, 2 failed, 2 flaky, 2 skipped, 1.2 h |
+| `spikes` | 283 passed, 2 failed, 6 flaky, 2 skipped, 1.1 h | 285 passed, 2 failed, 4 flaky, 2 skipped, 1.2 h |
+
+Baseline `probes` failures: `local-link-open-probe`, `webview-message-origin-probe`,
+`wiki-create-missing-page`; flaky: `prerender-overlay-lifetime-probe`.
+Branch `probes` failures: `local-link-open-probe`, `webview-message-origin-probe`; flaky:
+`list-editing-probe`, `prose-fast-edit`.
+
+Baseline `spikes` failures: `diagram-175spike-all` (graphviz), `mermaid-pipeline-breakdown-spike`;
+flaky: `diagram-175spike-all` (mermaid, echarts, flowchart), `diagram-edit-monitor` (graphviz),
+`footnote-editing`, `prose-180spike`.
+Branch `spikes` failures: `diagram-175spike-all` (stl), `mermaid-pipeline-breakdown-spike`; flaky:
+`diagram-175spike-all` (d2, echarts), `diagram-resettle-spike`, `plantuml-edit-recovery`.
+
+**Every hard failure on the branch also fails on the baseline**: `local-link-open-probe`,
+`webview-message-origin-probe`, and `mermaid-pipeline-breakdown-spike` are pre-existing, predating
+this session. `local-link-open-probe` fails with `strict mode violation: locator('iframe.webview')
+resolved to 2 elements` — the two-webview ambiguity `webview-helpers.ts`'s own header comment
+documents certain specs solving with a `:visible` variant.
+
+**`webview-message-origin-probe` failing on both sides settles a specific question by measurement.**
+Its only change this session was type-level (`import type`, one parameter annotation, three
+`evaluateInVSCode as any` casts removed), and a TypeScript cast is erased at compile time, so it
+could not have caused a runtime failure. That argument was not relied on — the baseline run
+confirms it.
+
+**`diagram-175spike-all` is inherently unstable**: it fails on both sides but on DIFFERENT engines
+each run (baseline graphviz/mermaid/echarts/flowchart, branch stl/d2/echarts). Rotating-engine
+failure is the signature of an unstable spike, not a regression.
+
+**The branch is not worse on either tier, and is slightly better on both counts**: `probes` has one
+fewer hard failure, `spikes` has two more passing and two fewer flaky.
+
+**The limitation, stated honestly.** This is n=1 per side. It rules out a systematic regression, and
+it does NOT prove that the two flakes appearing only on the branch (`list-editing-probe`,
+`prose-fast-edit`) are unrelated to this session's changes — establishing that would need a measured
+failure RATE on both sides, which was not run.
+
+**Standing state:** neither tier is a maintained gate. Both carry long-standing failures on `main`'s
+side of history, and running them is a deliberate act, not part of any routine command. Whether to
+repair or retire them is an open decision that belongs to whoever owns the probe/spike convention
+(task 449) — not settled here.
+
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
 `xvfb-run -a npm run test:vscode`: **262 passed, 4 failed, 6 flaky, 2 skipped, 54.4 min.**
