@@ -424,6 +424,64 @@ side of history, and running them is a deliberate act, not part of any routine c
 repair or retire them is an open decision that belongs to whoever owns the probe/spike convention
 (task 449) — not settled here.
 
+### `mermaid-pipeline-breakdown-spike` — investigated but not fixed (2026-08-16/17)
+
+The `@spike` tier run above pins `mermaid-pipeline-breakdown-spike` as a pre-existing hard failure
+(fails on both branch HEAD and the `4e33768` baseline). It fails solo and deterministically, so it
+had a clean red to work from. Investigated further; nothing shipped, for a specific reason recorded
+below — the measurements are kept so they don't have to be re-derived.
+
+Four real defects, all measured:
+
+- **Its own timeout budget cannot fit the config's default.** The spec waits up to 60 s for
+  `.vditor-ir`, up to 60 s for `.language-mermaid svg`, then a 3 s settle and a 6 s poll — 129 s of
+  allowed waiting against `playwright.config.ts`'s 90 s default `timeout`. Under tier load it hit
+  that ceiling and died as `Target page, context or browser has been closed`, which reads as an
+  infrastructure error and hid every real defect behind it. Raising `test.setTimeout` made it
+  finish in ~14 s and fail honestly on its own assertion instead.
+- **The keystroke never reached the document.** With the timeout raised, both phases reported
+  `-1`. Direct measurement inside the webview: `document.hasFocus() === false`,
+  `document.activeElement` was `BODY.vscode-dark`, and the mermaid source tail read back as
+  `"  J --> K\n  K --> L[End]\n"` — no typed character. The selection itself WAS correctly placed
+  (anchor node held the mermaid source text), so this is a focus problem, not a caret-targeting
+  one. The spec never performs a real click; it only calls `node.focus()` inside an `evaluate`,
+  which is DOM-level focus inside the iframe while `workbox.keyboard` dispatches to the top
+  Electron window.
+- **The edit it types is invalid mermaid.** The caret goes to the very END of the source, so
+  typing `Z` yields `L[End]Z` — a syntax error. The diagram then cannot re-render, so the poll's
+  "new svg" can never appear and the spike reports `-1` for the second phase no matter what else is
+  fixed. Confirmed by reading the source back and by observing zero `.language-mermaid svg` and
+  zero `.vmarkd-stale-overlay` elements afterwards, including after moving the caret out of the
+  block. Placing the caret inside the last node label instead (before its closing `]`, giving
+  `L[EndZ]`) keeps it valid.
+- **Ordering is load-bearing.** The spec writes the caret, THEN starts its 6 s timeline poll, THEN
+  waits 30 ms, THEN types — contradicting its own comment directly above ("Type IMMEDIATELY after
+  the caret lands"). With that original ordering the spec hangs to the raised timeout (3.0 min)
+  even with the caret position corrected. Starting the poll first, so the caret write is
+  immediately before the keystroke, completes in ~9 s.
+
+**Why nothing shipped.** With the poll started first and the caret inside the label, the spec
+passed **twice**, producing a coherent measurement: keystroke → old svg gone ≈ 511 ms, → new svg ≈
+511 ms, i.e. the swap is atomic at the poll's 10 ms resolution and the whole cost is the QUIET
+window plus the spin start, NOT the mermaid render (isolated ≈ 55 ms) — which is exactly the
+question the spike's header says it exists to answer.
+
+That result could **not be reproduced**: 0 of 7 subsequent runs on byte-identical code. Ruled out
+as causes: machine load (load average 0.91), orphaned VS Code/Electron processes (none), a mutated
+fixture (`git status` clean), leftover profile settings (no `settings.json` in the test profile),
+and `vmarkd.editor.defaultMode: remember` leaking a mode from the run that died at the 3-minute
+timeout (pinning it to `ir` measured 0/3).
+
+So the instability is **independent of the spec's code**, and its mechanism is undetermined. Per
+this repo's rule — a fix that cannot be proven is said so rather than shipped on a hunch — the
+working tree was reverted and nothing was committed.
+
+**What a later attempt should know.** The four defects above are real regardless of the
+instability and will need fixing whatever the root cause turns out to be. Two green runs looked
+like proof and were not — any future claim here needs a measured RATE, not a pass. The spike is
+`@spike`, excluded from every routine command, and was already failing before this investigation
+touched anything.
+
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
 `xvfb-run -a npm run test:vscode`: **262 passed, 4 failed, 6 flaky, 2 skipped, 54.4 min.**
