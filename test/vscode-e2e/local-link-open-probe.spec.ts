@@ -28,9 +28,16 @@ import { test } from 'vscode-test-playwright'
 //       observable directly, so its signature is "posted href starts with https:, no new
 //       tab, target file was never opened".
 
+// LOCAL variant, not the shared `wf()` from webview-helpers.ts (see that file's header comment,
+// which lists this spec among the ones that need it): `probeSurface` ctrl-clicks links, which
+// opens target files in new tabs, then explicitly closes them again to keep the main doc active
+// for the next case. VS Code doesn't remove a closed webview's iframe from the DOM immediately,
+// so by the time this spec re-fetches the frame for its SV phase, a second — hidden — `iframe.webview`
+// is still around and a bare `iframe.webview` locator hits Playwright's strict-mode ambiguity.
+// `:visible` picks the live one, matching `anchor-links.spec.ts`.
 const wf = (w: import('@playwright/test').Page) =>
   w
-    .frameLocator('iframe.webview')
+    .frameLocator('iframe.webview:visible')
     .frameLocator('iframe[title="vMarkd"], #active-frame')
 
 let bootCount = 0

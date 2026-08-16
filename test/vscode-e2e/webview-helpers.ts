@@ -7,9 +7,9 @@
 // A handful of specs keep their own LOCAL variant instead of importing from here — that is
 // deliberate, not an oversight: `caret-focused-open-probe.spec.ts` and `caret-empty-typing.spec.ts`
 // use `.last()` because a donor tab can leave two vmarkd webview iframes in the DOM at once;
-// `anchor-links.spec.ts` and `webview-message-origin-probe.spec.ts` add `:visible`;
-// `prerender-first-open.spec.ts` uses `.locator(...).last().contentFrame()`. Each is solving a
-// real, spec-specific timing/ambiguity problem — do not "fix" them to import this instead.
+// `anchor-links.spec.ts`, `webview-message-origin-probe.spec.ts` and `local-link-open-probe.spec.ts`
+// add `:visible`; `prerender-first-open.spec.ts` uses `.locator(...).last().contentFrame()`. Each
+// is solving a real, spec-specific timing/ambiguity problem — do not "fix" them to import this instead.
 
 export function wf(workbox: import('@playwright/test').Page) {
   return workbox
