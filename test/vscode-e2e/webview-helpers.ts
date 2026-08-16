@@ -158,14 +158,26 @@ export const stickySelection = async <A, R>(
     // A caller re-asserting a selection that is ALREADY where it wants it is legitimate, and
     // indistinguishable from a no-op write until it has held; accept it only once retrying has
     // stopped being an option.
-    if (want === 'none' || (want === before && !isLastAttempt)) continue
+    const wroteNothing = want === before
+    if (want === 'none' || (wroteNothing && !isLastAttempt)) continue
     await settle(frame, 200)
     if ((await body.evaluate(SELECTION_SNAPSHOT)) === want) {
-      // A retry that succeeds still gets logged. A silent retry loop is how a real product problem
-      // ("the editor stopped holding a caret") turns into a green run — this way the suite log
-      // carries the rate instead of hiding it.
-      if (attempt > 0)
+      // A retry that succeeds still gets logged, but the two outcomes that reach this line are not
+      // the same thing. If the write MOVED the selection (`!wroteNothing`), the editor was
+      // clobbering it and has now stopped — "held after N attempts" is accurate, and it is only
+      // worth logging past the first attempt. If the write never moved the selection at all
+      // (`wroteNothing`), the accepted selection is whatever was ALREADY there before `apply` ran:
+      // legitimate when the caller is re-asserting a caret that's already at the target, but
+      // indistinguishable from a write that silently found nothing — so it is logged unconditionally,
+      // worded so a reader scanning the suite log can tell this call placed nothing and knows to
+      // check whether the spec's own targeting is still finding what it means to find.
+      if (wroteNothing) {
+        console.log(
+          `[stickySelection] selection never moved after ${attempt + 1} attempts — accepting the existing selection as already at the target; if that assumption is wrong, this call placed nothing and the spec's own targeting should be checked`,
+        )
+      } else if (attempt > 0) {
         console.log(`[stickySelection] held after ${attempt + 1} attempts`)
+      }
       return result
     }
   }

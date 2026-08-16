@@ -262,6 +262,18 @@ e2e for the feature. Run `npx biome format --write <changed files>` BEFORE lint 
   about to take Backspace/Enter (list-backspace, list-autoformat-space). All six pass with a plain
   `evaluate` write and failed through the helper; those sites must type IMMEDIATELY after the caret
   lands, and each carries a comment saying so.
+- **`locator.evaluate` does NOT invoke a string as a function, even though the TYPE allows one.**
+  Playwright types the callback as `PageFunctionOn<On, Arg2, R> = string | ((on, arg2) => ...)`, which
+  makes composing a helper from two pieces of source text — a caller-supplied `apply` plus the
+  helper's own follow-up code, joined into one string and passed to a single `evaluate` — look legal.
+  At runtime it isn't: a string is evaluated as an EXPRESSION and the resulting function object is
+  what gets serialized back, which comes through as `undefined`. Measured on plain chromium across all
+  four syntactic forms (sync arrow, async arrow, parenthesised async arrow, async function
+  expression) — all four returned `undefined`, and the specs built on it failed with `TypeError:
+  Cannot destructure property 'result' of '(intermediate value)' as it is undefined`. A helper that
+  needs both a caller-supplied callback and its own follow-up logic (e.g. `stickySelection`'s
+  `apply` step and its own selection snapshot) must use SEPARATE `evaluate` round trips, not one
+  composed source string.
 - **`settle(frame, ms)` STEALS DOM focus into the webview** (task 516). It waits by running
   `evaluate` INSIDE the webview iframe, and touching the iframe moves keyboard focus there. Harmless
   when the test types INTO the editor — fatal when the test needs focus somewhere else (a workbench
