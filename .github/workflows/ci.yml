@@ -69,6 +69,14 @@ jobs:
       - name: Type-check (webview, strict subset)
         run: npm run typecheck:strict
 
+      # Task 516 — the real-VS-Code spec tree was typechecked by nothing: not by
+      # this workflow, not by `npm run quality`. It had drifted to 12 errors, 9 of
+      # them long-standing, before anyone ran it. The specs are the only coverage
+      # some webview behaviour has, so a spec that no longer compiles is a hole in
+      # the net, not a cosmetic complaint. Cheap: tsc only, no browser, no suite.
+      - name: Type-check (vscode-e2e specs)
+        run: npm run typecheck:vscode-e2e
+
       # Run with coverage so the non-regression thresholds in test/vitest.config.ts
       # are enforced (task 150 item 3) — a coverage drop fails the build, not just
       # a failing assertion. Same test set as `npm test`, plus the v8 report.
