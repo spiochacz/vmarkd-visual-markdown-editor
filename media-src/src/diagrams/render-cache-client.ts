@@ -281,7 +281,12 @@ function reportRenders(
       command: 'diagram-render-cached',
       diagramId,
       hash,
-      svg: el.innerHTML,
+      // Same STEM the local cache stores (see rememberLocal / stripSvgIdNamespace). Posting the
+      // painted markup verbatim let a `-vmN` namespace ride into the HOST cache, and the next paint
+      // from that entry added its own on top — `id="…-vm7-vm9"`. Ids stayed unique, so nothing broke
+      // visibly, but the markup grew with every mode switch and the two panes stopped being
+      // byte-comparable, which is what mode-switch-render-reuse.spec.ts asserts.
+      svg: stripSvgIdNamespace(el.innerHTML),
     })
   }
   for (const lang of CACHEABLE_LANGS) {

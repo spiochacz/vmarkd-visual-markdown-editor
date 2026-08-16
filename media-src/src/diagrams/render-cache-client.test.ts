@@ -865,6 +865,34 @@ describe('reportRenders — a stale render is never filed under a new themeKey',
 
   beforeEach(() => setRenderCacheConfig({ version: 'v1', themeKey: 'key-a' }))
 
+  // A block that was itself PAINTED from the cache carries a `-vmN` paint namespace on its
+  // referenced ids (uniquifySvgIds). What gets filed with the host must be the STEM, exactly as
+  // rememberLocal stores it locally — otherwise the next paint from that host entry adds its own
+  // namespace on top (`id="…-vm7-vm9"`), the markup grows with every mode switch, and the two panes
+  // stop being byte-comparable (mode-switch-render-reuse.spec.ts).
+  it('files the host copy WITHOUT the paint id namespace, so suffixes cannot stack', async () => {
+    const app = document.createElement('div')
+    app.id = 'app'
+    app.innerHTML =
+      `<div class="vditor-ir__preview" data-render="2">` +
+      `<div class="language-d2" data-code="namespaced -> put" data-processed="true">` +
+      `<svg><defs><mask id="lbl-vm7"></mask></defs><g mask="url(#lbl-vm7)"></g></svg>` +
+      `</div></div>`
+    document.body.replaceChildren(app)
+    const posted: WebviewMessage[] = []
+    installRenderCache(app, (m) => posted.push(m))
+    await flush()
+    const put = posted.find((m) => m.command === 'diagram-render-cached') as
+      | { svg: string }
+      | undefined
+    expect(put, 'the render was filed with the host').toBeDefined()
+    expect(
+      put?.svg,
+      'no paint namespace rides into the host cache',
+    ).not.toMatch(/-vm\d+/)
+    expect(put?.svg, 'the id stem itself survives').toContain('id="lbl"')
+  })
+
   it('reports once under the key it rendered under, then not again after a flip', async () => {
     const app = mountRendered()
     const posted: WebviewMessage[] = []
