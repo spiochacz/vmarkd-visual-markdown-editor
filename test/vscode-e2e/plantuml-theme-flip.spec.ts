@@ -30,7 +30,15 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'plantuml-theme-flip.md')
 // `#3b3b3b` but content fg `#202020`, Dark Modern `#cccccc` vs `#bbbebf`. This file used to assert
 // the editor-foreground constants and failed on both ends of the flip for that reason alone —
 // including on a clean `main`, so it was a stale expectation, not a product regression (task 516
-// full-suite triage). Deriving it also survives the next upstream palette tweak.
+// full-suite triage). Deriving it also survives the next upstream palette tweak — but derivation
+// ALONE would let a renderer that bakes the wrong colour pass whenever the body foreground happens
+// to move with it, so the palette itself is pinned separately below.
+//
+// The CONTENT foreground of each VS Code default theme — see the assertion at the end of the test
+// for why these are pinned alongside the derived check, and what to do if one of them fails.
+const LIGHT_CONTENT_FG = '#202020'
+const DARK_CONTENT_FG = '#bbbebf'
+
 const rgbToHex = (rgb: string): string => {
   const m = rgb.match(/\d+/g)
   if (!m || m.length < 3) return rgb.toLowerCase()
@@ -142,6 +150,23 @@ test('a theme flip re-renders every PlantUML block ONCE in the new colour', asyn
   expect(after.textFill, 'the flip actually changed the baked colour').not.toBe(
     lightFill,
   )
+  // ...and the foreground it derived from is itself pinned. Deriving the expectation from the live
+  // DOM alone loses ABSOLUTE sensitivity: if the renderer ever baked a slightly different colour AND
+  // the body foreground moved with it, both sides of the check above would move together and pass.
+  // Splitting it in two keeps each failure legible — the checks above say "the renderer baked what
+  // the content theme says", these say "the content theme is still the palette we measured".
+  // Values measured with a throwaway probe (task 516 triage): the CONTENT foreground, which is what
+  // PlantUML bakes, NOT `--vscode-editor-foreground` (Light Modern editor fg is #3b3b3b vs content
+  // #202020, Dark Modern #cccccc vs #bbbebf) — asserting the editor values is what made this spec
+  // fail on a clean `main`. If one of these fails on its own, VS Code's default palette moved:
+  // re-measure and update the constant, do NOT delete the assertion.
+  expect(lightFill, 'Light Modern content foreground (palette drift?)').toBe(
+    LIGHT_CONTENT_FG,
+  )
+  expect(
+    rgbToHex(after.contentFg),
+    'Dark Modern content foreground (palette drift?)',
+  ).toBe(DARK_CONTENT_FG)
   // The double-fire guard (task 411): no block gets cleared + redrawn TWICE in one flip — that was
   // the ~57s spinner-then-blank regression (see this file's own header comment). Task 411 originally
   // pinned this via `stats.calls === 1`, because at the time `reThemeMono` called `reRenderPlantuml`

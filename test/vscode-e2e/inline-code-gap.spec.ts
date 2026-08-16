@@ -1,4 +1,4 @@
-import { docText, wf } from './webview-helpers'
+import { docText, stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -70,20 +70,24 @@ async function typeOneChar(
     .locator('.vditor-wysiwyg')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
-      x.textContent?.includes('TYPE-HERE'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('TYPE-HERE anchor not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
+        x.textContent?.includes('TYPE-HERE'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('TYPE-HERE anchor not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type('Z', { delay: 40 })
   await frame
     .locator('body')
@@ -168,22 +172,26 @@ test('the boundary stays editable: typing a space there, then removing it', asyn
     .locator('.vditor-wysiwyg')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
-      x.textContent?.includes('glued'),
-    ) as HTMLElement | undefined
-    const t = [...(p?.childNodes ?? [])].find(
-      (n) => n.nodeType === 3 && (n.textContent ?? '').includes('text'),
-    ) as Text | undefined
-    if (!t) throw new Error('boundary text node not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').indexOf('text') + 'text'.length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
+        x.textContent?.includes('glued'),
+      ) as HTMLElement | undefined
+      const t = [...(p?.childNodes ?? [])].find(
+        (n) => n.nodeType === 3 && (n.textContent ?? '').includes('text'),
+      ) as Text | undefined
+      if (!t) throw new Error('boundary text node not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').indexOf('text') + 'text'.length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.press('Space')
   // Task 419 — this is one of the two named repros (needed 2 retries once, the worst-observed
   // instance of the flake this task fixes). Poll instead of a fixed settle(2000).
@@ -224,20 +232,24 @@ test('typing next to glued inline code keeps it glued (the spin path, every keys
     .locator('.vditor-wysiwyg')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
-      x.textContent?.includes('glued'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('glued paragraph not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-wysiwyg p')].find((x) =>
+        x.textContent?.includes('glued'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('glued paragraph not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type('QQQ', { delay: 60 })
   // Task 419 — this fixed settle was already bumped once (1500ms → 4500ms) chasing an "observed
   // flake" instead of fixing the actual bet-on-machine-speed cause: three keystrokes restart the
@@ -307,20 +319,24 @@ test('editing a table cell in IR keeps the space before its inline marker (task 
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const td = [...document.querySelectorAll('.vditor-ir td')].find((x) =>
-      x.textContent?.includes('CELL-EDIT'),
-    ) as HTMLElement | undefined
-    const t = td?.lastChild as Text | null
-    if (!t) throw new Error('CELL-EDIT cell not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    td?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const td = [...document.querySelectorAll('.vditor-ir td')].find((x) =>
+        x.textContent?.includes('CELL-EDIT'),
+      ) as HTMLElement | undefined
+      const t = td?.lastChild as Text | null
+      if (!t) throw new Error('CELL-EDIT cell not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      td?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type('!', { delay: 40 })
   // Task 419 — poll instead of a fixed settle(2500).
   await expect

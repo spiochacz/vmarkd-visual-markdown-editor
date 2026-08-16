@@ -51,6 +51,9 @@ test('SPIKE: settle re-renders all diagrams vs only the edited one', async ({
 
   // Put the caret at the END of the SECOND diagram's source code, focus it, and record the
   // source length so we can confirm the edit actually landed.
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   const placed = (await frame.locator('body').evaluate(() => {
     const nodes = Array.from(
       document.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),

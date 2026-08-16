@@ -65,6 +65,9 @@ test('editing a diagram does not add background blocking (scroll stays smooth) @
   const before = await sampleIdle()
 
   // Edit the first d2 block: place caret at the end of its source, type a few chars, let it settle.
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   await frame.locator('body').evaluate(() => {
     const node = document
       .querySelector('.language-d2')

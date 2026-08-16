@@ -99,6 +99,9 @@ test('strips the rendered preview SVG from the spin input, byte-correct save, li
     .click({ position: { x: 4, y: 4 } })
 
   // Place the caret at the end of mermaid's trailing `zzz` identifier (stays valid as we append letters).
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   const placed = await frame.locator('body').evaluate(() => {
     const wrapper = document.querySelector('.language-mermaid')
     const node = wrapper?.closest('.vditor-ir__node') as HTMLElement | null

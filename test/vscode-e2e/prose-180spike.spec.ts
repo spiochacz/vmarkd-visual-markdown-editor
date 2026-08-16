@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -23,29 +23,33 @@ const readDoc = (
   ) as Promise<string>
 
 async function caretAtEditHere(frame: ReturnType<typeof wf>): Promise<boolean> {
-  return frame.locator('body').evaluate(() => {
-    const ir = document.querySelector('.vditor-ir') as HTMLElement | null
-    const p = Array.from(ir?.querySelectorAll('p') ?? []).find((x) =>
-      x.textContent?.includes('Edit here'),
-    ) as HTMLElement | undefined
-    if (!p) return false
-    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-    let last: Text | null = null
-    let n = walker.nextNode() as Text | null
-    while (n) {
-      last = n
-      n = walker.nextNode() as Text | null
-    }
-    if (!last) return false
-    const r = document.createRange()
-    r.setStart(last, (last.textContent ?? '').length)
-    r.collapse(true)
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(r)
-    p.focus()
-    return true
-  })
+  return stickySelection(
+    frame,
+    () => {
+      const ir = document.querySelector('.vditor-ir') as HTMLElement | null
+      const p = Array.from(ir?.querySelectorAll('p') ?? []).find((x) =>
+        x.textContent?.includes('Edit here'),
+      ) as HTMLElement | undefined
+      if (!p) return false
+      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
+      let last: Text | null = null
+      let n = walker.nextNode() as Text | null
+      while (n) {
+        last = n
+        n = walker.nextNode() as Text | null
+      }
+      if (!last) return false
+      const r = document.createRange()
+      r.setStart(last, (last.textContent ?? '').length)
+      r.collapse(true)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(r)
+      p.focus()
+      return true
+    },
+    null,
+  )
 }
 
 async function sampleBurst(

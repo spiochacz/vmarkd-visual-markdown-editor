@@ -1,4 +1,4 @@
-import { docText, settle } from './webview-helpers'
+import { docText, settle, stickySelection } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -108,7 +108,8 @@ async function copyElement(
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  const found = await frame.locator('body').evaluate(
+  const found = await stickySelection(
+    frame,
     (_e, args) => {
       const [sel, n] = args as [string, string]
       const root = document.querySelector('.vditor-ir .vditor-reset')
@@ -325,23 +326,27 @@ test('paste: every element markdown becomes a real element', async ({
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate(() => {
-      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-        x.textContent?.includes('PASTE-TARGET'),
-      ) as HTMLElement | undefined
-      if (!p) throw new Error('PASTE-TARGET not found')
-      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-      let t: Text | null = null
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) t = n as Text
-      if (!t) throw new Error('no text node in PASTE-TARGET')
-      const r = document.createRange()
-      r.setStart(t, (t.textContent ?? '').length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p.focus()
-    })
+    await stickySelection(
+      frame,
+      () => {
+        const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+          x.textContent?.includes('PASTE-TARGET'),
+        ) as HTMLElement | undefined
+        if (!p) throw new Error('PASTE-TARGET not found')
+        const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
+        let t: Text | null = null
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) t = n as Text
+        if (!t) throw new Error('no text node in PASTE-TARGET')
+        const r = document.createRange()
+        r.setStart(t, (t.textContent ?? '').length)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        p.focus()
+      },
+      null,
+    )
     await workbox.keyboard.press('Control+v')
     // Poll for the paste to settle (task 419's lesson, applied here too) instead of a fixed delay.
     // `.catch()` makes this wait best-effort: a timeout must NOT throw and abort the whole sweep

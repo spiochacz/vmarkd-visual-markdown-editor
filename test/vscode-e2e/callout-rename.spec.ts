@@ -71,6 +71,9 @@ test('renaming a valid callout to an unknown type turns it into raw text (body k
 }) => {
   const frame = await open(workbox, evaluateInVSCode)
   // expand the VALID [!TIP] callout + caret right before the marker's "]"
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   const placed = await frame.locator('body').evaluate(() => {
     const ir = (
       window as unknown as {

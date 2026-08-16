@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { docText, settle, stickySelection, wf } from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -65,7 +65,8 @@ async function caretIn(
     .locator(mode)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [sel, needle, offset] = args as [string, string, number]
       const p = [...document.querySelectorAll(`${sel} p`)].find((x) =>
@@ -277,17 +278,21 @@ test('a real selection still cuts normally', async ({
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-      x.textContent?.includes('Anchor line BRAVO'),
-    ) as HTMLElement
-    const r = document.createRange()
-    r.selectNodeContents(p)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+        x.textContent?.includes('Anchor line BRAVO'),
+      ) as HTMLElement
+      const r = document.createRange()
+      r.selectNodeContents(p)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p.focus()
+    },
+    null,
+  )
   await workbox.keyboard.press('Control+x')
 
   // Task 419 — this is the reported flake (fails on attempt 1, passes on retry, reproducibly, even

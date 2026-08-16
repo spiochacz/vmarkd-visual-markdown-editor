@@ -16,7 +16,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 
 const REPO_DIR = path.join(
   __dirname,
@@ -100,25 +100,29 @@ test('editing a list renders one modified gutter bar on the list', async ({
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate(() => {
-      const root = document.querySelector('.vditor-ir')
-      const walker = document.createTreeWalker(
-        root ?? document.body,
-        NodeFilter.SHOW_TEXT,
-      )
-      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-        if (node.textContent !== 'second item') continue
-        const range = document.createRange()
-        range.setStart(node, node.textContent.length)
-        range.collapse(true)
-        const selection = window.getSelection()
-        selection?.removeAllRanges()
-        selection?.addRange(range)
-        ;(node.parentElement as HTMLElement | null)?.focus()
-        return
-      }
-      throw new Error('second list item not found')
-    })
+    await stickySelection(
+      frame,
+      () => {
+        const root = document.querySelector('.vditor-ir')
+        const walker = document.createTreeWalker(
+          root ?? document.body,
+          NodeFilter.SHOW_TEXT,
+        )
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (node.textContent !== 'second item') continue
+          const range = document.createRange()
+          range.setStart(node, node.textContent.length)
+          range.collapse(true)
+          const selection = window.getSelection()
+          selection?.removeAllRanges()
+          selection?.addRange(range)
+          ;(node.parentElement as HTMLElement | null)?.focus()
+          return
+        }
+        throw new Error('second list item not found')
+      },
+      null,
+    )
     await workbox.keyboard.type(' edited')
     await settle(frame, 2_000)
 

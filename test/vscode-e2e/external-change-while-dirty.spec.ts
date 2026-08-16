@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { docText, settle, stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -56,20 +56,24 @@ async function typeWebviewEdit(
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(document.querySelectorAll('.vditor-ir p')).find((x) =>
-      x.textContent?.includes('CARET-ANCHOR'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('CARET-ANCHOR paragraph not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+        (x) => x.textContent?.includes('CARET-ANCHOR'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('CARET-ANCHOR paragraph not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type(marker, { delay: 40 })
 }
 

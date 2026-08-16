@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 287 in the REAL editor: Ctrl+Shift+V pastes WITHOUT the rich-HTML conversion.
 //
 // This can only be proven here. The chord's whole risk is that something else claims it — a probe
@@ -50,24 +50,28 @@ test('Ctrl+Shift+V pastes plain where Ctrl+V would convert', async ({
       )
 
   const caretAfter = (needle: string) =>
-    frame.locator('body').evaluate((_el, n) => {
-      const root = document.querySelector('.vditor-ir')
-      if (!root) throw new Error('no editor')
-      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-      for (let t = w.nextNode(); t; t = w.nextNode()) {
-        const i = (t.textContent ?? '').indexOf(n as string)
-        if (i < 0) continue
-        const r = document.createRange()
-        r.setStart(t as Text, i + (n as string).length)
-        r.collapse(true)
-        const s = window.getSelection()
-        s?.removeAllRanges()
-        s?.addRange(r)
-        ;(t.parentElement as HTMLElement)?.focus()
-        return
-      }
-      throw new Error(`anchor ${n} not found`)
-    }, needle)
+    stickySelection(
+      frame,
+      (_el, n) => {
+        const root = document.querySelector('.vditor-ir')
+        if (!root) throw new Error('no editor')
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        for (let t = w.nextNode(); t; t = w.nextNode()) {
+          const i = (t.textContent ?? '').indexOf(n as string)
+          if (i < 0) continue
+          const r = document.createRange()
+          r.setStart(t as Text, i + (n as string).length)
+          r.collapse(true)
+          const s = window.getSelection()
+          s?.removeAllRanges()
+          s?.addRange(r)
+          ;(t.parentElement as HTMLElement)?.focus()
+          return
+        }
+        throw new Error(`anchor ${n} not found`)
+      },
+      needle,
+    )
 
   await frame
     .locator('.vditor-ir')

@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 // ADR-0007 / task 446 — the caret authority's real-VS-Code acceptance test: a programmatic caret
 // SURVIVES a Vditor DOM rebuild instead of vanishing, and stays PAINTABLE throughout (not just
 // "present" — task 439 shipped a Range that existed, was collapsed, at the right offset, and had a
@@ -73,21 +73,25 @@ test('a caret placed by caret.ts survives a full Vditor setValue() rebuild and s
   // Place a real, focused caret mid-way through the anchor paragraph's text — a KNOWN offset this
   // test can check survived the rebuild. (Programmatic setup, not itself the thing under test: what
   // is under test is whether the SUBSEQUENT external edit's rebuild preserves it.)
-  const setup = await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-      x.textContent?.includes('CARET-ANCHOR'),
-    ) as HTMLElement | undefined
-    const t = p?.firstChild as Text | null
-    if (!t) return { ok: false }
-    const r = document.createRange()
-    r.setStart(t, 14) // inside "CARET-ANCHOR" — an offset with real text either side
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-    return { ok: true }
-  })
+  const setup = await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+        x.textContent?.includes('CARET-ANCHOR'),
+      ) as HTMLElement | undefined
+      const t = p?.firstChild as Text | null
+      if (!t) return { ok: false }
+      const r = document.createRange()
+      r.setStart(t, 14) // inside "CARET-ANCHOR" — an offset with real text either side
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+      return { ok: true }
+    },
+    null,
+  )
   expect(setup.ok, 'the anchor paragraph and its text node were found').toBe(
     true,
   )

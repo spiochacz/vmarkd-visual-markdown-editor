@@ -18,6 +18,9 @@ const FINAL_LABEL = `EDITME${'x'.repeat(EDITS)}`
 
 // Place the caret in the LAST plantuml source, right after the first occurrence of `label`.
 async function caretAfterLabel(frame: ReturnType<typeof wf>, label: string) {
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate((_b, lbl) => {
     const src = Array.from(
       document.querySelectorAll(

@@ -27,6 +27,7 @@ import { wf } from './webview-helpers'
 //     it stays in its own test().
 // `expect.soft()` throughout — every sub-check that used to be its own test() keeps its own
 // message, so a merge failure still names exactly which one broke.
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { usePinnedSettings } from './settings-helpers'
@@ -190,12 +191,36 @@ function compare(ir: Snap, pv: Snap): { compared: number; diffs: string[] } {
     }
     a.forEach((blk, i) => {
       compared++
-      if (stripIdNs(blk.html) !== stripIdNs(b[i].html)) {
+      // Locate the difference in the SAME strings the comparison judges — the stripped ones. Reading
+      // the position off the raw markup instead pointed at the first `-vmN` id suffix, which
+      // `stripIdNs` had already normalised away, so the message named a difference that could not be
+      // the cause and hid the real one (2026-08-15, the flake in run 6 of the full suite).
+      const [sa, sb] = [stripIdNs(blk.html), stripIdNs(b[i].html)]
+      if (sa !== sb) {
         let at = 0
-        while (at < blk.html.length && blk.html[at] === b[i].html[at]) at++
+        while (at < sa.length && sa[at] === sb[at]) at++
+        // Dump BOTH normalised strings whole. This difference has been seen exactly once, in a 1.1h
+        // full-suite run, and never reproduced (20/20 solo, 16/16 under 8×`yes`, a clean replay of
+        // the real 11-spec predecessor chain) — so the next occurrence has to be conclusive on its
+        // own. A 120-char excerpt is not: the previous one pointed at an id suffix that `stripIdNs`
+        // had already removed, because the position was measured on the RAW markup.
+        const dump = path.join(
+          __dirname,
+          '..',
+          '..',
+          'tmp',
+          `mode-switch-diff-${lang}-${i}.txt`,
+        )
+        try {
+          mkdirSync(path.dirname(dump), { recursive: true })
+          writeFileSync(dump, `IR:\n${sa}\n\n=====\n\nPV:\n${sb}\n`)
+        } catch {
+          // A dump failure must not replace the real assertion message with an fs error.
+        }
         diffs.push(
-          `${lang}#${i}: markup differs (width ${blk.w} → ${b[i].w}, preview cache-hit=${b[i].hit}) at ${at}: ` +
-            `IR …${blk.html.slice(Math.max(0, at - 60), at + 60)}… vs PV …${b[i].html.slice(Math.max(0, at - 60), at + 60)}…`,
+          `${lang}#${i}: markup differs (width ${blk.w} → ${b[i].w}, preview cache-hit=${b[i].hit}, ` +
+            `len ${sa.length} vs ${sb.length}) at ${at}, full dump in ${dump}: ` +
+            `IR …${sa.slice(Math.max(0, at - 60), at + 60)}… vs PV …${sb.slice(Math.max(0, at - 60), at + 60)}…`,
         )
       }
     })

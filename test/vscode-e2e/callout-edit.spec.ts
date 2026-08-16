@@ -17,6 +17,10 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'callout-edit.md')
 // Expand the IR callout + put the caret at the END of its body text node, then focus the IR surface
 // so a real keystroke burst types into it. Returns the body text we started from (for the assertion).
 async function enterCalloutBody(frame: ReturnType<typeof wf>) {
+  // NOT stickySelection (2026-08-15): this caret goes INSIDE an expanded IR source, and the
+  // helper's verification wait is long enough for the node to re-collapse — the keystrokes then land
+  // in the rendered preview. Measured: this spec failed through the helper and passes with the plain
+  // write. Editing an expanded IR source has to type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate(() => {
     const bq = document.querySelector(
       '.vditor-ir blockquote[data-callout]',

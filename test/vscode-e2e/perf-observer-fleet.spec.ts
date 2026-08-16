@@ -57,6 +57,9 @@ for (const scenario of SCENARIOS) {
       .first()
       .click({ position: { x: 4, y: 4 } })
     // Place the caret: end of a prose paragraph, or end of a code-block source line.
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     const placed = await frame.locator('body').evaluate((_b, sc) => {
       const ir = document.querySelector('.vditor-ir') as HTMLElement | null
       if (!ir) return false

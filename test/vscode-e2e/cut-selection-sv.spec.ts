@@ -1,4 +1,4 @@
-import { docText, ev, settle, wf } from './webview-helpers'
+import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -58,37 +58,41 @@ test('sv: cutting a selected multi-line paragraph was never broken (regression p
     .locator('.vditor-sv')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page selection-range construction across the SV source-pane node/offset combinations; pre-existing (task 469 baseline)
-  await frame.locator('body').evaluate(() => {
-    const root = document.querySelector('.vditor-sv') as HTMLElement
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-    let startNode: Text | null = null
-    let startOffset = 0
-    let endNode: Text | null = null
-    let endOffset = 0
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const text = n.textContent ?? ''
-      if (!startNode) {
-        const i = text.indexOf('A paragraph with')
-        if (i >= 0) {
-          startNode = n as Text
-          startOffset = i
+  await stickySelection(
+    frame,
+    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page selection-range construction across the SV source-pane node/offset combinations; pre-existing (task 469 baseline)
+    () => {
+      const root = document.querySelector('.vditor-sv') as HTMLElement
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      let startNode: Text | null = null
+      let startOffset = 0
+      let endNode: Text | null = null
+      let endOffset = 0
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const text = n.textContent ?? ''
+        if (!startNode) {
+          const i = text.indexOf('A paragraph with')
+          if (i >= 0) {
+            startNode = n as Text
+            startOffset = i
+          }
+        }
+        const j = text.indexOf('second sentence.')
+        if (j >= 0) {
+          endNode = n as Text
+          endOffset = j + 'second sentence.'.length
         }
       }
-      const j = text.indexOf('second sentence.')
-      if (j >= 0) {
-        endNode = n as Text
-        endOffset = j + 'second sentence.'.length
-      }
-    }
-    if (!startNode || !endNode) throw new Error('span not found')
-    const r = document.createRange()
-    r.setStart(startNode, startOffset)
-    r.setEnd(endNode, endOffset)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-  })
+      if (!startNode || !endNode) throw new Error('span not found')
+      const r = document.createRange()
+      r.setStart(startNode, startOffset)
+      r.setEnd(endNode, endOffset)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+    },
+    null,
+  )
   await workbox.keyboard.press('Control+x')
   await settle(frame, 2500)
 

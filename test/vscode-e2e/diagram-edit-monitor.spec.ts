@@ -80,6 +80,11 @@ async function placeCaretAfter(
   lang: string,
   anchor: string,
 ) {
+  // NOT stickySelection here, deliberately (2026-08-15). Its verification waits ~200ms after the
+  // write to see whether the editor re-asserts its own caret — and in that window the expanded IR
+  // node re-collapses, so the keystrokes land in the rendered preview instead of the source: this
+  // spec measured 2/2 green with the plain write and failed both tests through the helper. Editing
+  // an expanded IR source has to type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate(
     (_el, { lang, anchor }) => {
       const code = Array.from(
@@ -114,6 +119,69 @@ async function placeCaretAfter(
       return true
     },
     { lang, anchor },
+  )
+}
+
+// The engine's editable source text, plus the whole document — the pair that separates an edit that
+// landed in the block from one that landed somewhere else entirely.
+const sourceAndDoc = (frame: ReturnType<typeof wf>, lang: string) =>
+  frame.locator('body').evaluate((_el, cls) => {
+    const code = Array.from(
+      document.querySelectorAll('.vditor-ir__marker--pre code'),
+    ).find((c) => c.className.includes(`language-${cls}`))
+    return {
+      source: code?.textContent ?? '',
+      doc:
+        (
+          window as unknown as { vditor?: { getValue?: () => string } }
+        ).vditor?.getValue?.() ?? '',
+    }
+  }, lang)
+
+// Place the caret in an engine's source and type — then CHECK THE OUTCOME, and retry if the text
+// went somewhere else.
+//
+// Why the outcome and not the caret: under 8x`yes` load, 3 of 8 runs typed OUTSIDE the graphviz
+// source — the document held the garbage while the block's own source stayed pristine, so no error
+// render could ever appear and the spec sat out its 30s wait for one. But the caret cannot be
+// checked BEFORE typing either: reading the selection back is a second round trip, and by then the
+// expanded node has re-collapsed, so that check said "not in the source" on 7 of 8 runs that would
+// have typed just fine. The caret's presence here is genuinely transient; the only honest question
+// is whether the SOURCE changed.
+//
+// Cleanup between attempts is Ctrl+Z until the document no longer holds the text — a miss means the
+// keystrokes landed in an unknown block, where Backspace would eat the wrong characters.
+async function typeIntoSource(
+  frame: ReturnType<typeof wf>,
+  workbox: import('@playwright/test').Page,
+  lang: string,
+  anchor: string,
+  text: string,
+) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await placeCaretAfter(frame, lang, anchor)
+    await workbox.keyboard.type(text, { delay: 40 })
+    const { source } = await sourceAndDoc(frame, lang)
+    if (source.includes(text.trim())) {
+      // A retry that succeeds must still leave a trace. Silently absorbing misses is how a retry
+      // loop turns a PRODUCT problem ("keystrokes stopped reaching the editor") into a green run —
+      // this line means the full-suite log shows how often it is happening, instead of nothing.
+      if (attempt > 0)
+        // eslint-disable-next-line no-console
+        console.log(
+          `[typeIntoSource] ${lang}: took ${attempt + 1} attempts to land ${JSON.stringify(text)}`,
+        )
+      return
+    }
+    for (let undo = 0; undo < 8; undo++) {
+      const { doc } = await sourceAndDoc(frame, lang)
+      if (!doc.includes(text.trim())) break
+      await workbox.keyboard.press('Control+z')
+      await settle(frame, 200)
+    }
+  }
+  throw new Error(
+    `typeIntoSource: ${JSON.stringify(text)} never reached the ${lang} source after 3 attempts — the keystrokes are landing in another block, so the diagram cannot react to them`,
   )
 }
 
@@ -179,8 +247,7 @@ test('flowchart: a valid edit keeps it full-size (no shrink, no collapse, no err
   expect(before.svg?.h ?? 0).toBeGreaterThan(40)
 
   await startSampling(frame, 'language-flowchart')
-  expect(await placeCaretAfter(frame, 'flowchart', 'Start')).toBe(true)
-  await workbox.keyboard.type('XYZ', { delay: 40 })
+  await typeIntoSource(frame, workbox, 'flowchart', 'Start', 'XYZ')
   await settle(frame, 4000)
   const samples = await stopSampling(frame)
   const after = await measure(frame, 'language-flowchart')
@@ -224,8 +291,7 @@ test('graphviz: a valid edit keeps it full-size (no shrink, no collapse, no erro
   expect.soft(before.svg?.h ?? 0).toBeGreaterThan(40)
 
   await startSampling(frame, 'language-graphviz')
-  expect.soft(await placeCaretAfter(frame, 'graphviz', 'alpha')).toBe(true)
-  await workbox.keyboard.type('XYZ', { delay: 40 })
+  await typeIntoSource(frame, workbox, 'graphviz', 'alpha', 'XYZ')
   await settle(frame, 4000)
   const samples = await stopSampling(frame)
   const after = await measure(frame, 'language-graphviz')
@@ -246,9 +312,8 @@ test('graphviz: a valid edit keeps it full-size (no shrink, no collapse, no erro
     .soft(samples.min)
     .toBeGreaterThanOrEqual(Math.round((before.svg?.h ?? 0) * 0.5))
   // break it: type DOT garbage after a node name
-  expect.soft(await placeCaretAfter(frame, 'graphviz', 'gamma')).toBe(true)
   const GARBAGE = ' @@@bad'
-  await workbox.keyboard.type(GARBAGE, { delay: 40 })
+  await typeIntoSource(frame, workbox, 'graphviz', 'gamma', GARBAGE)
   await frame
     .locator('.vditor-ir__preview .vmarkd-diagram-error')
     .first()

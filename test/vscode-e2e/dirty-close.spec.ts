@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // NET (task 516 A8) — closing a DIRTY vMarkd tab must not silently lose or leak an edit.
 //
 // PROBE FINDING (recorded here, not a separate probe file — see the report to team-lead): the
@@ -70,20 +70,24 @@ test('closing a dirty tab discards the edit — nothing leaks to disk, the tab c
     .first()
     .click({ position: { x: 4, y: 4 } })
 
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(document.querySelectorAll('.vditor-ir p')).find((x) =>
-      x.textContent?.includes('Edit here'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('edit target not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+        (x) => x.textContent?.includes('Edit here'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('edit target not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type(MARKER, { delay: 40 })
 
   const docState = () =>

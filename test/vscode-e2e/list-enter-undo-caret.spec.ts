@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 487: Vditor's undo checkpoint (`Undo.addToUndoStack` -> `addCaret`, debounced ~800ms after an
 // edit) restores the caret through vMarkd's `patchUndoCaretSplitRestore` patch. That restore used to
 // carry a flat document-wide CHARACTER offset, which cannot address an empty block - an empty
@@ -52,17 +52,21 @@ test('Enter at the end of a list item leaves the caret in the NEW empty item, an
   await frame.locator('.vditor-ir li').first().click()
   // Precise Range to the LOGICAL end of this li's text — `End` only reaches the end of the
   // current soft-WRAPPED visual line on this long item, not the true end (confirmed earlier).
-  await frame.locator('body').evaluate(() => {
-    const li = document.querySelector('.vditor-ir li')
-    const t = li?.lastChild
-    if (t?.nodeType !== 3) return
-    const r = document.createRange()
-    r.setStart(t, (t as Text).data.length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const li = document.querySelector('.vditor-ir li')
+      const t = li?.lastChild
+      if (t?.nodeType !== 3) return
+      const r = document.createRange()
+      r.setStart(t, (t as Text).data.length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+    },
+    null,
+  )
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 200)))

@@ -41,6 +41,9 @@ test('SPIKE: per-engine render cost (mermaid heavy + d2)', async ({
   // Edit one diagram of the given language and time keystroke → fresh (re-rendered) svg.
   const measure = async (lang: string): Promise<number> => {
     // mark the current svg of this lang so we can detect its replacement
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     await frame.locator('body').evaluate((_b, l) => {
       const svg = document.querySelector(`.language-${l} svg`)
       svg?.setAttribute('data-cost-mark', '1')

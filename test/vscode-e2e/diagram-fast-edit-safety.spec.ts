@@ -61,6 +61,9 @@ async function open(
 
 // caret right after "Do it" in the mermaid source
 async function caretAfterDoIt(frame: ReturnType<typeof wf>): Promise<boolean> {
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate(() => {
     const node = document
       .querySelector('.language-mermaid')

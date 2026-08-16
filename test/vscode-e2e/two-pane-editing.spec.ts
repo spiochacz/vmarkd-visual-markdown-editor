@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { docText, settle, stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -250,22 +250,28 @@ test('vMarkd and a plain text editor on the same file converge on save, with no 
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate(() => {
-      const p = Array.from(
-        document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
-      ).find((x) => x.textContent?.includes('Edit here')) as
-        | HTMLElement
-        | undefined
-      const t = p?.lastChild as Text | null
-      if (!t) throw new Error('edit target not found')
-      const r = document.createRange()
-      r.setStart(t, (t.textContent ?? '').length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p?.focus()
-    })
+    await stickySelection(
+      frame,
+      () => {
+        const p = Array.from(
+          document.querySelectorAll(
+            '.vditor-ir p, .vditor-ir li, .vditor-ir h1',
+          ),
+        ).find((x) => x.textContent?.includes('Edit here')) as
+          | HTMLElement
+          | undefined
+        const t = p?.lastChild as Text | null
+        if (!t) throw new Error('edit target not found')
+        const r = document.createRange()
+        r.setStart(t, (t.textContent ?? '').length)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        p?.focus()
+      },
+      null,
+    )
     await workbox.keyboard.type(WEBVIEW_EDIT_MARKER, { delay: 40 })
 
     // The TextDocument (read on the host, the authority) must reflect the webview edit.

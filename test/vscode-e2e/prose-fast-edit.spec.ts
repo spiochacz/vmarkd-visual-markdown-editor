@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -53,28 +53,32 @@ async function open(
 
 // caret at the END of the "Edit here: the quick brown fox." paragraph
 async function caretAtEnd(frame: ReturnType<typeof wf>): Promise<boolean> {
-  return frame.locator('body').evaluate(() => {
-    const p = Array.from(document.querySelectorAll('.vditor-ir p')).find((x) =>
-      x.textContent?.includes('Edit here'),
-    ) as HTMLElement | undefined
-    if (!p) return false
-    const w = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-    let last: Text | null = null
-    let n = w.nextNode() as Text | null
-    while (n) {
-      last = n
-      n = w.nextNode() as Text | null
-    }
-    if (!last) return false
-    const r = document.createRange()
-    r.setStart(last, (last.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p.focus()
-    return true
-  })
+  return stickySelection(
+    frame,
+    () => {
+      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+        (x) => x.textContent?.includes('Edit here'),
+      ) as HTMLElement | undefined
+      if (!p) return false
+      const w = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
+      let last: Text | null = null
+      let n = w.nextNode() as Text | null
+      while (n) {
+        last = n
+        n = w.nextNode() as Text | null
+      }
+      if (!last) return false
+      const r = document.createRange()
+      r.setStart(last, (last.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p.focus()
+      return true
+    },
+    null,
+  )
 }
 const settle = (frame: ReturnType<typeof wf>, ms = 2500) =>
   frame

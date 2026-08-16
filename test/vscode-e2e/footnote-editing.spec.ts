@@ -1,4 +1,4 @@
-import { docText, settle, wf } from './webview-helpers'
+import { docText, placeCaretAtEndOf, settle, wf } from './webview-helpers'
 // C2 (task 516) — footnote editing. The chromium harness only exercises footnote *resolution*
 // while streaming (media-src/e2e/stream.spec.ts); nothing edits a `[^label]` reference or its
 // `[^label]: ...` definition through a real keystroke and reads the saved bytes back. Both sides
@@ -48,45 +48,6 @@ async function open(
   return frame
 }
 
-// Place the caret at the END of the first text node (within `selector`) whose content includes
-// `anchor`, then focus that element. Shared shape with block-fidelity.spec.ts's typeElsewhere.
-async function placeCaretAtEndOf(
-  frame: ReturnType<typeof wf>,
-  selector: string,
-  anchor: string,
-) {
-  return frame.locator('body').evaluate(
-    (_el, { selector, anchor }) => {
-      const walker = document.createTreeWalker(
-        document.querySelector('.vditor-ir') as Node,
-        NodeFilter.SHOW_TEXT,
-      )
-      let target: Text | null = null
-      for (
-        let n = walker.nextNode() as Text | null;
-        n;
-        n = walker.nextNode() as Text | null
-      ) {
-        if (!n.textContent?.includes(anchor)) continue
-        const owner = (n.parentElement as HTMLElement | null)?.closest(selector)
-        if (!owner) continue
-        target = n
-        break
-      }
-      if (!target) return false
-      const r = document.createRange()
-      r.setStart(target, (target.textContent ?? '').length)
-      r.collapse(true)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(r)
-      ;(target.parentElement as HTMLElement | null)?.focus()
-      return true
-    },
-    { selector, anchor },
-  )
-}
-
 test('editing a footnote reference paragraph and its definition body round-trips byte-faithfully on save', async ({
   workbox,
   evaluateInVSCode,
@@ -100,21 +61,27 @@ test('editing a footnote reference paragraph and its definition body round-trips
   // instead, per vditor/dist/index.js's IR footnote sync). The editable surface for "editing the
   // reference" is the paragraph text around it: prove that surviving an edit there doesn't
   // corrupt the `[^note]` marker.
-  const gotRef = await placeCaretAtEndOf(frame, '.vditor-ir p', 'right here.')
-  expect(gotRef, 'found the reference paragraph text to place a caret in').toBe(
-    true,
-  )
+  await placeCaretAtEndOf(frame, workbox, '.vditor-ir p', 'right here.')
   await workbox.keyboard.type(' EXTRACONTEXT', { delay: 40 })
+  // Assert the FIRST edit reached the host document before moving the caret away. Without this the
+  // spec's only poll is for the definition edit, so a paragraph edit that never landed surfaced at
+  // the very last assertion as "the saved bytes lack EXTRACONTEXT" — a save-fidelity symptom for
+  // what is really a caret/keystroke miss (5 of 10 solo runs, 2026-08-15).
+  await expect
+    .poll(
+      async () =>
+        (await docText(evaluateInVSCode, tmp)).includes('EXTRACONTEXT'),
+      { message: 'the paragraph edit reached the host TextDocument' },
+    )
+    .toBe(true)
 
   // The definition body is a real editable block (`[data-type="footnotes-def"]`) — edit its text
   // directly.
-  const gotDef = await placeCaretAtEndOf(
+  await placeCaretAtEndOf(
     frame,
+    workbox,
     '[data-type="footnotes-def"]',
     'Original footnote body text.',
-  )
-  expect(gotDef, 'found the footnote definition text to place a caret in').toBe(
-    true,
   )
   await workbox.keyboard.type(' Appended.', { delay: 40 })
 

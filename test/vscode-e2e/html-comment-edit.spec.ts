@@ -60,6 +60,10 @@ async function expandAndPlaceCaretAfter(
   frame: ReturnType<typeof wf>,
   anchor: string,
 ) {
+  // NOT stickySelection (2026-08-15): this caret goes INSIDE an expanded IR source, and the
+  // helper's verification wait is long enough for the node to re-collapse — the keystrokes then land
+  // in the rendered preview. Measured: this spec failed through the helper and passes with the plain
+  // write. Editing an expanded IR source has to type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate((_el, anchor) => {
     const node = document.querySelector(
       '.vditor-ir [data-type="html-block"]',

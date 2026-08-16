@@ -83,3 +83,151 @@ export const clickIntoEditor = async (
     'clickIntoEditor: no caret inside .vditor-ir after 5 attempts — the keystrokes that follow would go nowhere',
   )
 }
+
+// The selection as a comparable value: the STRUCTURAL path (tag + child index, editor-rootwards) of
+// the node each end sits in. Node identity cannot cross the evaluate boundary, and neither text nor
+// offset is stable enough to stand in for it: expanding an IR node inserts its marker text and
+// shifts every offset after it, and Vditor rebuilds the block outright on a spin, so an exact
+// text+offset comparison reports "moved" for a caret that never left. A path changes when the caret
+// lands in a DIFFERENT block — which is exactly the clobber this guards against.
+const SELECTION_SNAPSHOT = () => {
+  const pathOf = (node: Node | null | undefined): string | null => {
+    if (!node) return null
+    const parts: string[] = []
+    for (
+      let n: Node | null = node;
+      n && n !== document.body;
+      n = n.parentNode
+    ) {
+      const parent: Node | null = n.parentNode
+      if (!parent) break
+      parts.push(
+        `${n.nodeName}:${Array.prototype.indexOf.call(parent.childNodes, n)}`,
+      )
+    }
+    return parts.join('/')
+  }
+  const s = window.getSelection()
+  if (!s || s.rangeCount === 0) return 'none'
+  return JSON.stringify({
+    a: pathOf(s.anchorNode),
+    f: pathOf(s.focusNode),
+    c: s.isCollapsed,
+  })
+}
+
+/**
+ * Run a spec's OWN selection-writing function and make it stick: apply, snapshot what it set, wait
+ * out the editor's post-click re-assert window, and re-apply if the selection drifted.
+ *
+ * The generic counterpart to `placeCaretAtEndOf` — for the call sites that cannot be expressed as
+ * "caret at the end of the line containing X": a caret at a specific offset mid-text, inside a code
+ * block or a diagram's source, or a non-collapsed RANGE for the cut/paste specs. Those keep their
+ * own targeting code; this only makes the write authoritative.
+ *
+ * Same mechanism as `placeCaretAtEndOf` guards against (see its comment): a `Range` written from
+ * `evaluate()` inside the window after a click is discarded when Vditor's block spin restores the
+ * caret to where the click landed. Measured on a non-empty fixture, clicking one paragraph and
+ * writing a Range into another: 3 of 6 runs were reverted to the CLICK position — never to some
+ * third place, which is what rules out a stray armed caret intent and puts the blame on the spin's
+ * own restore.
+ */
+export const stickySelection = async <A, R>(
+  frame: ReturnType<typeof wf>,
+  apply: (el: SVGElement | HTMLElement, arg: A) => R,
+  arg: A,
+  attempts = 5,
+): Promise<R> => {
+  const body = frame.locator('body')
+  let result!: Awaited<R>
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    // `before` is what makes this honest. The snapshot after `apply` is a SECOND round trip, so a
+    // clobber that lands in between would be read back as "what we set" and accepted — measured, 2
+    // of 8 runs returned with the caret at the click position that way. If the selection did not
+    // MOVE, the write either found nothing or was already reverted; either way, retry.
+    const before = await body.evaluate(SELECTION_SNAPSHOT)
+    // Cast: Playwright types `evaluate`'s callback as `PageFunctionOn<El, A, R>`, which a caller's
+    // free generic `R` cannot satisfy structurally (it would have to exclude function types). The
+    // call is the ordinary one-argument `evaluate` at runtime; only the generic loses.
+    result = (await body.evaluate(
+      apply as unknown as (el: SVGElement | HTMLElement) => Awaited<R>,
+      arg,
+    )) as Awaited<R>
+    const want = await body.evaluate(SELECTION_SNAPSHOT)
+    const isLastAttempt = attempt === attempts - 1
+    // A caller re-asserting a selection that is ALREADY where it wants it is legitimate, and
+    // indistinguishable from a no-op write until it has held; accept it only once retrying has
+    // stopped being an option.
+    if (want === 'none' || (want === before && !isLastAttempt)) continue
+    await settle(frame, 200)
+    if ((await body.evaluate(SELECTION_SNAPSHOT)) === want) {
+      // A retry that succeeds still gets logged. A silent retry loop is how a real product problem
+      // ("the editor stopped holding a caret") turns into a green run — this way the suite log
+      // carries the rate instead of hiding it.
+      if (attempt > 0)
+        console.log(`[stickySelection] held after ${attempt + 1} attempts`)
+      return result
+    }
+  }
+  throw new Error(
+    `stickySelection: the selection would not hold after ${attempts} attempts — the editor is re-asserting its own caret over it, and the keystrokes that follow would go somewhere else`,
+  )
+}
+
+/**
+ * Put the caret at the END of the line of the first `selector` element containing `anchor`, by
+ * CLICKING it and pressing End — then verify it actually landed before returning.
+ *
+ * Do NOT place a caret here by writing a `Range` from `evaluate()`. Measured 2026-08-15 on
+ * footnote-editing.spec.ts: the range write itself succeeds (a read inside the SAME evaluate sees
+ * the target node at the right offset), but in 2 of 4 runs the caret is back at the previously
+ * clicked position (`"# "@0`, the document start) by the next evaluate — and a SECOND write is
+ * clobbered the same way, so retrying a range write does not converge. Vditor restores its own
+ * caret asynchronously after a click; a synthetic range is fighting the editor's caret authority
+ * and loses on a race. Typing then lands in whatever block the editor chose: the spec's text ended
+ * up inside the `# ` heading, or vanished, and it failed 5 of 10 solo runs with "the saved bytes
+ * lack EXTRACONTEXT" — a save-fidelity symptom for a caret miss.
+ *
+ * Clicking + End goes through the editor's own caret machinery instead, and measured 4 of 4 on the
+ * same probe. The verify + retry keeps a miss failing AS ITSELF.
+ */
+export const placeCaretAtEndOf = async (
+  frame: ReturnType<typeof wf>,
+  workbox: import('@playwright/test').Page,
+  selector: string,
+  anchor: string,
+  attempts = 5,
+): Promise<void> => {
+  const target = frame.locator(selector).filter({ hasText: anchor }).first()
+  const verify = (args: { selector: string; anchor: string }) =>
+    frame.locator('body').evaluate((_el, { selector, anchor }) => {
+      const sel = window.getSelection()
+      const node = sel?.anchorNode as Text | null
+      if (!node || !sel?.isCollapsed) return false
+      if (!node.textContent?.includes(anchor)) return false
+      if (!(node.parentElement as HTMLElement | null)?.closest(selector))
+        return false
+      return sel.anchorOffset === (node.textContent ?? '').length
+    }, args)
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await target.click().catch((err: Error) => {
+      console.log(`[placeCaretAtEndOf] click failed: ${err.message}`)
+    })
+    // Give the editor's own post-click caret restore time to run BEFORE End, so End moves the
+    // final caret and not one that is about to be replaced.
+    await settle(frame, 200)
+    await workbox.keyboard.press('End')
+    await settle(frame, 150)
+    if (await verify({ selector, anchor }).catch(() => false)) {
+      if (attempt > 0)
+        console.log(
+          `[placeCaretAtEndOf] landed on ${JSON.stringify(anchor)} after ${attempt + 1} attempts`,
+        )
+      return
+    }
+  }
+  throw new Error(
+    `placeCaretAtEndOf: the caret would not land at the end of ${JSON.stringify(anchor)} in ${selector} after ${attempts} attempts — the keystrokes that follow would land in another block`,
+  )
+}

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Cross-diagram edit stability (task 189, user report 2026-07-03): editing ONE
 // diagram's source must not corrupt ANY other rendered diagram. The preview morph
 // (task 187) keeps rendered DOM alive across afterRender passes, which exposed
@@ -106,7 +106,8 @@ test('editing one diagram leaves every other family intact (split view)', async 
 
   // Type INSIDE a given sv source block (caret after the needle text).
   const typeInBlock = async (needle: string, text: string) => {
-    await frame.locator('body').evaluate(
+    await stickySelection(
+      frame,
       async (_b, arg) => {
         const [needleTxt, insert] = arg as [string, string]
         const sv = document.querySelector('.vditor-sv') as HTMLElement

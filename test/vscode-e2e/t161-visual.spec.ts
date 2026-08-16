@@ -42,6 +42,9 @@ for (const lang of ['d2', 'mermaid']) {
       .locator('body')
       .evaluate(() => new Promise((r) => setTimeout(r, 1500)))
 
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     const placed = await frame.locator('body').evaluate((_b, l) => {
       const wrapper = document.querySelector(`.language-${l}`)
       const node = wrapper?.closest('.vditor-ir__node') as HTMLElement | null

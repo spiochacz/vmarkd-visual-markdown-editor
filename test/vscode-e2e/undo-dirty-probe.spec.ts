@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -50,22 +50,26 @@ test('undo-to-start dirty probe', async ({ workbox, evaluateInVSCode }) => {
     .click({ position: { x: 4, y: 4 } })
 
   // caret at the end of the "Edit here" last line, type a few chars
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(
-      document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
-    ).find((x) => x.textContent?.includes('Edit here')) as
-      | HTMLElement
-      | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) return
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = Array.from(
+        document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
+      ).find((x) => x.textContent?.includes('Edit here')) as
+        | HTMLElement
+        | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) return
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type('abcdef', { delay: 50 })
   await frame
     .locator('body')

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 456 — WCAG 2.1.2 keyboard trap: Tab could never move focus out of the editable surface
 // (`tab: '\t'` makes Vditor preventDefault every Tab). The design: Escape ARMS a one-shot "next
 // Tab leaves" flag; the very next bare Tab moves focus to the toolbar instead of inserting a tab
@@ -82,24 +82,28 @@ async function placeCaretInParagraph(frame: ReturnType<typeof wf>) {
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const root = document.querySelector('.vditor-ir') as HTMLElement | null
-    if (!root) throw new Error('no .vditor-ir')
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const i = (n.textContent ?? '').indexOf('paragraph')
-      if (i < 0) continue
-      const r = document.createRange()
-      r.setStart(n as Text, i)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      ;(n.parentElement as HTMLElement | null)?.focus()
-      return
-    }
-    throw new Error('"paragraph" anchor text not found')
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const root = document.querySelector('.vditor-ir') as HTMLElement | null
+      if (!root) throw new Error('no .vditor-ir')
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const i = (n.textContent ?? '').indexOf('paragraph')
+        if (i < 0) continue
+        const r = document.createRange()
+        r.setStart(n as Text, i)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        ;(n.parentElement as HTMLElement | null)?.focus()
+        return
+      }
+      throw new Error('"paragraph" anchor text not found')
+    },
+    null,
+  )
   await settle(frame, 200)
   return frame.locator('body').evaluate(() => {
     const sel = window.getSelection()

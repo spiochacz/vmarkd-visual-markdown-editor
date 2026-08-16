@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -137,22 +137,26 @@ test('two closely-spaced real keystroke ticks never let their applyEdit calls ov
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(
-      document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
-    ).find((x) => x.textContent?.includes('Edit here')) as
-      | HTMLElement
-      | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) return
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = Array.from(
+        document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
+      ).find((x) => x.textContent?.includes('Edit here')) as
+        | HTMLElement
+        | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) return
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
 
   // Widen the real race window: every applyEdit now takes >= 500ms to actually land — far
   // longer than the edit-sync 250ms trailing debounce that separates two real keystroke ticks

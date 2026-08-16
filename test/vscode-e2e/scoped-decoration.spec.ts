@@ -94,6 +94,9 @@ async function placeCaretAtEndOf(
   frame: import('@playwright/test').FrameLocator,
   textMatch: string,
 ): Promise<boolean> {
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   return frame.locator('body').evaluate((_b, match) => {
     const ir = (
       window as unknown as {

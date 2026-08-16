@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 // PROBE (task 428) — two more reported list gaps: (1) "1. " / "* " should become a list on the SPACE,
 // not only after a letter; (2) Backspace on an EMPTY last item makes the list loose (big gaps). Logs
 // getValue transitions in IR.
@@ -37,7 +37,8 @@ async function caretAt(
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [needle, where] = args as [string, string]
       const root = document.querySelector('.vditor-ir') as HTMLElement | null

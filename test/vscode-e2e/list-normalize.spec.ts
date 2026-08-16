@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 
 // Task 255 — "Fix list numbering" (vmarkd.fixListNumbering) / "Renormalize all lists"
 // (vmarkd.renormalizeAllLists). This is the L3 leg: real VS Code commands, executed exactly as
@@ -44,7 +44,8 @@ async function caretAt(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [n, off, sel] = args as [string, number, string]
       const root = document.querySelector(sel) as HTMLElement | null

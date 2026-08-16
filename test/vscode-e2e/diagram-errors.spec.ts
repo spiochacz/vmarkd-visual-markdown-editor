@@ -154,6 +154,9 @@ test('editing a valid diagram to be invalid shows the themed error box (real spi
   // Place the caret after the `zzz` seed inside the editable IR source (proven pattern from
   // d2-edit-perf.spec.ts): the source marker is hidden until the node is expanded, so expand it
   // manually and collapse the caret to the end of the `zzz` text node, then focus the source.
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   const placed = await frame.locator('body').evaluate(() => {
     const wrapper = document.querySelector('.language-graphviz')
     const node = wrapper?.closest('.vditor-ir__node') as HTMLElement | null

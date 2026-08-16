@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // sv (split view) mode polish — task 187. Real-VS-Code-only: mode switching drives the
 // real toolbar + custom-editor pipeline, and the assertions cover behaviour the harness
 // can't reproduce (custom renderers in the split preview, the preview morph across an
@@ -151,31 +151,35 @@ test('sv split: renders the battery, morph keeps diagram DOM, scroll + mode repo
   expect(hostMode).toBe('sv')
 
   // ── morph (task 187 P1b): an edit settle must NOT re-mount unchanged diagrams ──
-  const morph = await frame.locator('body').evaluate(async () => {
-    const pv = document.querySelector('.vditor-preview') as HTMLElement
-    const mark = pv.querySelector('.language-mermaid svg, .language-d2 svg')!
-    mark.setAttribute('data-probe-mark', '1')
-    const svEl = document.querySelector('.vditor-sv') as HTMLElement
-    svEl.focus()
-    const r = document.createRange()
-    r.selectNodeContents(svEl)
-    r.collapse(true)
-    const sel = getSelection()!
-    sel.removeAllRanges()
-    sel.addRange(r)
-    document.execCommand('insertText', false, 'Z')
-    // preview delay 500 + morph + engine pass
-    // task 512: leave — rule 2 outright. `markSurvived` exists to prove a DELAYED teardown (morph
-    // runs, THEN a later engine pass tears the unchanged mark off) does NOT happen. A poll on
-    // `typedVisible` would resolve the instant the edit lands, before the delayed engine pass had
-    // any chance to run — deleting exactly the regression coverage this settle provides.
-    await new Promise((res) => setTimeout(res, 3000))
-    return {
-      markSurvived: !!pv.querySelector('[data-probe-mark]'),
-      typedVisible: (pv.textContent ?? '').includes('Z#'),
-      d2StillThere: pv.querySelectorAll('.language-d2 svg').length,
-    }
-  })
+  const morph = await stickySelection(
+    frame,
+    async () => {
+      const pv = document.querySelector('.vditor-preview') as HTMLElement
+      const mark = pv.querySelector('.language-mermaid svg, .language-d2 svg')!
+      mark.setAttribute('data-probe-mark', '1')
+      const svEl = document.querySelector('.vditor-sv') as HTMLElement
+      svEl.focus()
+      const r = document.createRange()
+      r.selectNodeContents(svEl)
+      r.collapse(true)
+      const sel = getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(r)
+      document.execCommand('insertText', false, 'Z')
+      // preview delay 500 + morph + engine pass
+      // task 512: leave — rule 2 outright. `markSurvived` exists to prove a DELAYED teardown (morph
+      // runs, THEN a later engine pass tears the unchanged mark off) does NOT happen. A poll on
+      // `typedVisible` would resolve the instant the edit lands, before the delayed engine pass had
+      // any chance to run — deleting exactly the regression coverage this settle provides.
+      await new Promise((res) => setTimeout(res, 3000))
+      return {
+        markSurvived: !!pv.querySelector('[data-probe-mark]'),
+        typedVisible: (pv.textContent ?? '').includes('Z#'),
+        d2StillThere: pv.querySelectorAll('.language-d2 svg').length,
+      }
+    },
+    null,
+  )
   console.log(`[sv-morph] ${JSON.stringify(morph)}`)
   expect(morph.typedVisible).toBe(true) // the edit DID re-render its block
   expect(morph.markSurvived).toBe(true) // …without tearing the unchanged diagram down

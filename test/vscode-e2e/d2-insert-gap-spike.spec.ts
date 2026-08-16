@@ -32,6 +32,9 @@ test('SPIKE: d2 insert keeps the preview covered (no empty/jump frame)', async (
     .evaluate(() => new Promise((r) => setTimeout(r, 4000)))
 
   // caret at end of the d2 source
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   await frame.locator('body').evaluate(() => {
     const node = Array.from(
       document.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),

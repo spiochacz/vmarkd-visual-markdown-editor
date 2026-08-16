@@ -55,6 +55,10 @@ async function freshLine(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
+  // NOT stickySelection (2026-08-15): the caret is placed and Enter is pressed IMMEDIATELY after,
+  // and the helper's ~200ms verification wait is enough for the block to re-render around it — the
+  // Enter then splits a different node. Flaky in the full suite through the helper, clean with the
+  // plain write. Same exemption as list-backspace and the expanded-IR-source sites.
   await frame.locator('body').evaluate((_el, sel) => {
     const root = document.querySelector(sel as string) as HTMLElement | null
     if (!root) throw new Error(`no ${sel}`)

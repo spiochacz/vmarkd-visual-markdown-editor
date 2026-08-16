@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { placeCaretAtEndOf, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -52,37 +52,22 @@ async function markerResidue(
   return new RegExp(`newline[${MARKER}]`).test(text)
 }
 
-// Click into the editor and drop the caret at the end of the "Edit here" line. Extracted so the
-// undo loop can RE-establish focus (2026-08-12): under CPU contention the webview can lose keyboard
-// focus outright, and then Ctrl+Z goes nowhere no matter how many times it is pressed — measured, a
-// 40-press loop still left the marker in place. This suite already documents that focus/keyboard
-// assertions are the flakiest class it has; re-focusing is cheaper and more honest than pressing
-// harder.
+// Put the caret at the end of the "Edit here" line, VERIFIED. Extracted so the undo loop can
+// RE-establish focus (2026-08-12): under CPU contention the webview can lose keyboard focus
+// outright, and then Ctrl+Z goes nowhere no matter how many times it is pressed.
+//
+// It used to click the editor's top-left corner and then write a `Range` — which is what actually
+// made this spec flake (2026-08-15, measured 4 of 10 under 8×`yes` CPU load). Vditor restores its
+// own caret asynchronously after that corner click, discarding the synthetic range, so the marker
+// was typed into the `# Title` heading instead of the "Edit here" line: the failure surfaced as
+// `# xyz123Title` in the final diff, and — because the residue check is anchored to "newline" —
+// the undo loop saw no residue, returned without undoing anything, and the deferred-timer poll
+// then timed out on a document that had never been reverted. See placeCaretAtEndOf's own comment.
 async function focusEditLine(
-  // Kept for call-site symmetry with the other helpers here, which do drive the page.
-  _workbox: import('@playwright/test').Page,
+  workbox: import('@playwright/test').Page,
   frame: ReturnType<typeof wf>,
 ) {
-  await frame
-    .locator('.vditor-ir')
-    .first()
-    .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(
-      document.querySelectorAll('.vditor-ir p, .vditor-ir li, .vditor-ir h1'),
-    ).find((x) => x.textContent?.includes('Edit here')) as
-      | HTMLElement
-      | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) return
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await placeCaretAtEndOf(frame, workbox, '.vditor-ir p', 'Edit here')
 }
 
 async function typeAndUndo(

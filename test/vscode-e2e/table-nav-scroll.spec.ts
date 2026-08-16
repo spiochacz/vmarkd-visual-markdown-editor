@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // NET (task 368) — arrowing down through a tall table must keep the caret on screen.
 //
 // Vditor's table-cell up/down navigation sets the selection directly (setSelectionFocus) and never
@@ -79,17 +79,21 @@ test('arrowing down a tall table keeps the caret on screen', async ({
     .first()
     .click({ position: { x: 4, y: 4 } })
   // Put the caret in the first body cell.
-  await frame.locator('body').evaluate(() => {
-    const v = (window as any).vditor
-    const el = v.vditor[v.getCurrentMode()].element as HTMLElement
-    const cell = el.querySelector('td') as HTMLElement
-    const r = document.createRange()
-    r.selectNodeContents(cell)
-    r.collapse(true)
-    const s = window.getSelection() as Selection
-    s.removeAllRanges()
-    s.addRange(r)
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const v = (window as any).vditor
+      const el = v.vditor[v.getCurrentMode()].element as HTMLElement
+      const cell = el.querySelector('td') as HTMLElement
+      const r = document.createRange()
+      r.selectNodeContents(cell)
+      r.collapse(true)
+      const s = window.getSelection() as Selection
+      s.removeAllRanges()
+      s.addRange(r)
+    },
+    null,
+  )
 
   const before = (await frame.locator('body').evaluate(STATE)) as {
     scrollTop: number

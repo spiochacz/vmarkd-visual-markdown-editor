@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import {
   existsSync,
   mkdirSync,
@@ -52,27 +52,31 @@ test('pasting an image writes it into the assets folder and inserts its link int
     .evaluate(() => new Promise((r) => setTimeout(r, 1500)))
 
   // Dispatch a synthetic image-File paste on the editable element (caret at end).
-  await frame.locator('body').evaluate((_b, b64) => {
-    const inst = (window as any).vditor
-    const el = inst.vditor[inst.getCurrentMode()].element as HTMLElement
-    el.focus()
-    const r = document.createRange()
-    r.selectNodeContents(el)
-    r.collapse(false)
-    const s = window.getSelection()!
-    s.removeAllRanges()
-    s.addRange(r)
-    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
-    const dt = new DataTransfer()
-    dt.items.add(new File([bytes], 'shot.png', { type: 'image/png' }))
-    el.dispatchEvent(
-      new ClipboardEvent('paste', {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true,
-      }),
-    )
-  }, PNG_B64)
+  await stickySelection(
+    frame,
+    (_b, b64) => {
+      const inst = (window as any).vditor
+      const el = inst.vditor[inst.getCurrentMode()].element as HTMLElement
+      el.focus()
+      const r = document.createRange()
+      r.selectNodeContents(el)
+      r.collapse(false)
+      const s = window.getSelection()!
+      s.removeAllRanges()
+      s.addRange(r)
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+      const dt = new DataTransfer()
+      dt.items.add(new File([bytes], 'shot.png', { type: 'image/png' }))
+      el.dispatchEvent(
+        new ClipboardEvent('paste', {
+          clipboardData: dt,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    },
+    PNG_B64,
+  )
 
   // The host writes the decoded image into the assets folder next to the doc.
   await expect

@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 // D1 (task 516) — status bar truth. `src/app/status-bar.ts` (word count + reading time, mode
 // indicator) is unit-only today (readingTime/wordCount pure functions in
 // media-src/../markdown/reading-time.ts, no e2e). The status bar is WORKBENCH chrome, not webview
@@ -52,20 +52,24 @@ test('word count in the status bar updates while typing, and the mode indicator 
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = Array.from(document.querySelectorAll('.vditor-ir p')).find((x) =>
-      x.textContent?.includes('Start.'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('anchor paragraph not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const sel = window.getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+        (x) => x.textContent?.includes('Start.'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('anchor paragraph not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const sel = window.getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type(' Several more words landed here now.', {
     delay: 30,
   })

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -66,20 +66,24 @@ test('type → undo → redo round-trips the document', async ({
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-      x.textContent?.includes('CARET-ANCHOR'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('caret anchor not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+        x.textContent?.includes('CARET-ANCHOR'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('caret anchor not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type(MARK, { delay: 50 })
   await frame
     .locator('body')
@@ -188,26 +192,30 @@ test('type → undo → redo round-trips the document', async ({
   // Generic across modes: ir/wysiwyg have per-block <p> elements, sv is a single <pre> of raw
   // source text — a TreeWalker over text nodes finds "CARET-ANCHOR" in either shape.
   async function placeCaretAtAnchor(rootSelector: string) {
-    const found = await frame.locator('body').evaluate((_body, sel) => {
-      const root = document.querySelector(sel) as HTMLElement | null
-      if (!root) return false
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-      let node: Text | null
-      // biome-ignore lint/suspicious/noAssignInExpressions: TreeWalker idiom
-      while ((node = walker.nextNode() as Text | null)) {
-        if (node.textContent?.includes('CARET-ANCHOR')) {
-          const r = document.createRange()
-          r.setStart(node, (node.textContent ?? '').length)
-          r.collapse(true)
-          const s = window.getSelection()
-          s?.removeAllRanges()
-          s?.addRange(r)
-          root.focus()
-          return true
+    const found = await stickySelection(
+      frame,
+      (_body, sel) => {
+        const root = document.querySelector(sel) as HTMLElement | null
+        if (!root) return false
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        let node: Text | null
+        // biome-ignore lint/suspicious/noAssignInExpressions: TreeWalker idiom
+        while ((node = walker.nextNode() as Text | null)) {
+          if (node.textContent?.includes('CARET-ANCHOR')) {
+            const r = document.createRange()
+            r.setStart(node, (node.textContent ?? '').length)
+            r.collapse(true)
+            const s = window.getSelection()
+            s?.removeAllRanges()
+            s?.addRange(r)
+            root.focus()
+            return true
+          }
         }
-      }
-      return false
-    }, rootSelector)
+        return false
+      },
+      rootSelector,
+    )
     expect(found, `CARET-ANCHOR text node found in ${rootSelector}`).toBe(true)
   }
 

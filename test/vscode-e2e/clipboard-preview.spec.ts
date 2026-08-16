@@ -1,4 +1,4 @@
-import { settle } from './webview-helpers'
+import { settle, stickySelection } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -139,18 +139,22 @@ test('a selection copied from the split PREVIEW pane reaches the clipboard', asy
     )
     .toBe(true)
   // The copy listener lives on `.vditor-reset` INSIDE `.vditor-preview`, not on the pane itself.
-  const selected = await frame.locator('body').evaluate(() => {
-    const p = [
-      ...document.querySelectorAll('.vditor-preview .vditor-reset p'),
-    ].find((x) => x.textContent?.includes('Anchor line BRAVO'))
-    if (!p) throw new Error('no BRAVO paragraph in the rendered preview')
-    const r = document.createRange()
-    r.selectNodeContents(p)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    return s?.toString() ?? ''
-  })
+  const selected = await stickySelection(
+    frame,
+    () => {
+      const p = [
+        ...document.querySelectorAll('.vditor-preview .vditor-reset p'),
+      ].find((x) => x.textContent?.includes('Anchor line BRAVO'))
+      if (!p) throw new Error('no BRAVO paragraph in the rendered preview')
+      const r = document.createRange()
+      r.selectNodeContents(p)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      return s?.toString() ?? ''
+    },
+    null,
+  )
   // Guards the ordering above: if this is empty the test proves nothing about the clipboard.
   expect(selected, 'a real selection was made in the preview pane').toContain(
     'Anchor line BRAVO',
@@ -202,23 +206,27 @@ test('the split EDIT pane still copies markdown source — the control', async (
     .locator('.vditor-sv')
     .first()
     .click({ position: { x: 8, y: 8 } })
-  const selected = await frame.locator('body').evaluate(() => {
-    const sv = document.querySelector('.vditor-sv') as HTMLElement | null
-    if (!sv) throw new Error('.vditor-sv missing')
-    const walker = document.createTreeWalker(sv, NodeFilter.SHOW_TEXT)
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const i = (n.textContent ?? '').indexOf('Anchor line BRAVO')
-      if (i < 0) continue
-      const r = document.createRange()
-      r.setStart(n as Text, i)
-      r.setEnd(n as Text, i + 'Anchor line BRAVO'.length)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      return s?.toString() ?? ''
-    }
-    throw new Error('anchor not found in the sv edit pane')
-  })
+  const selected = await stickySelection(
+    frame,
+    () => {
+      const sv = document.querySelector('.vditor-sv') as HTMLElement | null
+      if (!sv) throw new Error('.vditor-sv missing')
+      const walker = document.createTreeWalker(sv, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const i = (n.textContent ?? '').indexOf('Anchor line BRAVO')
+        if (i < 0) continue
+        const r = document.createRange()
+        r.setStart(n as Text, i)
+        r.setEnd(n as Text, i + 'Anchor line BRAVO'.length)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        return s?.toString() ?? ''
+      }
+      throw new Error('anchor not found in the sv edit pane')
+    },
+    null,
+  )
   expect(selected).toContain('Anchor line BRAVO')
 
   await workbox.keyboard.press('Control+c')

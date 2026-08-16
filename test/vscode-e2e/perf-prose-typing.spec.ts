@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -43,6 +43,9 @@ for (const doc of DOCS) {
     )
     const frame = wf(workbox)
     await frame.locator('.vditor-ir').first().waitFor({ timeout: 60_000 })
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     await frame
       .locator('body')
       .evaluate(() => new Promise((r) => setTimeout(r, 1500)))
@@ -57,29 +60,33 @@ for (const doc of DOCS) {
       .click({ position: { x: 4, y: 4 } })
 
     // Place the caret at the END of the "Edit here" prose paragraph.
-    const placed = await frame.locator('body').evaluate(() => {
-      const ir = document.querySelector('.vditor-ir') as HTMLElement | null
-      const p = Array.from(ir?.querySelectorAll('p') ?? []).find((x) =>
-        x.textContent?.includes('Edit here'),
-      ) as HTMLElement | undefined
-      if (!p) return false
-      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-      let last: Text | null = null
-      let n = walker.nextNode() as Text | null
-      while (n) {
-        last = n
-        n = walker.nextNode() as Text | null
-      }
-      if (!last) return false
-      const r = document.createRange()
-      r.setStart(last, (last.textContent ?? '').length)
-      r.collapse(true)
-      const sel = window.getSelection()
-      sel?.removeAllRanges()
-      sel?.addRange(r)
-      p.focus()
-      return true
-    })
+    const placed = await stickySelection(
+      frame,
+      () => {
+        const ir = document.querySelector('.vditor-ir') as HTMLElement | null
+        const p = Array.from(ir?.querySelectorAll('p') ?? []).find((x) =>
+          x.textContent?.includes('Edit here'),
+        ) as HTMLElement | undefined
+        if (!p) return false
+        const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
+        let last: Text | null = null
+        let n = walker.nextNode() as Text | null
+        while (n) {
+          last = n
+          n = walker.nextNode() as Text | null
+        }
+        if (!last) return false
+        const r = document.createRange()
+        r.setStart(last, (last.textContent ?? '').length)
+        r.collapse(true)
+        const sel = window.getSelection()
+        sel?.removeAllRanges()
+        sel?.addRange(r)
+        p.focus()
+        return true
+      },
+      null,
+    )
     expect(placed, 'could not place caret in the prose paragraph').toBe(true)
 
     // Instrument: wrap SpinVditorIRDOM (records input length + ms per call) + a rAF-gap blocking sampler.

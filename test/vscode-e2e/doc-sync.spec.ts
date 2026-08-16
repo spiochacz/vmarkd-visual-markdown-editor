@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -46,20 +46,24 @@ test('a webview edit reaches the TextDocument and does not loop (no echo storm)'
     .click({ position: { x: 4, y: 4 } })
 
   // Type into the CARET-ANCHOR paragraph.
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-      x.textContent?.includes('CARET-ANCHOR'),
-    ) as HTMLElement | undefined
-    const t = p?.lastChild as Text | null
-    if (!t) throw new Error('caret anchor not found')
-    const r = document.createRange()
-    r.setStart(t, (t.textContent ?? '').length)
-    r.collapse(true)
-    const s = window.getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    p?.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+        x.textContent?.includes('CARET-ANCHOR'),
+      ) as HTMLElement | undefined
+      const t = p?.lastChild as Text | null
+      if (!t) throw new Error('caret anchor not found')
+      const r = document.createRange()
+      r.setStart(t, (t.textContent ?? '').length)
+      r.collapse(true)
+      const s = window.getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      p?.focus()
+    },
+    null,
+  )
   await workbox.keyboard.type('WEBVIEWEDIT', { delay: 40 })
   await frame
     .locator('body')

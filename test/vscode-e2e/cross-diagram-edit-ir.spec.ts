@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -88,30 +88,34 @@ test('editing prose in IR leaves every diagram family intact', async ({
   for (const lang of LANGS) expect(before[lang].els, lang).toBeGreaterThan(0)
 
   // Type into a prose paragraph (caret after a single-text-node needle).
-  await frame.locator('body').evaluate(() => {
-    const walker = document.createTreeWalker(
-      document.querySelector('.vditor-ir') as Node,
-      NodeFilter.SHOW_TEXT,
-    )
-    let node: Text | null = null
-    while (walker.nextNode()) {
-      const t = walker.currentNode as Text
-      if (t.textContent?.includes('Demo file')) {
-        node = t
-        break
+  await stickySelection(
+    frame,
+    () => {
+      const walker = document.createTreeWalker(
+        document.querySelector('.vditor-ir') as Node,
+        NodeFilter.SHOW_TEXT,
+      )
+      let node: Text | null = null
+      while (walker.nextNode()) {
+        const t = walker.currentNode as Text
+        if (t.textContent?.includes('Demo file')) {
+          node = t
+          break
+        }
       }
-    }
-    if (!node) throw new Error('prose needle not found')
-    const off =
-      (node.textContent ?? '').indexOf('Demo file') + 'Demo file'.length
-    const r = document.createRange()
-    r.setStart(node, off)
-    r.collapse(true)
-    const sel = getSelection()
-    sel?.removeAllRanges()
-    sel?.addRange(r)
-    document.execCommand('insertText', false, ' EDIT')
-  })
+      if (!node) throw new Error('prose needle not found')
+      const off =
+        (node.textContent ?? '').indexOf('Demo file') + 'Demo file'.length
+      const r = document.createRange()
+      r.setStart(node, off)
+      r.collapse(true)
+      const sel = getSelection()
+      sel?.removeAllRanges()
+      sel?.addRange(r)
+      document.execCommand('insertText', false, ' EDIT')
+    },
+    null,
+  )
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 3500)))

@@ -1,4 +1,4 @@
-import { docText, ev, settle, wf } from './webview-helpers'
+import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -60,7 +60,8 @@ async function selectText(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [sel, text] = args as [string, string]
       const root = document.querySelector(sel) as HTMLElement | null

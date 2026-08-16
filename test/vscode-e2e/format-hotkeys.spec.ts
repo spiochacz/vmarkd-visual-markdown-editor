@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 
 // Task 505 — "one owner per key, one source of truth" rewrite of task 492 Phase 4's original spec.
 // Root cause fixed here: Vditor's OWN hotkey table (media-src/node_modules/vditor/src/ts/util/
@@ -47,7 +47,8 @@ async function selectWord(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [word, sel] = args as [string, string]
       const root = document.querySelector(sel) as HTMLElement | null
@@ -86,7 +87,8 @@ async function caretInWord(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [n, off, sel] = args as [string, number, string]
       const root = document.querySelector(sel) as HTMLElement | null

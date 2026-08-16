@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -59,19 +59,23 @@ test('continuing a bullet list with Enter serializes a new sibling item', async 
     .first()
     .click({ position: { x: 4, y: 4 } })
   // Caret at the end of "bullet B", Enter to continue the list, type a new item.
-  await frame.locator('body').evaluate(() => {
-    const li = [...document.querySelectorAll('.vditor-ir li')].find((x) =>
-      x.textContent?.includes('bullet B'),
-    ) as HTMLElement | undefined
-    if (!li) throw new Error('bullet B not found')
-    const r = document.createRange()
-    r.selectNodeContents(li)
-    r.collapse(false)
-    const s = getSelection()
-    s?.removeAllRanges()
-    s?.addRange(r)
-    li.focus()
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const li = [...document.querySelectorAll('.vditor-ir li')].find((x) =>
+        x.textContent?.includes('bullet B'),
+      ) as HTMLElement | undefined
+      if (!li) throw new Error('bullet B not found')
+      const r = document.createRange()
+      r.selectNodeContents(li)
+      r.collapse(false)
+      const s = getSelection()
+      s?.removeAllRanges()
+      s?.addRange(r)
+      li.focus()
+    },
+    null,
+  )
   await workbox.keyboard.press('Enter')
   await workbox.keyboard.type('bullet NEW', { delay: 40 })
   await frame

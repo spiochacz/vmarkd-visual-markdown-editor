@@ -1,4 +1,4 @@
-import { docText, ev, settle, wf } from './webview-helpers'
+import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -130,8 +130,8 @@ async function selectParagraph(
     .locator(rootSelector)
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page selection-range construction across the configurable root/node/offset combinations; pre-existing (task 469 baseline)
+  await stickySelection(
+    frame, // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page selection-range construction across the configurable root/node/offset combinations; pre-existing (task 469 baseline)
     (_el, args) => {
       const root = document.querySelector(args.rootSelector) as HTMLElement
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)

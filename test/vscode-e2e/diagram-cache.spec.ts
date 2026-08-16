@@ -126,6 +126,9 @@ test('editing one diagram does not evict the other diagrams from the cache', asy
 
   // Type a character into the FIRST d2 diagram's editable source (adds/edits it → a new render
   // + a new cache entry for that diagram; the siblings are untouched).
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   await frame1.locator('body').evaluate(() => {
     const node = Array.from(
       document.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),

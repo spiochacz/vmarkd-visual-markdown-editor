@@ -33,6 +33,11 @@ async function caretAtStart(
     .locator(surface)
     .first()
     .click({ position: { x: 4, y: 4 } })
+  // NOT stickySelection (2026-08-15): the caret lands in a LIST ITEM's text and the very next act is
+  // a Backspace on it. The helper's ~200ms verification wait is enough for the item's dual node to
+  // re-render around the caret, and the key then acts on a different node — this spec failed the
+  // full suite twice in a row through it (retry included) and passes with the plain write. Same
+  // exemption as the expanded-IR-source sites: place the caret and press IMMEDIATELY.
   await frame.locator('body').evaluate(
     (_el, args) => {
       const [n, sel] = args as [string, string]

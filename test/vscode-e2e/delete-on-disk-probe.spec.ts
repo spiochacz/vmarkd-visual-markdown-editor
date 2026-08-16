@@ -1,4 +1,4 @@
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -129,20 +129,24 @@ test('@probe probe: file deleted on disk while open — survival, dirty state, t
         .locator('.vditor-ir')
         .first()
         .click({ position: { x: 4, y: 4 } })
-      await frame.locator('body').evaluate(() => {
-        const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
-          (x) => x.textContent?.includes('CARET-ANCHOR'),
-        ) as HTMLElement | undefined
-        const t = p?.lastChild as Text | null
-        if (!t) return
-        const r = document.createRange()
-        r.setStart(t, (t.textContent ?? '').length)
-        r.collapse(true)
-        const s = window.getSelection()
-        s?.removeAllRanges()
-        s?.addRange(r)
-        p?.focus()
-      })
+      await stickySelection(
+        frame,
+        () => {
+          const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+            (x) => x.textContent?.includes('CARET-ANCHOR'),
+          ) as HTMLElement | undefined
+          const t = p?.lastChild as Text | null
+          if (!t) return
+          const r = document.createRange()
+          r.setStart(t, (t.textContent ?? '').length)
+          r.collapse(true)
+          const s = window.getSelection()
+          s?.removeAllRanges()
+          s?.addRange(r)
+          p?.focus()
+        },
+        null,
+      )
       await workbox.keyboard.type(MARKER, { delay: 40 })
       await settle(frame, 1000)
 

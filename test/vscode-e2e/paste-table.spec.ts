@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 218 in the REAL editor: pasting a block of spreadsheet cells builds a markdown table.
 //
 // Both halves in ONE boot, and the second half is the one that matters most: a paste INSIDE a code
@@ -46,24 +46,28 @@ test('a pasted TSV block becomes a table in prose and stays literal in a fence',
 
   // Caret immediately after `needle`, wherever it lives (prose paragraph or code line).
   const place = (needle: string) =>
-    frame.locator('body').evaluate((_el, n) => {
-      const root = document.querySelector('.vditor-ir')
-      if (!root) throw new Error('no editor')
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-      for (let t = walker.nextNode(); t; t = walker.nextNode()) {
-        const i = (t.textContent ?? '').indexOf(n as string)
-        if (i < 0) continue
-        const r = document.createRange()
-        r.setStart(t as Text, i + (n as string).length)
-        r.collapse(true)
-        const s = window.getSelection()
-        s?.removeAllRanges()
-        s?.addRange(r)
-        ;(t.parentElement as HTMLElement)?.focus()
-        return
-      }
-      throw new Error(`anchor ${n} not found`)
-    }, needle)
+    stickySelection(
+      frame,
+      (_el, n) => {
+        const root = document.querySelector('.vditor-ir')
+        if (!root) throw new Error('no editor')
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+          const i = (t.textContent ?? '').indexOf(n as string)
+          if (i < 0) continue
+          const r = document.createRange()
+          r.setStart(t as Text, i + (n as string).length)
+          r.collapse(true)
+          const s = window.getSelection()
+          s?.removeAllRanges()
+          s?.addRange(r)
+          ;(t.parentElement as HTMLElement)?.focus()
+          return
+        }
+        throw new Error(`anchor ${n} not found`)
+      },
+      needle,
+    )
 
   await frame
     .locator('.vditor-ir')

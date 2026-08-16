@@ -2,7 +2,7 @@ import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 
 // Journey D8 (tasks/516-qa-journey-coverage-plan.md, Phase 4), probe-first — "Developer: Reload
 // Webviews" (`workbench.action.webview.reloadWebviewAction`) tears down and re-creates every
@@ -46,20 +46,24 @@ test('@probe probe: reload webviews with an unsaved edit — does content and di
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate(() => {
-      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
-        (x) => x.textContent?.includes('Edit here'),
-      ) as HTMLElement | undefined
-      const t = p?.lastChild as Text | null
-      if (!t) throw new Error('edit target not found')
-      const r = document.createRange()
-      r.setStart(t, (t.textContent ?? '').length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p?.focus()
-    })
+    await stickySelection(
+      frame,
+      () => {
+        const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+          (x) => x.textContent?.includes('Edit here'),
+        ) as HTMLElement | undefined
+        const t = p?.lastChild as Text | null
+        if (!t) throw new Error('edit target not found')
+        const r = document.createRange()
+        r.setStart(t, (t.textContent ?? '').length)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        p?.focus()
+      },
+      null,
+    )
     await workbox.keyboard.type(MARKER, { delay: 40 })
 
     const docState = () =>

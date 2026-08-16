@@ -1,4 +1,4 @@
-import { docText, ev, settle, wf } from './webview-helpers'
+import { docText, ev, settle, stickySelection, wf } from './webview-helpers'
 import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -86,7 +86,8 @@ async function caretAt(
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(
+  await stickySelection(
+    frame,
     (_el, args) => {
       const [needle, sel] = args as [string, string]
       const root = document.querySelector('.vditor-ir') as HTMLElement
@@ -471,23 +472,27 @@ for (const mode of ['wysiwyg', 'sv'] as const) {
       .locator(`.vditor-${mode}`)
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate((_el, sel) => {
-      const root = document.querySelector(sel as string) as HTMLElement
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        const i = (n.textContent ?? '').indexOf('See also:')
-        if (i < 0) continue
-        const r = document.createRange()
-        r.setStart(n as Text, i + 'See also:'.length)
-        r.collapse(true)
-        const s = window.getSelection()
-        s?.removeAllRanges()
-        s?.addRange(r)
-        ;(n.parentElement as HTMLElement | null)?.focus()
-        return
-      }
-      throw new Error('anchor not found')
-    }, `.vditor-${mode}`)
+    await stickySelection(
+      frame,
+      (_el, sel) => {
+        const root = document.querySelector(sel as string) as HTMLElement
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const i = (n.textContent ?? '').indexOf('See also:')
+          if (i < 0) continue
+          const r = document.createRange()
+          r.setStart(n as Text, i + 'See also:'.length)
+          r.collapse(true)
+          const s = window.getSelection()
+          s?.removeAllRanges()
+          s?.addRange(r)
+          ;(n.parentElement as HTMLElement | null)?.focus()
+          return
+        }
+        throw new Error('anchor not found')
+      },
+      `.vditor-${mode}`,
+    )
     await workbox.keyboard.press('Control+v')
 
     await expect

@@ -83,6 +83,9 @@ for (const { lang, family } of ENGINES) {
       .click({ position: { x: 4, y: 4 } })
 
     // Place the caret at the end of the trailing `zzz` identifier in this block's editable IR source.
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     const placed = await frame.locator('body').evaluate((_b, l) => {
       const wrapper = document.querySelector(`.language-${l}`)
       const node = wrapper?.closest('.vditor-ir__node') as HTMLElement | null

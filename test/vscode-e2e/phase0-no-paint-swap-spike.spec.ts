@@ -117,6 +117,9 @@ test('SPIKE 0.3: synchronous detach+reattach is never painted empty (capture/re-
 
   // PART 2 — characterize the REAL d2 INSERT settle on the current build
   // place caret at end of the d2 source
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   await frame.locator('body').evaluate(() => {
     const node = Array.from(
       document.querySelectorAll('.vditor-ir__node[data-type="code-block"]'),

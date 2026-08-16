@@ -72,6 +72,9 @@ test('editing abc never collapses the preview height (overlay reserves the rende
 
   // place the caret after "Major" in the abc title and type — real keystrokes drive the defer/overlay/
   // settle cycle (the title edit keeps the abc valid so the render returns to its full height).
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   const placed = await frame.locator('body').evaluate(() => {
     const node = document
       .querySelector('.vditor-ir__marker--pre code.language-abc')

@@ -1,4 +1,4 @@
-import { docText, wf } from './webview-helpers'
+import { docText, stickySelection, wf } from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -42,17 +42,21 @@ test('a real Ctrl+V paste reaches the document + disk, and one Ctrl+Z rolls back
     .evaluate(() => new Promise((r) => setTimeout(r, 1200)))
 
   // Caret at the end of the document, then a REAL paste.
-  await frame.locator('body').evaluate(() => {
-    const inst = (window as any).vditor
-    const el = inst.vditor[inst.getCurrentMode()].element as HTMLElement
-    el.focus()
-    const r = document.createRange()
-    r.selectNodeContents(el)
-    r.collapse(false)
-    const s = window.getSelection()!
-    s.removeAllRanges()
-    s.addRange(r)
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const inst = (window as any).vditor
+      const el = inst.vditor[inst.getCurrentMode()].element as HTMLElement
+      el.focus()
+      const r = document.createRange()
+      r.selectNodeContents(el)
+      r.collapse(false)
+      const s = window.getSelection()!
+      s.removeAllRanges()
+      s.addRange(r)
+    },
+    null,
+  )
   // Verify the caret really is in the editable BEFORE sending Ctrl+V. Without this, a setup that
   // silently failed shows up much later as "undo did not roll back the paste" — a product-shaped
   // symptom for what is really "the keys went nowhere". This spec failed exactly that way in a full

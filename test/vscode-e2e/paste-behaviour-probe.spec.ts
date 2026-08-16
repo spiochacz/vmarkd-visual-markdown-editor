@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // @probe — measurement only, asserts nothing (task 449 convention).
 //
 // One probe serving four planned paste tasks, because they all share ONE hook point and each one's
@@ -59,8 +59,8 @@ test('@probe what the paste pipeline does today', async ({
 
   // Put the caret just after `needle`, or SELECT `needle` when select=true.
   const place = (needle: string, select: boolean) =>
-    frame.locator('body').evaluate(
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page caret placement across text-node walk/needle-match/select branches; pre-existing (task 469 baseline)
+    stickySelection(
+      frame, // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: in-page caret placement across text-node walk/needle-match/select branches; pre-existing (task 469 baseline)
       (_el, args) => {
         const { needle, select } = args as { needle: string; select: boolean }
         const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>

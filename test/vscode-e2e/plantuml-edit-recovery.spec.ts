@@ -82,6 +82,9 @@ test('editing a plantuml arrow sequence→class→sequence recovers (fresh engin
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
+    // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+    // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+    // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
     const ok = await frame.locator('body').evaluate((_el, needle) => {
       const wrapper = document.querySelector('.language-plantuml')
       const node = wrapper?.closest('.vditor-ir__node') as HTMLElement | null

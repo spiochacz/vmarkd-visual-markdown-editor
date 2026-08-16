@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 242 in the REAL editor: pasted terminal/log text must not leak raw ANSI escape bytes into
 // the saved markdown.
 //
@@ -44,26 +44,30 @@ test('a pasted log line loses its ANSI escapes but keeps its text', async ({
     .locator('.vditor-ir')
     .first()
     .click({ position: { x: 4, y: 4 } })
-  await frame.locator('body').evaluate(() => {
-    const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
-      x.textContent?.includes('CARET'),
-    ) as HTMLElement | undefined
-    if (!p) throw new Error('anchor paragraph not found')
-    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
-    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-      const i = (n.textContent ?? '').indexOf('CARET')
-      if (i < 0) continue
-      const r = document.createRange()
-      r.setStart(n as Text, i + 'CARET'.length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p.focus()
-      return
-    }
-    throw new Error('anchor text node not found')
-  })
+  await stickySelection(
+    frame,
+    () => {
+      const p = [...document.querySelectorAll('.vditor-ir p')].find((x) =>
+        x.textContent?.includes('CARET'),
+      ) as HTMLElement | undefined
+      if (!p) throw new Error('anchor paragraph not found')
+      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const i = (n.textContent ?? '').indexOf('CARET')
+        if (i < 0) continue
+        const r = document.createRange()
+        r.setStart(n as Text, i + 'CARET'.length)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        p.focus()
+        return
+      }
+      throw new Error('anchor text node not found')
+    },
+    null,
+  )
   await workbox.keyboard.press('Control+v')
 
   const value = () =>

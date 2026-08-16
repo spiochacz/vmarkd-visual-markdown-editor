@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 
@@ -43,23 +43,30 @@ test('EOF trailing paragraph is hidden until the caret enters it', async ({
   expect(idle).toBe(0) // present in the DOM but collapsed (caret elsewhere)
 
   // Put the caret inside it (as ArrowDown-into-trailing does) → it reveals.
-  const active = await frame.locator('body').evaluate(() => {
-    const reset = document.querySelector(
-      '.vditor-ir .vditor-reset',
-    ) as HTMLElement
-    const tp = reset.querySelector(
-      ':scope > p[data-vmarkd-trailing]',
-    ) as HTMLElement
-    const r = document.createRange()
-    r.selectNodeContents(tp)
-    r.collapse(true)
-    const sel = getSelection()!
-    sel.removeAllRanges()
-    sel.addRange(r)
-    document.dispatchEvent(new Event('selectionchange'))
-    return new Promise<number>((res) =>
-      setTimeout(() => res(Math.round(tp.getBoundingClientRect().height)), 150),
-    )
-  })
+  const active = await stickySelection(
+    frame,
+    () => {
+      const reset = document.querySelector(
+        '.vditor-ir .vditor-reset',
+      ) as HTMLElement
+      const tp = reset.querySelector(
+        ':scope > p[data-vmarkd-trailing]',
+      ) as HTMLElement
+      const r = document.createRange()
+      r.selectNodeContents(tp)
+      r.collapse(true)
+      const sel = getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(r)
+      document.dispatchEvent(new Event('selectionchange'))
+      return new Promise<number>((res) =>
+        setTimeout(
+          () => res(Math.round(tp.getBoundingClientRect().height)),
+          150,
+        ),
+      )
+    },
+    null,
+  )
   expect(active).toBeGreaterThan(10) // expanded to a normal line once the caret is inside
 })

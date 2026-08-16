@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
-import { settle, wf } from './webview-helpers'
+import { settle, stickySelection, wf } from './webview-helpers'
 
 // Journey D9 (tasks/516-qa-journey-coverage-plan.md, Phase 4) — `stream-large-file.spec.ts` proves
 // a >700k-char document STREAMS in and comes back editable; it never types into one. This proves
@@ -87,20 +87,24 @@ test('type, undo, and save on a >700k-char streamed document', async ({
       .locator('.vditor-ir')
       .first()
       .click({ position: { x: 4, y: 4 } })
-    await frame.locator('body').evaluate(() => {
-      const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
-        (x) => x.textContent?.includes('CARET-ANCHOR'),
-      ) as HTMLElement | undefined
-      const t = p?.lastChild as Text | null
-      if (!t) throw new Error('CARET-ANCHOR paragraph not found')
-      const r = document.createRange()
-      r.setStart(t, (t.textContent ?? '').length)
-      r.collapse(true)
-      const s = window.getSelection()
-      s?.removeAllRanges()
-      s?.addRange(r)
-      p?.focus()
-    })
+    await stickySelection(
+      frame,
+      () => {
+        const p = Array.from(document.querySelectorAll('.vditor-ir p')).find(
+          (x) => x.textContent?.includes('CARET-ANCHOR'),
+        ) as HTMLElement | undefined
+        const t = p?.lastChild as Text | null
+        if (!t) throw new Error('CARET-ANCHOR paragraph not found')
+        const r = document.createRange()
+        r.setStart(t, (t.textContent ?? '').length)
+        r.collapse(true)
+        const s = window.getSelection()
+        s?.removeAllRanges()
+        s?.addRange(r)
+        p?.focus()
+      },
+      null,
+    )
     await workbox.keyboard.type(MARKER, { delay: 30 })
 
     const docText = () =>

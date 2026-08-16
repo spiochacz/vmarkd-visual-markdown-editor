@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { stickySelection, wf } from './webview-helpers'
 // Task 428 gap #1 — Enter at the START of a non-empty list item.
 //
 // This is a NET, not a fix's proof. The task's probe matrix recorded this as a GAP ("inserts a
@@ -56,26 +56,30 @@ test('Enter at the start of a list item pushes the text down instead of breaking
 
   // Caret at offset 0 of the list item whose text starts with `needle`.
   const caretAtStartOf = (needle: string) =>
-    frame.locator('body').evaluate((_el, n) => {
-      const li = [...document.querySelectorAll('.vditor-ir li')].find((x) =>
-        x.textContent?.trim().startsWith(n as string),
-      ) as HTMLElement | undefined
-      if (!li) throw new Error(`item ${n} not found`)
-      const w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT)
-      for (let t = w.nextNode(); t; t = w.nextNode()) {
-        const i = (t.textContent ?? '').indexOf(n as string)
-        if (i < 0) continue
-        const r = document.createRange()
-        r.setStart(t as Text, i)
-        r.collapse(true)
-        const s = window.getSelection()
-        s?.removeAllRanges()
-        s?.addRange(r)
-        li.focus()
-        return
-      }
-      throw new Error(`text node for ${n} not found`)
-    }, needle)
+    stickySelection(
+      frame,
+      (_el, n) => {
+        const li = [...document.querySelectorAll('.vditor-ir li')].find((x) =>
+          x.textContent?.trim().startsWith(n as string),
+        ) as HTMLElement | undefined
+        if (!li) throw new Error(`item ${n} not found`)
+        const w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT)
+        for (let t = w.nextNode(); t; t = w.nextNode()) {
+          const i = (t.textContent ?? '').indexOf(n as string)
+          if (i < 0) continue
+          const r = document.createRange()
+          r.setStart(t as Text, i)
+          r.collapse(true)
+          const s = window.getSelection()
+          s?.removeAllRanges()
+          s?.addRange(r)
+          li.focus()
+          return
+        }
+        throw new Error(`text node for ${n} not found`)
+      },
+      needle,
+    )
 
   await frame
     .locator('.vditor-ir')

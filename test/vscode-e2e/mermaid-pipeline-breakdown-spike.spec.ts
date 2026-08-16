@@ -36,6 +36,9 @@ test('SPIKE: mermaid edit→appear pipeline breakdown', async ({
     .evaluate(() => new Promise((r) => setTimeout(r, 3000)))
 
   // mark the current mermaid svg + place caret at end of its source
+  // NOT stickySelection: this caret goes into an expanded IR source, whose node re-renders during
+  // the helper's verification wait, so the keystrokes would land in the rendered preview instead.
+  // Measured 2026-08-15 — see the vmarkd-testing skill's Gotchas. Type IMMEDIATELY after the caret lands.
   await frame.locator('body').evaluate(() => {
     document
       .querySelector('.language-mermaid svg')
