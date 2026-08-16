@@ -97,7 +97,7 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
-## Full-suite progression across eight runs (2026-08-13 → 16)
+## Full-suite progression across nine runs (2026-08-13 → 16)
 
 | Run | passed | failed | flaky | what changed before it |
 |---|---|---|---|---|
@@ -109,9 +109,13 @@ red, that is recorded in the spec rather than claimed as coverage.
 | 6 | 268 | 1 | 3 | the `stickySelection` sweep; 1.1 h — the 1 failed + 1 flaky were the sweep's own and are now exempted, the other 2 flaky are untouched specs |
 | 7 | 271 | **0** | 1 | the `stickySelection` sweep committed (`53e37fc` render-cache fix, `5d13366` the caret-helper sweep, `a42a8c4` docs); 1.0 h, 2 skipped — the single flaky was `block-fidelity.spec.ts:293` (IR), green in all eight earlier full runs |
 | 8 | 272 | **0** | **0** | the block-fidelity caret fix (`4237c8c`), the diff-markers typecheck fix (`c98a1da`), the `stickySelection` log split (`344c2f3`); 1.2 h, 2 skipped |
+| 9 | 272 | **0** | **0** | the e2e typecheck sweep (`1587de3`) — 62 spec files re-annotated, no runtime change; 53.5 min, 2 skipped |
 
 Run 8 is the first fully clean full run — zero failures AND zero flakes. The previous best was run
-5's 270 passed with 2 flaky; every run between them carried at least one flake.
+5's 270 passed with 2 flaky; every run between them carried at least one flake. Run 9 confirms run
+8 rather than being a fluke — also zero failures, zero flakes — and is the fastest full run
+recorded here: 53.5 min, against run 8's 1.2 h and run 5's 59.1 min. Run 9 was a type-only change
+(no runtime code touched), so that gap is machine load, not the suite getting cheaper to run.
 
 ### Run 5's two flakes — a synthetic `Range` is not caret authority (2026-08-15)
 
@@ -279,6 +283,58 @@ reliably). The residual question is narrower than the first framing of this entr
 is still open: distinguishing the benign within-node case from a write that was genuinely reverted
 needs a probe that records the anchor OFFSET alongside the path at these call sites, which has not
 been run.
+
+### The other typecheck gate — also red, and not wired into `quality` either (2026-08-16)
+
+`npm run typecheck:vscode-e2e` was red, and had been for a long time. It is a SECOND typecheck
+script (`tsc -p test/vscode-e2e/tsconfig.json`), separate from `npm run typecheck` (`tsc -p
+media-src/tsconfig.typecheck.json`, the one the diff-markers fix above addressed). Neither is part
+of `npm run quality`.
+
+Measured: **12 errors on this branch, 9 on `main`** — so it was already red before this task
+started, and this branch added 4 (while incidentally removing 1 from `d2-render-sweep`).
+
+Per-file, branch vs main:
+
+| file | main | branch |
+|---|---|---|
+| `d2-render-sweep.spec.ts` | 6 | 5 |
+| `preview-widgets.spec.ts` | 2 | 2 |
+| `prerender-style-parity.spec.ts` | 1 | 1 |
+| `footnote-editing.spec.ts` | — | 1 |
+| `html-comment-edit.spec.ts` | — | 1 |
+| `keybinding-scope-release.spec.ts` | — | 1 |
+| `math-editing.spec.ts` | — | 1 |
+
+The 4 new ones landed in specs touched by the caret work (the `stickySelection` sweep and
+`4e33768`).
+
+**Cause of 11 of the 12.** `evaluateInVSCode` genuinely has two overloads, with and without an
+argument. A spec that passes the fixture into its own local helper must re-annotate it, because the
+overloaded type does not survive being destructured into a plain parameter. Those hand-written
+annotations pinned the second parameter as required and typed it `[string]`. A call site that
+genuinely needed no argument was then forced to write `[] as [string]` — a cast that lies (TS2352)
+— and one that correctly omitted the argument failed with TS2554.
+
+**Fix.** Export the shape once as `EvaluateInVSCode` from `webview-helpers.ts`, argument optional
+and untyped, and use it everywhere the annotation had been hand-copied — across all of
+`test/vscode-e2e/`, not only the seven files that happened to error, so the next spec to drop an
+argument does not resurrect it. 62 files, annotations only.
+
+**The twelfth.** `prerender-style-parity`'s snapshot builder used `Object.fromEntries`, whose
+typing always widens to a `{ [k: string]: V }` index signature — a shape that can never satisfy
+`Snapshot`'s named keys, so the whole call carried an unsound `as Promise<Snapshot>`. Rebuilt with a
+typed `reduce` keyed by the actual probe names, so `evaluate` infers `Snapshot` directly and the
+cast is gone. Identical keys, values and runtime behaviour.
+
+Commit `1587de3`. Verified by full suite run 9 afterwards, since the change touched 62 spec files.
+
+**The process point, stated plainly:** two of the three defects found today (`diff-markers`'
+TS2339 and these twelve) were sitting behind typecheck scripts that `npm run quality` does not run.
+A green `quality` is currently not evidence that the tree typechecks. This is an open decision, not
+a done thing: wiring both typecheck scripts into `scripts/quality.mjs` has not been done, and needs
+a call on whether `typecheck:vscode-e2e` should gate at zero — it would have to be fixed on `main`
+too, which it now effectively is via this branch, once merged.
 
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
