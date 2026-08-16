@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { useSettingsRestore } from './settings-helpers'
+import type { EvaluateInVSCode } from './webview-helpers'
 
 // @probe — excluded from the default run; run with `npm --prefix test/vscode-e2e run test:probes`
 // (task 449).
@@ -99,9 +100,7 @@ async function drainProbe(
   })
 }
 
-async function flipFullWidthSetting(
-  evaluateInVSCode: (fn: any, args: any[]) => Promise<unknown>,
-) {
+async function flipFullWidthSetting(evaluateInVSCode: EvaluateInVSCode) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode')) => {
       const cfg = vscode.workspace.getConfiguration('vmarkd')
@@ -159,7 +158,7 @@ test('measures e.origin/e.source stability across messages, a webview recreate, 
   await openVisual(tmp1)
   let frame = await waitReady()
   await installProbe(frame)
-  await flipFullWidthSetting(evaluateInVSCode as any)
+  await flipFullWidthSetting(evaluateInVSCode)
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 500)))
@@ -181,7 +180,7 @@ test('measures e.origin/e.source stability across messages, a webview recreate, 
   await openVisual(tmp1)
   frame = await waitReady()
   await installProbe(frame)
-  await flipFullWidthSetting(evaluateInVSCode as any)
+  await flipFullWidthSetting(evaluateInVSCode)
   await frame
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 500)))
@@ -191,7 +190,7 @@ test('measures e.origin/e.source stability across messages, a webview recreate, 
   await openVisual(tmp2)
   const frame2 = await waitReady()
   await installProbe(frame2)
-  await flipFullWidthSetting(evaluateInVSCode as any)
+  await flipFullWidthSetting(evaluateInVSCode)
   await frame2
     .locator('body')
     .evaluate(() => new Promise((r) => setTimeout(r, 500)))

@@ -1,4 +1,4 @@
-import { wf } from './webview-helpers'
+import { type EvaluateInVSCode, wf } from './webview-helpers'
 // GeoJSON/TopoJSON basemap tiles (task 99). Default = geometry-only, fully offline (no tile requests).
 // When the user opts into remote images (vmarkd.image.allowRemote), initLeafletMap adds CARTO's
 // no-key basemap UNDER the geometry; the CSP only allows the https tiles when that setting is on.
@@ -12,12 +12,12 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 useSettingsRestore(test, ['vmarkd.image.allowRemote'])
 
 async function open(
-  evaluateInVSCode: any,
+  evaluateInVSCode: EvaluateInVSCode,
   allowRemoteImages: boolean,
 ): Promise<void> {
   await evaluateInVSCode(
-    async (vscode: any, args: any) => {
-      const [uri, allow] = args as [string, boolean]
+    async (vscode: typeof import('vscode'), args: [string, boolean]) => {
+      const [uri, allow] = args
       await vscode.workspace
         .getConfiguration('vmarkd')
         .update('image.allowRemote', allow, true)

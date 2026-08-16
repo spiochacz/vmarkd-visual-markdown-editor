@@ -1,4 +1,4 @@
-import { docText, wf } from './webview-helpers'
+import { docText, type EvaluateInVSCode, wf } from './webview-helpers'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -14,7 +14,7 @@ const DIR = path.join(tmpdir(), 'vmarkd-p04-clip')
 const DOC = path.join(DIR, 'note.md')
 
 async function openDoc(
-  evaluateInVSCode: any,
+  evaluateInVSCode: EvaluateInVSCode,
   workbox: import('@playwright/test').Page,
   body: string,
 ) {
