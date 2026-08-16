@@ -1,4 +1,4 @@
-import { stickySelection, wf } from './webview-helpers'
+import { wf } from './webview-helpers'
 // Cross-diagram edit stability (task 189, user report 2026-07-03): editing ONE
 // diagram's source must not corrupt ANY other rendered diagram. The preview morph
 // (task 187) keeps rendered DOM alive across afterRender passes, which exposed
@@ -106,8 +106,18 @@ test('editing one diagram leaves every other family intact (split view)', async 
 
   // Type INSIDE a given sv source block (caret after the needle text).
   const typeInBlock = async (needle: string, text: string) => {
-    await stickySelection(
-      frame,
+    // NOT stickySelection: this callback places the Range AND performs the whole edit
+    // (execCommand('insertText')) in the same evaluate turn, so there is no window between the
+    // write and the keystroke for the editor to revert the caret into — the drift stickySelection
+    // guards against can't happen here. Wrapping it in the retry helper instead made an EDIT get
+    // retried: measured with an offset probe on 2026-08-16, both call sites ran all 5 attempts,
+    // because the post-write selection sits where the insert left it, which equals the pre-write
+    // selection on every later attempt, so the helper reads "did not move" and retries. The insert
+    // itself didn't repeat — the probe captured the anchor text identical before and after attempt
+    // 5, and the document ended up with exactly one insertion — but that was incidental, not
+    // guaranteed by the retry, and each wasted attempt paid the 3.5s sleep: ~14s per call, two
+    // calls, in a spec that takes 58.8s.
+    await frame.locator('body').evaluate(
       async (_b, arg) => {
         const [needleTxt, insert] = arg as [string, string]
         const sv = document.querySelector('.vditor-sv') as HTMLElement
