@@ -237,6 +237,31 @@ e2e for the feature. Run `npx biome format --write <changed files>` BEFORE lint 
 
 ## Gotchas
 
+- **NEVER place a caret by writing a `Range` from `evaluate()` after a click — use
+  `placeCaretAtEndOf` (`webview-helpers.ts`)** (2026-08-15, task 516 run 5). Vditor restores its own
+  caret asynchronously after a click, so a synthetic range set in the meantime is silently
+  discarded — and a *second* write is clobbered the same way, so retrying does not converge.
+  Measured on a probe: the write is visible inside the SAME `evaluate` (target node, right offset)
+  yet 2 of 4 runs read `"# "@0` (document start, the earlier click position) on the very next
+  `evaluate`. Keystrokes then land in whatever block the editor chose, and the spec fails as a
+  PRODUCT symptom — `footnote-editing` reported "the saved bytes lack EXTRACONTEXT" (save fidelity,
+  5 of 10 solo runs) and `noop-check-on-save` reported "undo never cleared the marker after 40
+  presses" (undo stack, 4 of 10 under 8×`yes` load) when both were really typing into the `# `
+  heading. `placeCaretAtEndOf(frame, workbox, selector, anchor)` clicks the target, presses `End`,
+  and VERIFIES the collapsed selection sits at the end of a text node containing `anchor` before
+  returning — the editor's own caret machinery, plus a setup miss that fails as itself.
+- **For a caret/selection the click+End shape cannot express, use `stickySelection`** — mid-text
+  offsets, a non-collapsed range for the cut/paste specs. It runs the spec's OWN in-page function,
+  snapshots the resulting selection as a structural PATH (text and offsets shift when an IR node
+  expands or a block is rebuilt, so neither can stand in for node identity), waits out the
+  re-assert window, and re-applies if it drifted. 61 call sites across 51 specs use it.
+  **EXCEPT when the caret's very NEXT act is a keystroke on the same dual-node region** — the
+  verification wait is long enough for that region to re-render around the caret, and the key then
+  acts on a different node. Two measured shapes: an EXPANDED IR SOURCE (`.vditor-ir__marker--pre` /
+  `--expand` — callout-edit, html-comment-edit, math-editing, diagram-edit-monitor) and a LIST ITEM
+  about to take Backspace/Enter (list-backspace, list-autoformat-space). All six pass with a plain
+  `evaluate` write and failed through the helper; those sites must type IMMEDIATELY after the caret
+  lands, and each carries a comment saying so.
 - **`settle(frame, ms)` STEALS DOM focus into the webview** (task 516). It waits by running
   `evaluate` INSIDE the webview iframe, and touching the iframe moves keyboard focus there. Harmless
   when the test types INTO the editor — fatal when the test needs focus somewhere else (a workbench

@@ -97,7 +97,7 @@ red, that is recorded in the spec rather than claimed as coverage.
 
 **All 31 journeys are now addressed** — 30 as nets or pinned contracts, D7 as a documented probe.
 
-## Full-suite progression across four runs (2026-08-13 → 14)
+## Full-suite progression across five runs (2026-08-13 → 15)
 
 | Run | passed | failed | flaky | what changed before it |
 |---|---|---|---|---|
@@ -105,6 +105,85 @@ red, that is recorded in the spec rather than claimed as coverage.
 | 2 | 265 | 2 | 5 | the three pre-existing failures + the settle-focus fix |
 | 3 | 268 | **0** | 4 | emoji-insert, outline-explorer, keybinding budget |
 | 4 | 270 | **0** | 2 | the save race, the theme-code leak, the overlay dblclick |
+| 5 | 270 | **0** | 2 | the caret-verification helper (4e33768); 59.1 min, 2 skipped |
+| 6 | 268 | 1 | 3 | the `stickySelection` sweep; 1.1 h — the 1 failed + 1 flaky were the sweep's own and are now exempted, the other 2 flaky are untouched specs |
+
+### Run 5's two flakes — a synthetic `Range` is not caret authority (2026-08-15)
+
+`footnote-editing` and `noop-check-on-save` (deferred-timer test) both went flaky→passed-on-retry.
+Same root cause, one fix:
+
+- Both placed the caret by clicking `.vditor-ir` at `{x:4,y:4}` and then writing a `Range` from
+  `evaluate()`. A probe showed the write SUCCEEDS (a read inside the same `evaluate` sees the target
+  node at the right offset) but in 2 of 4 runs the caret is back at the clicked position (`"# "@0`)
+  by the next `evaluate` — Vditor restores its own caret asynchronously after a click. A SECOND
+  write is clobbered the same way, so retrying the range write does not converge.
+- Keystrokes then landed in the heading: `# xyz123Title` in noop's failure diff, and footnote's
+  ` EXTRACONTEXT` prepended to the `# ` line or lost entirely.
+- Both failures reported a PRODUCT symptom for a setup miss — "the saved bytes lack EXTRACONTEXT"
+  (save fidelity) and "undo never cleared the marker after 40 presses" (undo stack). noop's undo
+  loop never even ran: its residue check is anchored to "newline", and the marker was in the heading.
+- Fix: `placeCaretAtEndOf` in `webview-helpers.ts` — click the target element, press `End`, verify
+  the selection is collapsed at the end of a text node containing the anchor, retry, else throw as
+  itself. Goes through the editor's own caret machinery instead of fighting it.
+
+Measured both sides: `footnote-editing` 5 failed / 10 solo before → 10/10 after;
+`noop-check-on-save` deferred-timer 10/10 solo (needs load to reproduce) → 4 failed / 10 under
+8×`yes` before → 10/10 under the same load after; both specs together 18/18 under load.
+
+### The sweep — 63 more call sites moved onto a verified write (2026-08-15)
+
+The same latent race sat in ~64 other specs that place a caret with `addRange` after a click. They
+were green on run 5 by the luck of the race, so they were swept too, via a second helper:
+
+- `stickySelection(frame, applyFn, arg)` runs the spec's OWN in-page write, then snapshots the
+  selection as a structural PATH and re-applies if it drifted. A path, not text+offset: expanding an
+  IR node inserts marker text and shifts every offset after it, and a spin rebuilds the block, so an
+  exact comparison reports "moved" for a caret that never left. It returns the callback's value, so
+  the 19 sites that use the result are unaffected.
+- The snapshot is taken AFTER the write in a second round trip, so a clobber landing in between
+  would be read back as success — measured, 2 of 8 probe runs returned with the caret at the click
+  position that way. Comparing against a `before` snapshot and retrying when the selection did not
+  MOVE closes that. With it: 8 of 8 land on target, against 3 of 6 clobbered for the raw write.
+- Applied by codemod to 89 sites, then **28 were reverted** — the exemption class is **a caret whose
+  very NEXT act is a keystroke on the same dual-node region**. The helper's ~200ms verification wait
+  is enough for that region to re-render around the caret, and the key then acts on a different node.
+  Two shapes hit it: an EXPANDED IR SOURCE (`.vditor-ir__marker--pre` / `--expand`, 23 sites) and a
+  LIST ITEM about to take Backspace/Enter (`list-backspace`, `list-autoformat-space`). Causally
+  proven on `diagram-edit-monitor` (2/2 green on the baseline, both tests red through the helper).
+  Every reverted site carries a comment saying why.
+- Verification, in two rounds. The 78 rewritten specs as one batch: **98 passed, 4 failed** — all
+  four the IR-source shape; 6/6 after the revert. Then the FULL suite: **268 passed, 1 failed, 3
+  flaky, 1.1 h**, against a 270/0/2 baseline. Attribution: `list-backspace` (hard, failed its retry
+  too) and `list-autoformat-space` were the sweep's, and are now exempted (6/6 on a 3× repeat);
+  `mode-switch-render-reuse` is untouched by this work and `diagram-edit-monitor` carries only a
+  comment change, so both are pre-existing flakes. The run's own good news: the two flakes this task
+  started from, `footnote-editing` and `noop-check-on-save`, both passed clean.
+- Final state: 61 sites across 51 specs on `stickySelection`, 2 on `placeCaretAtEndOf`.
+
+### Run 6's two remaining flakes — one fixed, one still unexplained (2026-08-15)
+
+**`diagram-edit-monitor` (graphviz) — FIXED.** Measured 3 of 8 under 8×`yes` load. The probe that
+settled it logged the graphviz SOURCE and the whole document after typing the deliberate garbage:
+on every failure the document HELD `@@@bad` while the block's own source stayed pristine — the
+keystrokes were editing another block, so no error render could ever appear and the spec spent its
+30s wait on one that was never coming. The caret cannot be checked BEFORE typing here (reading the
+selection back is a second round trip, and by then the expanded node has re-collapsed — that check
+failed 7 of 8 runs that would have typed fine). So `typeIntoSource` checks the OUTCOME instead:
+type, confirm the source changed, and on a miss undo with Ctrl+Z until the document is clean and
+retry. **16/16 under the same load** after, against 3/8 before.
+
+**`mode-switch-render-reuse` — NOT fixed, and honestly so.** 20/20 solo, 16/16 under 8×`yes`, and a
+replay of its real 11-spec predecessor chain came back clean, so it is neither order-dependent nor
+plainly load-sensitive; n=1 from the suite. What the investigation DID find is that its failure
+message lied: the diff position and excerpt were computed on the RAW markup while the pass/fail
+decision uses the `stripIdNs`-normalised strings, so the message pointed at a `-vmN` paint-namespace
+suffix that had already been normalised away — a difference that cannot be the cause — and hid the
+real one. That is fixed; the next occurrence will name the actual difference. The underlying cause
+remains unidentified.
+
+**Not swept:** 5 sites in the `wiki-*` specs write the range through the chip element's own locator
+and use the element parameter, so they do not fit either helper's shape.
 
 The two still-flaky after run 4 — `flip-skip` and `prerender-style-parity` — both pass 12/12 in
 isolation; the parity one was then pinned against inherited themes (see [524](524-e2e-specs-leak-global-settings.md)).
