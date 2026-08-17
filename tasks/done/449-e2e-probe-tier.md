@@ -144,3 +144,24 @@ three).
       failing assertion from this new guard** (`local-link-open-probe.spec.ts`, Direction A, not my
       file to fix — see above) — this is the guard doing its job, not a bug in the guard; flagged to
       team-lead rather than papered over with an allowlist entry.
+
+## Follow-up (2026-08-16/17) — `@probe` vs `*spike*` get different treatment
+
+A 2026-08-16 audit of both opt-in exclusions (`@probe` here, `*spike*` from audit 185/1c) found both
+had rotted silently, exactly because neither runs in any routine command or the release gate:
+`local-link-open-probe` failed on both sides of history; `webview-message-origin-probe` had been
+measuring ZERO messages ever since `vmarkd.editor.fullWidth` defaulted to `true`, making its own
+trigger a no-op; `mermaid-pipeline-breakdown-spike` was measuring nothing because its keystroke never
+reached the document. Three probes asserting they knew something while knowing nothing.
+
+Decision: the two populations are not the same kind of thing, so they don't get the same expectation.
+- **`@probe` — keep, and run it periodically.** It pins behaviour with no contract yet, and real
+  task-516 bugs surfaced through it. A probe failure is real signal about drifted behaviour, not
+  noise to silence. Still excluded from every default tier — the schedule is deliberately NOT the
+  blocking gate.
+- **`*spike*` — treat as an archive, not as tests to keep green.** A spike answers a design question
+  once and is then a record; its red says nothing about the product today, and it is not maintained.
+
+No exclusion mechanism, env var, npm script, or CI wiring changed — this is a documentation update
+only. Recorded in `test/vscode-e2e/playwright.config.ts` (both comment blocks) and
+`.claude/skills/vmarkd-testing/SKILL.md`.

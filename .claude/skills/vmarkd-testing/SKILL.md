@@ -53,6 +53,24 @@ call in every measured case so far.
 
 Coverage: `npm run test:coverage`. Lint gate: `npm run lint:ci`. Typecheck: `npm run typecheck`.
 
+### Two opt-in populations inside real-VS-Code e2e: `@probe` and `*spike*`
+
+Both are excluded from every tier (smoke/fast/full) by default, and neither's env var runs "just
+those specs" — it removes the exclusion, so the WHOLE suite plus that population runs (~1.1 h each).
+Not a casual command. They also get different treatment, because they're different things:
+
+- **`@probe`** (task 449) — a TAG on ~32 individual test titles whose own headers say they assert
+  nothing (pure measurements). Run it with `VMARKD_PROBES=1` (`npm run test:probes` in
+  `test/vscode-e2e`). **Run periodically, not never** — probes pin behaviour that has no contract
+  yet, and several real bugs surfaced through them (task 516). A probe failure is real signal about
+  drifted behaviour, not noise. An unrun probe rots: `webview-message-origin-probe` measured ZERO
+  messages for a long stretch once `vmarkd.editor.fullWidth` defaulted to `true` (its own trigger
+  became a no-op), and it kept "passing" the whole time (found 2026-08-16).
+- **`*spike*`** (filename pattern, audit 185/1c) — whole investigative/feasibility-study spec FILES.
+  Run it with `VMARKD_SPIKES=1` (`npm run test:spikes`). Treat as an **archive**: a spike answered a
+  design question once, at a point in time; its red today is not a product signal, and it is not
+  maintained against later changes. Don't "fix" a failing spike to turn it green.
+
 ## Real-VS-Code e2e — the recipe
 
 `extensionDevelopmentPath: repoRoot` (see `test/vscode-e2e/playwright.config.ts`) → the suite loads

@@ -186,6 +186,15 @@ process.env.VMARKD_E2E = '1'
 // tag flipped on/off by its OWN env var needs its own OR branch, not a second ternary that would
 // silently stop excluding `@probe` whenever `VMARKD_VISUAL=1` was set (and vice versa). Verify all
 // four on/off combinations with `npx playwright test --list` (± VMARKD_VISUAL, ± VMARKD_PROBES).
+//
+// Excluded from the default run does NOT mean "run never" — probes pin behaviour that has no
+// contract yet, and several real task-516 bugs surfaced through them. Run `VMARKD_PROBES=1` on a
+// schedule (not as a blocking gate), and take a probe failure as real signal about drifted
+// behaviour, not noise to silence. Evidence an unrun probe rots (2026-08-16 audit): three of them
+// were asserting they knew something while actually knowing nothing —
+// `webview-message-origin-probe` had been measuring ZERO messages ever since
+// `vmarkd.editor.fullWidth` defaulted to `true`, making its own trigger a no-op, and it kept
+// "passing" the whole time because nothing checked what it was actually measuring.
 const grepExcludePatterns: string[] = []
 if (!process.env.VMARKD_VISUAL) grepExcludePatterns.push('@visual')
 if (!process.env.VMARKD_PROBES) grepExcludePatterns.push('@probe')
@@ -224,6 +233,12 @@ export default defineConfig<VSCodeTestOptions, VSCodeWorkerOptions>({
   // Investigative *spike* specs (perf probes, feasibility studies) are not regression tests —
   // exclude them from the default run, which the release-blocking nightly/tag gate executes
   // (audit 185/1c). Run them on demand via `npm run test:spikes` (sets VMARKD_SPIKES=1).
+  //
+  // Treat this population as an ARCHIVE, not as tests to keep green: a spike answers a design
+  // question once, at a point in time, and what's checked in afterward is the record of that
+  // answer. Its red today is not a signal that the product regressed — it is not maintained
+  // against later changes, and is not expected to pass. Don't "fix" a failing spike to make it
+  // green; that would misrepresent what it is.
   testIgnore: process.env.VMARKD_SPIKES ? [] : ['**/*spike*'],
   // Tier selection (see SMOKE_SPECS / FAST_SPECS above). Unset ⇒ the full suite, which is what the
   // nightly/tag gate runs — do not make either tier the default here, or that gate silently shrinks.
