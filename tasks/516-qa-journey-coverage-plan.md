@@ -466,21 +466,50 @@ passed **twice**, producing a coherent measurement: keystroke → old svg gone �
 window plus the spin start, NOT the mermaid render (isolated ≈ 55 ms) — which is exactly the
 question the spike's header says it exists to answer.
 
-That result could **not be reproduced**: 0 of 7 subsequent runs on byte-identical code. Ruled out
-as causes: machine load (load average 0.91), orphaned VS Code/Electron processes (none), a mutated
-fixture (`git status` clean), leftover profile settings (no `settings.json` in the test profile),
-and `vmarkd.editor.defaultMode: remember` leaking a mode from the run that died at the 3-minute
-timeout (pinning it to `ir` measured 0/3).
+That result could **not be reproduced**: 0 of 7 subsequent runs on byte-identical code. At the
+time, four causes were checked: orphaned VS Code/Electron processes (none), a mutated fixture
+(`git status` clean), leftover profile settings (no `settings.json` in the test profile), and
+`vmarkd.editor.defaultMode: remember` leaking a mode from the run that died at the 3-minute
+timeout (pinning it to `ir` measured 0/3) — plus machine load, read as load average 0.91 and
+called ruled out.
 
-So the instability is **independent of the spec's code**, and its mechanism is undetermined. Per
-this repo's rule — a fix that cannot be proven is said so rather than shipped on a hunch — the
-working tree was reverted and nothing was committed.
+**Correction (2026-08-17): that last one was wrong as written, and there is now a strong
+candidate cause.** Later the same session, a chain replay of a different spec
+(`list-editing-probe`) failed to reproduce its own target and instead failed `large-doc-editing`,
+which had passed in the tier run. Checking the machine at that moment found load average **10.46
+/ 11.01 / 9.03** against the 0.91 read earlier, swap nearly exhausted (2.8 GiB of 3.0 GiB used),
+and one process — `node f2-strict.mjs onnx-community/Qwen2.5-1.5B-Instruct q4`, started by an
+unrelated session on the same machine — consuming ~610% CPU and ~33% of RAM (~5 GB), still
+running 20+ minutes later. The timeline fits: the spike's two green runs happened while load read
+~0.9, and the 0-of-7 red streak happened while the machine was saturated by that job.
+
+This is a **candidate cause, not a proven one** — the correlation comes from timestamps, not from
+re-running the spec under controlled, reproduced load. The "ruled out machine load" line above is
+wrong as originally written: it was ruled out on a single `uptime` reading taken between runs,
+which is exactly when load reads lowest and says nothing about load DURING either the two green
+runs or the seven red ones.
+
+**The lesson generalises beyond this spec.** On a shared machine, a single loadavg reading taken
+between runs says nothing about load during a run, only during the gap between runs. Back-to-back
+e2e runs plus any co-tenant job make flake attribution from such a reading unreliable. Chain
+replay in particular needs a quiet machine, or it manufactures phantom polluters — it did exactly
+that here, reporting `large-doc-editing` as a failure it does not otherwise have.
+
+For the same reason, the three remaining order-dependent failures from the tier run above —
+`diagram-175spike-all`, `list-editing-probe`, `prose-fast-edit` — were **not** measured this
+session: their chain replay was deliberately deferred rather than run on a saturated machine,
+since the result would not have been interpretable.
+
+So the instability's mechanism is still undetermined, but no longer unconstrained: a co-tenant job
+saturating CPU and swap is the leading candidate, pending a controlled-load rerun. Per this repo's
+rule — a fix that cannot be proven is said so rather than shipped on a hunch — the working tree was
+reverted and nothing was committed.
 
 **What a later attempt should know.** The four defects above are real regardless of the
 instability and will need fixing whatever the root cause turns out to be. Two green runs looked
-like proof and were not — any future claim here needs a measured RATE, not a pass. The spike is
-`@spike`, excluded from every routine command, and was already failing before this investigation
-touched anything.
+like proof and were not — any future claim here needs a measured RATE under a KNOWN load, not a
+pass. The spike is `@spike`, excluded from every routine command, and was already failing before
+this investigation touched anything.
 
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
