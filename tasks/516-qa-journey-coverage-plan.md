@@ -498,7 +498,8 @@ that here, reporting `large-doc-editing` as a failure it does not otherwise have
 For the same reason, the three remaining order-dependent failures from the tier run above —
 `diagram-175spike-all`, `list-editing-probe`, `prose-fast-edit` — were **not** measured this
 session: their chain replay was deliberately deferred rather than run on a saturated machine,
-since the result would not have been interpretable.
+since the result would not have been interpretable. They have since been measured on a quiet
+machine — see the next section.
 
 So the instability's mechanism is still undetermined, but no longer unconstrained: a co-tenant job
 saturating CPU and swap is the leading candidate, pending a controlled-load rerun. Per this repo's
@@ -510,6 +511,53 @@ instability and will need fixing whatever the root cause turns out to be. Two gr
 like proof and were not — any future claim here needs a measured RATE under a KNOWN load, not a
 pass. The spike is `@spike`, excluded from every routine command, and was already failing before
 this investigation touched anything.
+
+### The three deferred replays — measured on a quiet machine (2026-08-20)
+
+The chain replay deferred above was run once the machine was quiet (load average 1.85 at start):
+one command per chain, `--retries=0`, using the predecessor chains from the tier logs.
+
+- `list-editing-probe` after its 10-spec predecessor chain (`inline-code-gap` … `list-backspace`),
+  `VMARKD_PROBES=1`.
+- `prose-fast-edit` after its 10-spec predecessor chain (`plantuml-typeswitch` … `probe-pumlmode`),
+  `VMARKD_PROBES=1`.
+- `diagram-175spike-all` after its 6-spec predecessor chain (`d2-sketch` … `delete-on-disk`),
+  `VMARKD_SPIKES=1`.
+
+**`list-editing-probe` and `prose-fast-edit` did not reproduce**: 15/15 and 12/12 respectively.
+This confirms the load hypothesis by measurement rather than correlation — the same
+`list-editing-probe` chain, replayed earlier while the machine was saturated, had failed
+`large-doc-editing` instead of its own target, a spec that passes cleanly here. Neither probe is
+broken; there is nothing in them to fix.
+
+**`diagram-175spike-all` reproduced**, failing with `stl: typed chars missing from source`. Its
+failure rate was then measured across repeated chain runs, since a single red proves nothing for
+this spec (see above). Across 4 chain runs (24 engine-tests — the spec exercises 6 engines) there
+were 8 failures, ~33%, and the failing engine rotated between runs: `stl` alone; then `echarts`;
+then `d2` + `mermaid` + `stl`; then `mermaid` + `flowchart` + `stl`. This matches the earlier
+tier-vs-baseline comparison above, where the baseline failed graphviz/mermaid/echarts/flowchart and
+the branch failed stl/d2/echarts — rotating-engine failure, not an `stl` defect.
+
+A fix was tried and measured not to hold. `placeCaret` writes a `Range` from inside an `evaluate`,
+and its own comment already says "Type IMMEDIATELY after the caret lands", but `startSampler` — a
+whole extra `evaluate` round trip — sat between the caret write and the keystrokes. Reordering
+naively is wrong, because `placeCaret` also adds `vditor-ir__node--expand`, and that reflow would
+then land inside the sampled window, but only for the first burst — biasing exactly the OFF-vs-ON
+comparison the spike exists to make. So the call was split instead: `expandSource` (expand +
+reflow) runs before the sampler starts, `placeCaretOnly` (the bare `Range` write) runs immediately
+before the keystrokes. Measured over 3 chain runs: 4 failures in 18 engine-tests, ~22%, against
+~33% before — a difference of two or three failures on small samples, well within noise, with the
+engine still rotating (mermaid, graphviz, flowchart, stl). One of those three runs also started at
+load 9.81, from the back-to-back runs themselves, so even that side is partly contaminated.
+Ordering is therefore not the cause, or not the only one; the change was reverted and nothing
+shipped.
+
+This is consistent with the `*spike*` convention recorded in task 449 and `playwright.config.ts`: a
+spike is an archive, its red is not a product signal, and greening it is not the goal. What this
+measurement adds beyond that convention: `diagram-175spike-all`'s own numbers are unreliable on
+their own terms — it silently drops typed characters on roughly a fifth to a third of
+engine-tests, so any perf figure it reports may have been sampled against an edit that never
+landed.
 
 ## Full real-VS-Code suite — result and triage (2026-08-13)
 
