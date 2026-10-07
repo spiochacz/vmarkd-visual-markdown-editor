@@ -74,6 +74,10 @@ jobs:
       # them long-standing, before anyone ran it. The specs are the only coverage
       # some webview behaviour has, so a spec that no longer compiles is a hole in
       # the net, not a cosmetic complaint. Cheap: tsc only, no browser, no suite.
+      # The spec tree has its own package (vscode-test-playwright, @playwright/test); without it
+      # tsc cannot resolve a single import. No browser / VS Code download here — modules only.
+      - name: Install (vscode-e2e, for its type-check)
+        run: npm --prefix test/vscode-e2e ci --no-fund --no-audit
       - name: Type-check (vscode-e2e specs)
         run: npm run typecheck:vscode-e2e
 
