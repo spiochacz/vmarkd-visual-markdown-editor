@@ -1,0 +1,224 @@
+# Task: Soft line breaks like CommonMark (flow wrapped lines)
+
+> **Status:** 📋 planned — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
+> toggle, see the first section). The 2026-06-13 preview-only design below is still part of it.
+> Nothing is implemented yet (the file sat in `done/` by mistake after a bulk archive; reopened).
+> **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
+> preview render to vMarkd's render of the same file (task 82 theme work). A
+> paragraph (or blockquote) that is soft-wrapped across several source lines shows
+> as **separate lines** in vMarkd, but **flows into one wrapped paragraph** on
+> GitHub / in VS Code's preview. Re-confirmed 2026-06-13 (VS Code 1.123 preview parity work).
+> **Value / Risk:** 🟢 fidelity-to-CommonMark / **low (as scoped)** — preview-only +
+> default-off setting makes it a single Vditor source-patch with no round-trip impact.
+> **Engines:** Lute (bundled) — `SetSoftBreak2HardBreak`.
+
+## Scope extension (2026-10-07) — reflow IN THE EDITOR, show where the line breaks are
+
+User request (2026-10-07): a **toolbar toggle** that makes ordinary (soft) line breaks flow like
+VS Code's markdown preview does, **in the editor itself (IR and WYSIWYG)**, and marks every place
+where the file has a newline with a **small inline glyph** (a little box / `↵`), so the source
+wrapping stays visible while the text reflows. Toggle off = today's behaviour.
+
+### Measured (2026-10-07, vendored Lute 591a695, Node probe + chromium)
+
+- **In the editor DOM a soft break is a literal `\n` text character inside the `<p>`**, shown as a
+  new line only because the IR/WYSIWYG surfaces use `white-space: pre-wrap` (`_ir.less`,
+  `_wysiwyg.less`). Hard breaks (`two spaces` / `\`) are `<br />`. `Md2VditorIRDOM` /
+  `Md2VditorDOM` emit the SAME DOM with `SetSoftBreak2HardBreak(true)` and `(false)`, so **the
+  Lute knob from the design below does nothing for the editor** — it only affects `Md2HTML`
+  (the preview).
+- **Pure CSS is not enough.** Reflow needs "newline → space, but keep runs of spaces"
+  (`white-space-collapse: preserve-spaces`), which Chromium 148 does NOT support
+  (`CSS.supports` false). `white-space: normal` on the whole block collapses double spaces and, in a
+  contenteditable, makes typed spaces come out as `&nbsp;` — which would leak into the markdown.
+- **Sketch that fits our existing patterns:** a decorator wraps each soft-break `\n` text run in
+  `<span class="vmarkd-softbreak">\n</span>`; the span gets `white-space: normal` (the newline
+  renders as a space, the rest of the block stays `pre-wrap`) and a `::before`/`::after` glyph for
+  the marker. A bare wrapper span round-trips clean through Lute (its text, the `\n`, serializes as
+  before — must be asserted byte-identical); the per-keystroke spin drops the spans, so it re-applies
+  from a MutationObserver/selectionchange the way `callouts.ts` / `code-source.ts` decorate
+  (memories: editable-IR styling = attrs + observer; injected DOM is transient). The marker glyph
+  must be pseudo-element content, NOT a text node (a text node would serialize).
+- **Toggle:** a toolbar button (pressed state) backed by a setting so it persists, e.g.
+  `vmarkd.editor.reflowLineBreaks`; it should also drive the preview half (the 2026-06-13 design),
+  so one switch gives the same picture in edit and Preview.
+
+### Risks to measure before building
+
+- **Caret around the wrapped `\n`:** ArrowLeft/Right/Up/Down, Home/End and click-placement across
+  a newline that now renders as a space; typing at either edge of the span (must land as text in
+  the paragraph, not inside the span, or be harmless when it does); Enter/Backspace at the break.
+- **Selection/copy** across a marker must not copy the glyph.
+- **Cost:** the decorator walks text nodes of the edited block per spin — keep it block-scoped
+  (memory: prose typing on large docs is already rebuild+reflow bound).
+- **Hard breaks become visibly different from soft ones once reflow is on — and the editor already
+  LOSES hard breaks** in any paragraph it re-serializes: measured `line  \nnext` and `line\\\nnext`
+  both come back from `VditorIRDOM2Md` / `VditorDOM2Md` as `line\nnext` (known since task 61, Vditor
+  #1922; the minimal-diff write-back only protects UNTOUCHED blocks). Measured on the serializer
+  in a Node probe only — reproduce it end-to-end in the editor (edit such a paragraph, save) first. With reflow on, editing a
+  paragraph would visibly merge its hard-broken lines. Decide with the user whether that is fixed
+  first, as part of this task, or tracked separately.
+
+### Spike result (2026-10-07) — the decorator approach WORKS; three things left to settle
+
+Throwaway code: `tmp/softbreak/` (`decorator.js` = the decorator, `spike.mjs` = the matrix in the
+list harness, `?md=&mode=`, both IR and WYSIWYG; gitignored). Final design that passed:
+
+- `<span class="vmarkd-softbreak" contenteditable="false">\n</span>` around every soft-break `\n`
+  inside a block (not a trailing one), CSS `white-space: normal` on the span (renders as a space) +
+  `::before { content: '↵' }` glyph. **`contenteditable=false` is required:** with an editable span,
+  Chromium's whitespace canonicalisation turned the `\n` into `" "` as soon as you typed next to it
+  (`one\nXbeta` saved as `one Xbeta` — first run).
+- MutationObserver re-wraps **only the top-level blocks the mutation touched** (whole-root walk cost
+  160 ms per keystroke on a 1500-paragraph doc in IR; block-scoped: **1.3–1.8 ms**).
+- **Structural keys (Enter / Shift+Enter / Backspace / Delete): unwrap the block's spans and
+  `normalize()` it in a window capture-phase keydown, with the caret kept as a character offset, and
+  hold the observer off until a `setTimeout(0)`.** Without the hold, the observer's microtask
+  re-wraps between our listener and Vditor's; without `normalize()`, Shift+Enter found the caret at
+  the END of a text node and Vditor inserted `\n\n` → split the paragraph into two.
+- `selectionchange`: a caret that lands inside the span (click on the glyph) moves to offset 0 of the
+  next text node.
+
+Measured, both modes identical:
+
+| check | result |
+|---|---|
+| saved markdown with the decorator vs without | byte-identical |
+| 3-line soft-wrapped paragraph | 3 visual lines → 1 |
+| selection text across a marker | `"Alpha one beta two gamma three"` (no glyph) |
+| ArrowRight across the break | one press |
+| type at end of line 1 / start of line 2 / after ArrowLeft/Right / after glyph click | lands in the right place, newline kept |
+| typing a word, blockquote soft break, list-item continuation line | correct |
+| Enter at the break | new paragraph, same as without the decorator |
+| Shift+Enter at the break | soft break inserted, same as without the decorator |
+| Backspace at line-2 start / Delete at line-1 end | deletes the newline → `onebeta` (same as without the decorator; visually you deleted the "space") |
+| End / Home | go to the VISUAL line ends (= the paragraph ends once reflowed) |
+| decorate a fresh 1500-paragraph doc (3000 breaks) | **1.2–1.9 s — too slow for open as-is**; needs idle chunking or viewport-only decoration |
+
+Still open:
+
+1. **Undo** not measured: Ctrl+Z does nothing in the list harness WITHOUT the decorator either, so
+   it has to be checked in real VS Code (Vditor's undo snapshots the DOM, spans included).
+2. **Open cost** above — chunk on idle (`requestIdleCallback`) or decorate what is on screen.
+3. ~~What Shift+Enter should do in reflow mode~~ — **DECIDED (user, 2026-10-07): in reflow mode
+   Shift+Enter inserts a HARD break**, so the line visibly breaks (GitHub semantics: soft break =
+   space, hard break = new line). Default form: backslash + newline (`\` survives editors that trim
+   trailing whitespace; two trailing spaces do not). Reflow off = today's behaviour (soft break).
+   **Blocked by the Lute hard-break bug below** — the hard break must survive serialization first.
+
+**Separate bug found by the spike — now [task 530](done/530-hard-line-breaks-lost-on-edit.md), reproduced end to end in real VS Code (softened form):** a paragraph
+with hard breaks that is followed by a blockquote or a list serializes with the breaks DROPPED and
+the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard twohard three`
+(IR and WYSIWYG). The same paragraph followed by a plain paragraph comes back as soft breaks
+(`Hard one\nhard two`), also lossy. Not yet reproduced end-to-end in VS Code.
+
+### Steps
+
+- [x] Spike: decorator + CSS in the chromium harness — reflow, marker glyph, round-trip
+      byte-identical, caret matrix above (IR and WYSIWYG).
+- [x] Decide the hard-break question: Shift+Enter = hard break in reflow mode (2026-10-07).
+- [x] Hard breaks must round-trip (prerequisite — DONE 2026-10-07, [task 530](done/530-hard-line-breaks-lost-on-edit.md)): reproduce in real VS Code, fix
+      at our layer (no Lute engine patch), then Shift+Enter → `\` + newline in reflow mode.
+- [ ] Setting + toolbar toggle (pressed state, live re-apply without reopen), preview half wired
+      to the same switch.
+- [ ] Unit + chromium e2e + real-VS-Code e2e (both modes), red-green-red.
+
+## Resolved (2026-06-13)
+
+**Root cause (verified):** Lute exposes `SetSoftBreak2HardBreak`, default **`true`** (soft `\n` →
+hard `<br>`). Vditor's `setLute.ts` calls ~18 Lute setters but **never** calls this one, so the
+default wins → vMarkd emits `<br>`. The vendored `media/vditor/dist/js/lute/lute.min.js` DOES
+expose `SetSoftBreak2HardBreak`. Vditor is the outlier — both VS Code (markdown-it/CommonMark) and
+GitHub.com reflow soft-wrapped prose.
+
+**Scope = PREVIEW ONLY (investigate option (a), confirmed safe).** `previewRender.ts → md2html()`
+builds its **own** Lute (`const lute = setLute({…})` + `lute.Md2HTML()`) and renders **exactly** the
+preview surfaces (SPLIT right pane + IR/WYSIWYG "Preview" button overlay `.vditor-preview`). The
+edit surfaces (IR/WYSIWYG/SV) use **separate** Lute instances → patching only `md2html` flips reflow
+in the preview while **editing keeps line-break preservation**. This makes the round-trip risk
+(Investigate #2) **moot by construction**: the editor serializer is never touched, so on-disk
+wrapping is unchanged. Host-side prerender (`src/lute-host.ts`) renders the **editor** first paint,
+not the preview → leave it (consistent with "edit preserves breaks").
+
+**Decisions (approved by user):**
+- **Setting:** `vmarkd.preview.reflowLineBreaks` (boolean). `true` → reflow like VS Code/GitHub
+  (`SetSoftBreak2HardBreak(false)`); `false` → keep `<br>` (current).
+- **Default:** `false` (no behaviour change for existing docs; opt-in to parity).
+- **Surface:** preview only (scope a) **+** a setting (scope c). NOT the live IR editing surface (b).
+
+**Concrete approach (mechanism = `window.__vmarkd*` flag + esbuild source-patch — mirrors existing
+patches; per ADR-0003 "behaviour, not CSS" → esbuild TS patch):**
+1. `package.json` — add `vmarkd.preview.reflowLineBreaks` (boolean, default `false`) to the
+   "Appearance" group; description notes "Preview surface only — editing keeps manual line breaks".
+2. `src/extension.ts` — `collectConfigOptions()` (~line 1485) add
+   `reflowLineBreaks: c.get<boolean>('preview.reflowLineBreaks')` (flows to webview via init +
+   `config-changed`).
+3. `media-src/esbuild-shared.mjs` — new `fixPreviewSoftBreak` (anchor-asserted, registered in
+   `vditorSourceConfig.plugins`): in `previewRender.ts`, anchor on the unique `lute.SetHeadingID(true);`
+   inside `md2html` and insert before it `lute.SetSoftBreak2HardBreak(!(window).__vmarkdReflowPreview);`
+   (flag unset/false → `true` = current behaviour → no default regression).
+4. `media-src/src/main.ts` — set `(window as any).__vmarkdReflowPreview = !!options.reflowLineBreaks`
+   at init and in `handleConfigChanged`; best-effort live re-render of an open preview
+   (`const iv=(window.vditor as any)?.vditor; if (iv?.preview?.element && iv.preview.element.style.display!=='none') iv.preview.render(iv)`).
+   Consider an `applyReflowSetting(options)` helper in `live-config.ts` (parallel to
+   `applyBodyOptions`/`applyLinkOpenSetting`). Editor lutes untouched.
+5. Tests: e2e `softbreak.spec.ts` (preview path: flag on → no `<br>`; off → `<br>`; AND edit surface
+   still `<br>` regardless — proves preview-only); backend `vditor-source-patches.test.ts`
+   (patch injects `SetSoftBreak2HardBreak` + throws on missing anchor).
+
+## Problem
+CommonMark treats consecutive non-blank lines inside one paragraph as a **soft
+break**, rendered as a space → the text reflows/wraps. GitHub and VS Code's
+markdown preview do this. vMarkd (Vditor IR / Lute) instead **preserves the source
+line breaks** — each `>`/paragraph line stays on its own visual line.
+
+Concretely, the top blockquote of e.g. `tasks/13-outline-heading-flash.md`
+(`> **Status:** … \n > **Source:** … \n > **Value / Risk:** …`) renders as 3+
+stacked lines in vMarkd, vs one flowing paragraph on GitHub (see task 82 screenshots).
+
+This is **independent of the content theme** (github/material/vscode all show it) —
+it's a markdown *rendering* behaviour, not theming.
+
+## Goal
+Make soft (single-newline) line breaks inside a paragraph/blockquote **flow** like
+CommonMark/GitHub/VS Code — without breaking:
+- **round-trip**: editing + saving must not rewrite/reflow the user's source line
+  wrapping on disk (the editor is two-way synced to the file);
+- **hard breaks**: a real hard break (trailing two spaces, or `\` , or a blank
+  line) must still break;
+- **all modes**: IR, WYSIWYG, SV, and the host-side prerender/preview.
+
+## Investigate (decide during implementation)
+1. **Lute / Vditor knob.** Find the option controlling soft-break → `<br>` vs
+   space. Candidates: Lute `SetSoftBreak2HardBreak(false)`, or a Vditor
+   `options.preview.markdown.*` flag. Check how it's currently set (likely defaults
+   to preserving breaks for editor fidelity). Spike with the Node Lute shim
+   (`[[lute-runs-in-node]]` pattern — shim window/self + require lute.min.js) to see
+   the HTML/IR-DOM output with the flag on vs off, BEFORE wiring it.
+2. **Round-trip safety.** The big risk: IR is WYSIWYG-ish and round-trips the DOM
+   back to markdown. If soft breaks become spaces in the DOM, does serialize
+   (`VditorIRDOM2Md` / the incremental path, task 69) **re-join** the lines on save →
+   silently rewriting the user's wrapped source to one long line? That would be a
+   regression. Verify serialize preserves the on-disk wrapping (or scope the change
+   to **preview/prerender only**, leaving the editable IR as-is).
+3. **Scope options:**
+   - (a) only the **preview** pane + host prerender flow soft breaks (safe, no
+     round-trip impact) — likely the right call;
+   - (b) the live IR editing surface too (riskier round-trip);
+   - (c) a setting (`vmarkd.editor.softWrap`?) if behaviour should be opt-in.
+
+## Tests (per AGENTS)
+- **Unit/spike:** Lute output for `a\nb` (one paragraph) → flowed (space) vs `<br>`;
+  serialize round-trip of a soft-wrapped paragraph returns the SAME source (no
+  reflow) — guards the round-trip risk.
+- **E2e:** a soft-wrapped paragraph + blockquote render as one flowing block (one
+  line box at wide width), and editing+`getValue()` returns the original wrapping.
+
+## Verify
+Open `tasks/13-outline-heading-flash.md`: the `> **Status:** …` blockquote and the
+multi-line "Goal" paragraph render as flowing wrapped paragraphs (like GitHub),
+not stacked lines. Edit + save → the file's line wrapping on disk is unchanged.
+
+## See also
+- `82-custom-editor-themes.md` — surfaced this while matching GitHub/VS Code render.
+- task 69 — incremental IR serialize (the round-trip path to protect).

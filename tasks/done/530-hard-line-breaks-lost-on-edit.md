@@ -1,6 +1,6 @@
 # Task 530 — Hard line breaks are lost when their paragraph is edited
 
-**Status:** 🔧 implemented (Design 1b: 8-anchor build-time Lute patch + Shift+Enter handler + `vmarkd.editor.hardBreakStyle`); real-VS-Code verification by the lead pending ·
+**Status:** ✅ done (2026-10-07) — 8-anchor build-time Lute patch + Shift+Enter handler + `vmarkd.editor.hardBreakStyle`; verified by the lead in real VS Code (red-green-red) ·
 **Impact:** 🟠 med-high (silent semantic change to the user's file: a visible line break on GitHub
 becomes a space) · **Origin:** found by the task 83 spike (2026-10-07); prerequisite for task 83's
 "Shift+Enter inserts a hard break in reflow mode".
@@ -108,7 +108,7 @@ one blank line, so the file is unchanged.
 - [x] Check the glued variant on whole-document serialize paths (mode switch, full fallback).
 - [x] Unit tests on the transform, chromium harness e2e (red-green-red done)
 - [x] Shift+Enter handler (IR + WYSIWYG, prose only) + `vmarkd.editor.hardBreakStyle` setting; Design 1b (8 anchors)
-- [ ] Real-VS-Code spec green + red-green-red (lead)
+- [x] Real-VS-Code spec green + red-green-red (lead, 2026-10-07: green on the build; red with the stock Lute blob copied into media/ — every preservation case failed; restored, md5 verified)
 
 ## See also
 

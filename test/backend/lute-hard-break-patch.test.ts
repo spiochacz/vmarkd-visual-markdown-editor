@@ -41,7 +41,7 @@ describe('patchLuteBlob (task 530)', () => {
     })
     it('throws a re-derive message when missing', () => {
       expect(() => patchLuteBlob(vendored.replace(find, 'x'))).toThrow(
-        /Lute changed; re-derive anchors \(see tasks\/530/,
+        /Lute changed; re-derive anchors \(see tasks\/done\/530/,
       )
     })
     it('throws when ambiguous', () => {

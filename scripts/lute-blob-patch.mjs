@@ -10,7 +10,7 @@
 // Applied to the media/ COPY only — the pinned vendor file and its sha stay pristine. Every anchor must
 // match exactly once; a Lute bump that moves one fails the build loudly.
 //
-// RE-PIN PROCEDURE: see tasks/530-hard-line-breaks-lost-on-edit.md. Tests: lute-hard-break-patch.test.ts.
+// RE-PIN PROCEDURE: see tasks/done/530-hard-line-breaks-lost-on-edit.md. Tests: lute-hard-break-patch.test.ts.
 
 const RENDER_FIND = (fn) =>
   `prototype.renderHardBreak=function ${fn}(a,b){var a,b,c;c=this;if(b){c.BaseRenderer.Tag("br",DN.nil,true);}return 2;};`
@@ -65,7 +65,7 @@ export function patchLuteBlob(src) {
     if (first === -1 || out.indexOf(find, first + 1) !== -1) {
       const n = first === -1 ? '0' : '2+'
       throw new Error(
-        `[lute] hard-break anchor "${label}" matched ${n} times (expected 1) — Lute changed; re-derive anchors (see tasks/530-hard-line-breaks-lost-on-edit.md)`,
+        `[lute] hard-break anchor "${label}" matched ${n} times (expected 1) — Lute changed; re-derive anchors (see tasks/done/530-hard-line-breaks-lost-on-edit.md)`,
       )
     }
     out = out.replace(find, () => replace)

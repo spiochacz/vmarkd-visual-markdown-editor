@@ -1,6 +1,6 @@
 # Task 531 — IR: the first keystroke after Ctrl+Z is lost
 
-**Status:** ✅ done — root cause confirmed, fixed by a Vditor undo-snapshot patch · **Impact:** 🟠 med-high
+**Status:** ✅ done (2026-10-07) — root cause confirmed; fixed at the root by moving the table panel out of the editable IR root (the interim undo-snapshot patch was removed) · **Impact:** 🟠 med-high
 (silent input loss right after the most common editing command, in the DEFAULT mode) · **Origin:** found by the
 lead while verifying task 530's undo behaviour (2026-10-07); pre-existing, unrelated to task 530.
 
