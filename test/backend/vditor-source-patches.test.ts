@@ -313,30 +313,55 @@ describe('patchFixListOutdent (tasks 428/461/462 — list-outdent seam)', () => 
     )
   })
 
-  it('gates the first-item branch to top-level-only and inserts the outdent-seam branch before Tab', () => {
+  it('gates the first-item branch to top-level-only and inserts the keydown seam before the empty-item branch', () => {
     const patched = patchFixListOutdent(fixBrowserSource)
     expect(patched).toContain(
       '!liElement.previousElementSibling && !hasClosestByMatchTag(liElement.parentElement, "LI") && range.toString() === "" &&',
     )
-    expect(patched).toContain('__vmarkdListBackspaceOutdent')
+    expect(patched).toContain('__vmarkdListKeydown')
     // The seam branch preventDefaults + returns true, same shape as every other fixList branch.
     expect(patched).toMatch(
-      /__vmarkdListBackspaceOutdent\?\.\(vditor, liElement, range, vditor\[vditor\.currentMode\]\.element\)\) \{\s*event\.preventDefault\(\);\s*return true;/,
+      /__vmarkdListKeydown\?\.\(vditor, liElement, range, vditor\[vditor\.currentMode\]\.element, event\)\) \{\s*event\.preventDefault\(\);\s*return true;/,
     )
-    // Inserted BEFORE fixList's own Tab branch, not after — order doesn't change fixList's other
-    // branches. (`event.key === "Tab"` alone is not unique in this file — fixTab/fixList's Enter
-    // guard also mention it — so match the exact Tab-branch line, confirmed unique.)
-    expect(patched.indexOf('__vmarkdListBackspaceOutdent')).toBeLessThan(
-      patched.indexOf(
-        'if (!isCtrl(event) && !event.altKey && event.key === "Tab") {',
-      ),
+    // Inserted at the TOP of fixList's `if (liElement) {` block (task 525 #7) — before fixList's own
+    // Enter branch, the first-item branch and the "\n\n"-appending empty-item branch.
+    const seam = patched.indexOf('__vmarkdListKeydown')
+    expect(seam).toBeGreaterThan(-1)
+    expect(seam).toBeLessThan(patched.indexOf('li 中有多个 P'))
+    expect(seam).toBeLessThan(
+      patched.indexOf('!hasClosestByMatchTag(liElement.parentElement, "LI")'),
     )
+    // 3.11.3 removed the "\n\n"-appending branch (its comment marker is gone) and added
+    // `exitEmptyListItem` calls; the seam must still precede those.
+    expect(seam).toBeLessThan(patched.indexOf('exitEmptyListItem(liElement)'))
+    expect(seam).toBeGreaterThan(patched.indexOf('export const fixList'))
   })
 
-  it('throws (fails the build loudly) if either anchor is gone — version-bump guard', () => {
+  it('rebinds listOutdent to the TOP list just before its spin (task 525 #4 — renumber the moved item)', () => {
+    const patched = patchFixListOutdent(fixBrowserSource)
+    const rebind =
+      'topListElement = getTopList(liElements[0]) || topListElement;'
+    expect(patched).toContain(rebind)
+    expect(patched.indexOf(rebind)).toBeLessThan(
+      patched.indexOf(
+        'topListElement.outerHTML = vditor.lute.SpinVditorDOM(topListElement.outerHTML)',
+      ),
+    )
+    expect(fixBrowserSource).toContain('getTopList,')
+  })
+
+  it('throws (fails the build loudly) if any anchor is gone — version-bump guard', () => {
     expect(() => patchFixListOutdent('// unrelated source')).toThrow(
       /patchFixListOutdent/,
     )
+    for (const anchor of [
+      'const liElement = hasClosestByMatchTag(startContainer, "LI");\n    if (liElement) {\n',
+      'topListElement.outerHTML = vditor.lute.SpinVditorDOM(topListElement.outerHTML);',
+    ]) {
+      expect(() =>
+        patchFixListOutdent(fixBrowserSource.replace(anchor, 'x')),
+      ).toThrow(/patchFixListOutdent/)
+    }
   })
 })
 

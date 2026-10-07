@@ -72,7 +72,7 @@ function collectListRoots(editor: HTMLElement): HTMLElement[] {
   )
 }
 
-function spinFor(vditor: VditorLike): (html: string) => string {
+export function spinFor(vditor: VditorLike): (html: string) => string {
   return vditor.currentMode === 'wysiwyg'
     ? vditor.lute.SpinVditorDOM.bind(vditor.lute)
     : vditor.lute.SpinVditorIRDOM.bind(vditor.lute)
@@ -91,6 +91,23 @@ function normalizeListRoot(vditor: VditorLike, root: HTMLElement): void {
 }
 
 /**
+ * Re-spin `root` (renumbering every level) keeping the caret at `range` via a `<wbr>`, as ONE undo
+ * step. Shared by the "Fix list numbering" command below and list-backspace.ts (task 525: after an
+ * empty item is removed or a typed marker converts an item). A null `root` only re-places the caret.
+ */
+export function respinListAtRange(
+  vditor: VditorLike,
+  root: HTMLElement | null,
+  range: Range,
+  editor: HTMLElement,
+): void {
+  range.insertNode(document.createElement('wbr'))
+  if (root) normalizeListRoot(vditor, root)
+  setRangeByWbr(editor, range)
+  execAfterRender(vditor as never)
+}
+
+/**
  * Command "Fix list numbering" — normalize the list enclosing the caret. Returns false
  * (no-op, nothing to undo) when the caret isn't inside a list.
  */
@@ -104,10 +121,7 @@ export function fixListNumberingAtCaret(
   if (!editor.contains(range.startContainer)) return false
   const root = findEnclosingListRoot(range.startContainer, editor)
   if (!root) return false
-  range.insertNode(document.createElement('wbr'))
-  normalizeListRoot(vditor, root)
-  setRangeByWbr(editor, range)
-  execAfterRender(vditor as never)
+  respinListAtRange(vditor, root, range, editor)
   return true
 }
 

@@ -437,7 +437,7 @@ export function patchListToggle(code) {
 //      merge (task 428 probe, 2026-07-30: "1. otwo" + Backspace → "1. ooneotwo").
 // Fix: gate the first-item branch to top-level-only, and route every remaining Backspace-at-start
 // case (any nested item, or a top-level non-first item) through `list-backspace.ts`'s
-// `outdentOrLiftListItemOnBackspace`, called via the `window.__vmarkdListBackspaceOutdent` seam (the
+// `handleListKeydown`, called via the `window.__vmarkdListKeydown` seam (the
 // patched Vditor source cannot import from our bundle — matches this file's other `window.__vmarkd*`
 // bridges). This REPLACES `list-backspace.ts`'s former document CAPTURE-phase keydown listener: an
 // override left Vditor's wrong branches in place plus a second listener racing them (ADR-0004's
@@ -445,12 +445,25 @@ export function patchListToggle(code) {
 // silently stop matching; this patch's anchor-assert fails the build loudly instead.
 const FIX_LIST_FIRST_ITEM_ANCHOR =
   '!liElement.previousElementSibling && range.toString() === "" &&'
-const FIX_LIST_TAB_BRANCH_ANCHOR =
-  '        if (!isCtrl(event) && !event.altKey && event.key === "Tab") {'
+// Task 525: the seam moved from before the Tab branch to before the EMPTY-item branch, whose
+// "\n\n"-appending Backspace handling is the root cause of the loose-list / dead-key findings. It also
+// handles Tab now (Vditor's own Tab branch only acts with the caret at offset 0).
+// Task 525 #7: it moved again, to the TOP of fixList's `if (liElement) {` block, so it also runs before
+// fixList's own Enter branch for loose items ("li 中有多个 P"), which would otherwise pre-empt our
+// Enter-at-end-of-an-item-with-a-sublist handling. `handleListKeydown` returns false for every key it
+// does not own, so the branches below stay reachable exactly as before.
+const FIX_LIST_EMPTY_ITEM_ANCHOR =
+  '    const liElement = hasClosestByMatchTag(startContainer, "LI");\n    if (liElement) {\n'
+// Task 525 #4: `listOutdent` only re-spins the list the CALLER passes (the immediate sub-list), so the
+// outdented item keeps its stale `data-marker` (`1. bbb` instead of `3. bbb`). Rebind to the top list
+// just before the spin so every caller (Shift+Tab, toolbar, our Backspace) renumbers.
+const FIX_LIST_OUTDENT_SPIN_ANCHOR =
+  '        if (vditor.currentMode === "wysiwyg") {\n            topListElement.outerHTML = vditor.lute.SpinVditorDOM(topListElement.outerHTML);'
 export function patchFixListOutdent(code) {
   for (const anchor of [
     FIX_LIST_FIRST_ITEM_ANCHOR,
-    FIX_LIST_TAB_BRANCH_ANCHOR,
+    FIX_LIST_EMPTY_ITEM_ANCHOR,
+    FIX_LIST_OUTDENT_SPIN_ANCHOR,
   ]) {
     if (!code.includes(anchor)) {
       throw new Error(
@@ -464,14 +477,17 @@ export function patchFixListOutdent(code) {
       '!liElement.previousElementSibling && !hasClosestByMatchTag(liElement.parentElement, "LI") && range.toString() === "" &&',
     )
     .replace(
-      FIX_LIST_TAB_BRANCH_ANCHOR,
-      '        if (!isCtrl(event) && !event.shiftKey && !event.altKey && event.key === "Backspace" &&\n' +
-        '            range.toString() === "" &&\n' +
-        '            (window as any).__vmarkdListBackspaceOutdent?.(vditor, liElement, range, vditor[vditor.currentMode].element)) {\n' +
+      FIX_LIST_EMPTY_ITEM_ANCHOR,
+      FIX_LIST_EMPTY_ITEM_ANCHOR +
+        '        if ((window as any).__vmarkdListKeydown?.(vditor, liElement, range, vditor[vditor.currentMode].element, event)) {\n' +
         '            event.preventDefault();\n' +
         '            return true;\n' +
-        '        }\n\n' +
-        FIX_LIST_TAB_BRANCH_ANCHOR,
+        '        }\n\n',
+    )
+    .replace(
+      FIX_LIST_OUTDENT_SPIN_ANCHOR,
+      '        topListElement = getTopList(liElements[0]) || topListElement;\n' +
+        FIX_LIST_OUTDENT_SPIN_ANCHOR,
     )
 }
 // Callout arrow navigation. Two defects around our callout dual-node (callouts.ts):

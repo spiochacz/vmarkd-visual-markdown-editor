@@ -4,7 +4,7 @@ import Vditor from 'vditor/src/index'
 import { listToggle } from 'vditor/src/ts/util/fixBrowserBehavior'
 // Tasks 461/462 — the outdent seam is wired ONLY behind `?fix=1` (see below); this harness always
 // bundles the patchFixListOutdent-patched Vditor regardless (see list.spec.ts's header), so `?fix=1`
-// toggles just whether `window.__vmarkdListBackspaceOutdent` is installed, not which Vditor source runs.
+// toggles just whether `window.__vmarkdListKeydown` is installed, not which Vditor source runs.
 import { installListBackspace } from '../src/editing/list-backspace'
 import {
   fixAllListNumbering,
@@ -106,13 +106,16 @@ const lists: Record<string, string> = {
     '',
   ].join('\n'),
 }
+const params = new URLSearchParams(location.search)
+// `?md=<markdown>` loads an arbitrary document (list scenario matrix, task 525) instead of a named
+// fixture; `?mode=wysiwyg` boots the WYSIWYG surface instead of IR.
 const value =
-  lists[new URLSearchParams(location.search).get('list') || 'plain'] ||
-  lists.plain
+  params.get('md') ?? (lists[params.get('list') || 'plain'] || lists.plain)
+const mode = params.get('mode') === 'wysiwyg' ? 'wysiwyg' : 'ir'
 
 const editor = new Vditor('app', {
   cache: { enable: false },
-  mode: 'ir',
+  mode,
   cdn: `${location.origin}/vditor`,
   value,
   // Vditor 3.11 calls this unconditionally while rendering the wysiwyg
@@ -144,10 +147,10 @@ const editor = new Vditor('app', {
       }
     }
     // Tasks 461/462 — `?fix=1` wires what finish-init.ts installs in production (the
-    // `window.__vmarkdListBackspaceOutdent` seam patched `fixList` calls into), so specs can probe
+    // `window.__vmarkdListKeydown` seam patched `fixList` calls into), so specs can probe
     // "does the corruption still happen with our real fix active?" against genuine keydown handling.
-    if (new URLSearchParams(location.search).get('fix') === '1') {
-      installListBackspace()
+    if (params.get('fix') === '1') {
+      installListBackspace(() => (editor as any).vditor)
     }
     // Always exposed (harmless when unused) so any spec can ask "did this operation leave the
     // tight-list corruption behind?" without wiring a whole MutationObserver.

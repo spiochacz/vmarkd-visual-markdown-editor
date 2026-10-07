@@ -70,6 +70,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
   an occasional letter could land in the document instead of the search field (measured about 1 leg
   in 30). The editor no longer takes focus back while the search box is open.
+- **List editing behaves like a real editor in the corner cases.** Deleting from the end of a
+  list through a nested sublist no longer breaks the formatting: Backspace on an empty item puts
+  the caret at the end of the line above (inside the sublist, if there is one) in a single
+  press, without opening blank lines or turning the list loose. Backspace at the start of an
+  item that follows a sublist turns it into a paragraph without swallowing the items after it
+  (they used to be deleted). An item moved out of a sublist (Backspace on its marker, Shift+Tab)
+  gets the right number straight away. Tab and Shift+Tab indent and outdent an item from
+  anywhere in its text, not only from its first character. Typing `- ` or `1. ` in an empty
+  item switches that item to a bulleted or numbered one instead of nesting a third level. Enter
+  at the end of an item that has a sublist starts a new first item of that sublist, keeping the
+  sublist under its parent.
 - **The Ctrl+F search box keeps focus once it finds something.** Typing a query that matched text in
   the document handed focus back to the editor mid-word, so the rest of what you typed went into the
   document instead of the search field. The editor was reclaiming focus on a moment VS Code's find

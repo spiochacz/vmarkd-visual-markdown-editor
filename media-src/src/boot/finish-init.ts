@@ -199,9 +199,13 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // Task 459: `+`/`-`/`0` keyboard zoom for the gated diagrams (markmap/mindmap/geojson/topojson),
   // once installDiagramZoomGate's Ctrl+mousedown branch above has focused one.
   observers.set('gated-diagram-zoom-keys', installGatedDiagramZoomKeys())
-  // Task 428: Backspace at the start of a non-first list item's text outdents / lifts it to a
-  // paragraph like a real editor, instead of Vditor's default text-merge into the previous item.
-  observers.set('list-backspace', installListBackspace())
+  // Tasks 428/525: list-item Backspace (start of text → outdent/lift, empty item → back to the line
+  // above), Tab/Shift+Tab anywhere in the item, and a typed marker converting an empty item — like a
+  // real editor, instead of Vditor's text-merge / "\n\n" branches.
+  observers.set(
+    'list-backspace',
+    installListBackspace(() => innerVditor()),
+  )
   // Task 456 (WCAG 2.1.2 keyboard trap): Tab can never leave the editable surface today because
   // `tab: '\t'` makes Vditor preventDefault every Tab. Escape arms a one-shot "next Tab leaves"
   // flag instead of weakening that setting; ships with role="toolbar" + roving tabindex on the

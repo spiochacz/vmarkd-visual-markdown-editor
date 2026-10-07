@@ -139,9 +139,10 @@ function expectOutdented(after: string) {
     .not.toContain('Analysis of email threadsfirst entry')
   // Outdenting into the ENCLOSING ordered list adopts its marker (real-editor behaviour — Word/Docs
   // do the same: a promoted item takes the surrounding list's numbering, not its old bullet).
+  // Task 525 #4: `2.` (it follows `1. Analysis…`); `1.` was the outdented item's stale data-marker.
   expect
     .soft(after, 'first entry survives as its own outdented item')
-    .toMatch(/^1\. first entry$/m)
+    .toMatch(/^2\. first entry$/m)
   expect
     .soft(after, 'no blank line — the list never went loose')
     .not.toMatch(/Analysis of email threads\n\n/)

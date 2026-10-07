@@ -133,7 +133,7 @@ test.describe('list editing — Enter continues a list (task 190 P1)', () => {
 // `VDITOR_TS_PATCHES` plugin the production build and every other harness use (ADR-0004), so
 // `patchFixListOutdent` is ALWAYS baked in here — there is no way to get literally pre-patch Vditor
 // out of a running build. What this test can still isolate: `?list=nested` (no `?fix=1`) never calls
-// `installListBackspace()`, so `window.__vmarkdListBackspaceOutdent` is unset — the degenerate case of
+// `installListBackspace()`, so `window.__vmarkdListKeydown` is unset — the degenerate case of
 // our OWN patched `fixList` with the seam it calls into missing. Before this patch existed, that same
 // scenario (unmodified Vditor, task 461/462's original "stock Vditor" probe) reproduced task 391's
 // `CORRUPTED` fixture BYTE-FOR-BYTE (recorded in tasks/461 and tasks/462 — that finding is what
@@ -224,9 +224,11 @@ test.describe('list-backspace.ts seam wired in (tasks 461/462)', () => {
     )
     // Outdenting into the ENCLOSING ordered list adopts its marker type (real-editor behaviour —
     // Word/Docs do the same: a promoted item takes the surrounding list's numbering, not its old
-    // bullet), so this is `1. first entry`, not `* first entry`.
+    // bullet), so this is `2. first entry`, not `* first entry`. Task 525 #4: it used to read
+    // `1. first entry` — the stale `data-marker` of the outdented item, since listOutdent only
+    // re-spun the immediate sub-list; it now follows `1. Analysis of email threads` as number 2.
     expect(value, 'first entry survives as its own outdented item').toMatch(
-      /^1\. first entry$/m,
+      /^2\. first entry$/m,
     )
   })
 
