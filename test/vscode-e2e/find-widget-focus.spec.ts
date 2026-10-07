@@ -108,11 +108,11 @@ test('typing in the webview find widget keeps focus in the find box', async ({
     )
   })
 
-  // The command the Ctrl+F contribution is bound to (package.json). Driving the command rather than
-  // the chord is the honest proxy here — the chord's own dispatch is VS Code's, not ours.
-  await ev(evaluateInVSCode, async (vscode: typeof import('vscode')) => {
-    await vscode.commands.executeCommand('editor.action.webvieweditor.showFind')
-  })
+  // Task 522 — the real Ctrl+F chord (bound to vmarkd.findOpen in package.json): the host tells the
+  // webview its find widget is open, which is what suppresses the focus theft. Executing the
+  // built-in showFind directly would bypass exactly the path under test.
+  await frame.locator('body').click({ position: { x: 20, y: 12 } })
+  await workbox.keyboard.press('Control+f')
 
   const findInput = workbox.locator('.simple-find-part input').first()
   await findInput.waitFor({ timeout: 15_000 })

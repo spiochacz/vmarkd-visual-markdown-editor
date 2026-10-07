@@ -131,9 +131,24 @@ describe('package.json manifest', () => {
     expect(binding.when).toBe(`activeCustomEditorId == ${VIEW_TYPE}`)
   })
 
-  it('binds Ctrl/Cmd+F to the webview find widget inside the custom editor', () => {
+  it('binds Escape (find visible) to vmarkd.findClose, scoped to the custom editor (task 522)', () => {
     const binding = pkg.contributes.keybindings.find(
-      (k: any) => k.command === 'editor.action.webvieweditor.showFind',
+      (k: any) => k.command === 'vmarkd.findClose',
+    )
+    expect(binding).toBeDefined()
+    expect(binding.key).toBe('escape')
+    expect(binding.when).toBe(
+      `webviewFindWidgetVisible && activeCustomEditorId == ${VIEW_TYPE}`,
+    )
+    // No other Escape binding may exist that this one could shadow.
+    expect(
+      pkg.contributes.keybindings.filter((k: any) => k.key === 'escape'),
+    ).toHaveLength(1)
+  })
+
+  it('binds Ctrl/Cmd+F to vmarkd.findOpen (tells the webview, then opens the find widget) inside the custom editor (task 522)', () => {
+    const binding = pkg.contributes.keybindings.find(
+      (k: any) => k.command === 'vmarkd.findOpen',
     )
     expect(binding).toBeDefined()
     expect(binding.key).toBe('ctrl+f')

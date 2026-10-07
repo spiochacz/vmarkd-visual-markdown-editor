@@ -68,6 +68,16 @@
         "category": "vMarkd"
       },
       {
+        "command": "vmarkd.findOpen",
+        "title": "Find",
+        "category": "vMarkd"
+      },
+      {
+        "command": "vmarkd.findClose",
+        "title": "Close Find",
+        "category": "vMarkd"
+      },
+      {
         "command": "vmarkd.fixListNumbering",
         "title": "Fix List Numbering",
         "category": "vMarkd"
@@ -246,6 +256,14 @@
         {
           "command": "vmarkd.openSourceToSide",
           "when": "activeCustomEditorId == vmarkd.editor"
+        },
+        {
+          "command": "vmarkd.findOpen",
+          "when": "false"
+        },
+        {
+          "command": "vmarkd.findClose",
+          "when": "false"
         },
         {
           "command": "vmarkd.fixListNumbering",
@@ -873,9 +891,14 @@
       },
       {
         "key": "ctrl+f",
-        "command": "editor.action.webvieweditor.showFind",
+        "command": "vmarkd.findOpen",
         "mac": "cmd+f",
         "when": "activeCustomEditorId == vmarkd.editor"
+      },
+      {
+        "key": "escape",
+        "command": "vmarkd.findClose",
+        "when": "webviewFindWidgetVisible && activeCustomEditorId == vmarkd.editor"
       },
       {
         "key": "ctrl+b",

@@ -27,6 +27,7 @@ import { activeModeElement } from '../util/source-map'
 // cycle. It moved to the lower, caret-agnostic layer both files import from; see that file's
 // header for the full breakdown.
 import { isEmptyGapParagraph, trailingCaretTarget } from './trailing-paragraph'
+import { isHostFindOpen } from './host-find'
 
 type CaretIntent =
   // The very start of the first block (task 439). gap-paragraph.ts's leading-block invariant
@@ -302,6 +303,24 @@ function tryPlace(
   }
 }
 
+/**
+ * Task 522 — would a Selection write into `editor` pull focus away from whatever the user is using?
+ * True iff the document HAS focus and the editor does NOT own it. Inside an already-focused
+ * document, `Selection.addRange` into a contenteditable FOCUSES it (measured in the real webview),
+ * so a write here would steal focus from e.g. VS Code's host find box: Electron's findInFrame gives
+ * the webview frame a brief real focus (activeElement === BODY) on every find keystroke. When the
+ * document has no focus at all (the e2e harness, a blurred webview) the write moves no focus, so it
+ * stays allowed — caret-on-open depends on that.
+ */
+export function wouldStealFocus(
+  editor: HTMLElement,
+  doc: Document = document,
+): boolean {
+  if (!doc.hasFocus()) return false
+  const active = doc.activeElement
+  return !(active && editor.contains(active))
+}
+
 function schedule(): void {
   if (rafId || !live) return
   rafId = requestAnimationFrame(tick)
@@ -336,6 +355,19 @@ function tick(): void {
   if (!l.editor && editorNow) l.editor = editorNow // lock in the first editor ever seen (see the
   // LiveIntent.editor doc comment) — only reachable when requestCaret armed before any editor
   // existed at all, which production never does but a defensive caller might.
+
+  // Task 522: the loop's RE-assertions must not steal focus. The user typing in the HOST find box
+  // never produces keydown/pointerdown/beforeinput in the webview, so the intent is never
+  // invalidated and the loop keeps re-writing the caret; the first write after find's momentary
+  // focus of the frame moved focus into the editor and the user's keystrokes landed in the
+  // document. Skip (not a miss — it is not a placement failure), stay armed; the tick budget still
+  // bounds the loop. requestCaret()'s own first placement is deliberately NOT gated.
+  // Also skip outright while the host says its find widget is open (host-find.ts): the timing/
+  // focus heuristic alone did not stop the theft in a real VS Code. Same semantics — stay armed.
+  if (isHostFindOpen() || (l.editor && wouldStealFocus(l.editor))) {
+    schedule()
+    return
+  }
 
   const { painted } = tryPlace(l.intent, l.editor)
   if (painted) {

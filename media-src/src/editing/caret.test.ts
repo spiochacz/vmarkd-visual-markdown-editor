@@ -7,6 +7,7 @@
 // setCaretPaintabilityProbeForTests and a stubbed requestAnimationFrame/cancelAnimationFrame (the
 // same deterministic-rAF pattern as observe-coalesce.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { setHostFindClosed, setHostFindOpen } from './host-find'
 import {
   installCaretInvalidation,
   invalidateCaret,
@@ -15,6 +16,7 @@ import {
   resetCaretAuthorityForTests,
   resolveCaretIntent,
   setCaretPaintabilityProbeForTests,
+  wouldStealFocus,
 } from './caret'
 
 // Deterministic rAF: capture callbacks, fire them explicitly as "the next frame" instead of
@@ -612,5 +614,89 @@ describe('invalidateCaret — direct drop, cancels the pending frame too', () =>
     expect(liveCaretIntentForTests()).toBeNull()
     fireFrame() // the cancelled callback is a no-op (observe-coalesce's stub pattern)
     expect(window.getSelection()!.rangeCount).toBeGreaterThanOrEqual(0) // does not throw
+  })
+})
+
+// ---------------------------------------------------------------------------------------
+describe('wouldStealFocus — task 522: never let the re-assert loop pull focus off the user', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('false when the document has no focus (harness / blurred webview: the write moves no focus)', () => {
+    const editor = mountEditor('<p>hello</p>')
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    expect(wouldStealFocus(editor)).toBe(false)
+  })
+
+  it('true when the document has focus and the active element is outside the editor', () => {
+    const editor = mountEditor('<p>hello</p>')
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    expect(wouldStealFocus(editor)).toBe(true)
+  })
+
+  it("true when the document has focus and the active element is BODY (find's momentary focus)", () => {
+    const editor = mountEditor('<p>hello</p>')
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    expect(document.activeElement).toBe(document.body)
+    expect(wouldStealFocus(editor)).toBe(true)
+  })
+
+  it('false when the editor already owns focus', () => {
+    const editor = mountEditor('<p>hello</p>')
+    editor.focus()
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    expect(wouldStealFocus(editor)).toBe(false)
+  })
+
+  it('the loop skips re-assertions while stealing, keeps the intent armed, writes once it is safe', () => {
+    const editor = mountEditor('<p>hello</p><p>world</p>')
+    setCaretPaintabilityProbeForTests(() => true)
+    requestCaret('document-start') // first placement is ungated
+    const other = document.createRange()
+    other.setStart(editor.lastElementChild!.firstChild!, 2)
+    other.collapse(true)
+    const sel = window.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(other)
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+    fireFrames(3)
+    expect(sel.getRangeAt(0).startContainer).toBe(other.startContainer) // untouched
+    expect(liveCaretIntentForTests()).toBe('document-start') // still armed, not given up
+    hasFocus.mockReturnValue(false)
+    fireFrame()
+    expect(sel.getRangeAt(0).startContainer).toBe(
+      editor.firstElementChild!.firstChild,
+    )
+  })
+})
+
+describe('the loop while the host find widget is open — task 522', () => {
+  afterEach(() => {
+    setHostFindClosed()
+    vi.restoreAllMocks()
+  })
+
+  it('skips re-assertions even when focus heuristics say it is safe, stays armed, resumes on find-close', () => {
+    const editor = mountEditor('<p>hello</p><p>world</p>')
+    setCaretPaintabilityProbeForTests(() => true)
+    requestCaret('document-start')
+    const other = document.createRange()
+    other.setStart(editor.lastElementChild!.firstChild!, 2)
+    other.collapse(true)
+    const sel = window.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(other)
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false) // wouldStealFocus() is false here
+    setHostFindOpen()
+    fireFrames(3)
+    expect(sel.getRangeAt(0).startContainer).toBe(other.startContainer)
+    expect(liveCaretIntentForTests()).toBe('document-start')
+    setHostFindClosed()
+    fireFrame()
+    expect(sel.getRangeAt(0).startContainer).toBe(
+      editor.firstElementChild!.firstChild,
+    )
   })
 })

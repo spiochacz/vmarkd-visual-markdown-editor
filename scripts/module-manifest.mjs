@@ -226,6 +226,7 @@ export const WEBVIEW_MODULES = {
       'editor-caret',
       'initial-caret',
       'focus-restore',
+      'host-find', // task 522 — host find widget open flag
       'gap-paragraph',
       'trailing-paragraph', // NEW (task 472) — split out of gap-paragraph.ts to break the
       // caret<->gap-paragraph import cycle; intra-module edge, no allowlist change.

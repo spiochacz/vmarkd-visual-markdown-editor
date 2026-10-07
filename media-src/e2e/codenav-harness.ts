@@ -6,6 +6,9 @@
 // paragraph), and Enter at the code's end ("```|") exits into a fresh paragraph below.
 import Vditor from 'vditor/src/index'
 import { expandMarker } from 'vditor/src/ts/ir/expandMarker'
+import { requestCaret } from '../src/editing/caret'
+import { installFocusRestore } from '../src/editing/focus-restore'
+import { setHostFindClosed, setHostFindOpen } from '../src/editing/host-find'
 import {
   observeGapParagraphs,
   observeTrailingParagraph,
@@ -30,6 +33,14 @@ const editor = new Vditor('app', {
     setupTrailingNav(() => ir)
     ;(window as any).vditor = editor
     ;(window as any).__el = () => ir
+    ;(window as any).__requestCaret = requestCaret // task 522 spec
+    // Task 522 host-find specs: opt-in (a spec calls it) so other codenav specs keep running
+    // without the window-focus restore this harness never wired.
+    ;(window as any).__installFocusRestore = () => installFocusRestore(window)
+    ;(window as any).__hostFind = {
+      open: () => setHostFindOpen(),
+      close: () => setHostFindClosed(),
+    }
 
     const codeNode = (needle: string) =>
       Array.from(ir.querySelectorAll<HTMLElement>('.vditor-ir__node')).find(

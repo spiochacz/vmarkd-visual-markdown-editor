@@ -154,3 +154,45 @@ test('Escape back from the toolbar restores a WORKING caret — Tab indents agai
     'stayed in the editor, not the toolbar',
   ).toBe(false)
 })
+
+// Task 522 — VS Code's find widget (Electron findInFrame) gives the webview window a `focus` and
+// takes it back with a `blur` a few ms later; focus-restore must not pull focus into the editor.
+test('window focus followed by blur does not pull focus into the editor (task 522)', async ({
+  page,
+}) => {
+  await page.goto('/escape-toolbar.html', { waitUntil: 'domcontentloaded' })
+  await page.waitForFunction(() => (window as any).__ready === true)
+  await page.waitForTimeout(250)
+  const result = await page.evaluate(async () => {
+    const ed = document.querySelector('.vditor-ir .vditor-reset') as HTMLElement
+    ed.focus()
+    const range = document.createRange()
+    range.selectNodeContents(ed.querySelector('p') as HTMLElement)
+    range.collapse(false)
+    const sel = window.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(range)
+    document.dispatchEvent(new Event('selectionchange'))
+    // The find handshake state: focus is NOT in the editor (a bare BODY, as VS Code hands it back).
+    // The editor's own focusout path (a separate listener, not under test) is neutralised by
+    // reporting "no OS focus" while it drains, then the real hasFocus() is put back.
+    const realHasFocus = document.hasFocus.bind(document)
+    document.hasFocus = () => false
+    ed.blur()
+    // Also lets Vditor's own delayed undo checkpoint (addCaret → setSelectionFocus, which refocuses
+    // the editor by itself and is unrelated to focus-restore) drain before the handshake starts.
+    await new Promise((r) => setTimeout(r, 1500))
+    document.hasFocus = realHasFocus
+    // Vditor's checkpoint may have refocused the editor during the drain: put the handshake state back.
+    document.hasFocus = () => false
+    ed.blur()
+    await new Promise((r) => setTimeout(r, 150))
+    document.hasFocus = realHasFocus
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 15))
+    window.dispatchEvent(new Event('blur'))
+    await new Promise((r) => setTimeout(r, 400))
+    return !ed.contains(document.activeElement)
+  })
+  expect(result).toBe(true)
+})

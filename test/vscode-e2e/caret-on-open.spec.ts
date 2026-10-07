@@ -131,7 +131,8 @@ async function dispatchWebviewFocus(frame: ReturnType<typeof wf>) {
   await frame
     .locator('body')
     .evaluate(() => window.dispatchEvent(new Event('focus')))
-  await settle(frame, 100)
+  // focus-restore.ts waits a 60 ms settle window (task 522) before its rAF.
+  await settle(frame, 250)
 }
 
 test('empty document: caret at (block 0, offset 0), survives the focus handoff, typed char lands at the very start', async ({

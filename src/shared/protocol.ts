@@ -138,6 +138,11 @@ export type HostMessage =
   // (src/app/commands.ts). Same resolve-panel-then-postMessage pattern as
   // `activate-link-at-caret` above; the webview owns the live caret/selection so the actual
   // list lookup happens there, not host-side.
+  // Task 522 — the host's find widget opened/closed (`vmarkd.findOpen` / `vmarkd.findClose`,
+  // src/app/commands.ts). Lets the webview stop its focus/caret repair from fighting the host find
+  // box; see media-src/src/editing/host-find.ts.
+  | { command: 'find-open' }
+  | { command: 'find-close' }
   | { command: 'fix-list-numbering' }
   | { command: 'renormalize-all-lists' }
   // Task 492 Phase 4 — the `vmarkd.format.*` VS Code commands (src/app/commands.ts), one per

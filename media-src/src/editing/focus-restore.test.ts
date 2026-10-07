@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { installEditorCaretTracking } from './editor-caret'
 import { installFocusRestore } from './focus-restore'
+import { setHostFindClosed, setHostFindOpen } from './host-find'
 
 /**
  * A minimal stand-in for the live editor: `activeModeElement` reads
@@ -35,7 +36,7 @@ function caretIn(el: HTMLElement, offset: number) {
 async function refocusWindow() {
   window.dispatchEvent(new Event('focus'))
   await new Promise((r) => setTimeout(r, 0))
-  await new Promise((r) => setTimeout(r, 20))
+  await new Promise((r) => setTimeout(r, 150)) // > the 60 ms settle window (task 522) + a frame
 }
 
 // Every test in this file exercises "the webview HAS OS focus, and something inside it went
@@ -128,7 +129,7 @@ describe('installFocusRestore', () => {
     document.hasFocus = () => false
 
     onFocus?.({ isTrusted: true })
-    await new Promise((r) => setTimeout(r, 20))
+    await new Promise((r) => setTimeout(r, 150))
     expect(document.activeElement).not.toBe(editor)
   })
 
@@ -204,6 +205,24 @@ describe('installFocusRestore', () => {
 // catches it too. NOT a claim that this fixes 445 — the round-5 reproduction there is a DIFFERENT
 // mechanism (a DOM mutation zeroing caretHeight while activeElement never moves at all); this only
 // closes the separate gap found by reading this file. See tasks/445-first-click-drops-the-caret.md.
+describe('installFocusRestore — host find widget open (task 522)', () => {
+  afterEach(() => setHostFindClosed())
+
+  it('skips the window-focus restore while the host find widget is open, resumes after find-close', async () => {
+    const editor = mountEditor()
+    caretIn(editor, 5)
+    installFocusRestore(window)
+    ;(document.body as HTMLElement).focus()
+    setHostFindOpen()
+    await refocusWindow()
+    expect(document.activeElement).not.toBe(editor)
+
+    setHostFindClosed()
+    await refocusWindow()
+    expect(document.activeElement).toBe(editor)
+  })
+})
+
 describe('installFocusRestore — the focusout gap (task 445)', () => {
   /** Two macrotasks, same timing as refocusWindow's rAF wait — no window `focus` event needed here,
    *  jsdom dispatches `focusout` natively as part of `.focus()` moving focus away from an element. */
@@ -320,5 +339,30 @@ describe('installFocusRestore — the focusout gap (task 445)', () => {
       preview.contains(sel.anchorNode),
       'the selection stayed in the preview',
     ).toBe(true)
+  })
+})
+
+describe('installFocusRestore — find-widget handshake (task 522)', () => {
+  it('does NOT restore when a window blur follows the focus within the settle window', async () => {
+    const editor = mountEditor()
+    caretIn(editor, 5)
+    installFocusRestore(window)
+    ;(document.body as HTMLElement).focus()
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 15))
+    window.dispatchEvent(new Event('blur'))
+    await new Promise((r) => setTimeout(r, 200))
+    expect(document.activeElement).not.toBe(editor)
+  })
+
+  it('still restores when no blur follows the focus', async () => {
+    const editor = mountEditor()
+    caretIn(editor, 5)
+    installFocusRestore(window)
+    ;(document.body as HTMLElement).focus()
+
+    await refocusWindow()
+    expect(document.activeElement).toBe(editor)
   })
 })

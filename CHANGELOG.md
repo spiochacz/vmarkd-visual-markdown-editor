@@ -55,6 +55,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Fixed
 
+- **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
+  an occasional letter could land in the document instead of the search field (measured about 1 leg
+  in 30). The editor no longer takes focus back while the search box is open.
 - **The Ctrl+F search box keeps focus once it finds something.** Typing a query that matched text in
   the document handed focus back to the editor mid-word, so the rest of what you typed went into the
   document instead of the search field. The editor was reclaiming focus on a moment VS Code's find

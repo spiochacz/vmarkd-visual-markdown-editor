@@ -250,6 +250,26 @@ export function registerCommands(
     // postMessage pattern as `vmarkd.activateLinkAtCaret` above: the host has no view of the
     // live caret/selection, so it just forwards the trigger and the webview (which owns both)
     // does the actual work — silently no-op-ing when there's no list to normalize.
+    // Task 522 — Ctrl/Cmd+F and Escape-while-find-is-visible route through these so the webview
+    // learns the host find widget's state (it cannot observe it, and Electron's findInFrame focus
+    // handshake otherwise lets the editor steal focus from the find box). Tell the webview FIRST,
+    // then drive the built-in widget.
+    vscode.commands.registerCommand('vmarkd.findOpen', async () => {
+      resolveActivePanel(deps)?.panel.webview.postMessage({
+        command: 'find-open',
+      })
+      await vscode.commands.executeCommand(
+        'editor.action.webvieweditor.showFind',
+      )
+    }),
+    vscode.commands.registerCommand('vmarkd.findClose', async () => {
+      await vscode.commands.executeCommand(
+        'editor.action.webvieweditor.hideFind',
+      )
+      resolveActivePanel(deps)?.panel.webview.postMessage({
+        command: 'find-close',
+      })
+    }),
     vscode.commands.registerCommand('vmarkd.fixListNumbering', async () => {
       const entry = resolveActivePanel(deps)
       if (!entry) return

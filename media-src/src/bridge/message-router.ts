@@ -41,6 +41,7 @@ import { stripAnsi } from '../clipboard/paste-transform'
 import { renderDiffMarkers, clearDiffMarkers } from '../chrome/diff-markers'
 import { preserveCaretAndScroll } from '../editing/caret-preserve'
 import { restoreEditorCaretIfLost } from '../editing/editor-caret'
+import { setHostFindClosed, setHostFindOpen } from '../editing/host-find'
 import {
   activeModeElement,
   getCursorSourceOffset,
@@ -544,6 +545,8 @@ const REQUIRED_HOST_MESSAGE_FIELDS: Partial<
   'paste-plain': [['text', 'string']],
   'activate-link-at-caret': [],
   'fix-list-numbering': [],
+  'find-open': [],
+  'find-close': [],
   'renormalize-all-lists': [],
   'trigger-toolbar-hotkey': [['name', 'string']],
   'wiki-update': [['pageKeys', 'array']],
@@ -574,6 +577,9 @@ const messageHandlers: HostMessageHandlers = {
     runCaretGestureHandlers()
   },
   'fix-list-numbering': handleFixListNumbering,
+  // Task 522 — host find widget opened/closed; see editing/host-find.ts.
+  'find-open': () => setHostFindOpen(),
+  'find-close': () => setHostFindClosed(),
   'renormalize-all-lists': handleRenormalizeAllLists,
   'trigger-toolbar-hotkey': handleTriggerToolbarHotkey,
   'wiki-update': (msg) => {

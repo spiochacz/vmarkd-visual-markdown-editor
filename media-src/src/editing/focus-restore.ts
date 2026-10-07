@@ -31,6 +31,7 @@
 // that too; the SAME `restoreEditorFocus` policy applies unchanged (NOT_OURS_TO_TAKE still wins).
 import { requestCaret } from './caret'
 import { restoreEditorCaretIfLost } from './editor-caret'
+import { isHostFindOpen } from './host-find'
 import { activeModeElement } from '../util/source-map'
 
 // Anything focusable the user could have deliberately put focus on inside the webview. If focus came
@@ -39,7 +40,8 @@ import { activeModeElement } from '../util/source-map'
 const NOT_OURS_TO_TAKE =
   'input, textarea, select, button, [contenteditable="true"], [tabindex]'
 
-function restoreEditorFocus(win: Window, cameFromEditorBlur: boolean): void {
+// Split from restoreEditorFocus only to keep that function under the cognitive-complexity gate.
+function restoreEditorFocusNow(win: Window, cameFromEditorBlur: boolean): void {
   const vditor = (win as unknown as { vditor?: unknown }).vditor
   if (!vditor) return
   const editor = activeModeElement(vditor)
@@ -115,34 +117,68 @@ function restoreEditorFocus(win: Window, cameFromEditorBlur: boolean): void {
   requestCaret({ node: saved.startContainer, offset: saved.startOffset })
 }
 
+function restoreEditorFocus(win: Window, cameFromEditorBlur: boolean): void {
+  // Task 522 — the HOST told us its find widget is open (host-find.ts): any focus churn now is
+  // findInFrame's handshake with the find box, never a tab return, and the timing gates around the
+  // callers cannot tell them apart reliably in a real VS Code. Gated here (not in the window-`focus`
+  // handler) so the focusout path — the editor losing focus to the find box — is covered too.
+  if (isHostFindOpen()) return
+  restoreEditorFocusNow(win, cameFromEditorBlur)
+}
+
+// Task 522 — how long the window `focus` handler waits for a find-handshake `blur` (measured at
+// ~4 ms after the focus when idle, later under load). 60 ms is ~15x the idle gap yet still below
+// what a user perceives as a lagging caret after returning to the tab.
+const SETTLE_MS = 60
+
 /**
  * Put focus (and therefore the caret) back on the editable surface whenever the webview regains
  * focus with nothing focused inside it. Called once from main.ts; the listeners are on the window /
  * document, so they outlive every re-init.
  */
 export function installFocusRestore(win: Window): void {
+  // Task 522 — counts window `blur` events so the `focus` handler can tell whether the focus it saw
+  // was taken straight back (see SETTLE_MS below).
+  let blurCount = 0
+  win.addEventListener('blur', () => {
+    blurCount++
+  })
   win.addEventListener('focus', (e) => {
-    // One frame later: VS Code sets `activeElement` to BODY as part of handing focus back, and a
-    // synchronous restore here can be undone by the rest of that handover.
-    win.requestAnimationFrame(() => {
-      // Task 514 — Ctrl+F, then typing a query that MATCHES: the find box loses focus and the rest
-      // of the keystrokes land in the document. MEASURED in a real VS Code (the recorder in
-      // find-widget-focus.spec.ts): activating a match makes Chromium hand the webview FRAME window
-      // a `focus` event (VS Code's webview find widget runs Electron's `findInFrame` against this
-      // frame), which the frame gives straight back — the host's find INPUT is what the user is
-      // typing into. The measured sequence is focus(t) → blur(t+4ms) → our rAF(t+9ms). Without this
-      // gate the rAF fires `editor.focus()` into that gap, which pulls focus out of the find box and
-      // ALSO arms caret.ts's re-assert loop, so the caret keeps stealing it back for seconds after.
-      //
-      // `hasFocus()` alone is the discriminator — a real tab return (task 389, this module's whole
-      // reason to exist) still has it true a frame later, a find-match activation does not. Gated on
-      // `isTrusted` because the harness dispatches a SYNTHETIC `window.dispatchEvent(new
-      // Event('focus'))` to work around never granting a freshly-opened editor real OS focus
-      // (caret-on-open.spec.ts) — there `hasFocus()` never flips true, so an ungated check would
-      // silently disable this module in every spec that drives it that way.
-      if (e.isTrusted && !win.document.hasFocus()) return
-      restoreEditorFocus(win, false)
-    })
+    const blursAtFocus = blurCount
+    // Settle window instead of one frame. VS Code sets `activeElement` to BODY as part of handing
+    // focus back, so a synchronous restore can be undone by that handover — and, task 522 (MEASURED
+    // in a real webview, captured stack `restoreEditorFocus ← this callback`), a single frame is
+    // also too short to tell a find-widget handshake from a real tab return: Electron's findInFrame
+    // gives the frame a `focus` and takes it back with a `blur` a few ms later on EVERY find
+    // keystroke, and under load that `blur` sometimes lands AFTER the one animation frame this used
+    // to wait, so `hasFocus()` was still true, the restore ran and pulled focus out of the find box.
+    // Waiting SETTLE_MS and bailing if any `blur` arrived since the `focus` makes the handshake
+    // (always blurs back) distinguishable from a tab return (does not). A synthetic `focus` (the
+    // harness / caret-on-open.spec.ts) is never followed by a blur, so it still restores.
+    setTimeout(
+      () =>
+        win.requestAnimationFrame(() => {
+          if (blurCount !== blursAtFocus) return
+          // Task 514 — Ctrl+F, then typing a query that MATCHES: the find box loses focus and the rest
+          // of the keystrokes land in the document. MEASURED in a real VS Code (the recorder in
+          // find-widget-focus.spec.ts): activating a match makes Chromium hand the webview FRAME window
+          // a `focus` event (VS Code's webview find widget runs Electron's `findInFrame` against this
+          // frame), which the frame gives straight back — the host's find INPUT is what the user is
+          // typing into. The measured sequence is focus(t) → blur(t+4ms) → our rAF(t+9ms). Without this
+          // gate the rAF fires `editor.focus()` into that gap, which pulls focus out of the find box and
+          // ALSO arms caret.ts's re-assert loop, so the caret keeps stealing it back for seconds after.
+          //
+          // `hasFocus()` alone is the discriminator — a real tab return (task 389, this module's whole
+          // reason to exist) still has it true a frame later, a find-match activation does not. Gated on
+          // `isTrusted` because the harness dispatches a SYNTHETIC `window.dispatchEvent(new
+          // Event('focus'))` to work around never granting a freshly-opened editor real OS focus
+          // (caret-on-open.spec.ts) — there `hasFocus()` never flips true, so an ungated check would
+          // silently disable this module in every spec that drives it that way.
+          if (e.isTrusted && !win.document.hasFocus()) return
+          restoreEditorFocus(win, false)
+        }),
+      SETTLE_MS,
+    )
   })
   win.document.addEventListener('focusout', (e) => {
     const vditor = (win as unknown as { vditor?: unknown }).vditor
