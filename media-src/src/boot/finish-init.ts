@@ -1,7 +1,7 @@
 import type { InitPayload } from './init-payload'
 import type { Disposables } from '../util/disposables'
 import { innerVditor } from '../util/inner-vditor'
-import { activeModeElement } from '../util/source-map'
+import { activeModeElement, blockModeElement } from '../util/source-map'
 import { fixResponsiveTables } from '../chrome/responsive-tables'
 import { handleToolbarClick } from '../chrome/toolbar-actions'
 import { guardToolbarScroll } from '../chrome/toolbar-scroll-guard'
@@ -14,6 +14,7 @@ import { reportEditorMode } from '../chrome/toolbar-actions'
 import { setupSplitScrollSync } from '../nav/split-scroll-sync'
 import { setupPreviewScrollPreserve } from '../nav/preview-scroll-preserve'
 import { observeCallouts } from '../editing/callouts'
+import { observeSoftBreaks } from '../editing/soft-break-observer'
 import { observeCaretLink } from '../links/caret-link-decorate'
 import { observeCodeRefs } from '../links/code-ref-decorate'
 import { observeDiagramZoom } from '../diagrams/diagram-zoom'
@@ -108,6 +109,13 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // processCodeRender loop (Vditor-native engines) — observeCustomDiagrams (d2/…) consults the same gate.
   observers.set('edit-activity', installEditActivity(app))
   observers.set('callouts', observeCallouts(app))
+  // Task 83: soft line breaks reflow in the editor (vmarkd.editor.reflowLineBreaks) — wraps each
+  // soft-break newline in a marker span. Bound to #app for the same mode-switch reason as callouts;
+  // registers through the shared registry so a re-init disposes the previous instance.
+  observers.set(
+    'soft-breaks',
+    observeSoftBreaks(app, () => blockModeElement(window.vditor)),
+  )
   // Task 457 — caret-targeted link activation (Ctrl/Cmd+Enter, link-click-fix.ts): paint
   // `data-caret-inside` on whatever link-like element (wiki chip, code ref, plain `[text](url)`)
   // the caret currently sits in. Bound to #app only, NOT previewEl — the read-only Preview pane has

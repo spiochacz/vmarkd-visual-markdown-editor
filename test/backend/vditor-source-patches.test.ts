@@ -61,6 +61,7 @@ import {
   patchClipboardCollapsed,
   patchCutDeleteSync,
   patchUndoCaretSplitRestore,
+  patchUndoSnapshotStripSoftBreaks,
   VDITOR_TS_PATCHES,
 } from '../../media-src/esbuild-shared.mjs'
 
@@ -2235,5 +2236,40 @@ describe('patchPreviewReflow (task 83: soft line breaks flow in the preview)', (
     expect(() => patchPreviewReflow(morphed + morphed)).toThrow(
       /patchPreviewReflow/,
     )
+  })
+})
+
+// Task 83 (increment 3) — the undo snapshot is taken from a clone of the editor with the soft-break
+// marker spans unwrapped, so decoration never lands in (or diffs against) the undo stack.
+describe('patchUndoSnapshotStripSoftBreaks (task 83: marker spans stay out of undo snapshots)', () => {
+  const undoSource = read(
+    '../../media-src/node_modules/vditor/src/ts/undo/index.ts',
+  )
+
+  it('unwraps the spans in the clone right before it is serialised, once', () => {
+    const patched = patchUndoSnapshotStripSoftBreaks(undoSource)
+    expect(patched.match(/\.vmarkd-softbreak/g)).toHaveLength(1)
+    const strip = patched.indexOf('.vmarkd-softbreak')
+    const serialise = patched.indexOf('const text = cloneElement.innerHTML;')
+    expect(strip).toBeGreaterThan(-1)
+    expect(strip).toBeLessThan(serialise)
+  })
+
+  it('is part of the undo/index.ts registry chain', () => {
+    const entry = VDITOR_TS_PATCHES.find((e) =>
+      e.file.test('vditor/src/ts/undo/index.ts'),
+    )
+    expect(entry!.transform(undoSource, 'undo/index.ts')).toContain(
+      '.vmarkd-softbreak',
+    )
+  })
+
+  it('throws if the anchor is gone or not unique', () => {
+    expect(() => patchUndoSnapshotStripSoftBreaks('// unrelated')).toThrow(
+      /patchUndoSnapshotStripSoftBreaks/,
+    )
+    expect(() =>
+      patchUndoSnapshotStripSoftBreaks(undoSource + undoSource),
+    ).toThrow(/patchUndoSnapshotStripSoftBreaks/)
   })
 })

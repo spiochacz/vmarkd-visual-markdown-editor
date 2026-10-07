@@ -255,6 +255,37 @@ describe('resolveCaretIntent — pure resolution, never touches the selection', 
     expect(target?.offset).toBe(3)
   })
 
+  // Task 83: a soft-break marker span holds the break's "\n" — it counts toward an offset but is
+  // never a landing spot.
+  it('{textOffset}: a position after a soft-break marker lands in the text AFTER it, never inside it', () => {
+    const editor = mountEditor(
+      '<p data-block="0">one<span class="vmarkd-softbreak" contenteditable="false">\n</span>two</p>',
+    )
+    const p = editor.firstElementChild!
+    const before = resolveCaretIntent({ textOffset: 3 }, editor)
+    expect(before?.node).toBe(p.firstChild) // end of "one", before the marker
+    expect(before?.offset).toBe(3)
+    const after = resolveCaretIntent({ textOffset: 4 }, editor)
+    expect(after?.node).toBe(p.lastChild) // start of "two"
+    expect(after?.offset).toBe(0)
+    const inside = resolveCaretIntent({ textOffset: 6 }, editor)
+    expect(inside?.node).toBe(p.lastChild)
+    expect(inside?.offset).toBe(2)
+  })
+
+  it('{blockIndex, offsetInBlock}: the same marker rule', () => {
+    const editor = mountEditor(
+      '<p data-block="0">one<span class="vmarkd-softbreak" contenteditable="false">\n</span>two</p>',
+    )
+    const p = editor.firstElementChild!
+    const after = resolveCaretIntent(
+      { blockPath: [0], offsetInBlock: 4 },
+      editor,
+    )
+    expect(after?.node).toBe(p.lastChild)
+    expect(after?.offset).toBe(0)
+  })
+
   it('{textOffset}: null when the editor has no text nodes at all', () => {
     const editor = mountEditor('<p data-block="0"><br></p>')
     expect(resolveCaretIntent({ textOffset: 0 }, editor)).toBeNull()

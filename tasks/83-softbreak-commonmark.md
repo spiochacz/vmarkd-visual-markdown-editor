@@ -2,7 +2,8 @@
 
 > **Status:** 🚧 in progress (2026-10-07) — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
 > toggle, see the first section). The 2026-06-13 preview-only design below is still part of it.
-> Nothing is implemented yet (the file sat in `done/` by mistake after a bulk archive; reopened).
+> Increments 1-3 delivered (setting + Preview, editor decorator); toolbar toggle and static open parity pending
+> (the file sat in `done/` by mistake after a bulk archive; reopened).
 > **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
 > preview render to vMarkd's render of the same file (task 82 theme work). A
 > paragraph (or blockquote) that is soft-wrapped across several source lines shows
@@ -137,10 +138,43 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
       around that call. Unset flag (a harness that never applies the setting) = stock Lute.
 - [ ] NOT covered, needs a user decision: copy-as-HTML (`getHTML.ts`), Vditor export, and D2 `|md|`
       labels still render soft breaks as `<br>` (they call Lute `Md2HTML` with the stock option).
-- [ ] Editor-surface decorator (reflow + break markers), toolbar toggle (pressed state, live re-apply),
-      open parity (idle chunking).
-- [ ] Unit + chromium e2e + real-VS-Code e2e (both modes), red-green-red. (Preview half done: unit +
-      `media-src/e2e/reflow-line-breaks.spec.ts` + `test/vscode-e2e/reflow-line-breaks.spec.ts`; editor half pending.)
+- [x] Editor-surface decorator (reflow + break markers) in IR and WYSIWYG (increment 3, 2026-10-08):
+      `editing/soft-break.ts` (DOM: marker spans, caret-kept wrap/unwrap, idle chunk scheduler) +
+      `editing/soft-break-observer.ts` (block-scoped MutationObserver on `#app`, window-capture structural-key
+      unwrap, caret-out-of-marker, IME hold, live toggle through `onReflowLineBreaksChange`), registered as
+      `observers.set('soft-breaks', …)` in `boot/finish-init.ts`; CSS in `main.css`; caret.ts resolvers skip the
+      marker text; a Vditor source patch (`patchUndoSnapshotStripSoftBreaks`) keeps the spans out of undo snapshots.
+      SV untouched. Decisions made on the way (each measured, see below): marker spans carry
+      `contenteditable=false`; Ctrl+Backspace / Ctrl+Delete are structural keys too; the selection is re-written
+      after a wrap that changed the DOM; selection reads happen once per chunk, not per block.
+- [ ] Toolbar toggle (pressed state, live re-apply) — increment 4.
+- [ ] Open parity: static prerender overlay at open — increment 5. (Idle chunking of the editor DOM itself is done.)
+- [x] Unit + chromium e2e + real-VS-Code e2e for the editor half, red-green-red (increment 3):
+      `soft-break.test.ts`, `soft-break-observer.test.ts`, `caret.test.ts`, `vditor-source-patches.test.ts`,
+      `media-src/e2e/soft-break-reflow.spec.ts`, `test/vscode-e2e/soft-break-reflow.spec.ts` (IR + WYSIWYG).
+
+### Increment 3 measurements (2026-10-08, chromium harness, 1500 paragraphs x 3 lines = 3000 breaks)
+
+- Open (`setValue` of the document): first screen decorated **~100 ms after the call, before the first paint**
+  (the first 5 ms chunk runs inside the observer callback, blocks on screen first, confirmed on screen);
+  the whole document **~170-200 ms** in ~600 idle chunks. No long task beyond the ones the same `setValue` has
+  with the setting off (one ~90 ms task both ways).
+- Two things the spike did not see, both fixed: (1) reading the selection after a DOM change forces a style +
+  layout flush (~1.2 ms per call; per block it made the whole pass 6-8 s and one pass 1.8 s of self time) —
+  now read once per chunk and only when the editor is focused; (2) Vditor's undo diffs consecutive `innerHTML`
+  snapshots (diff-match-patch, 1 s timeout), and our spans made the first snapshot after a decorated open differ
+  at every break — a 1003 ms `diff_bisect_` — so the snapshot clone is taken span-free (build patch).
+- Per keystroke (median of 30, `execCommand('insertText')` to the end of the microtask checkpoint, caret in
+  the middle of the 1500-paragraph document): IR 10.5 ms vs 6.7 ms off (+3.8), WYSIWYG 8.0 vs 7.4 (+0.6); the
+  block-scoped decoration itself is ~1-2 ms.
+- Copy across a marker puts `text/plain` = the markdown with `\n` on the clipboard (no glyph, no space);
+  `Selection.toString()` reads the paint (spaces) — both pinned in the chromium spec.
+- Real VS Code 1.129 (both modes, one boot each): one visual line + generated ↵, selection text, mid-paragraph
+  edit across a marker, undo / undo again / redo each restore text and caret (the next keystroke lands there),
+  Shift+Enter at a paragraph end saves `\` + newline, live flip off/on, saved bytes exact.
+- Known, accepted: End/Home go to the ends of the VISUAL line, which after reflow is the whole paragraph;
+  Backspace/Delete across a break deletes the newline (the "space" disappears), same markdown as with the
+  setting off.
 
 ## Resolved (2026-06-13)
 

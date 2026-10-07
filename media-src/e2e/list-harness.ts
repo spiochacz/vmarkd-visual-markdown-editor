@@ -5,6 +5,7 @@ import {
   applyReflowLineBreaks,
   rerenderOpenPreview,
 } from '../src/editing/reflow-line-breaks'
+import { observeSoftBreaks } from '../src/editing/soft-break-observer'
 import { blockModeElement } from '../src/util/source-map'
 // Source import so the fixListToggle esbuild patch is applied (see link-harness).
 import Vditor from 'vditor/src/index'
@@ -146,6 +147,11 @@ const editor = new Vditor('app', {
       () => (editor as any).vditor,
     )
     ;(window as any).vditorTest = editor
+    // Task 83 — the editor-surface soft-break decorator, wired as finish-init.ts does. It stays off
+    // until the setting is applied (`?reflow=1` at boot, or __applyReflowLineBreaks), like production.
+    observeSoftBreaks(document.getElementById('app'), () =>
+      blockModeElement(editor),
+    )
 
     // Toggle list type on the Nth <li> in the IR editor, mirroring what the
     // toolbar list/check buttons do (ir/process.ts → listToggle). Returns

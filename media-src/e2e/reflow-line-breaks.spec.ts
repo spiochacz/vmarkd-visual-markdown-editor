@@ -75,13 +75,25 @@ test('flipping the setting live re-renders the open preview', async ({
   await expect.poll(() => previewBrs(page)).toBe(0)
 })
 
-test('the editable IR surface and the serialized markdown do not depend on the setting', async ({
+// Increment 3 decorates the editable surface with marker spans when the setting is on; the DOM
+// WITHOUT those spans (and the serialized markdown) must still not depend on the setting.
+const SPAN =
+  /<span class="vmarkd-softbreak" contenteditable="false">\n<\/span>/g
+
+test('the editable IR surface (minus the marker spans) and the serialized markdown do not depend on the setting', async ({
   page,
 }) => {
   const seen: { html: string; value: string }[] = []
   for (const q of ['mode=ir', 'mode=ir&reflow=1', 'mode=ir&reflow=0']) {
     await load(page, q)
-    seen.push({ html: await irHtml(page), value: await getValue(page) })
+    if (q.endsWith('reflow=1'))
+      await page.waitForFunction(() =>
+        document.querySelector('.vmarkd-softbreak'),
+      )
+    seen.push({
+      html: (await irHtml(page)).replace(SPAN, '\n'),
+      value: await getValue(page),
+    })
   }
   expect(seen[1]).toEqual(seen[0])
   expect(seen[2]).toEqual(seen[0])

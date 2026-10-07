@@ -28,6 +28,7 @@ import { activeModeElement } from '../util/source-map'
 // header for the full breakdown.
 import { isEmptyGapParagraph, trailingCaretTarget } from './trailing-paragraph'
 import { isHostFindOpen } from './host-find'
+import { SOFTBREAK_SELECTOR } from './soft-break'
 
 type CaretIntent =
   // The very start of the first block (task 439). gap-paragraph.ts's leading-block invariant
@@ -127,6 +128,22 @@ function nextEmptyBlockSibling(
   return null
 }
 
+// The "\n" inside a soft-break marker span (soft-break.ts) counts toward an offset but is atomic: the
+// caret is never placed inside it (a position after the break continues in the next text node).
+function isSoftBreakMarker(node: Text): boolean {
+  return node.parentElement?.closest(SOFTBREAK_SELECTOR) != null
+}
+
+// Landing exactly at a text's end is the ambiguous case (an empty gap paragraph may follow) — mid-text landings
+// (remaining < length) are unambiguous and skip the empty-block check entirely.
+function landIn(node: Text, remaining: number, editor: HTMLElement): Target {
+  if (remaining === node.data.length) {
+    const empty = nextEmptyBlockSibling(node, editor)
+    if (empty) return { node: empty, offset: 0 }
+  }
+  return { node, offset: Math.max(0, remaining) }
+}
+
 // Character offset → {node, offset}, walking text nodes depth-first and clamping to the end.
 // Ported from caret-preserve.ts's setCaretOffset — the fresh-DOM counterpart to its caretOffset().
 //
@@ -148,16 +165,12 @@ function resolveTextOffset(editor: HTMLElement, offset: number): Target | null {
     node = walker.nextNode() as Text | null
   ) {
     if (node.data.length === 0) continue
-    last = node
-    if (node.data.length >= remaining) {
-      // Landing exactly at this text's end is the ambiguous case (see the comment above) — mid-text
-      // landings (remaining < length) are unambiguous and skip the empty-block check entirely.
-      if (remaining === node.data.length) {
-        const empty = nextEmptyBlockSibling(node, editor)
-        if (empty) return { node: empty, offset: 0 }
-      }
-      return { node, offset: Math.max(0, remaining) }
+    if (isSoftBreakMarker(node)) {
+      remaining = Math.max(0, remaining - node.data.length)
+      continue
     }
+    last = node
+    if (node.data.length >= remaining) return landIn(node, remaining, editor)
     remaining -= node.data.length
   }
   if (!last) return null
@@ -197,6 +210,10 @@ function resolveBlockOffset(
   ) {
     // Zero-length leftovers of the wbr split are never a paintable landing spot (task 445).
     if (node.data.length === 0) continue
+    if (isSoftBreakMarker(node)) {
+      remaining = Math.max(0, remaining - node.data.length)
+      continue
+    }
     last = node
     if (node.data.length >= remaining)
       return afterBreaks(block, { node, offset: remaining }, breaksBefore)

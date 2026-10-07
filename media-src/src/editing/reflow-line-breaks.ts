@@ -1,7 +1,8 @@
-// Task 83 (increment 2) — `vmarkd.editor.reflowLineBreaks`, the PREVIEW half. A soft line break (a
-// single newline inside a paragraph) flows like GitHub / the VS Code preview when on; off keeps every
-// source line on its own line. The editable IR/WYSIWYG/SV surfaces are NOT touched here (their DOM
-// is the same either way — a later increment decorates them).
+// Task 83 — `vmarkd.editor.reflowLineBreaks`. A soft line break (a single newline inside a paragraph)
+// flows like GitHub / the VS Code preview when on; off keeps every source line on its own line.
+// This module holds the setting and the PREVIEW half (increment 2). The editable IR/WYSIWYG surfaces
+// are decorated by soft-break-observer.ts, which subscribes to changes here (increment 3); SV is
+// untouched.
 //
 // The Preview renders with the SAME Lute instance as the editors, whose SoftBreak2HardBreak default is
 // true (soft break -> <br>). Build patch `patchPreviewReflow` routes that one Md2HTML call through
@@ -18,11 +19,22 @@ interface MdLute {
   Md2HTML(md: string): string
 }
 
+const listeners = new Set<(on: boolean) => void>()
+
+/** Subscribe to effective-value changes (the editor-surface decorator, soft-break-observer.ts). */
+export function onReflowLineBreaksChange(
+  cb: (on: boolean) => void,
+): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
 /** Apply the setting. Returns true when the effective value changed (caller re-renders an open preview). */
 export function applyReflowLineBreaks(value: boolean | undefined): boolean {
   const next = value !== false
   const changed = reflow !== next
   reflow = next
+  if (changed) for (const cb of listeners) cb(next)
   return changed
 }
 

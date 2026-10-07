@@ -141,6 +141,28 @@ export function patchDmpInterop(code) {
   )
 }
 
+// Task 83 (increment 3) — undo snapshots must not contain the soft-break marker spans. Vditor's undo
+// stores `innerHTML` snapshots and DIFFS consecutive ones (diff-match-patch, 1 s timeout). Our
+// decoration (editing/soft-break*.ts) wraps every soft-break newline AFTER a snapshot was taken, so the
+// first snapshot after a decorated open differed from the stored one at every break of the document:
+// measured on 1500 paragraphs, a 1003 ms `diff_bisect_` (= the library's timeout) and an undo entry that
+// also un-decorated the whole document. Snapshotting the clone WITHOUT the spans (`\n` text back in
+// their place) keeps decoration out of the undo stack entirely; an undo/redo restore then re-enters the
+// DOM span-free and the observer decorates it again. The clone is already O(document) per snapshot.
+const UNDO_SNAPSHOT_ANCHOR = '        const text = cloneElement.innerHTML;\n'
+export function patchUndoSnapshotStripSoftBreaks(code) {
+  const parts = code.split(UNDO_SNAPSHOT_ANCHOR)
+  if (parts.length !== 2) {
+    throw new Error(
+      `patchUndoSnapshotStripSoftBreaks: expected exactly 1 anchor in vditor undo/index.ts, found ${parts.length - 1} (version drift?)`,
+    )
+  }
+  return parts.join(
+    "        cloneElement.querySelectorAll('.vmarkd-softbreak').forEach((vmSb) => vmSb.replaceWith(...Array.from(vmSb.childNodes)));\n" +
+      UNDO_SNAPSHOT_ANCHOR,
+  )
+}
+
 // Task 445 — the first click into a freshly-opened document sometimes drops the caret (present,
 // collapsed, but PAINTS with zero height — task 439's exact failure mode). Root-caused by call-stack
 // trace (task 445 "Round 6", 4/4 reproductions, identical every time):
@@ -2376,7 +2398,10 @@ export const VDITOR_TS_PATCHES = [
     // chain the undo/index.ts patches: CJS default-import interop + the split-caret restore
     // (task 445). Distinct anchors, so order is immaterial.
     file: /vditor[/\\]src[/\\]ts[/\\]undo[/\\]index\.ts$/,
-    transform: (code) => patchUndoCaretSplitRestore(patchDmpInterop(code)),
+    transform: (code) =>
+      patchUndoSnapshotStripSoftBreaks(
+        patchUndoCaretSplitRestore(patchDmpInterop(code)),
+      ),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]ir[/\\]index\.ts$/,

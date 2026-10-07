@@ -2021,3 +2021,18 @@ body.vmarkd-busy * {
   outline: 1px solid var(--vscode-focusBorder, #007fd4);
   outline-offset: -1px;
 }
+
+/* Task 83: soft line breaks in the editor (soft-break.ts). With vmarkd.editor.reflowLineBreaks on, each
+   soft-break newline sits in a non-editable span: `white-space: normal` paints the "\n" as a space so
+   the paragraph reflows (the IR/WYSIWYG surfaces are pre-wrap, which would break the line), and the ↵
+   glyph is generated content, so it is never selectable, never copied and never serialized. */
+.vmarkd-softbreak {
+  white-space: normal;
+}
+.vmarkd-softbreak::before {
+  content: '\21B5';
+  color: var(--vscode-editorLineNumber-foreground, #858585);
+  font-size: 0.75em;
+  opacity: 0.6;
+  padding: 0 0.1em;
+}

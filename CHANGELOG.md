@@ -8,10 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Added
 
-- **Wrapped lines flow in the Preview** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph
-  soft-wrapped across several source lines reads as one flowing paragraph in the Preview and the split
-  view, like on GitHub and in VS Code's own preview; turn it off to keep every source line on its own
-  line. A change applies to an open Preview at once, and the file is never modified.
+- **Wrapped lines flow** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph soft-wrapped
+  across several source lines reads as one flowing paragraph in the Preview, the split view and the
+  IR / WYSIWYG editors, like on GitHub and in VS Code's own preview. In the editors every place where
+  the file has a line break is marked with a small ↵ that is never selected, copied or saved; the
+  markdown on disk is untouched, typing and arrow keys cross a break like a space, and Shift+Enter
+  inserts a real hard break. Turn it off to keep every source line on its own line; a change applies
+  to open editors and an open Preview at once.
 
 - **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
   selection, copying a partly selected heading keeps its marker, Enter in a list item's quote
