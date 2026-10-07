@@ -29,7 +29,10 @@ const META = new URL('../media/dist/main.meta.json', import.meta.url)
 // main, and this branch had neither since 2026-06-16 — 408 commits of ordinary feature growth with
 // the gate never firing. 270 keeps 16 modules of headroom: ordinary work does not trip it, an
 // engine cluster re-entering still does. MAX_LARGEST_MODULE_KB is untouched — it never moved.
-const MAX_EAGER_MODULES = 270
+// Raised 270→285 on 2026-10-07 together with the size budget (check-bundle-size.mjs): 272 eager
+// modules, no engine among them (largest eager module 29.4 KB, Vditor's fixBrowserBehavior) —
+// new feature glue (tasks 522/525/528/530). 285 keeps ~13 modules of headroom.
+const MAX_EAGER_MODULES = 285
 const MAX_LARGEST_MODULE_KB = 34
 
 let meta

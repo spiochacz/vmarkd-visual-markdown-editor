@@ -100,8 +100,10 @@ export function previousVisibleLine(li: HTMLElement): HTMLElement | null {
   let target = li.previousElementSibling
   if (target?.tagName === 'LI') {
     for (;;) {
-      const sub = target.lastElementChild
-      const last = sub?.matches('ul, ol') ? sub.lastElementChild : null
+      const sub: Element | null = target?.lastElementChild ?? null
+      const last: Element | null = sub?.matches('ul, ol')
+        ? sub.lastElementChild
+        : null
       if (!last) break
       target = last
     }

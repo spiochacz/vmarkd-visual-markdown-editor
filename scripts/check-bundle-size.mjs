@@ -24,7 +24,14 @@ const BUDGETS = [
     // 0.8 KB between them). 460 leaves ~14 KB of headroom: enough that ordinary feature work does
     // not trip it, far too little to hide a bundled engine, which is what the 18-line jump from a
     // leaked renderer looks like.
-    460,
+    //
+    // Raised 460→500 on 2026-10-07, same reasoning and the same measurement discipline. main.js
+    // was 481 KB (already 465 KB on origin/main at 2026-08-12, CI red since). `main.meta.json`
+    // again shows NO engine leak: Vditor's own source is 233 KB of it (the 3.11.3 bump, task 528),
+    // the largest engine glue is plantuml-render.ts at 11.8 KB, and the rest is diffuse feature glue
+    // (list editing 525, find-focus 522, hard breaks + Shift+Enter 530). 500 leaves ~19 KB of
+    // headroom — still far below the hundreds of KB a bundled engine adds.
+    500,
     'eager webview bundle — glue ONLY, every engine must lazy-load (addScript/fetch)',
   ],
   [

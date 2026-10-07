@@ -316,7 +316,7 @@ const mdText = (ctx: LeafCtx) => {
   parts.push(
     // overflow=visible: chromium scissors foreignObject content by default, so a sub-pixel
     // measure/render drift would clip the last text line mid-height instead of spilling 1px.
-    `<foreignObject x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" class="vmarkd-d2-md" style="width:${s.mdSize.w}px;padding:${TEXT_PAD}px;color:${s.fontColor || sty.text}">${s.mdHtml}</div></foreignObject>`,
+    `<foreignObject x="${f1(left)}" y="${f1(top)}" width="${f1(w)}" height="${f1(h)}" overflow="visible"><div xmlns="http://www.w3.org/1999/xhtml" class="vmarkd-d2-md" style="width:${s.mdSize?.w ?? 0}px;padding:${TEXT_PAD}px;color:${s.fontColor || sty.text}">${s.mdHtml}</div></foreignObject>`,
   )
   ctx.labelDone = true
 }
