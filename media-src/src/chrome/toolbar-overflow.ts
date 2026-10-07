@@ -52,6 +52,7 @@ const CLUSTER_ORDER: readonly string[][] = [
   ['emoji'],
   ['undo', 'redo'],
   ['outline'],
+  ['reflow-line-breaks'],
   ['insert-before', 'insert-after'],
   ['outdent', 'indent'],
   ['quote'],

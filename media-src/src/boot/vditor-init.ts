@@ -12,6 +12,11 @@ import { setVditorTheme } from './vditor-theme'
 import { createUploadHandler } from '../clipboard/upload-handler'
 import { lang } from '../util/lang'
 import { createToolbar } from '../chrome/toolbar'
+import {
+  installReflowToggleSync,
+  syncReflowToggle,
+  toggleReflowLineBreaks,
+} from '../editing/reflow-toggle'
 import { setupCustomRenderer } from '../links/custom-renderer'
 import { patchLuteSerialize, setKnownPagesRef } from '../links/wiki-serialize'
 import { Disposables } from '../util/disposables'
@@ -247,7 +252,10 @@ export function initVditor(msg: InitPayload) {
     toolbar:
       msg.options?.showToolbar === false
         ? []
-        : createToolbar({ wikiEnabled: Boolean(msg.wiki?.enabled) }),
+        : createToolbar({
+            wikiEnabled: Boolean(msg.wiki?.enabled),
+            onToggleReflow: toggleReflowLineBreaks,
+          }),
     toolbarConfig: { pin: true },
     ...defaultOptions,
     // Large-doc responsiveness (perf C2): widen Vditor's reserialise/undo idle
@@ -333,6 +341,8 @@ export function initVditor(msg: InitPayload) {
       calloutWysiwygToolbar(type, popover),
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: post-mount wiring for every non-visual helper that needs the full editor DOM (wiki/caret/theme/diagram runtime, …); pre-existing (task 469 baseline)
     after() {
+      // The toolbar is attached to the document by now: (re)assert the reflow toggle's pressed state.
+      syncReflowToggle()
       const wikiEnabled = Boolean(msg.wiki?.enabled)
       // Non-visual helpers that need the full editor DOM (finish-init.ts). Factored
       // out so the streaming path can run them once the whole document is streamed in;
@@ -469,6 +479,9 @@ export function initVditor(msg: InitPayload) {
   })
   // Vditor built its toolbar synchronously above (icons and all); surface it in
   // the instant-paint overlay now, while Lute is still loading (see helper).
+  // Pressed state of the reflow toggle must be on the toolbar BEFORE it is cloned into the overlay (no flicker).
+  syncReflowToggle()
+  installReflowToggleSync()
   showRealToolbarInOverlay()
   // Failsafe: after() normally drops the overlay in ~150 ms. But if the webview's
   // own Lute script never loads (network/resource failure), after() never fires

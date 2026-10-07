@@ -35,6 +35,26 @@ export function cfgFor(uri?: vscode.Uri) {
   return vscode.workspace.getConfiguration('vmarkd', uri)
 }
 
+// Task 83 — the toolbar toggle writes `vmarkd.editor.reflowLineBreaks`. The write goes to the most
+// specific scope that currently DEFINES the value (folder > workspace > user), so the click always
+// takes effect: a write to User while a workspace/folder override exists would be shadowed and look
+// like a dead button. No override anywhere -> User (Global).
+export async function setReflowLineBreaks(
+  uri: vscode.Uri | undefined,
+  value: boolean,
+): Promise<void> {
+  const cfg = cfgFor(uri)
+  const key = 'editor.reflowLineBreaks'
+  const info = cfg.inspect<boolean>(key)
+  const target =
+    info?.workspaceFolderValue !== undefined
+      ? vscode.ConfigurationTarget.WorkspaceFolder
+      : info?.workspaceValue !== undefined
+        ? vscode.ConfigurationTarget.Workspace
+        : vscode.ConfigurationTarget.Global
+  await cfg.update(key, value, target)
+}
+
 // Map the active VS Code color theme to the webview's two-value theme. Used by
 // both the init payload and the live onDidChangeActiveColorTheme listener so
 // they stay in sync (task 25). Moved here (task 405) so both extension.ts and

@@ -346,3 +346,52 @@ describe('message handler: open-link', () => {
     expect(call!.args[0].fsPath).toBe('/workspace/docs/page.md')
   })
 })
+
+describe('message handler: set-reflow-line-breaks (task 83 toolbar toggle)', () => {
+  beforeEach(() => mock.reset())
+
+  const KEY = 'editor.reflowLineBreaks'
+
+  async function click(value: boolean) {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({ command: 'set-reflow-line-breaks', value })
+    return mock.calls.configUpdates
+  }
+
+  it('writes to User (Global) when no scope defines the value', async () => {
+    const updates = await click(false)
+    expect(updates).toHaveLength(1)
+    expect(updates[0]).toMatchObject({ key: KEY, value: false, target: 1 })
+  })
+
+  it('writes to Workspace when the workspace defines the value', async () => {
+    mock.setConfigInspect(KEY, { workspaceValue: true, globalValue: true })
+    const updates = await click(false)
+    expect(updates[0]).toMatchObject({ key: KEY, value: false, target: 2 })
+  })
+
+  it('writes to the WorkspaceFolder when the folder defines the value (most specific wins)', async () => {
+    mock.setConfigInspect(KEY, {
+      workspaceFolderValue: true,
+      workspaceValue: true,
+      globalValue: true,
+    })
+    const updates = await click(false)
+    expect(updates[0]).toMatchObject({ key: KEY, value: false, target: 3 })
+  })
+
+  it('reads and writes the document-scoped configuration (resource scope)', async () => {
+    const updates = await click(true)
+    expect(updates[0].scope).toContain('file://')
+  })
+
+  it('drops a message without a boolean value', async () => {
+    const { panel } = resolveProvider()
+    await panel._receiveMessage({ command: 'set-reflow-line-breaks' })
+    await panel._receiveMessage({
+      command: 'set-reflow-line-breaks',
+      value: 'false',
+    })
+    expect(mock.calls.configUpdates).toHaveLength(0)
+  })
+})

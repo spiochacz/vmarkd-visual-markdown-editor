@@ -256,6 +256,7 @@ export const WEBVIEW_MODULES = {
       'edit-activity',
       'hard-break-key', // NEW (task 530) — Shift+Enter makes a real hard line break in prose (IR + WYSIWYG)
       'reflow-line-breaks', // NEW (task 83) — soft line breaks flow in the Preview (vmarkd.editor.reflowLineBreaks)
+      'reflow-toggle', // NEW (task 83) — pressed state + click for the reflow-line-breaks toolbar toggle
       'soft-break', // NEW (task 83) — DOM half of the editor's soft-line-break reflow: marker spans, caret-kept wrap/unwrap, idle chunk scheduler
       'soft-break-observer', // NEW (task 83) — keeps the spans on the IR/WYSIWYG surface (observer, structural-key unwrap, live toggle)
       'mutation-scope',

@@ -5,6 +5,12 @@ import {
   applyReflowLineBreaks,
   rerenderOpenPreview,
 } from '../src/editing/reflow-line-breaks'
+import { createToolbar } from '../src/chrome/toolbar'
+import {
+  installReflowToggleSync,
+  syncReflowToggle,
+  toggleReflowLineBreaks,
+} from '../src/editing/reflow-toggle'
 import { observeSoftBreaks } from '../src/editing/soft-break-observer'
 import { blockModeElement } from '../src/util/source-map'
 // Source import so the fixListToggle esbuild patch is applied (see link-harness).
@@ -139,7 +145,15 @@ const editor = new Vditor('app', {
   customWysiwygToolbar: () => {
     /* required stub — see comment above */
   },
+  // Task 83 (increment 4) — `?toolbar=1` boots with the product toolbar (incl. the reflow toggle).
+  ...(params.get('toolbar') === '1'
+    ? { toolbar: createToolbar({ onToggleReflow: toggleReflowLineBreaks }) }
+    : {}),
   after() {
+    if (params.get('toolbar') === '1') {
+      syncReflowToggle()
+      installReflowToggleSync()
+    }
     ;(window as any).vditor = editor
     // Task 530 — the real Shift+Enter handler, wired as main.ts does.
     setupHardBreakKey(

@@ -133,11 +133,11 @@ test('the more menu unfolds rightwards when it fits and flips at the edge', asyn
       }
     })
 
-  // 900px is the discriminating width: the menu (106px here, nothing overflowed) still fits to the
+  // 940px is the discriminating width: the menu (106px here, nothing overflowed) still fits to the
   // right of More, but the trigger IS within Vditor's hardcoded 250px of the toolbar's right edge,
   // so its own heuristic would have flipped it. This is the reported case — room to spare and the
   // menu still unfolded leftwards.
-  await page.setViewportSize({ width: 900, height: 700 })
+  await page.setViewportSize({ width: 940, height: 700 })
   await moreButton.click()
   await expect(panel).toBeVisible()
   const roomy = await geometry()

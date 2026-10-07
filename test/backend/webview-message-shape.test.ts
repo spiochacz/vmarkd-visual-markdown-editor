@@ -35,6 +35,24 @@ describe('firstWebviewMessageShapeViolation', () => {
     ).toBeNull()
   })
 
+  it('requires a boolean `value` for set-reflow-line-breaks (task 83)', () => {
+    expect(
+      firstWebviewMessageShapeViolation({}, 'set-reflow-line-breaks'),
+    ).toBe('value')
+    expect(
+      firstWebviewMessageShapeViolation(
+        { value: 'false' },
+        'set-reflow-line-breaks',
+      ),
+    ).toBe('value')
+    expect(
+      firstWebviewMessageShapeViolation(
+        { value: false },
+        'set-reflow-line-breaks',
+      ),
+    ).toBeNull()
+  })
+
   it('never flags a command with no required fields, however the message is shaped', () => {
     // docMode coerces every field (Number()/Boolean()) in the real handler — nothing can crash,
     // so nothing is required here even though the protocol type marks them all non-optional.

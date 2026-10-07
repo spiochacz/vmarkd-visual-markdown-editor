@@ -14,7 +14,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   the file has a line break is marked with a small ↵ that is never selected, copied or saved; the
   markdown on disk is untouched, typing and arrow keys cross a break like a space, and Shift+Enter
   inserts a real hard break. Turn it off to keep every source line on its own line; a change applies
-  to open editors and an open Preview at once.
+  to open editors and an open Preview at once, and a toolbar button next to Outline flips it (pressed
+  while on, kept in step with the VS Code setting).
 
 - **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
   selection, copying a partly selected heading keeps its marker, Enter in a list item's quote

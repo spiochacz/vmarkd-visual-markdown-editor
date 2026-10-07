@@ -220,6 +220,8 @@ export type WebviewMessage =
   | { command: 'edit-in-vscode' }
   | { command: 'navigate-back' }
   | { command: 'open-settings' }
+  // Task 83 — the toolbar's reflow-line-breaks toggle; the host persists vmarkd.editor.reflowLineBreaks.
+  | { command: 'set-reflow-line-breaks'; value: boolean }
   // Observability pipe — host-side handlers exist; webview emitters are wired in
   // this task (item 3) to replace the console.* fallback.
   | { command: 'log'; text: string }

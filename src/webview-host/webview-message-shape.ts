@@ -34,6 +34,7 @@ import type { WebviewMessage } from '../shared/protocol'
 //     "undefined" and is then treated as a real (bogus) path/target — worth catching here, unlike
 //     the true no-op coercions below.
 //   - save-outline-width: `message.width` is written straight into `globalState`, no coercion.
+//   - set-reflow-line-breaks: `message.value` is written straight into the user's settings.
 //   - editorMode: `message.mode` is written straight into a map read back for the status-bar label.
 //   - diagram-cache-get: `for (const hash of message.hashes)` throws if `hashes` isn't iterable;
 //     `requestId` is echoed verbatim in the reply.
@@ -62,6 +63,7 @@ const REQUIRED_WEBVIEW_MESSAGE_FIELDS: Partial<
   'edit-in-vscode': [],
   'navigate-back': [],
   'open-settings': [],
+  'set-reflow-line-breaks': [['value', 'boolean']],
   'list-wiki-pages': [],
   'copy-html': [],
   'copy-markdown': [],

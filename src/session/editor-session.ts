@@ -12,6 +12,7 @@ import {
   effectiveThemeKind,
   getWebviewOptions,
   sanitizeVditorOptions,
+  setReflowLineBreaks,
 } from '../platform/editor-config'
 import { appendRawLine, debug, showError } from '../platform/host-log'
 import {
@@ -494,6 +495,8 @@ export class EditorSession {
       'edit-in-vscode': () => this.onEditInVscode(),
       'navigate-back': () => this.onNavigateBack(),
       'open-settings': () => this.onOpenSettings(),
+      'set-reflow-line-breaks': (message) =>
+        setReflowLineBreaks(this.activeUri, message.value),
       'list-wiki-pages': () => this.onListWikiPages(),
       'save-outline-width': (message) =>
         this.context.globalState.update(KeyOutlineWidth, message.width),

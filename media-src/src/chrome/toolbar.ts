@@ -7,6 +7,7 @@ import {
   linkIcon,
   moreIcon,
   outlineIcon,
+  reflowIcon,
   wikiPagesIcon,
 } from './toolbar-icons'
 
@@ -130,6 +131,8 @@ function insertMarkdownLink() {
 
 interface ToolbarOptions {
   wikiEnabled?: boolean
+  /** Click handler of the reflow-line-breaks toggle (injected: chrome must not import editing). */
+  onToggleReflow?: () => void
 }
 
 export function createToolbar(options: ToolbarOptions = {}) {
@@ -194,6 +197,15 @@ export function createToolbar(options: ToolbarOptions = {}) {
     },
     '|',
     { name: 'outline', icon: outlineIcon },
+    // Task 83 — pressed state is synced by reflow-toggle.ts (it is not a Vditor-managed toggle).
+    {
+      name: 'reflow-line-breaks',
+      icon: reflowIcon,
+      tip: t('reflowLineBreaks'),
+      click() {
+        options.onToggleReflow?.()
+      },
+    },
     'preview',
     '|',
     ...(options.wikiEnabled

@@ -2,7 +2,7 @@
 
 > **Status:** 🚧 in progress (2026-10-07) — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
 > toggle, see the first section). The 2026-06-13 preview-only design below is still part of it.
-> Increments 1-3 delivered (setting + Preview, editor decorator); toolbar toggle and static open parity pending
+> Increments 1-4 delivered (setting + Preview, editor decorator, toolbar toggle); static open parity pending
 > (the file sat in `done/` by mistake after a bulk archive; reopened).
 > **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
 > preview render to vMarkd's render of the same file (task 82 theme work). A
@@ -147,7 +147,12 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
       SV untouched. Decisions made on the way (each measured, see below): marker spans carry
       `contenteditable=false`; Ctrl+Backspace / Ctrl+Delete are structural keys too; the selection is re-written
       after a wrap that changed the DOM; selection reads happen once per chunk, not per block.
-- [ ] Toolbar toggle (pressed state, live re-apply) — increment 4.
+- [x] Toolbar toggle (pressed state, live re-apply) — increment 4 (2026-10-08): `reflow-line-breaks` Custom
+      item next to Outline (`chrome/reflow-toggle.ts`: `vditor-menu--current` + `aria-pressed`, synced at init
+      incl. before the overlay clone, on every effective change, optimistic apply on click); `set-reflow-line-breaks`
+      message -> host writes the most specific scope that defines the value (folder > workspace > user); overflow
+      cluster added. Real-VS-Code spec `reflow-toolbar.spec.ts` (two editors, More-menu press, Settings-side flip).
+      Open parity (static open) still pending.
 - [ ] Open parity: static prerender overlay at open — increment 5. (Idle chunking of the editor DOM itself is done.)
 - [x] Unit + chromium e2e + real-VS-Code e2e for the editor half, red-green-red (increment 3):
       `soft-break.test.ts`, `soft-break-observer.test.ts`, `caret.test.ts`, `vditor-source-patches.test.ts`,

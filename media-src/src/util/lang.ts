@@ -20,6 +20,7 @@ const Langs = {
     settings: 'Settings',
     aboutVditor: 'About Vditor',
     aboutVmarkd: 'About vMarkd',
+    reflowLineBreaks: 'Reflow line breaks',
   },
   ja_JP: {
     save: '保存する',
@@ -48,6 +49,7 @@ const Langs = {
     settings: '设置',
     aboutVditor: '关于 Vditor',
     aboutVmarkd: '关于 vMarkd',
+    reflowLineBreaks: '重排换行',
   },
 }
 

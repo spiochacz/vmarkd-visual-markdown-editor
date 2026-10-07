@@ -263,6 +263,13 @@ export class TabInputTextDiff {
   ) {}
 }
 
+// Task 83 (toolbar toggle): the scopes a setting write can target.
+export const ConfigurationTarget = {
+  Global: 1,
+  Workspace: 2,
+  WorkspaceFolder: 3,
+} as const
+
 export const ColorThemeKind = {
   Light: 1,
   Dark: 2,
@@ -324,6 +331,15 @@ function freshState() {
     // Per-resource overrides keyed by uri.toString() (task 51 #3, scope:"resource").
     // getConfiguration(section, uri) consults this first, then falls back to `config`.
     resourceConfig: {} as Record<string, Record<string, any>>,
+    // getConfiguration().inspect(key) results keyed by the bare key (task 83 toolbar toggle).
+    configInspect: {} as Record<
+      string,
+      {
+        workspaceFolderValue?: unknown
+        workspaceValue?: unknown
+        globalValue?: unknown
+      }
+    >,
     isTrusted: true,
     activeColorThemeKind: ColorThemeKind.Light as number,
     activeColorThemeId: 'Test Theme',
@@ -366,6 +382,12 @@ function freshState() {
       appliedEdits: [] as WorkspaceEdit[],
       postMessage: [] as any[],
       globalStateUpdates: [] as { key: string; value: any }[],
+      configUpdates: [] as {
+        key: string
+        value: unknown
+        target: number | undefined
+        scope: string | undefined
+      }[],
       fileSystemWatchers: [] as MockWatcher[],
       fsWrites: [] as { uri: Uri; content: Uint8Array }[],
       fsDirsCreated: [] as Uri[],
@@ -539,6 +561,15 @@ export const workspace = {
       get: <T>(key: string, defaultValue?: T): T => {
         if (overrides && key in overrides) return overrides[key] as T
         return (key in state.config ? state.config[key] : defaultValue) as T
+      },
+      inspect: (key: string) => state.configInspect[key],
+      update: async (key: string, value: unknown, target?: number) => {
+        state.calls.configUpdates.push({
+          key,
+          value,
+          target,
+          scope: scope?.toString(),
+        })
       },
     }
   }),
@@ -808,6 +839,17 @@ export const mock = {
   setResourceConfig(uri: Uri | string, values: Record<string, any>) {
     const key = typeof uri === 'string' ? uri : uri.toString()
     state.resourceConfig[key] = { ...state.resourceConfig[key], ...values }
+  },
+  // What getConfiguration('vmarkd').inspect(key) reports (which scopes define the value).
+  setConfigInspect(
+    key: string,
+    values: {
+      workspaceFolderValue?: unknown
+      workspaceValue?: unknown
+      globalValue?: unknown
+    },
+  ) {
+    state.configInspect[key] = values
   },
   setThemeKind(kind: number) {
     state.activeColorThemeKind = kind
