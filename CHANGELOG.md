@@ -40,6 +40,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Changed
 
+- **Newer markdown engine (Lute, September 2026).** Pasted or rendered HTML is now stripped of
+  `javascript:` links in `<form action>` and SVG/MathML `xlink:href` attributes (upstream security
+  advisory GHSA-97xv-3v84-h358). Tables keep the spacing around inline code, bold, links and math
+  in a cell exactly as written (including double spaces), a table that directly follows text in a
+  list item is no longer separated by a blank line, and further list/table round-trip fixes come
+  with it. One side effect: a line like ``      - `code` `` indented four or more spaces past its
+  list item's text (continuation text, not a sublist) is now saved with a backslash (`\-`) so it
+  stays text instead of silently becoming a sublist on the next open.
 - **One source of truth for the formatting shortcuts**: the toolbar's tooltips, the keybindings
   VS Code lists in its Keyboard Shortcuts UI and the code that actually runs on the keypress all
   come from the same table — so a tooltip can no longer advertise a key that does something else,

@@ -1,11 +1,11 @@
 {
   "repo": "88250/lute",
-  "commit": "36ea9e0966025d7f4f343cdf9a611109bfb29ef6",
-  "committedAt": "2026-06-03",
-  "fetchedFrom": "https://raw.githubusercontent.com/88250/lute/36ea9e0966025d7f4f343cdf9a611109bfb29ef6/javascript/lute.min.js",
-  "goVersion": "go1.20.14",
-  "sha256": "106839397fb6b2504ef105ed2bb2ab8c8198482613e3dfeac13a1137ba55e42d",
-  "mapSha256": "403ffe95e6e90ee7b56e3e6d9376f8712f147a94f773e3ab893d7e9a05dc9c78",
+  "commit": "591a69561daf594d4ba21dc74a377abe47139cd5",
+  "committedAt": "2026-09-18",
+  "fetchedFrom": "https://raw.githubusercontent.com/88250/lute/591a69561daf594d4ba21dc74a377abe47139cd5/javascript/lute.min.js",
+  "goVersion": "go1.21.13",
+  "sha256": "33501c2b6db4e5a56eaae391ceff50c41f6a28143dc765b365e9c3b74e1e395f",
+  "mapSha256": "3502eb99071f3133b4b072b04661e86a761bb2288d1c1667901ac777725985c2",
   "license": "Mulan PSL v2",
   "note": "Run media-src/scripts/fetch-lute.mjs <sha> to re-pin; build.mjs verifies sha256."
 }
