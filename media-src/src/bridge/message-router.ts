@@ -38,6 +38,10 @@ import { applyPasteUrlSetting } from '../links/link-url'
 import { applyPasteCsvSetting } from '../clipboard/paste-table'
 import { applySlugifyModeSetting } from '../links/same-doc-anchor'
 import { applyHardBreakStyle } from '../../../src/shared/lute-hard-break'
+import {
+  applyReflowLineBreaks,
+  rerenderOpenPreview,
+} from '../editing/reflow-line-breaks'
 import { stripAnsi } from '../clipboard/paste-transform'
 import { renderDiffMarkers, clearDiffMarkers } from '../chrome/diff-markers'
 import { preserveCaretAndScroll } from '../editing/caret-preserve'
@@ -213,6 +217,9 @@ function handleConfigChanged(
   applySlugifyModeSetting(msg.options?.slugifyMode)
   // Task 530 — how a new hard line break (Shift+Enter) is written; live, like the toggles above.
   applyHardBreakStyle(msg.options?.hardBreakStyle)
+  // Task 83 — soft line breaks in the Preview; a flip re-renders an open Preview overlay / split pane.
+  if (applyReflowLineBreaks(msg.options?.reflowLineBreaks))
+    rerenderOpenPreview()
   // Task 184 — the cache themeKey is plain runtime state; apply live. A live theme/engine change
   // (below) also re-renders diagrams, which re-populates the cache under the new key.
   const effectiveTheme =

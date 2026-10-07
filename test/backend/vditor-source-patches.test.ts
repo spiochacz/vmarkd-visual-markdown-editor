@@ -37,6 +37,7 @@ import {
   patchMarkmapStatic,
   patchGraphvizRender,
   patchLuteHook,
+  patchPreviewReflow,
   patchWavedromRender,
   patchHighlightSkipDiagrams,
   patchHighlightLanguageClass,
@@ -2191,6 +2192,48 @@ describe('patchWavedromRender (task 528: native WaveDrom renderer neutralised)',
   it('throws if the anchor is gone — version-bump guard', () => {
     expect(() => patchWavedromRender('// unrelated source')).toThrow(
       /patchWavedromRender/,
+    )
+  })
+})
+
+// Task 83 (increment 2) — the Preview overlay / split pane renders with `vditor.lute.Md2HTML`, which
+// keeps Lute's SoftBreak2HardBreak default (soft break -> <br>). Route that one call through our hook.
+describe('patchPreviewReflow (task 83: soft line breaks flow in the preview)', () => {
+  const previewSource = read(
+    '../../media-src/node_modules/vditor/src/ts/preview/index.ts',
+  )
+  const morphed = patchPreviewMorph(previewSource)
+
+  it('routes the non-xhr Md2HTML call through the __vmarkdPreviewMd2HTML hook, once', () => {
+    const patched = patchPreviewReflow(morphed)
+    expect(patched).toContain('__vmarkdPreviewMd2HTML')
+    expect(patched.match(/__vmarkdPreviewMd2HTML/g)).toHaveLength(1)
+    // The hook is optional: without it the stock call still runs.
+    expect(patched).toMatch(/vditor\.lute\.Md2HTML\(markdownText\)/)
+    // The xhr fallback keeps the stock call.
+    expect(
+      patched.match(/let html = vditor\.lute\.Md2HTML\(markdownText\);/g),
+    ).toHaveLength(1)
+  })
+
+  it('composes with patchPreviewMorph in the registry entry', () => {
+    const entry = VDITOR_TS_PATCHES.find((e) =>
+      e.file.test('vditor/src/ts/preview/index.ts'),
+    )
+    const out = entry!.transform(previewSource, 'preview/index.ts')
+    expect(out).toContain('__vmarkdPreviewMd2HTML')
+    expect(out).toContain('__vmarkdMorphPreview')
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone', () => {
+    expect(() => patchPreviewReflow('// unrelated source')).toThrow(
+      /patchPreviewReflow/,
+    )
+  })
+
+  it('throws if the anchor is not unique', () => {
+    expect(() => patchPreviewReflow(morphed + morphed)).toThrow(
+      /patchPreviewReflow/,
     )
   })
 })

@@ -1249,6 +1249,24 @@ export function patchPreviewMorph(code) {
                 if (vmMorph) { vmMorph(this.previewElement, html); } else { this.previewElement.innerHTML = html; }`,
   )
 }
+// Task 83 (increment 2) — soft line breaks in the PREVIEW. Route the Preview's non-xhr
+// `vditor.lute.Md2HTML` call (16-space indent; the xhr fallback at 28 keeps the stock call) through
+// `window.__vmarkdPreviewMd2HTML` (editing/reflow-line-breaks.ts), which flips Lute's SoftBreak2HardBreak
+// per vmarkd.editor.reflowLineBreaks. Optional-call: no hook = stock Lute. Runs AFTER patchPreviewMorph.
+const PREVIEW_REFLOW_ANCHOR =
+  '\n                let html = vditor.lute.Md2HTML(markdownText);'
+export function patchPreviewReflow(code) {
+  const parts = code.split(PREVIEW_REFLOW_ANCHOR)
+  if (parts.length !== 2) {
+    throw new Error(
+      `patchPreviewReflow: expected exactly 1 anchor in vditor preview/index.ts, found ${parts.length - 1} (version drift?)`,
+    )
+  }
+  return parts.join(
+    '\n                const vmMd2Html = (window as any).__vmarkdPreviewMd2HTML;\n' +
+      '                let html = vmMd2Html ? vmMd2Html(vditor.lute, markdownText) : vditor.lute.Md2HTML(markdownText);',
+  )
+}
 // Task 63 (paste) — content-based code-block detection on paste. Vditor's
 // `processPasteCode` (util/processCode.ts) forced pasted content into a code block
 // from IDE-source MARKERS (VS Code monospace font, any single <pre>, Xcode `p1`,
@@ -2449,8 +2467,10 @@ export const VDITOR_TS_PATCHES = [
     file: /vditor[/\\]src[/\\]ts[/\\]preview[/\\]index\.ts$/,
     transform: (code) =>
       patchPreviewComments(
-        patchPreviewMorph(
-          patchPreviewCopyClipboardData(patchPreviewCopyTip(code)),
+        patchPreviewReflow(
+          patchPreviewMorph(
+            patchPreviewCopyClipboardData(patchPreviewCopyTip(code)),
+          ),
         ),
       ),
   },

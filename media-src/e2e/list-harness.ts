@@ -1,6 +1,10 @@
 import '../src/boot/preload'
 import { applyHardBreakStyle } from '../../src/shared/lute-hard-break'
 import { setupHardBreakKey } from '../src/editing/hard-break-key'
+import {
+  applyReflowLineBreaks,
+  rerenderOpenPreview,
+} from '../src/editing/reflow-line-breaks'
 import { blockModeElement } from '../src/util/source-map'
 // Source import so the fixListToggle esbuild patch is applied (see link-harness).
 import Vditor from 'vditor/src/index'
@@ -112,6 +116,12 @@ const lists: Record<string, string> = {
 // Task 530 — lets the spec flip vmarkd.editor.hardBreakStyle the way a live config change does.
 ;(window as any).__applyHardBreakStyle = applyHardBreakStyle
 const params = new URLSearchParams(location.search)
+// Task 83 — vmarkd.editor.reflowLineBreaks, applied the way vditor-init.ts / message-router.ts do.
+// `?reflow=1|0` sets it at boot (absent = never applied = stock Lute); the spec flips it live.
+;(window as any).__applyReflowLineBreaks = (v: boolean) => {
+  if (applyReflowLineBreaks(v)) rerenderOpenPreview()
+}
+if (params.has('reflow')) applyReflowLineBreaks(params.get('reflow') !== '0')
 // `?md=<markdown>` loads an arbitrary document (list scenario matrix, task 525) instead of a named
 // fixture; `?mode=wysiwyg` boots the WYSIWYG surface instead of IR.
 const value =

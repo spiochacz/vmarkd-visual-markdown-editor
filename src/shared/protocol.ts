@@ -66,6 +66,9 @@ export interface VmarkdConfigOptions {
   slugifyMode?: string
   // Task 530 — `backslash` (default) | `spaces`: how a NEW hard line break (Shift+Enter) is written.
   hardBreakStyle?: string
+  // Task 83 — `true` (default): a soft line break flows like GitHub / the VS Code preview; `false`: every
+  // source line stays on its own line. Editor + Preview (increment 2: the Preview half).
+  reflowLineBreaks?: boolean
   // Transient (drag-resized outline width, not from collectConfigOptions).
   outlineWidth?: number
 }

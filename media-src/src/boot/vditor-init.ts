@@ -46,6 +46,7 @@ import { applyPasteUrlSetting } from '../links/link-url'
 import { applyPasteCsvSetting } from '../clipboard/paste-table'
 import { applySlugifyModeSetting } from '../links/same-doc-anchor'
 import { applyHardBreakStyle } from '../../../src/shared/lute-hard-break'
+import { applyReflowLineBreaks } from '../editing/reflow-line-breaks'
 import { undoDelayForContentLength } from '../bridge/edit-sync-tuning'
 import { setPersistModeOverride } from '../chrome/toolbar-actions'
 import { sessionState } from './editor-session-state'
@@ -186,6 +187,8 @@ export function initVditor(msg: InitPayload) {
   applySlugifyModeSetting(msg.options?.slugifyMode)
   // Task 530 — how a new hard line break (Shift+Enter) is written; live, like the toggles above.
   applyHardBreakStyle(msg.options?.hardBreakStyle)
+  // Task 83 — soft line breaks reflow in the Preview (the flag must be set before the first preview render).
+  applyReflowLineBreaks(msg.options?.reflowLineBreaks)
   // Debounced edit→host serialize controller (task 152 item 1, edit-sync.ts). It owns
   // the incremental-IR serialize (task 69), the busy-cursor idle path (task 68), the
   // synchronous save flush (task 58) and the status-bar doc-mode report. Suppressed while

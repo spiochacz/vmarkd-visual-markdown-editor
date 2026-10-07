@@ -255,6 +255,7 @@ export const WEBVIEW_MODULES = {
       'code-source',
       'edit-activity',
       'hard-break-key', // NEW (task 530) — Shift+Enter makes a real hard line break in prose (IR + WYSIWYG)
+      'reflow-line-breaks', // NEW (task 83) — soft line breaks flow in the Preview (vmarkd.editor.reflowLineBreaks)
       'mutation-scope',
       'html-comment',
       'table-hotkey',

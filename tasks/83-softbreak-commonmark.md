@@ -1,6 +1,6 @@
 # Task: Soft line breaks like CommonMark (flow wrapped lines)
 
-> **Status:** 📋 planned — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
+> **Status:** 🚧 in progress (2026-10-07) — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
 > toggle, see the first section). The 2026-06-13 preview-only design below is still part of it.
 > Nothing is implemented yet (the file sat in `done/` by mistake after a bulk archive; reopened).
 > **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
@@ -112,6 +112,16 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
 (IR and WYSIWYG). The same paragraph followed by a plain paragraph comes back as soft breaks
 (`Hard one\nhard two`), also lossy. Not yet reproduced end-to-end in VS Code.
 
+### Decisions (user, 2026-10-07, evening)
+
+- **One setting for editor AND preview:** `vmarkd.editor.reflowLineBreaks`, **default `true`** (reflow
+  like GitHub / the VS Code preview out of the box). Supersedes the 2026-06-13
+  `vmarkd.preview.reflowLineBreaks` default-`false` design below. The toolbar button flips the same
+  setting.
+- **Open cost:** decorate in `requestIdleCallback` chunks (~5 ms each), blocks on screen first.
+- Delivered as separate increments, one commit each (setting + preview → editor decorator →
+  toolbar toggle → open parity).
+
 ### Steps
 
 - [x] Spike: decorator + CSS in the chromium harness — reflow, marker glyph, round-trip
@@ -119,9 +129,18 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
 - [x] Decide the hard-break question: Shift+Enter = hard break in reflow mode (2026-10-07).
 - [x] Hard breaks must round-trip (prerequisite — DONE 2026-10-07, [task 530](done/530-hard-line-breaks-lost-on-edit.md)): reproduce in real VS Code, fix
       at our layer (no Lute engine patch), then Shift+Enter → `\` + newline in reflow mode.
-- [ ] Setting + toolbar toggle (pressed state, live re-apply without reopen), preview half wired
-      to the same switch.
-- [ ] Unit + chromium e2e + real-VS-Code e2e (both modes), red-green-red.
+- [x] Setting `vmarkd.editor.reflowLineBreaks` (default `true`) + PREVIEW half wired (increment 2, 2026-10-07):
+      protocol/editor-config/init/live config-changed; `patchPreviewReflow` routes `vditor.lute.Md2HTML` in
+      `preview/index.ts` through `window.__vmarkdPreviewMd2HTML` (reflow-line-breaks.ts); an open Preview
+      re-renders on a flip. NOTE: the Preview does NOT use `md2html` (previewRender.ts) — it calls the
+      editor's `vditor.lute.Md2HTML`, so the patch is on `preview/index.ts` and the option is flipped only
+      around that call. Unset flag (a harness that never applies the setting) = stock Lute.
+- [ ] NOT covered, needs a user decision: copy-as-HTML (`getHTML.ts`), Vditor export, and D2 `|md|`
+      labels still render soft breaks as `<br>` (they call Lute `Md2HTML` with the stock option).
+- [ ] Editor-surface decorator (reflow + break markers), toolbar toggle (pressed state, live re-apply),
+      open parity (idle chunking).
+- [ ] Unit + chromium e2e + real-VS-Code e2e (both modes), red-green-red. (Preview half done: unit +
+      `media-src/e2e/reflow-line-breaks.spec.ts` + `test/vscode-e2e/reflow-line-breaks.spec.ts`; editor half pending.)
 
 ## Resolved (2026-06-13)
 

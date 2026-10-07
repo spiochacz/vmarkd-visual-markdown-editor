@@ -10,6 +10,10 @@ import { patchLuteGapRepair } from '../../../src/shared/lute-gap-repair'
 // Task 530: a hard line break keeps its form through Lute itself (build-time patch); this only keeps the
 // pending-break line placeholder on the spin output (see patchLuteHardBreaks).
 import { patchLuteHardBreaks } from '../../../src/shared/lute-hard-break'
+// Task 83: the Preview's Md2HTML call goes through this hook (patchPreviewReflow). Unset until the
+// setting is applied, so a harness that never wires the config keeps stock Lute.
+import { previewMd2Html } from '../editing/reflow-line-breaks'
+;(window as any).__vmarkdPreviewMd2HTML = previewMd2Html
 ;(window as any).__vmarkdPatchLute = (lute: any) => {
   patchLuteGapRepair(lute)
   patchLuteHardBreaks(lute)

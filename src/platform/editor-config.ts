@@ -244,6 +244,8 @@ export function collectConfigOptions(uri?: vscode.Uri): VmarkdConfigOptions {
     slugifyMode: c.get<string>('editor.slugifyMode'),
     // Task 530 — the written form of a new hard line break.
     hardBreakStyle: c.get<string>('editor.hardBreakStyle'),
+    // Task 83 — soft line breaks flow (Preview half; the editor surfaces follow in a later increment).
+    reflowLineBreaks: c.get<boolean>('editor.reflowLineBreaks'),
     // Task 282 — resolved HERE, not in the webview: the glob match needs the document's
     // workspace-relative path. `asRelativePath(uri, false)` omits the folder name so a pattern like
     // `docs/**` means the same thing in a single-root and a multi-root workspace.

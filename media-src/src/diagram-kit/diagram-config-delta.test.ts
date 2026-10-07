@@ -213,6 +213,7 @@ const ALL_OPTION_KEYS: Required<{ [K in keyof VmarkdConfigOptions]: true }> = {
   outlineWidth: true,
   slugifyMode: true,
   hardBreakStyle: true,
+  reflowLineBreaks: true,
 }
 
 // Every option NOT a diagram-engine configKey, deliberately classified as "affects something
@@ -252,6 +253,8 @@ const KNOWN_NON_DIAGRAM_KEYS = [
   'slugifyMode',
   // Task 530 — only picks the written form of a new hard break; never keys a diagram render.
   'hardBreakStyle',
+  // Task 83 — soft line breaks in the Preview; never keys a diagram render.
+  'reflowLineBreaks',
 ] as const
 
 describe('VmarkdConfigOptions classification is exhaustive (task 408)', () => {

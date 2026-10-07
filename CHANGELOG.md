@@ -8,6 +8,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Added
 
+- **Wrapped lines flow in the Preview** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph
+  soft-wrapped across several source lines reads as one flowing paragraph in the Preview and the split
+  view, like on GitHub and in VS Code's own preview; turn it off to keep every source line on its own
+  line. A change applies to an open Preview at once, and the file is never modified.
+
 - **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
   selection, copying a partly selected heading keeps its marker, Enter in a list item's quote
   continues the quote, headings can be toggled inside list items) and Mermaid is still our pinned

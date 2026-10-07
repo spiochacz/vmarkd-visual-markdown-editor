@@ -401,8 +401,15 @@
             "default": "backslash",
             "description": "How a new line break inside a paragraph (Shift+Enter) is written to the file. Existing breaks keep the form they have."
           },
-          "vmarkd.paste.csvFormat": {
+          "vmarkd.editor.reflowLineBreaks": {
             "order": 12,
+            "scope": "resource",
+            "type": "boolean",
+            "default": true,
+            "description": "Soft line breaks (a single newline inside a paragraph) flow like GitHub and the VS Code preview, so wrapped source lines read as one paragraph. Off: every source line stays on its own line. Applies to the editor and the Preview; the file is never changed."
+          },
+          "vmarkd.paste.csvFormat": {
+            "order": 13,
             "scope": "resource",
             "type": "string",
             "enum": [
@@ -419,7 +426,7 @@
             "description": "Convert pasted spreadsheet cells to a Markdown table. Content pasted into code blocks stays unchanged."
           },
           "vmarkd.paste.urlAsLink": {
-            "order": 13,
+            "order": 14,
             "scope": "resource",
             "type": "boolean",
             "default": true,
