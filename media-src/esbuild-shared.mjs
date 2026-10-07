@@ -2301,8 +2301,30 @@ export function patchLuteHook(code) {
   }
   return code.replace(
     SET_LUTE_ANCHOR,
-    `    lute.SetHeadingID(true);\n    (window as any).__vmarkdPatchLute?.(lute);\n${SET_LUTE_ANCHOR}`,
+    // Task 528: Vditor 3.11.3 calls `lute.SetCallout(options.callout)` with default true; native
+    // callouts rewrite DOM + saved markdown (`[!NOTE]` -> `[!NOTE] ✏️ Note`). We keep OUR callouts,
+    // so force it off AFTER Vditor's own call (this runs at the `return lute;` anchor), whatever the
+    // saved options say.
+    `    lute.SetHeadingID(true);\n    lute.SetCallout(false);\n    (window as any).__vmarkdPatchLute?.(lute);\n${SET_LUTE_ANCHOR}`,
   )
+}
+
+// Task 528: Vditor 3.11.3 ships a NATIVE WaveDrom renderer (called from preview/index.ts,
+// previewRender.ts, processCode.ts) that loads its own wavedrom bundle under the SAME script id
+// (`vditorWavedromScript`) as our engine and renders into the same `.language-wavedrom` blocks. Our
+// engine (diagrams/engines/wavedrom.ts) owns WaveDrom, so make Vditor's `wavedromRender` a no-op.
+// Same shape as patchGraphvizRender: keep the export so every caller still links.
+const WAVEDROM_ANCHOR = 'addScript(`${cdn}/dist/js/wavedrom/wavedrom.min.js'
+export function patchWavedromRender(code) {
+  if (!code.includes(WAVEDROM_ANCHOR)) {
+    throw new Error(
+      'patchWavedromRender: addScript anchor not found in vditor wavedromRender.ts (version drift?)',
+    )
+  }
+  return `import {Constants} from "../constants";
+// vmarkd (task 528): intentionally a no-op, our engine (diagrams/engines/wavedrom.ts) renders WaveDrom.
+export const wavedromRender = (_element: (HTMLElement | Document) = document, _cdn = Constants.CDN) => {};
+`
 }
 
 // Declarative registry of every Vditor *source* (.ts) patch: one entry per file we rewrite at
@@ -2487,6 +2509,10 @@ export const VDITOR_TS_PATCHES = [
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]graphvizRender\.ts$/,
     transform: patchGraphvizRender,
+  },
+  {
+    file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]wavedromRender\.ts$/,
+    transform: patchWavedromRender,
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]markdown[/\\]highlightRender\.ts$/,

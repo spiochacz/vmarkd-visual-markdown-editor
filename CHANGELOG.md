@@ -8,6 +8,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Added
 
+- **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
+  selection, copying a partly selected heading keeps its marker, Enter in a list item's quote
+  continues the quote, headings can be toggled inside list items) and Mermaid is still our pinned
+  build. Callouts, the WaveDrom renderer and the list-editing behaviour stay vMarkd's own.
 - **The copy button on a code block works**: hovering a rendered code block shows a copy button,
   and clicking it now puts exactly the block's code on the clipboard — without the line numbers
   or the editor's own invisible markers. It was inert in every mode, because the button is wired

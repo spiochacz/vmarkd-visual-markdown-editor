@@ -14,7 +14,7 @@ import { wf } from './webview-helpers'
 // renderer script/style is pulled during the run and shows up in Resource Timing.
 //
 // Both halves were confirmed to bind, by dropping `cdn` from the host's init payloads (2026-07-28):
-// the CONFIG-PATH check fires first (`cdn=https://unpkg.com/vditor@3.11.2`), and the Resource-Timing
+// the CONFIG-PATH check fires first (`cdn=https://unpkg.com/vditor@3.11.3`), and the Resource-Timing
 // check is NOT tautological either — CSP-blocked remote requests still produce entries
 // (`remote=8, local=1, renderer=0` in that run), so a leaked remote asset is visible here.
 //

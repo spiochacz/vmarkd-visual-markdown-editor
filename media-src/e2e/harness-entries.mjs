@@ -40,6 +40,7 @@ const RAW = [
   { key: 'gap-cursor' },
   { key: 'codenav' },
   { key: 'callout-ir' },
+  { key: 'vditor-upgrade' },
   { key: 'callouts' },
   { key: 'image-convert' },
   { key: 'width' },

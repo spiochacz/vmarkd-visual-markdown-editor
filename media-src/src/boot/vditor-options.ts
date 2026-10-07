@@ -64,6 +64,11 @@ export function buildVditorOptions(msg: any): any {
       // the config-derived LAST merge so a stale `preview.delay` from a previously
       // saved options blob can never pin the old value (same rule as hljs.style).
       delay: 500,
+      // Task 528: Vditor 3.11.3 turned NATIVE callouts on by default (they rewrite the DOM and the
+      // saved bytes). We keep OUR callouts (callouts.ts), so force the native node off here, in the
+      // last merge, so no saved options blob can switch it on. patchLuteHook also forces
+      // `SetCallout(false)` on every Lute instance.
+      markdown: { callout: false },
       hljs: {
         style: codeStyle,
         lineNumber: msg.options?.codeBlockLineNumbers === true,

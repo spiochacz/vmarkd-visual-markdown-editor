@@ -32,7 +32,7 @@ function collectByName(items: unknown[], out: Map<string, NamedToolbarItem>) {
 describe('aboutVmarkdHtml (About vMarkd dialog)', () => {
   it('shows the version line (Vditor + pinned Lute commit link + date) and repo link', () => {
     const html = aboutVmarkdHtml({
-      vditorVersion: '3.11.2',
+      vditorVersion: '3.11.3',
       luteCommit: '36ea9e0966025d7f4f343cdf9a611109bfb29ef6',
       luteCommittedAt: '2026-06-03',
     })
@@ -40,7 +40,7 @@ describe('aboutVmarkdHtml (About vMarkd dialog)', () => {
     expect(html).toContain(
       'href="https://github.com/spiochacz/vmarkd-visual-markdown-editor"',
     )
-    expect(html).toContain('Version: Vditor v3.11.2 / ')
+    expect(html).toContain('Version: Vditor v3.11.3 / ')
     expect(html).toContain(
       'https://github.com/88250/lute/commit/36ea9e0966025d7f4f343cdf9a611109bfb29ef6',
     )
@@ -49,11 +49,11 @@ describe('aboutVmarkdHtml (About vMarkd dialog)', () => {
 
   it('falls back to a plain "Lute" label when no commit is pinned', () => {
     const html = aboutVmarkdHtml({
-      vditorVersion: '3.11.2',
+      vditorVersion: '3.11.3',
       luteCommit: '',
       luteCommittedAt: '',
     })
-    expect(html).toContain('Version: Vditor v3.11.2 / Lute</li>')
+    expect(html).toContain('Version: Vditor v3.11.3 / Lute</li>')
     expect(html).not.toContain('lute/commit/')
   })
 })

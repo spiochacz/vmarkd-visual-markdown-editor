@@ -36,6 +36,8 @@ import {
   patchCalloutArrowNav,
   patchMarkmapStatic,
   patchGraphvizRender,
+  patchLuteHook,
+  patchWavedromRender,
   patchHighlightSkipDiagrams,
   patchHighlightLanguageClass,
   patchPreviewComments,
@@ -76,6 +78,12 @@ const uploadSource = read(
 )
 const mathSource = read(
   '../../media-src/node_modules/vditor/src/ts/markdown/mathRender.ts',
+)
+const setLuteSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/setLute.ts',
+)
+const wavedromSource = read(
+  '../../media-src/node_modules/vditor/src/ts/markdown/wavedromRender.ts',
 )
 const wysiwygSource = read(
   '../../media-src/node_modules/vditor/src/ts/wysiwyg/index.ts',
@@ -2118,6 +2126,47 @@ describe('patchUploadFilesKindFilter (task 517 — mixed string+file drop)', () 
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchUploadFilesKindFilter('// unrelated source')).toThrow(
       /patchUploadFilesKindFilter/,
+    )
+  })
+})
+
+// Task 528 — the three Vditor 3.11.3 neutralisations.
+describe('patchLuteHook (task 528: native callout forced off)', () => {
+  it('3.11.3 turns native callouts on from the option (pre-patch)', () => {
+    expect(setLuteSource).toContain('lute.SetCallout(options.callout);')
+  })
+
+  it("forces SetCallout(false) AFTER Vditor's own call, before the returned instance", () => {
+    const patched = patchLuteHook(setLuteSource)
+    const own = patched.indexOf('lute.SetCallout(options.callout);')
+    const forced = patched.indexOf('lute.SetCallout(false);')
+    expect(forced).toBeGreaterThan(own)
+    expect(forced).toBeLessThan(patched.lastIndexOf('return lute;'))
+    expect(patched).toContain('lute.SetHeadingID(true);')
+  })
+
+  it('throws if the anchor is gone — version-bump guard', () => {
+    expect(() => patchLuteHook('// unrelated source')).toThrow(/patchLuteHook/)
+  })
+})
+
+describe('patchWavedromRender (task 528: native WaveDrom renderer neutralised)', () => {
+  it('3.11.3 ships a native renderer that loads its own wavedrom bundle (pre-patch)', () => {
+    expect(wavedromSource).toContain('dist/js/wavedrom/wavedrom.min.js')
+    expect(wavedromSource).toContain('vditorWavedromScript')
+  })
+
+  it('replaces the body with a no-op that keeps the export', () => {
+    const patched = patchWavedromRender(wavedromSource)
+    expect(patched).toContain('export const wavedromRender')
+    expect(patched).not.toContain('addScript')
+    expect(patched).not.toContain('vditorWavedromScript')
+    expect(patched).not.toContain('renderWaveElement')
+  })
+
+  it('throws if the anchor is gone — version-bump guard', () => {
+    expect(() => patchWavedromRender('// unrelated source')).toThrow(
+      /patchWavedromRender/,
     )
   })
 })

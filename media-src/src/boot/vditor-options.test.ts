@@ -110,6 +110,21 @@ describe('buildVditorOptions — preview.delay is config-derived (task 187)', ()
   })
 })
 
+describe('buildVditorOptions — native callouts forced off (task 528)', () => {
+  test('preview.markdown.callout is false by default', () => {
+    expect(buildVditorOptions({ options: {} }).preview.markdown.callout).toBe(
+      false,
+    )
+  })
+
+  test('OVERRIDES a stale saved preview.markdown.callout:true', () => {
+    const opts = buildVditorOptions({
+      options: { preview: { markdown: { callout: true } } },
+    })
+    expect(opts.preview.markdown.callout).toBe(false)
+  })
+})
+
 describe('buildVditorOptions — image preview is disabled under CSP (task 212)', () => {
   test('overrides a stale saved image.isPreview:true', () => {
     const opts = buildVditorOptions({

@@ -1,7 +1,7 @@
 import { test, expect } from './coverage-fixture'
 import type { Page } from '@playwright/test'
 
-// Task-65 keydown-bug repros, run against our build (vditor@3.11.2 + pinned master
+// Task-65 keydown-bug repros, run against our build (vditor@3.11.3 + pinned master
 // Lute). VERDICT: neither reproduces — the heading survives Enter-at-start, and a
 // Backspace over a selection spanning a soft line break deletes exactly the selection
 // (content stays valid). These were fixed upstream / targeted an older fork base. Kept
@@ -77,7 +77,7 @@ test('🟢 #1: Backspace over a cross-soft-break selection deletes cleanly (ir)'
 })
 
 // ── Task-65 batch: the remaining fork-hunt candidates, verified against our build
-// (vditor@3.11.2 + pinned Lute). NONE reproduce — they were fixed upstream / targeted an
+// (vditor@3.11.3 + pinned Lute). NONE reproduce — they were fixed upstream / targeted an
 // older fork base — so these are GUARDS asserting the correct behavior, kept so a future
 // Vditor/Lute bump can't silently regress them. (#1/#5 above; #1476 in the backend
 // fidelity suite.)
@@ -306,13 +306,14 @@ test('🟢 #1912: caret survives an external setValue (ir)', async ({ page }) =>
   expect(res.offset).toBe(3)
 })
 
-// #1925 — 🔴 KNOWN BUG (parked): Enter in a blockquote nested inside a list item escapes
+// #1925 — was a KNOWN BUG (parked); FIXED upstream in Vditor 3.11.3, now a correctness test (task 528).
+// Original note: (parked): Enter in a blockquote nested inside a list item escapes
 // BOTH the quote and the list — the typed text lands in a new list item instead of
 // continuing the quote. The fix is high-risk surgery on Vditor's core Enter/list handler
 // with no upstream reference and a rare trigger (no data loss), so it's parked. This
 // tripwire asserts the CURRENT (buggy) output; when a future Vditor/Lute bump fixes it,
 // the assertion flips and we turn it into a correctness test. See task 72.
-test('🔴 #1925: Enter in a list+blockquote escapes to a new list item (ir, known bug)', async ({
+test('#1925: Enter in a list+blockquote continues the quote (ir, fixed upstream in Vditor 3.11.3)', async ({
   page,
 }) => {
   await goto(page, 'ir')
@@ -341,9 +342,10 @@ test('🔴 #1925: Enter in a list+blockquote escapes to a new list item (ir, kno
   await page.keyboard.type('more quote')
   await page.waitForTimeout(50)
   const value = await page.evaluate(() => (window as any).vditor.getValue())
-  // BUG: "more quote" escapes to a new list item instead of continuing the quote.
-  // When fixed it should be a quote continuation (e.g. "  > more quote") and NOT this.
-  expect(value).toContain('- more quote')
+  // Fixed upstream in 3.11.3 (the tripwire flipped, task 528): "more quote" continues the quote
+  // inside the list item instead of escaping into a new list item.
+  expect(value).toContain('  > more quote')
+  expect(value).not.toContain('- more quote')
 })
 
 // caret-scroll (caret-scroll.ts): Vditor's table-cell up/down navigation sets the
