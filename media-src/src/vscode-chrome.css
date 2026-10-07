@@ -259,9 +259,7 @@
    collapse to one button wide, wrapping the floats into a vertical column. Force a
    flex row sized to its content. Only on the expanded (hover) state — the collapsed
    "…" puck is untouched. */
-#fix-table-ir-wrapper .vditor-panel:hover,
-#fix-table-ir-wrapper
-  .vditor-panel_hover {
+#fix-table-ir-wrapper .vditor-panel:hover {
   display: flex !important;
   flex-direction: row !important;
   width: max-content !important;

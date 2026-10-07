@@ -25,7 +25,6 @@ vi.mock('../chrome/toolbar-actions', () => ({
   handleToolbarClick: vi.fn(),
   reportEditorMode: vi.fn(),
 }))
-vi.mock('../util/utils', () => ({ fixPanelHover: vi.fn() }))
 vi.mock('../chrome/toolbar-scroll-guard', () => ({
   guardToolbarScroll: vi.fn(),
 }))

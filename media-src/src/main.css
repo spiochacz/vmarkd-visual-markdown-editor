@@ -1128,16 +1128,14 @@ body.vmarkd-large-doc :is(.vditor-ir, .vditor-wysiwyg) > pre.vditor-reset
   text-align: center;
   font-family: none;
 }
-#fix-table-ir-wrapper .vditor-panel:hover,
-#fix-table-ir-wrapper .vditor-panel_hover {
+#fix-table-ir-wrapper .vditor-panel:hover {
   opacity: 0.86;
   max-width: none;
   max-height: none;
   overflow: visible;
 }
 
-#fix-table-ir-wrapper .vditor-panel:hover:after,
-#fix-table-ir-wrapper .vditor-panel_hover:after {
+#fix-table-ir-wrapper .vditor-panel:hover:after {
   display: none;
 }
 

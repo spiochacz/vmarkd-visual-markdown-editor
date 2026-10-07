@@ -6,26 +6,6 @@
 
 import './vscode-api'
 
-// panel hover 加定时延迟
-export function fixPanelHover() {
-  // Only the IR table panel uses the collapse-to-"..." + delayed-collapse
-  // behaviour; toolbar dropdown panels (emoji, "more", …) must not be touched.
-  document
-    .querySelectorAll<HTMLElement>('#fix-table-ir-wrapper .vditor-panel')
-    .forEach((el) => {
-      let timer: ReturnType<typeof setTimeout> | undefined
-      el.addEventListener('mouseenter', () => {
-        timer && clearTimeout(timer)
-        el.classList.add('vditor-panel_hover')
-      })
-      el.addEventListener('mouseleave', () => {
-        timer = setTimeout(() => {
-          el.classList.remove('vditor-panel_hover')
-        }, 2000)
-      })
-    })
-}
-
 // 文件转base64用于传输 — strip the `data:*;base64,` prefix, returning just the payload.
 export const fileToBase64 = async (file: Blob): Promise<string> => {
   return new Promise<string>((res, rej) => {

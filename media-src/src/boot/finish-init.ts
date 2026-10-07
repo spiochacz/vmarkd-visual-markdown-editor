@@ -4,7 +4,6 @@ import { innerVditor } from '../util/inner-vditor'
 import { activeModeElement } from '../util/source-map'
 import { fixResponsiveTables } from '../chrome/responsive-tables'
 import { handleToolbarClick } from '../chrome/toolbar-actions'
-import { fixPanelHover } from '../util/utils'
 import { guardToolbarScroll } from '../chrome/toolbar-scroll-guard'
 import { fixTableIr } from '../editing/fix-table-ir'
 import { setupOutlineFlash } from '../nav/outline'
@@ -66,7 +65,6 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   guardToolbarScroll(window.vditor)
   fixTableIr()
   fixResponsiveTables()
-  fixPanelHover()
   if (msg.options?.outlineHighlight !== false) {
     setupOutlineFlash(window.vditor)
   }

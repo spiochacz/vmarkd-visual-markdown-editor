@@ -14,7 +14,7 @@ import * as utils from '../src/util/utils'
 // link-click-fix.ts / responsive-tables.ts, and the toolbar-persistence logic
 // (saveVditorOptions/handleToolbarClick) to toolbar-actions.ts. The behavior
 // spec still drives the fix* family as one group, so re-aggregate those two
-// under __utils (siblings of fixCut/fixPanelHover, which stayed in utils);
+// under __utils (siblings of fixCut, which stayed in utils);
 // expose the persistence functions under their own __toolbarActions namespace
 // (matching the concern-grouped __liveConfig/__linkPolicy globals below).
 import { fixLinkClick } from '../src/links/link-click-fix'

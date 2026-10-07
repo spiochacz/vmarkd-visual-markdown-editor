@@ -323,19 +323,6 @@ test.describe('createToolbar()', () => {
   })
 })
 
-test('fixPanelHover() adds the hover class on mouseenter', async ({ page }) => {
-  await gotoBehaviors(page)
-  const hasClass = await page.evaluate(() => {
-    document.body.innerHTML =
-      '<div id="fix-table-ir-wrapper"><div class="vditor-panel" id="panel"></div></div>'
-    ;(window as any).__utils.fixPanelHover()
-    const panel = document.getElementById('panel')!
-    panel.dispatchEvent(new MouseEvent('mouseenter'))
-    return panel.classList.contains('vditor-panel_hover')
-  })
-  expect(hasClass).toBe(true)
-})
-
 test('fixCut() defers delete but passes other commands through', async ({
   page,
 }) => {

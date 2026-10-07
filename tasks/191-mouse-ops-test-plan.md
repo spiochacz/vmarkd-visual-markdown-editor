@@ -491,7 +491,8 @@ paste are the mouse paths that can silently corrupt a document.
       WebGL may be absent headless — guard).*
 - [ ] Upload toolbar file input — `webview-behaviors.spec.ts` (extend), L2 M: `setInputFiles` →
       `upload` message (same harness-wiring caveat as P0-13).
-- [ ] fixPanelHover delayed collapse; `info` About-Vditor dialog; preview ToC click; toolbar
+- [ ] ~~fixPanelHover delayed collapse~~ (dead code, removed 2026-10-07: the panel is created lazily after it ran);
+      `info` About-Vditor dialog; preview ToC click; toolbar
       `--current` state on drag selection — S each, batch opportunistically.
 
 ## 4. Probes — suspected-broken / dark paths (most severe first)
