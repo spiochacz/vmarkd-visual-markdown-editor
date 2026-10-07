@@ -128,29 +128,14 @@ function makeSeededParagraph(attr: string): HTMLParagraphElement {
 export const makeGapParagraph = (): HTMLParagraphElement =>
   makeSeededParagraph(GAP_ATTR)
 
-// Non-content helpers that live INSIDE the contenteditable IR element but are not document
-// blocks — chiefly our own floating table-edit panel (`#fix-table-ir-wrapper`, fix-table-ir.ts),
-// a contenteditable=false 0×0 box pinned at top:0/left:0. It is appended as the editor's last
-// child, so it lands in the block sibling chain: Vditor's insertAfterBlock then does
-// `selectNodeContents(table.nextElementSibling)` INTO it and the caret jumps to the page top.
-// The trailing paragraph must sit BETWEEN the last real block and this wrapper so the caret
-// lands in the (in-flow, bottom) paragraph instead. Treat such helpers as non-content. Exported:
-// gap-paragraph.ts's cleanupGapParagraphs and setupTrailingNav both need the same check.
-export const isHelper = (el: Element): boolean =>
-  el.id === 'fix-table-ir-wrapper' ||
-  (el.getAttribute('contenteditable') === 'false' &&
-    (el as HTMLElement).style?.position === 'absolute')
-
-// Skipping EMPTY trailing paragraphs and helper wrappers, the last real CONTENT child. A
+// Skipping EMPTY trailing paragraphs, the last real CONTENT child. A
 // trailing paragraph the user has typed into is content (it's about to lose its tag), so it
 // must NOT be skipped — otherwise a fresh trailing p gets wedged above it.
 function lastContentChild(editor: HTMLElement): Element | null {
   let el = editor.lastElementChild
   while (
-    el &&
-    ((el.hasAttribute(TRAILING_ATTR) &&
-      isEmptyGapParagraph(el as HTMLElement)) ||
-      isHelper(el))
+    el?.hasAttribute(TRAILING_ATTR) &&
+    isEmptyGapParagraph(el as HTMLElement)
   ) {
     el = el.previousElementSibling
   }
@@ -175,9 +160,8 @@ export function ensureTrailingParagraph(
       changed = true
       continue
     }
-    // Keep ONLY the trailing paragraph that sits immediately after the last content block
-    // (a helper wrapper may follow it). Any other empty trailing p (blocks streamed in after
-    // it, or one stranded after the wrapper) is reclaimed.
+    // Keep ONLY the trailing paragraph that sits immediately after the last content block. Any
+    // other empty trailing p (blocks streamed in after it) is reclaimed.
     if (
       p.previousElementSibling !== lastContent &&
       !(caretNode && p.contains(caretNode))
@@ -209,8 +193,7 @@ export function ensureTrailingParagraph(
   if (lastContent && endsWithBlock(lastContent)) {
     const after = lastContent.nextElementSibling
     if (!after?.hasAttribute(TRAILING_ATTR)) {
-      // insert AFTER the last content block — before any helper wrapper, never appendChild
-      // (which would strand it after the wrapper and re-expose the jump).
+      // insert AFTER the last content block
       lastContent.insertAdjacentElement('afterend', makeTrailing())
       changed = true
     }

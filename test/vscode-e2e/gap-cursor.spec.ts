@@ -25,9 +25,7 @@ const CHAIN = () => {
   if (!ir) return { chain: '', caret: 'NO-EDITOR' }
   const label = (el: Element) =>
     el.getAttribute('data-type') || el.tagName.toLowerCase()
-  const blocks = Array.from(ir.children).filter(
-    (c) => c.id !== 'fix-table-ir-wrapper',
-  )
+  const blocks = Array.from(ir.children)
   const sel = window.getSelection()
   let n: Node | null = sel?.rangeCount ? sel.anchorNode : null
   while (n?.parentElement && n.parentElement !== ir) n = n.parentElement

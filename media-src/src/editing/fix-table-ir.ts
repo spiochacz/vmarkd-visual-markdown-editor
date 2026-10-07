@@ -127,33 +127,25 @@ export function fixTableIr() {
   // etc.), which TS type-checks as their own scope. Giving `eventRoot` a non-union type at its own
   // declaration (rather than relying on carried-over narrowing) is what those nested functions see.
   const eventRoot: HTMLElement = irElement
+  // The `.vditor-ir` container around the editable <pre>: the panel's mount point and the origin of its positioning.
+  const panelHost: HTMLElement = eventRoot.parentElement ?? eventRoot
 
   function insertTablePanel() {
-    let tablePanel = eventRoot.querySelector<HTMLDivElement>(`#${tablePanelId}`)
+    let tablePanel = panelHost.querySelector<HTMLDivElement>(`#${tablePanelId}`)
     if (!tablePanel) {
       tablePanel = document.createElement('div')
       tablePanel.id = tablePanelId
-      // Exclude the panel subtree from the editable IR region — it is appended
-      // into the contenteditable element, so without this its markup is
-      // editable/selectable. Complementary to the mousedown preventDefault.
+      // A sibling of the editable element inside `.vditor-ir` (`position: relative`), never inside
+      // it. A zero-size absolute box at the container origin is the anchor; the inner panel is
+      // absolutely positioned relative to the container by placePanel.
       tablePanel.contentEditable = 'false'
       tablePanel.style.userSelect = 'none'
-      // Keep the wrapper OUT of the editable content flow. It is appended into
-      // the contenteditable IR element; as a static block it reserves a line+
-      // margin box (~58px) that shows up as an empty gap under the text whenever
-      // you click/edit (the click handler creates it on first click). Anchor it
-      // as a zero-size absolute box at the IR origin: it then reserves no flow
-      // space, and the whitespace text nodes in its template can't form a stray
-      // line box over the top content. The inner panel is itself
-      // position:absolute (overflowing this 0×0 box, so still visible) and is
-      // positioned via JS relative to eventRoot — landing on the clicked cell
-      // exactly as before.
       tablePanel.style.position = 'absolute'
       tablePanel.style.top = '0'
       tablePanel.style.left = '0'
       tablePanel.style.width = '0'
       tablePanel.style.height = '0'
-      eventRoot.appendChild(tablePanel)
+      panelHost.appendChild(tablePanel)
       tablePanel.innerHTML = buildTablePanelHtml()
       // Stable `const` for the closures below — `tablePanel` itself is reassigned to
       // `.children[0]` right after this if-block (every call, see below), and a closure reading a
@@ -188,7 +180,28 @@ export function fixTableIr() {
     return tablePanel
   }
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: click routing across the table-IR-wrapper splice-boundary DOM shapes; pre-existing (task 469 baseline)
+  // The cell and inner panel the panel currently belongs to (null = hidden), so a scroll can re-place it.
+  let panelCell: HTMLElement | null = null
+  let panelEl: HTMLElement | null = null
+
+  // Place the panel by `cell` in `.vditor-ir` container coordinates; hidden while the cell is
+  // scrolled out of view. Both boxes are measured before any write (one layout per call).
+  function placePanel(panel: HTMLElement, cell: HTMLElement) {
+    panelCell = cell
+    panelEl = panel
+    const cellRect = cell.getBoundingClientRect()
+    const rootRect = panelHost.getBoundingClientRect()
+    const visible =
+      cellRect.bottom > rootRect.top && cellRect.top < rootRect.bottom
+    const display = visible ? 'block' : 'none'
+    if (panel.style.display !== display) panel.style.display = display
+    if (!visible) return
+    panel.style.top = `${cellRect.top - rootRect.top - 25}px`
+    // track the clicked cell horizontally too, so the panel stays visible
+    // regardless of the editor's left margin / full-width layout
+    panel.style.left = `${cellRect.left - rootRect.left}px`
+  }
+
   eventRoot.addEventListener('click', (_e) => {
     if (vditor.getCurrentMode() !== 'ir') return
     const tablePanel = insertTablePanel()
@@ -202,30 +215,27 @@ export function fixTableIr() {
     // anchorNode.parentElement is not always the TD/TH/TR itself.
     const cell = anchorEl?.closest<HTMLElement>('td, th, tr') ?? null
     if (cell) {
-      if (tablePanel.style.display !== 'block') {
-        tablePanel.style.display = 'block'
-      }
-      // Task 416: measure BOTH boxes once, up front, then write — the previous version read
-      // `cell`/`eventRoot` rects again after assigning `style.top`, and a geometry read after a
-      // style write forces a fresh synchronous layout (2 extra reflows per selection change
-      // inside a table, which is a per-caret-move path). The values are identical; only the
-      // number of forced layouts changes. The reads stay AFTER the `display = 'block'` write
-      // above, as before, so nothing about the measured state moves.
-      const cellRect = cell.getBoundingClientRect()
-      const rootRect = eventRoot.getBoundingClientRect()
-      tablePanel.style.top = `${cellRect.top - rootRect.top + eventRoot.scrollTop - 25}px`
-      // track the clicked cell horizontally too, so the panel stays visible
-      // regardless of the editor's left margin / full-width layout
-      tablePanel.style.left = `${cellRect.left - rootRect.left + eventRoot.scrollLeft}px`
+      placePanel(tablePanel, cell)
       // highlight the alignment button that matches THIS cell's column alignment
       const td = anchorEl?.closest<HTMLElement>('td, th')
       markAlignCurrent(tablePanel, td?.getAttribute('align') ?? null)
     } else {
+      panelCell = null
+      panelEl = null
       if (tablePanel.style.display !== 'none') {
         tablePanel.style.display = 'none'
       }
     }
   })
+  // The editable <pre> scrolls inside `.vditor-ir` and the panel is outside it, so re-place the panel
+  // against its cell on every scroll.
+  eventRoot.addEventListener(
+    'scroll',
+    () => {
+      if (panelCell?.isConnected && panelEl) placePanel(panelEl, panelCell)
+    },
+    { passive: true },
+  )
   // don't bubble keyboardEvent to vscode when trigger vditor table hot keys, prevent hotkey conflicts with vscode
   const stopEvent = (e: KeyboardEvent) => {
     if (disableVscodeHotkeys) {

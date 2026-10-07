@@ -10,7 +10,7 @@
 // second kind of caret every one of them would have to learn about, and Vditor's per-keyup
 // `expandMarker(getEditorRange())` normalises a selection that is "nowhere" to the editor start —
 // the jump-to-top of tasks 439/446/490. See task 292 for the full decision record.
-import { isAtomicBlock, isHelper } from './trailing-paragraph'
+import { isAtomicBlock } from './trailing-paragraph'
 
 export interface Boundary {
   // The blocks on either side; null means the start / end of the document.
@@ -33,11 +33,9 @@ export const needsGap = (
   after: HTMLElement | null,
 ): boolean => atomicOrNull(before) && atomicOrNull(after)
 
-// The document's CONTENT blocks: non-content helpers (the floating table-edit panel) sit in the
-// same sibling chain but must never bound a caret stop — a gap spliced against one would inherit
-// exactly the jump-to-top the helper causes (see isHelper's own comment).
+// The document's blocks, in order.
 export const contentBlocks = (editor: HTMLElement): HTMLElement[] =>
-  (Array.from(editor.children) as HTMLElement[]).filter((el) => !isHelper(el))
+  Array.from(editor.children) as HTMLElement[]
 
 // Every boundary in document order: before the first block, between each pair, after the last.
 // Complete on purpose — the END boundary is included even though the arrow mover skips it (the

@@ -6,8 +6,8 @@
 // Companion to vscode-chrome.css (the VS Code-native menu *look*); this is the
 // click-outside *behaviour*. Register once at startup; it reads the DOM live, so it
 // keeps working across Vditor re-inits. Scoped to the toolbar so it never touches
-// the IR table panel or the autocomplete hint (those live in the editor content
-// and manage their own visibility).
+// the IR table panel (#fix-table-ir-wrapper, a sibling of the editable element
+// inside .vditor-ir) or the autocomplete hint — both manage their own visibility.
 export function setupToolbarDismiss(doc: Document = document): void {
   doc.addEventListener('mousedown', (event) => {
     const target = event.target as Node | null

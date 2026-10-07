@@ -74,6 +74,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   both modes, written as a trailing backslash by default (`vmarkd.editor.hardBreakStyle` switches it to
   two trailing spaces); headings, table cells, code and math keep their usual Shift+Enter.
 
+- **The first keystroke after Ctrl+Z is no longer lost in the Instant Rendering mode.** After undoing
+  back to the opening state the caret could end up outside the editable area, so the next typed
+  character vanished; the floating table toolbar no longer lives inside the editable text, so the
+  caret returns to where it was (and the toolbar follows its table when you scroll).
 
 - **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
   an occasional letter could land in the document instead of the search field (measured about 1 leg

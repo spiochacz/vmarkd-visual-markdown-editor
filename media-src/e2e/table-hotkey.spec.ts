@@ -140,7 +140,7 @@ test('table panel shows for a cell containing only inline code', async ({
   expect(display).toBe('block')
 })
 
-test('the table panel is excluded from the editable region', async ({
+test('the table panel is excluded from the editable region (non-editable, unselectable, outside the editable root)', async ({
   page,
 }) => {
   await gotoEditor(page)
@@ -149,10 +149,12 @@ test('the table panel is excluded from the editable region', async ({
   const props = await page.evaluate(() => {
     const el = document.getElementById('fix-table-ir-wrapper')!
     return {
+      insideRoot: (window as any).vditor.vditor.ir.element.contains(el),
       contentEditable: el.contentEditable,
       userSelect: el.style.userSelect,
     }
   })
+  expect(props.insideRoot).toBe(false)
   expect(props.contentEditable).toBe('false')
   expect(props.userSelect).toBe('none')
 })

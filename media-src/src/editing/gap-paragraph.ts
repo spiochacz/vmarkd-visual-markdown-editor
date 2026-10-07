@@ -28,7 +28,6 @@ import {
   endsWithBlock,
   ensureTrailingParagraph,
   isEmptyGapParagraph,
-  isHelper,
   markTrailingActive,
   TRAILING_ATTR,
 } from './trailing-paragraph'
@@ -136,10 +135,10 @@ export function cleanupGapParagraphs(
     }
     const prev = p.previousElementSibling
     const next = p.nextElementSibling
-    if (!next || isHelper(next)) {
-      // Last paragraph (nothing, or only our helper wrapper, after it). Normally kept — BUT the
-      // transient landing Vditor splices when you ArrowDown past the END of a code block (so the
-      // caret gets a spot AFTER the closing ```), once the caret moves on, is reclaimed here: a
+    if (!next) {
+      // Last paragraph (nothing after it). Normally kept — BUT the transient landing Vditor
+      // splices when you ArrowDown past the END of a code block (so the caret gets a spot AFTER
+      // the closing ```), once the caret moves on, is reclaimed here: a
       // code block at EOF must not keep a stray empty paragraph (the user wants no extra empty
       // block; code is excluded from the persistent trailing invariant — see endsWithBlock).
       // Callouts/tables keep their trailing paragraph (maintained, serializer-invisible).
@@ -245,13 +244,12 @@ export function observeTrailingParagraph(
 // for whatever keydown couldn't predict (selection dropped, caret normalised to the top, or
 // the native move did nothing). Both bypass Vditor entirely for the EOF case.
 
-// `block` is the last CONTENT block when nothing follows it except trailing paragraph(s) or
-// non-content helper wrappers (the table-edit panel).
+// `block` is the last CONTENT block when nothing follows it except trailing paragraph(s).
 function isLastContentBlock(block: HTMLElement): boolean {
   let n = block.nextElementSibling
   while (n) {
     if (!(n instanceof HTMLElement)) return false
-    if (!n.hasAttribute(TRAILING_ATTR) && !isHelper(n)) return false
+    if (!n.hasAttribute(TRAILING_ATTR)) return false
     n = n.nextElementSibling
   }
   return true
@@ -288,15 +286,6 @@ export function setupTrailingNav(
     if (!block) return
     // already in the trailing paragraph — nothing below it.
     if (block.hasAttribute(TRAILING_ATTR)) return
-    // caret resolved into a non-content helper (table panel) — recover it into the trailing
-    // paragraph immediately (this IS the jump-to-top: the helper is pinned at top:0).
-    if (isHelper(block)) {
-      if (requestCaret('document-end')) {
-        e.preventDefault()
-        e.stopImmediatePropagation()
-      }
-      return
-    }
     if (!endsWithBlock(block) || !isLastContentBlock(block)) return
     const cr = caretLineRect(r)
     snap = {
@@ -330,12 +319,6 @@ export function setupTrailingNav(
     if (r && editor.contains(r.startContainer)) {
       const tb = topLevelBlock(editor, r.startContainer)
       if (tb?.hasAttribute(TRAILING_ATTR)) return // native already landed in trailing — ok
-      // Vditor's insertAfterBlock moved the caret INTO the table-edit helper (pinned at
-      // top:0 → the jump). Recover it into the trailing paragraph.
-      if (tb && isHelper(tb)) {
-        if (requestCaret('document-end')) e.stopImmediatePropagation()
-        return
-      }
       if (tb === s.block) {
         // Still in the same block. Did the caret actually DESCEND a line? If yes it was a
         // normal inner-line move — leave it. If not (stuck at the same offset, OR the browser

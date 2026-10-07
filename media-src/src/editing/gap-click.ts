@@ -56,8 +56,7 @@ export function setupGapClick(
     )
       return
     const editor = getEditor()
-    // Only a click that MISSED every block: anything inside a block (or inside our own helper
-    // wrapper) is the browser's business.
+    // Only a click that MISSED every block: anything inside a block is the browser's business.
     if (!editor || e.target !== editor) return
     const boundary = boundaryAtY(editor, e.clientY)
     if (!boundary?.needsGap) return

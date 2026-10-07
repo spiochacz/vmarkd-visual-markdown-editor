@@ -503,13 +503,9 @@ export function patchFixListOutdent(code) {
 //    problems that fix:
 //    a. adjacent callouts are plain BLOCKQUOTEs, so there was NO way to insert a line between
 //       two callouts → add `data-callout` neighbours to the splice set.
-//    b. our floating table-edit panel (`#fix-table-ir-wrapper`, fix-table-ir.ts) is a
-//       `contenteditable=false` 0×0 box pinned at top:0 appended as the editor's LAST child —
-//       so it is a table's `nextElementSibling`. Vditor's selectNodeContents drops the caret
-//       INTO it and the page scrolls to the top ("jump to top" at end-of-file). Treat any
-//       `contenteditable=false` neighbour as a splice boundary → Vditor inserts a paragraph
-//       between instead of entering the helper. (The gap-paragraph observer reclaims it when
-//       left empty, exactly like the code-block gap.)
+//    b. any `contenteditable=false` neighbour (e.g. the rendered HTML-comment preview,
+//       html-comment.ts) is a splice boundary too: selectNodeContents INTO a non-editable block
+//       strands the caret there.
 const CALLOUT_TEXT_HELPER = `const vmarkdEditableText = (el: HTMLElement): string => {
     if (!el.querySelector(":scope > .vmarkd-callout__preview")) {
         return el.textContent;

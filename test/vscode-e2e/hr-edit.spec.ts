@@ -90,11 +90,7 @@ const CHAIN = () => {
   let n: Node | null = sel?.rangeCount ? sel.anchorNode : null
   while (n?.parentElement && n.parentElement !== ir) n = n.parentElement
   const block = n?.parentElement === ir ? (n as HTMLElement) : null
-  // The floating table-edit panel (#fix-table-ir-wrapper) is a non-content helper that lives in the
-  // block chain — it appears lazily, so leaving it in would make the chain string timing-dependent.
-  const chain = Array.from(ir.children).filter(
-    (c) => c.id !== 'fix-table-ir-wrapper',
-  )
+  const chain = Array.from(ir.children)
   return {
     chain: chain.map(label).join(' | '),
     caret: block ? `${chain.indexOf(block)}:${label(block)}` : 'OUTSIDE',

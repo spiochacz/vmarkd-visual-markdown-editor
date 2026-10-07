@@ -264,9 +264,8 @@ describe('patchCalloutArrowNav (callout dual-node arrow navigation)', () => {
     expect(patched).toContain(
       'previousElement.getAttribute("data-type") || previousElement.hasAttribute("data-callout")',
     )
-    // …and a contenteditable=false neighbour (our #fix-table-ir-wrapper panel) is a splice
-    // boundary too — Vditor inserts a paragraph instead of dropping the caret into the panel
-    // (which is pinned at top:0 → the end-of-file "jump to top").
+    // …and a contenteditable=false neighbour (e.g. the HTML-comment preview) is a splice
+    // boundary too — Vditor inserts a paragraph instead of dropping the caret into it.
     expect(patched).toContain(
       'nextElement.getAttribute("contenteditable") === "false"',
     )

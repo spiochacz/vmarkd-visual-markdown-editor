@@ -136,53 +136,6 @@ describe('trailingCaretTarget — resolves where the caret goes, does not write 
   })
 })
 
-// The real jump-to-top culprit: our own #fix-table-ir-wrapper (a contenteditable=false 0×0
-// box pinned at top:0) is appended INSIDE the editor, so it lands in the block chain. Vditor's
-// insertAfterBlock does selectNodeContents(table.nextElementSibling) → into the wrapper → the
-// caret jumps to the page top. The trailing paragraph MUST sit between the last block and the
-// wrapper so the caret lands in the in-flow paragraph instead.
-describe('ensureTrailingParagraph — the #fix-table-ir-wrapper (table panel) trap', () => {
-  const wrapper =
-    '<div id="fix-table-ir-wrapper" contenteditable="false" style="position:absolute;top:0;left:0;width:0;height:0"></div>'
-
-  it('inserts the trailing paragraph BETWEEN the table and the wrapper (never after it)', () => {
-    const el = editorWith(
-      `<table data-block="0"><tr><td>x</td></tr></table>${wrapper}`,
-    )
-    expect(ensureTrailingParagraph(el, null)).toBe(true)
-    const kids = Array.from(el.children)
-    // order: table, trailing <p>, wrapper
-    expect(kids[0].tagName).toBe('TABLE')
-    expect(kids[1].tagName).toBe('P')
-    expect(kids[1].hasAttribute(TRAILING)).toBe(true)
-    expect(kids[2].id).toBe('fix-table-ir-wrapper')
-    // the table's next sibling is the editable paragraph — NOT the wrapper (= no jump)
-    expect((kids[0] as HTMLElement).nextElementSibling?.tagName).toBe('P')
-  })
-
-  it('heals a trailing paragraph stranded AFTER the wrapper (the observed broken DOM)', () => {
-    // exactly what the diagnostic showed: [table][wrapper][trailing p]
-    const el = editorWith(
-      `<table data-block="0"><tr><td>x</td></tr></table>${wrapper}<p ${TRAILING}="">${ZWSP}</p>`,
-    )
-    ensureTrailingParagraph(el, null)
-    const kids = Array.from(el.children)
-    expect(
-      kids.map((k) => (k.tagName === 'P' ? 'P' : k.id || k.tagName)),
-    ).toEqual(['TABLE', 'P', 'fix-table-ir-wrapper'])
-    expect(trailingPs(el).length).toBe(1)
-    expect(
-      (kids[0] as HTMLElement).nextElementSibling?.hasAttribute(TRAILING),
-    ).toBe(true)
-  })
-
-  it('the wrapper alone (no content block) earns no trailing paragraph', () => {
-    const el = editorWith(`<p>text</p>${wrapper}`)
-    expect(ensureTrailingParagraph(el, null)).toBe(false)
-    expect(trailingPs(el).length).toBe(0)
-  })
-})
-
 describe('markTrailingActive — reveal the trailing paragraph only with the caret inside', () => {
   it('adds the active class when the caret is inside the trailing paragraph', () => {
     const el = editorWith(

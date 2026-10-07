@@ -17,8 +17,6 @@ const HR = '<hr data-block="0">'
 const PARA = '<p data-block="0">para</p>'
 const HEAD = '<h2 data-block="0">head</h2>'
 const LIST = '<ul data-block="0"><li>item</li></ul>'
-// The floating table-edit panel — in the sibling chain, never a caret landing spot.
-const HELPER = '<div id="fix-table-ir-wrapper" contenteditable="false"></div>'
 
 function editorWith(html: string): HTMLElement {
   const el = document.createElement('div')
@@ -103,13 +101,6 @@ describe('boundaries — every boundary in document order', () => {
       false,
       false,
     ])
-  })
-
-  it('ignores the table-edit helper: the last boundary is against the real last block', () => {
-    const b = boundaries(editorWith(`${PARA}${CODE}${HELPER}`))
-    expect(b.length).toBe(3) // start | para↔code | code↔end — the helper is not a block
-    expect(b[2].before?.getAttribute('data-type')).toBe('code-block')
-    expect(b[2].after).toBeNull()
   })
 })
 
