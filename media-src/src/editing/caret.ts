@@ -61,7 +61,12 @@ type CaretIntent =
   // same ambiguity one level down — measured in the real webview, the caret still snapped back on
   // Enter inside a list. Bottoming out at the caret's own element is the granularity at which
   // "empty" is finally unambiguous.
-  | { blockPath: number[]; offsetInBlock: number }
+  //
+  // `breaksBefore` (task 530): the number of `<br>` elements before the caret inside that element. A hard
+  // break holds no characters, so "after the break" and "before the break" are the SAME character offset;
+  // without it the undo checkpoint put the caret back before a just-made Shift+Enter break and the next
+  // typed character landed on the old line, losing the break.
+  | { blockPath: number[]; offsetInBlock: number; breaksBefore?: number }
 
 interface Target {
   node: Node
@@ -172,6 +177,7 @@ function resolveBlockOffset(
   editor: HTMLElement,
   blockPath: number[],
   offsetInBlock: number,
+  breaksBefore = 0,
 ): Target | null {
   if (editor.children.length === 0) return null
   let block: Element = editor
@@ -192,15 +198,36 @@ function resolveBlockOffset(
     // Zero-length leftovers of the wbr split are never a paintable landing spot (task 445).
     if (node.data.length === 0) continue
     last = node
-    if (node.data.length >= remaining) return { node, offset: remaining }
+    if (node.data.length >= remaining)
+      return afterBreaks(block, { node, offset: remaining }, breaksBefore)
     remaining -= node.data.length
   }
   // No text in the block at all: THE empty-line case this variant exists for — the block element
   // itself at offset 0 is the caret position, and it is paintable because the block is a real
   // laid-out element (unlike the zero-height collapsed Range on an empty container from task 439).
-  return last
+  const landing = last
     ? { node: last, offset: last.data.length }
     : { node: block, offset: 0 }
+  return afterBreaks(block, landing, breaksBefore)
+}
+
+// A character offset cannot say "after the break": if the landing spot has fewer `<br>`s before it than
+// the caret had, move to just after the Nth break of the block.
+function afterBreaks(block: Element, landing: Target, wanted: number): Target {
+  if (wanted <= 0) return landing
+  const brs = block.querySelectorAll('br')
+  if (brs.length < wanted) return landing
+  const pre = document.createRange()
+  pre.selectNodeContents(block)
+  pre.setEnd(landing.node, landing.offset)
+  if (pre.cloneContents().querySelectorAll('br').length >= wanted)
+    return landing
+  const br = brs[wanted - 1]
+  const parent = br.parentNode as Node
+  return {
+    node: parent,
+    offset: Array.prototype.indexOf.call(parent.childNodes, br) + 1,
+  }
 }
 
 // Resolve a declarative intent to a concrete DOM position against the CURRENT DOM. Pure (never
@@ -224,7 +251,12 @@ export function resolveCaretIntent(
     return trailingCaretTarget(editor, caret)
   }
   if ('blockPath' in intent)
-    return resolveBlockOffset(editor, intent.blockPath, intent.offsetInBlock)
+    return resolveBlockOffset(
+      editor,
+      intent.blockPath,
+      intent.offsetInBlock,
+      intent.breaksBefore,
+    )
   if ('textOffset' in intent)
     return resolveTextOffset(editor, intent.textOffset)
   // {node, offset}: only valid while the node is still part of THIS editor — a rebuild that threw

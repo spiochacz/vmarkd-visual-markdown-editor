@@ -242,6 +242,8 @@ export function collectConfigOptions(uri?: vscode.Uri): VmarkdConfigOptions {
     pasteCsvAsTable: c.get<string>('paste.csvFormat'),
     // Task 243 — which heading-slug flavor `#fragment` anchor links resolve against.
     slugifyMode: c.get<string>('editor.slugifyMode'),
+    // Task 530 — the written form of a new hard line break.
+    hardBreakStyle: c.get<string>('editor.hardBreakStyle'),
     // Task 282 — resolved HERE, not in the webview: the glob match needs the document's
     // workspace-relative path. `asRelativePath(uri, false)` omits the folder name so a pattern like
     // `docs/**` means the same thing in a single-root and a multi-root workspace.

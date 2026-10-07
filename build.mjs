@@ -13,6 +13,10 @@ import * as path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { VENDORED_ASSETS } from './media-src/vendor/vendored-assets.mjs'
+import {
+  LUTE_HARD_BREAK_PATCHES,
+  patchLuteBlob,
+} from './scripts/lute-blob-patch.mjs'
 
 // node_modules/.bin so `tsc` resolves whether this is run via `npm run build`
 // or directly as `node build.mjs`.
@@ -573,6 +577,18 @@ async function patchPlantumlEngine() {
   )
 }
 
+// Task 530: keep a hard line break's source form (`␣␣` / `\`) in Lute's own output — see
+// scripts/lute-blob-patch.mjs. MEDIA copy only; the vendored file and its pinned sha stay pristine.
+async function patchLuteHardBreaks() {
+  const file = path.resolve('media/vditor/dist/js/lute/lute.min.js')
+  const src = await fs.readFile(file, 'utf8')
+  const out = patchLuteBlob(src)
+  if (out !== src) await fs.writeFile(file, out)
+  console.log(
+    `[lute] hard-break form patch ${out === src ? 'already applied' : `applied (${LUTE_HARD_BREAK_PATCHES.length} anchors)`}`,
+  )
+}
+
 const watch = process.argv.includes('watch')
 
 await syncVditorAssets()
@@ -583,6 +599,7 @@ for (const entry of VENDORED_ASSETS) {
   await syncVendored(entry)
 }
 await patchPlantumlEngine()
+await patchLuteHardBreaks()
 // Generate the merged icon sprite (media/vditor-icons.js): ant symbols with our
 // toolbar glyphs swapped for codicons. See media-src/build-icon-sprite.mjs + task 44.
 await run('node media-src/build-icon-sprite.mjs')

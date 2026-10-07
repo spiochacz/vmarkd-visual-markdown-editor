@@ -37,6 +37,7 @@ import { applyLinkOpenSetting } from '../links/link-open-policy'
 import { applyPasteUrlSetting } from '../links/link-url'
 import { applyPasteCsvSetting } from '../clipboard/paste-table'
 import { applySlugifyModeSetting } from '../links/same-doc-anchor'
+import { applyHardBreakStyle } from '../../../src/shared/lute-hard-break'
 import { stripAnsi } from '../clipboard/paste-transform'
 import { renderDiffMarkers, clearDiffMarkers } from '../chrome/diff-markers'
 import { preserveCaretAndScroll } from '../editing/caret-preserve'
@@ -210,6 +211,8 @@ function handleConfigChanged(
   applyPasteCsvSetting(msg.options?.pasteCsvAsTable)
   // Task 243 — which heading-slug flavor `#fragment` anchor links resolve against.
   applySlugifyModeSetting(msg.options?.slugifyMode)
+  // Task 530 — how a new hard line break (Shift+Enter) is written; live, like the toggles above.
+  applyHardBreakStyle(msg.options?.hardBreakStyle)
   // Task 184 — the cache themeKey is plain runtime state; apply live. A live theme/engine change
   // (below) also re-renders diagrams, which re-populates the cache under the new key.
   const effectiveTheme =

@@ -45,6 +45,7 @@ import { applyLinkOpenSetting } from '../links/link-open-policy'
 import { applyPasteUrlSetting } from '../links/link-url'
 import { applyPasteCsvSetting } from '../clipboard/paste-table'
 import { applySlugifyModeSetting } from '../links/same-doc-anchor'
+import { applyHardBreakStyle } from '../../../src/shared/lute-hard-break'
 import { undoDelayForContentLength } from '../bridge/edit-sync-tuning'
 import { setPersistModeOverride } from '../chrome/toolbar-actions'
 import { sessionState } from './editor-session-state'
@@ -183,6 +184,8 @@ export function initVditor(msg: InitPayload) {
   applyPasteCsvSetting(msg.options?.pasteCsvAsTable)
   // Task 243 — which heading-slug flavor `#fragment` anchor links resolve against.
   applySlugifyModeSetting(msg.options?.slugifyMode)
+  // Task 530 — how a new hard line break (Shift+Enter) is written; live, like the toggles above.
+  applyHardBreakStyle(msg.options?.hardBreakStyle)
   // Debounced edit→host serialize controller (task 152 item 1, edit-sync.ts). It owns
   // the incremental-IR serialize (task 69), the busy-cursor idle path (task 68), the
   // synchronous save flush (task 58) and the status-bar doc-mode report. Suppressed while

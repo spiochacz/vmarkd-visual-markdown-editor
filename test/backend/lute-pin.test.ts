@@ -1,3 +1,5 @@
+// @ts-expect-error — plain .mjs build helper, no type declarations
+import { patchLuteBlob } from '../../scripts/lute-blob-patch.mjs'
 import { createHash } from 'node:crypto'
 import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -64,6 +66,12 @@ describe('Lute license compliance (Mulan PSL v2 §4)', () => {
     const got = createHash('sha256')
       .update(readFileSync(`${shipped}lute.min.js`))
       .digest('hex')
-    expect(got).toBe(source.sha256)
+    // The shipped copy is the pinned vendor file PLUS the task-530 hard-break patch (build.mjs
+    // patchLuteHardBreaks); the vendor file itself stays pristine and sha-pinned above.
+    const vendored = readFileSync(`${VENDOR}lute.min.js`, 'utf8')
+    const want = createHash('sha256')
+      .update(patchLuteBlob(vendored))
+      .digest('hex')
+    expect(got).toBe(want)
   })
 })

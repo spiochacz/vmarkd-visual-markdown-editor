@@ -212,6 +212,7 @@ const ALL_OPTION_KEYS: Required<{ [K in keyof VmarkdConfigOptions]: true }> = {
   defaultMode: true,
   outlineWidth: true,
   slugifyMode: true,
+  hardBreakStyle: true,
 }
 
 // Every option NOT a diagram-engine configKey, deliberately classified as "affects something
@@ -249,6 +250,8 @@ const KNOWN_NON_DIAGRAM_KEYS = [
   'outlineWidth',
   // Task 243 — never keys a diagram render; only resolves `#fragment` anchor-link clicks.
   'slugifyMode',
+  // Task 530 — only picks the written form of a new hard break; never keys a diagram render.
+  'hardBreakStyle',
 ] as const
 
 describe('VmarkdConfigOptions classification is exhaustive (task 408)', () => {

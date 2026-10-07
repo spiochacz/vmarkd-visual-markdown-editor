@@ -38,6 +38,37 @@ export const settle = (frame: ReturnType<typeof wf>, ms: number) =>
     .locator('body')
     .evaluate((_el, d) => new Promise((r) => setTimeout(r, d as number)), ms)
 
+/**
+ * Open `file` in the vMarkd custom editor in `mode` (sets `vmarkd.editor.defaultMode` first, closes every
+ * other editor). Callers that change the setting should list it in `useSettingsRestore`.
+ */
+export async function openInMode(
+  evaluateInVSCode: EvaluateInVSCode,
+  file: string,
+  mode: 'ir' | 'wysiwyg',
+) {
+  await evaluateInVSCode(
+    async (vscode: typeof import('vscode'), args: string[]) => {
+      const [uri, defaultMode] = args
+      await vscode.commands.executeCommand('workbench.action.closeAllEditors')
+      await vscode.workspace
+        .getConfiguration('vmarkd')
+        .update(
+          'editor.defaultMode',
+          defaultMode,
+          vscode.ConfigurationTarget.Global,
+        )
+      await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        vscode.Uri.file(uri),
+        'vmarkd.editor',
+      )
+    },
+    [file, mode],
+  )
+}
+
 export const docText = (evaluateInVSCode: EvaluateInVSCode, file: string) =>
   evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) =>

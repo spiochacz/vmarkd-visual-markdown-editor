@@ -21,6 +21,10 @@
 // checking a paragraph's text — one definition of "what a ZWSP looks like here", not two.
 export const ZWSP = /​/g
 
+/** Nothing but whitespace and zero-width spaces. */
+export const isBlank = (text: string): boolean =>
+  text.replace(ZWSP, '').trim() === ''
+
 // An "empty gap" = a paragraph with no element children and no text beyond zero-width spaces
 // (Vditor seeds the insert with a ZWSP, and so does makeTrailing below). A `<wbr>` or any inline
 // child means it is still mid-edit / holds something, so leave it alone. Shared beyond the

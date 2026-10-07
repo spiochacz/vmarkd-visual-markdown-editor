@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import * as vm from 'node:vm'
 import { didLuteFailToLoad, isLuteWarm } from '../../src/lute/lute-host'
 
 // Shared by every backend test that boots the real Lute build artifact (task 476).
@@ -62,4 +63,23 @@ export async function waitForLuteWarm(timeoutMs = 30_000): Promise<void> {
     }
     await new Promise((r) => setTimeout(r, 50))
   }
+}
+
+/**
+ * Run a Lute blob (a source string) in a fresh vm sandbox and return its `Lute` namespace — the same
+ * isolation the host uses, so two blobs (stock vs patched) never share a global.
+ */
+export function bootLute(src: string): { New(): any } {
+  const sandbox: Record<string, unknown> = {
+    TextEncoder,
+    TextDecoder,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
+    console,
+  }
+  vm.createContext(sandbox)
+  vm.runInContext(src, sandbox, { filename: 'lute.min.js' })
+  return (sandbox as { Lute: { New(): any } }).Lute
 }

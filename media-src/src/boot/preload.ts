@@ -7,7 +7,13 @@
 // module is the one thing both main.ts and every e2e harness import first, so the editor and the
 // harnesses cannot drift apart on it.
 import { patchLuteGapRepair } from '../../../src/shared/lute-gap-repair'
-;(window as any).__vmarkdPatchLute = patchLuteGapRepair
+// Task 530: a hard line break keeps its form through Lute itself (build-time patch); this only keeps the
+// pending-break line placeholder on the spin output (see patchLuteHardBreaks).
+import { patchLuteHardBreaks } from '../../../src/shared/lute-hard-break'
+;(window as any).__vmarkdPatchLute = (lute: any) => {
+  patchLuteGapRepair(lute)
+  patchLuteHardBreaks(lute)
+}
 
 // Task 470 — acquire the vscode postMessage handle here too, for the same "every real entry
 // point imports this module first" reason as __vmarkdPatchLute above: main.ts and every e2e

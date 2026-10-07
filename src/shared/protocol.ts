@@ -64,6 +64,8 @@ export interface VmarkdConfigOptions {
   // links (and, per its own scope, task 253's TOC / task 32's anchor completion) resolve
   // against. See src/heading-slug.ts's `SlugifyMode`.
   slugifyMode?: string
+  // Task 530 — `backslash` (default) | `spaces`: how a NEW hard line break (Shift+Enter) is written.
+  hardBreakStyle?: string
   // Transient (drag-resized outline width, not from collectConfigOptions).
   outlineWidth?: number
 }

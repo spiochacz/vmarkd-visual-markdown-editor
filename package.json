@@ -386,8 +386,23 @@
             "default": "github",
             "description": "Heading-anchor format used for #heading links, the outline, and link completion."
           },
-          "vmarkd.paste.csvFormat": {
+          "vmarkd.editor.hardBreakStyle": {
             "order": 11,
+            "scope": "resource",
+            "type": "string",
+            "enum": [
+              "backslash",
+              "spaces"
+            ],
+            "enumDescriptions": [
+              "A trailing backslash (survives editors that trim trailing whitespace).",
+              "Two trailing spaces."
+            ],
+            "default": "backslash",
+            "description": "How a new line break inside a paragraph (Shift+Enter) is written to the file. Existing breaks keep the form they have."
+          },
+          "vmarkd.paste.csvFormat": {
+            "order": 12,
             "scope": "resource",
             "type": "string",
             "enum": [
@@ -404,7 +419,7 @@
             "description": "Convert pasted spreadsheet cells to a Markdown table. Content pasted into code blocks stays unchanged."
           },
           "vmarkd.paste.urlAsLink": {
-            "order": 12,
+            "order": 13,
             "scope": "resource",
             "type": "boolean",
             "default": true,

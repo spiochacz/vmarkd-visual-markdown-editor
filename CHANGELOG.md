@@ -67,6 +67,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Fixed
 
+- **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
+  exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
+  (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are
+  left alone. Shift+Enter inside a paragraph, list item or quote now inserts a real hard line break in
+  both modes, written as a trailing backslash by default (`vmarkd.editor.hardBreakStyle` switches it to
+  two trailing spaces); headings, table cells, code and math keep their usual Shift+Enter.
+
+
 - **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
   an occasional letter could land in the document instead of the search field (measured about 1 leg
   in 30). The editor no longer takes focus back while the search box is open.

@@ -223,7 +223,7 @@ export function patchUndoCaretSplitRestore(code) {
         // top-level block index: inside a list the top-level block is the <ul>, so a top-level index
         // puts every <li> back into one shared character space and reproduces the very ambiguity this
         // replaces, one level down (measured — the caret still snapped back on Enter inside a list).
-        'function vmarkdCaretBlockOffset(root: HTMLElement, node: Node, offset: number): {blockPath: number[], offsetInBlock: number} | null {\n' +
+        'function vmarkdCaretBlockOffset(root: HTMLElement, node: Node, offset: number): {blockPath: number[], offsetInBlock: number, breaksBefore: number} | null {\n' +
         '    if (!root.contains(node)) {\n' +
         '        return null;\n' +
         '    }\n' +
@@ -244,13 +244,14 @@ export function patchUndoCaretSplitRestore(code) {
         '    const pre = document.createRange();\n' +
         '    pre.selectNodeContents(block);\n' +
         '    pre.setEnd(node, offset);\n' +
-        '    return { blockPath: blockPath, offsetInBlock: pre.toString().length };\n' +
+        '    // Task 530: a <br> holds no characters, so the offset alone cannot say "after the break".\n' +
+        '    return { blockPath: blockPath, offsetInBlock: pre.toString().length, breaksBefore: pre.cloneContents().querySelectorAll("br").length };\n' +
         '}\n\n' +
         UNDO_CLASS_ANCHOR,
     )
     .replace(
       UNDO_CARET_OFFSET_DECL_ANCHOR,
-      `${UNDO_CARET_OFFSET_DECL_ANCHOR}\n        let vmarkdCaretOffset = -1; // task 445 (vMarkd patch)\n        let vmarkdCaretBlock: {blockPath: number[], offsetInBlock: number} | null = null; // task 487`,
+      `${UNDO_CARET_OFFSET_DECL_ANCHOR}\n        let vmarkdCaretOffset = -1; // task 445 (vMarkd patch)\n        let vmarkdCaretBlock: {blockPath: number[], offsetInBlock: number, breaksBefore: number} | null = null; // task 487`,
     )
     .replace(
       UNDO_CARET_OFFSET_CAPTURE_ANCHOR,

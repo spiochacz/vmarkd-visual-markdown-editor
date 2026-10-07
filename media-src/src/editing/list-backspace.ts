@@ -57,7 +57,7 @@ import {
   respinListAtRange,
   spinFor,
 } from './list-normalize'
-import { ZWSP } from './trailing-paragraph'
+import { isBlank, ZWSP } from './trailing-paragraph'
 
 interface VditorLike {
   currentMode: string
@@ -71,8 +71,6 @@ interface VditorLike {
 const MARKER_RE = /^(?:[-*+]|\d{1,9}[.)])$/
 const BLOCK_SCOPE =
   'li, pre, table, blockquote, [data-type="code-block"], [data-type="math-block"], [data-type="html-block"]'
-
-const isBlank = (text: string): boolean => text.replace(ZWSP, '').trim() === ''
 
 // Text nodes that belong to `li` itself — everything except text inside a NESTED list.
 function ownTextNodes(li: HTMLElement): Text[] {

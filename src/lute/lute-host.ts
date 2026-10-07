@@ -195,11 +195,12 @@ export function reserializeMarkdown(
     // Tasks 239/240: likewise for the block repairs. If this canonical form still degraded an
     // indented code block to prose or dropped a definition title, every such block would compare
     // unequal to the editor's output and be rewritten on an edit made anywhere else in the file.
-    return lute.VditorIRDOM2Md(
+    // Task 530: the patched Lute carries a hard break's form through its own serializer, so an
+    // untouched hard-broken block reserializes to its own bytes with no extra step.
+    const warm = lute as NonNullable<typeof lute>
+    return warm.VditorIRDOM2Md(
       repairIrBlocks(
-        restoreCellGaps(lute.Md2VditorIRDOM(src), () =>
-          (lute as NonNullable<typeof lute>).Md2HTML(src),
-        ),
+        restoreCellGaps(warm.Md2VditorIRDOM(src), () => warm.Md2HTML(src)),
         () => src,
       ),
     )

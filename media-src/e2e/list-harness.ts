@@ -1,4 +1,7 @@
 import '../src/boot/preload'
+import { applyHardBreakStyle } from '../../src/shared/lute-hard-break'
+import { setupHardBreakKey } from '../src/editing/hard-break-key'
+import { blockModeElement } from '../src/util/source-map'
 // Source import so the fixListToggle esbuild patch is applied (see link-harness).
 import Vditor from 'vditor/src/index'
 import { listToggle } from 'vditor/src/ts/util/fixBrowserBehavior'
@@ -106,6 +109,8 @@ const lists: Record<string, string> = {
     '',
   ].join('\n'),
 }
+// Task 530 — lets the spec flip vmarkd.editor.hardBreakStyle the way a live config change does.
+;(window as any).__applyHardBreakStyle = applyHardBreakStyle
 const params = new URLSearchParams(location.search)
 // `?md=<markdown>` loads an arbitrary document (list scenario matrix, task 525) instead of a named
 // fixture; `?mode=wysiwyg` boots the WYSIWYG surface instead of IR.
@@ -125,6 +130,11 @@ const editor = new Vditor('app', {
   },
   after() {
     ;(window as any).vditor = editor
+    // Task 530 — the real Shift+Enter handler, wired as main.ts does.
+    setupHardBreakKey(
+      () => blockModeElement(editor),
+      () => (editor as any).vditor,
+    )
     ;(window as any).vditorTest = editor
 
     // Toggle list type on the Nth <li> in the IR editor, mirroring what the

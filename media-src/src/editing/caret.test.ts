@@ -143,6 +143,49 @@ describe('resolveCaretIntent — pure resolution, never touches the selection', 
     expect(target?.offset).toBe(1)
   })
 
+  // Task 530 — a hard break (`<br>`) has no characters, so "after the break" and "before the break"
+  // are one character offset; the undo checkpoint used to put the caret back BEFORE the break ~800 ms
+  // after Shift+Enter, and the next typed character lost the break.
+  it('{blockPath, offsetInBlock, breaksBefore}: lands AFTER a hard break, not before it', () => {
+    const editor = mountEditor(
+      '<p data-block="0">first<br data-marker="\\"><br></p>',
+    )
+    const p = editor.children[0]
+    const before = resolveCaretIntent(
+      { blockPath: [0], offsetInBlock: 5 },
+      editor,
+    )
+    expect(before).toEqual({ node: p.firstChild, offset: 5 }) // the ambiguity: same number
+    const after = resolveCaretIntent(
+      { blockPath: [0], offsetInBlock: 5, breaksBefore: 1 },
+      editor,
+    )
+    expect(after).toEqual({ node: p, offset: 2 }) // between the marked break and the placeholder
+  })
+
+  it('{breaksBefore}: counts breaks in order, and is a no-op at 0 / when the DOM has fewer', () => {
+    const editor = mountEditor('<p data-block="0">a<br>b<br>c</p>')
+    const p = editor.children[0]
+    expect(
+      resolveCaretIntent(
+        { blockPath: [0], offsetInBlock: 2, breaksBefore: 2 },
+        editor,
+      ),
+    ).toEqual({ node: p, offset: 4 })
+    expect(
+      resolveCaretIntent(
+        { blockPath: [0], offsetInBlock: 1, breaksBefore: 0 },
+        editor,
+      ),
+    ).toEqual({ node: p.firstChild, offset: 1 })
+    expect(
+      resolveCaretIntent(
+        { blockPath: [0], offsetInBlock: 1, breaksBefore: 9 },
+        editor,
+      ),
+    ).toEqual({ node: p.firstChild, offset: 1 })
+  })
+
   it('{blockPath, offsetInBlock}: follows the path INTO a list item, not just the top-level <ul>', () => {
     const editor = mountEditor(
       '<ul data-block="0"><li>one</li><li>two</li></ul>',

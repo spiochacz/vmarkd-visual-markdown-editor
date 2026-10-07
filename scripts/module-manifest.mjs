@@ -90,6 +90,7 @@ export const HOST_MODULES = {
       // share this module." lute-host.ts stays in lute/ and imports both from shared/ now — the
       // ordinary relationship every module has to it.
       'lute-gap-repair',
+      'lute-hard-break', // NEW (task 530) — same shared host+webview Lute repair family as lute-gap-repair
       'lute-block-repair',
       // NEW (task 499) — `clamp(v, lo, hi)`, the one numeric primitive both trees had been
       // hand-rolling as `Math.max(lo, Math.min(v, hi))`. Zero imports; lives here rather than in
@@ -253,6 +254,7 @@ export const WEBVIEW_MODULES = {
       'wysiwyg-code-highlight',
       'code-source',
       'edit-activity',
+      'hard-break-key', // NEW (task 530) — Shift+Enter makes a real hard line break in prose (IR + WYSIWYG)
       'mutation-scope',
       'html-comment',
       'table-hotkey',

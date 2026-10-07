@@ -40,6 +40,7 @@ import { setupCaretScroll } from '../editing/caret-scroll'
 import { setupCalloutArrowNav } from '../editing/callout-nav'
 import { setupGapClick } from '../editing/gap-click'
 import { setupGapNav } from '../editing/gap-nav'
+import { setupHardBreakKey } from '../editing/hard-break-key'
 import { setupHistoryKeybind } from '../editing/undo-keybind'
 import { setupFormatHotkeyGuard } from '../editing/format-hotkey-guard'
 import { setupSaveFlushKeybind } from '../bridge/save-flush'
@@ -113,6 +114,10 @@ const blockSurface = (): HTMLElement | null =>
 // selection on it, stuck above a rule — task 100), and STOP in a manufactured gap paragraph where
 // no caret position exists at all (task 292). Wired once; reads the active editor lazily. gap-nav.ts.
 setupGapNav(blockSurface)
+
+// Task 530: Shift+Enter in prose is a real hard line break (IR and WYSIWYG); everything else (headings,
+// cells, code, math) keeps the stock behaviour. hard-break-key.ts.
+setupHardBreakKey(blockSurface, () => window.vditor?.vditor)
 
 // The same boundaries, reached with the mouse: a click that MISSED every block (the empty strip
 // above a document that starts with a diagram, the few px between two rendered blocks) lands in a

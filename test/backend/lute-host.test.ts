@@ -177,5 +177,14 @@ describe('lute-host renderForMode', () => {
       const padded = reserializeMarkdown(ROOT, '|a|b|\n|-|-|\n|1|2|\n')
       expect(padded).toContain('| a | b |')
     })
+
+    // Task 530: the webview's Lute keeps a hard break's source form (the patched blob's `data-marker`), so the host's
+    // canonical form of an UNTOUCHED hard-broken block must be its own bytes — otherwise every such
+    // block would look "changed" to the minimal-diff write-back.
+    it('reserializeMarkdown keeps hard breaks in both source forms (task 530)', () => {
+      const md =
+        'Hard one  \nhard two\\\nhard three   \nfour\n\n> q\n\n- a  \n  b\n'
+      expect(reserializeMarkdown(ROOT, md)).toBe(md)
+    })
   })
 })
