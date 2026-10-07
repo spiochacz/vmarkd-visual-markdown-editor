@@ -3,7 +3,7 @@
 **Status:** ✅ **DONE (2026-08-11) — option 2 shipped + pinned; option 1 (teaser tokenizer) deliberately not built.** ·
 **Impact:** 🟢 low, and now honestly bounded — see "What shipped" ·
 **Origin:** two independent read-only investigations, 2026-07-29 — Codex (this task's subject) and Fable (the
-theme-application slice, see [427](done/427-frontmatter-hljs-style-flash-on-open.md)). Both found gap #1 below
+theme-application slice, see [427](427-frontmatter-hljs-style-flash-on-open.md)). Both found gap #1 below
 independently, which is why it is stated with confidence.
 
 ## What shipped, and what the measurement actually showed
@@ -31,7 +31,7 @@ first observable sample, and the remaining wait is for `.hljs` tagging + token s
 reaches at ~1.0 s. Codex's own numbers put the win at 0 on two of three recorded fixtures. It stays
 written up below for whoever measures a document where it actually pays.
 
-**The measurement's real payoff went to [427](done/427-frontmatter-hljs-style-flash-on-open.md)**: the same
+**The measurement's real payoff went to [427](427-frontmatter-hljs-style-flash-on-open.md)**: the same
 probe reproduced the reported green frontmatter and found it was a CSS leak
 (`.markdown-body code:not(.hljs)`), not stylesheet timing at all. Fixed there.
 
@@ -68,12 +68,12 @@ Risks: must skip diagram languages consistently with `CUSTOM_LANGS` (`code-sourc
 gets styled as code; editable source/frontmatter nodes should get `.hljs` **only** (settled IR source is
 deliberately class-styled but monochrome — `code-source.ts:3,28`) unless parity testing says otherwise;
 adds bounded tokenizer CPU *before* first paint; **no benefit at all when there is no teaser** — saved `sv`
-mode, or a host Lute that is not warm (`src/lute-host.ts:202` — see [432](done/432-cold-first-open-teaser-race.md),
+mode, or a host Lute that is not warm (`src/lute-host.ts:202` — see [432](432-cold-first-open-teaser-race.md),
 which may make that case the FIRST open of every session).
 Expected win, from existing spike numbers: **0 to ~1.3 s, document-dependent.** The all-renderers fixture had
 content at 48 ms but token colour at 1 349 ms; the native-burst fixture had both together at 257 ms and the
 mermaid-heavy one had colour at 48 ms — i.e. no recorded win in those two
-([169](done/169-yield-open-native-diagram-burst.md):12, [170](done/170-host-preload-diagram-engine-scripts.md):15).
+([169](169-yield-open-native-diagram-burst.md):12, [170](170-host-preload-diagram-engine-scripts.md):15).
 
 ### 2. Ship `#vditorHljsStyle` in the initial HTML only (prerequisite, not a solution)
 Same host seams as option 1 minus the tokenizer (`markdown-editor-provider.ts:189`, `html-builder.ts:278`,
@@ -102,7 +102,7 @@ The hljs scripts already run before `main.js`; the fallback eager loader runs be
 observer (`finish-init.ts:133,168`); custom diagrams already yield a frame between engines
 (`custom-diagrams.ts:159`); and task 169's real-VS-Code spike measured that code colouring is **not** starved —
 the residual freezes are individual 466–726 ms renderer tasks that reordering cannot split
-([169](done/169-yield-open-native-diagram-burst.md):19). Would require patching Vditor's native render loop and its
+([169](169-yield-open-native-diagram-burst.md):19). Would require patching Vditor's native render loop and its
 synchronous caret/scroll contracts for nothing.
 
 ### Rejected: hold the prerender overlay longer — masking, and self-defeating
@@ -120,7 +120,7 @@ it, working against the point of instant-paint.
       byte-identical to what `setCodeTheme` would build, so Vditor does not tear it down.
 - [ ] Option 1 (teaser-only tokenizer) if the probe shows a real gap; unit-test the decorator (language
       skipping, `CUSTOM_LANGS`, frontmatter) and pin the timing in a real-VS-Code spec.
-- [x] Measure standard code-block colour separately from the [427](done/427-frontmatter-hljs-style-flash-on-open.md)
+- [x] Measure standard code-block colour separately from the [427](427-frontmatter-hljs-style-flash-on-open.md)
       frontmatter flash — they are different symptoms and 427 is still unconfirmed.
 
 ## Explicitly NOT established

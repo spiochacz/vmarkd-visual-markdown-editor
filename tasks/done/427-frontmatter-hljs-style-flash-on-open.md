@@ -60,7 +60,7 @@ inline-code rule. The symptom only fell out of measuring it. Reasoning about CSS
 > real, precisely located window; it just is not shown to produce a *green* intermediate state.
 > **Consequence for this task: the live real-VS-Code probe is now the ONLY way forward.** Do not implement any
 > fix and call this closed — a fix for the traced window may leave the reported symptom untouched.
-> The fix options themselves are written up in [431](../431-code-colour-earlier-on-open.md) (initial hljs
+> The fix options themselves are written up in [431](431-code-colour-earlier-on-open.md) (initial hljs
 > stylesheet + pre-highlighted teaser); this task stays owner of the *symptom* until it is reproduced.
 
 ## Report

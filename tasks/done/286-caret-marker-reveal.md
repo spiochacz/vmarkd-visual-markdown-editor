@@ -1,6 +1,22 @@
 # Task 286 — BUG: caret navigation can land INSIDE hidden markers (Home/End) + reveal polish
 
-**Status:** planned — BUG, silent-corruption class · **Impact:** 🔴 high · **Origin:** task 192 §12 (WYSIWYG audit, code-verified)
+**Status:** ✅ CLOSED (2026-10-07) — the corruption bug is not reproducible (measured); the optional reveal polish was not pursued.
+
+## Measured 2026-10-07 — the corruption does not happen
+
+Home / End / Ctrl+Home / Ctrl+End, then typing `X`, on lines starting or ending with `**bold**`,
+`[link](u)`, `` `code` `` and `*it*`:
+
+- chromium harness (list harness, IR): **10/10 correct** — `X**bold** tail`, `head **bold**X`, … never
+  inside a marker.
+- real VS Code (IR, temporary probe spec, deleted after the run): **10/10 correct**. One extra case on
+  a long wrapped line put `X` at the start of the second VISUAL line — that is Home's normal
+  visual-line behaviour in every editor, not a marker problem.
+- WYSIWYG (out of scope here): typing at the start/end of a bold run continues the bold
+  (`**Xbold**`), the way Word / Google Docs extend adjacent formatting. Valid markdown, not corruption.
+
+So the "silent-corruption" bug is not present on the current code. What is left of this task is the
+optional polish (selectionchange-driven reveal, traversal flash) — not measured, not a bug.
 
 ## What it is & the effect
 

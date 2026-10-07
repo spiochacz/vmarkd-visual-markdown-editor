@@ -613,7 +613,7 @@ Investigated on request. It fails ~1 run in 2 with `focus left the find box … 
 `Selection.prototype.addRange` and captured stacks: `caret.ts`'s rAF loop re-asserts the caret on
 every frame with no `document.hasFocus()` gate, and Electron's find handshake hands the frame brief
 real focus, during which `addRange()` into the contenteditable takes the keystrokes. Full evidence
-and the fix options: [task 522](522-caret-raf-loop-steals-find-focus.md). Note the measurement
+and the fix options: [task 522](done/522-caret-raf-loop-steals-find-focus.md). Note the measurement
 explicitly refutes the tempting "IR is safe" reading — IR shows the same arming and the same focus
 flip at the same call volumes.
 
@@ -656,7 +656,7 @@ look for the same trap.
 | [520](520-external-css-never-live-reloads.md) | `css.external` never live-reloaded — the watcher could not fire | ✅ fixed |
 | [521](521-wiki-chip-stale-after-rename.md) | wiki chips go stale on rename and offer to fork a duplicate | open (design decision) |
 | — | the git gutter never rendered for LIST blocks (`blockLineRange` could not map them to source lines) | ✅ fixed here |
-| [522](522-caret-raf-loop-steals-find-focus.md) | the caret rAF loop steals focus from the find box — task 514's bug, second route | open (diagnosed, fix is a design call) |
+| [522](done/522-caret-raf-loop-steals-find-focus.md) | the caret rAF loop steals focus from the find box — task 514's bug, second route | open (diagnosed, fix is a design call) |
 | [523](523-diff-gutter-misses-tables.md) | the git gutter still misses TABLES (same mechanism as the list gap) | open |
 | — | a save immediately after a revert-to-baseline left the tab DIRTY with no backstop able to clean it (an in-flight sync tick landing after the willSave correction; `applyEdit` always dirties) | ✅ fixed here |
 | [524](524-e2e-specs-leak-global-settings.md) | e2e specs leak GLOBAL settings into the shared profile — the real cause behind three "timing" flakes | open (the three victims are fixed) |

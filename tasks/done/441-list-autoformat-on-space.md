@@ -48,7 +48,7 @@ content is serialised/rendered as a paragraph until content arrives.
 - `media-src/src/spin-skip-fence.ts` (`shouldSkipProseSpin` — ruled out as the cause but the same
   marker-position logic is reusable), `media-src/node_modules/vditor/src/ts/ir/input.ts` (Vditor's IR
   input handler), `media-src/src/list-backspace.ts` (the capture-phase handler pattern, task 428).
-- [428](428-list-editing-usability-vs-real-editors.md) (umbrella), [442](../442-backspace-empty-list-item-loose.md)
+- [428](428-list-editing-usability-vs-real-editors.md) (umbrella), [442](442-backspace-empty-list-item-loose.md)
   (the sibling Backspace report), [255](255-list-renumber-command.md)/[284](../284-list-auto-renumber.md)
   (renumbering, if a new ordered item needs it).
 

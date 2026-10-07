@@ -201,7 +201,7 @@ Upload.ts/MenuItem.ts build-time patches) — unrelated, already closed under ta
 
 ## Provenance
 
-Split out of [task 492](done/492-toolbar-layout-usability.md) Phase 4 after the user caught, during
+Split out of [task 492](492-toolbar-layout-usability.md) Phase 4 after the user caught, during
 real-editor testing, that tooltips/menus still showed Vditor's untouched original hotkeys post-remap
 — the actual defect was two independent keyboard-handling systems, not a labeling mismatch.
 

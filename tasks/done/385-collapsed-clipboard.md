@@ -131,7 +131,7 @@ that did not come from Ctrl+X (context menu, toolbar). A recorded intent older t
 stale, so an old keystroke can never govern a later cut. The original safety test (no character
 lost) passed; the completed line-cut follow-up above replaces it with full-block removal.
 
-**The selected cut: a different, pre-existing defect — split out as [task 387](done/387-cut-leaves-last-line.md).**
+**The selected cut: a different, pre-existing defect — split out as [task 387](387-cut-leaves-last-line.md).**
 Cutting a selected multi-line paragraph leaves its last line behind (85 of ~96 characters removed).
 It fails alone, on every retry, and fails identically with this task's fix stashed out and the bundle
 rebuilt — so it is not a regression from this work. Root cause measured: `fixCut`'s deferral makes
@@ -151,7 +151,7 @@ back `["Files"]`, one `image/png`. So there is no webview clipboard-permission p
 Two findings worth keeping:
 
 1. **The sv PREVIEW pane copies by a completely different mechanism, and nothing tests it.**
-   **RESOLVED — it was broken, and it is fixed: see [task 386](done/386-sv-preview-copy.md).** The probe
+   **RESOLVED — it was broken, and it is fixed: see [task 386](386-sv-preview-copy.md).** The probe
    below stayed inconclusive because it clicked the pane AFTER setting the selection, which collapses
    the very selection under test. Clicking first and selecting second made the defect reproducible on
    demand: the copy event fired, `execCommand("copy")` returned `true`, and the clipboard kept its
@@ -190,7 +190,7 @@ no-ops — typing included, not just paste. **This did NOT reproduce.** Probed a
 `.vditor-toolbar`, `.vditor`, `body` and `.vditor-ir`, each clicked at its extreme edge, with a
 baseline keystroke first to prove the harness reaches the webview: `activeElement` stayed
 `PRE.vditor-reset`, `rangeCount` stayed 1, and the typed character landed in the document every
-time. Filed as a negative result in [task 388](done/388-focus-lost-outside-click.md) rather than as a
+time. Filed as a negative result in [task 388](388-focus-lost-outside-click.md) rather than as a
 confirmed bug, with the gaps that probe does not cover listed there.
 
 ## Caveat on the diagnosis
