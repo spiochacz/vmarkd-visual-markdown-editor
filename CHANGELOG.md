@@ -19,7 +19,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   shows an empty box of the height the diagram had last time (a fixed height the first time) instead of
   its source, so the text below stays put. It also follows `vmarkd.editor.defaultMode` (a document set
   to open in WYSIWYG no longer flashes the IR layout first) and paints the page colour itself. Links use the same colour in the IR and WYSIWYG
-  editors, the Preview and the split view, in every theme.
+  editors, the Preview and the split view, in every theme. A code block's editable source panel has
+  the Preview code block's background and font for every code theme.
 
 - **Lists with blank lines between items keep them**: a list written with blank lines between its items
   (a "loose" list) stays loose when you edit it, in the IR, WYSIWYG and split-view editors, in the saved

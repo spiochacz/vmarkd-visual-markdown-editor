@@ -2,62 +2,6 @@
   {
     "theme": [
       "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "code-fence",
-    "property": "style.background-color",
-    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
-    "task": "532 follow-up",
-    "values": [
-      "\"rgba(0, 0, 0, 0)\" -> \"rgb(0, 0, 0)\"",
-      "\"rgba(0, 0, 0, 0)\" -> \"rgb(43, 43, 43)\"",
-      "\"rgba(0, 0, 0, 0)\" -> \"rgba(10, 10, 10, 0.4)\""
-    ]
-  },
-  {
-    "theme": "*",
-    "stagePair": "ir>preview",
-    "kind": "code-fence",
-    "property": "style.font-family",
-    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
-    "task": "532 follow-up",
-    "values": [
-      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
-      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "code-indented",
-    "property": "style.background-color",
-    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
-    "task": "532 follow-up",
-    "values": [
-      "\"rgba(0, 0, 0, 0)\" -> \"rgb(0, 0, 0)\"",
-      "\"rgba(0, 0, 0, 0)\" -> \"rgb(43, 43, 43)\"",
-      "\"rgba(0, 0, 0, 0)\" -> \"rgba(10, 10, 10, 0.4)\""
-    ]
-  },
-  {
-    "theme": "*",
-    "stagePair": "ir>preview",
-    "kind": "code-indented",
-    "property": "style.font-family",
-    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
-    "task": "532 follow-up",
-    "values": [
-      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
-      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
       "auto-monokai",
       "vscode-dark-2026",
       "vscode-dark-2026+markers+monokai-code",
@@ -111,8 +55,8 @@
     "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
     "task": "accepted (user, 2026-10-08)",
     "delta": [
-      1.19,
-      1.19
+      1.2,
+      1.2
     ]
   },
   {
@@ -131,7 +75,7 @@
     "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
     "task": "accepted (user, 2026-10-08)",
     "delta": [
-      1.2,
+      1.19,
       1.2
     ]
   },
@@ -388,46 +332,6 @@
     "values": [
       "\"239px\" -> \"10px\"",
       "\"52px\" -> \"10px\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai",
-      "material-dark",
-      "vscode-dark-2026",
-      "vscode-dark-2026+markers+monokai-code",
-      "vscode-dark-2026+narrow",
-      "vscode-dark-2026+reflow",
-      "vscode-light-2026"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "code-fence",
-    "property": "style.line-height",
-    "reason": "Probe level: the edit wrapper div keeps the prose leading (it is not the `pre`) while the Preview probe is the `pre`/diagram div; the code LINES agree (code-fence/code-indented `text.line-height` and `rect.height` are no longer differences after the --vmarkd-geo-code-lh token, task 532 step 3).",
-    "task": "532 follow-up",
-    "values": [
-      "\"22.4px\" -> \"21px\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai",
-      "material-dark",
-      "vscode-dark-2026",
-      "vscode-dark-2026+markers+monokai-code",
-      "vscode-dark-2026+narrow",
-      "vscode-dark-2026+reflow",
-      "vscode-light-2026"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "code-indented",
-    "property": "style.line-height",
-    "reason": "Probe level: the edit wrapper div keeps the prose leading (it is not the `pre`) while the Preview probe is the `pre`/diagram div; the code LINES agree (code-fence/code-indented `text.line-height` and `rect.height` are no longer differences after the --vmarkd-geo-code-lh token, task 532 step 3).",
-    "task": "532 follow-up",
-    "values": [
-      "\"22.4px\" -> \"21px\""
     ]
   },
   {
@@ -900,6 +804,86 @@
     "delta": [
       -16,
       -14
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-fence",
+    "property": "rect.left",
+    "reason": "WYSIWYG code block box starts 2.38px further right (and is 2.38px narrower) than IR - the same accepted 2.38px offset as `rect.firstGlyphX`, now visible on the painted `code` box (the wysiwyg pre offset vs the IR hljs padding).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-fence",
+    "property": "rect.width",
+    "reason": "WYSIWYG code block box starts 2.38px further right (and is 2.38px narrower) than IR - the same accepted 2.38px offset as `rect.firstGlyphX`, now visible on the painted `code` box (the wysiwyg pre offset vs the IR hljs padding).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      -2.37,
+      -2.37
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-indented",
+    "property": "rect.left",
+    "reason": "WYSIWYG code block box starts 2.38px further right (and is 2.38px narrower) than IR - the same accepted 2.38px offset as `rect.firstGlyphX`, now visible on the painted `code` box (the wysiwyg pre offset vs the IR hljs padding).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-indented",
+    "property": "rect.width",
+    "reason": "WYSIWYG code block box starts 2.38px further right (and is 2.38px narrower) than IR - the same accepted 2.38px offset as `rect.firstGlyphX`, now visible on the painted `code` box (the wysiwyg pre offset vs the IR hljs padding).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      -2.37,
+      -2.37
     ]
   }
 ]

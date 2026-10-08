@@ -220,14 +220,27 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
     shape: false,
     snippet:
       '```ts\n// PXfence\nconst a: number = 1\nfunction f(x: number) {\n  return x + a\n}\n```',
-    probe: blockProbe('PXfence', 'div[data-type="code-block"]', 'pre'),
+    // Select the PAINTED `code` box (it carries the hljs background, padding and font) on both sides.
+    // An anchor would land on IR's collapsed (0x0) source half and walk up to the transparent
+    // prose-font wrapper div, which is not what the user sees (task 532 follow-up).
+    probe: {
+      select: {
+        edit: 'div[data-type="code-block"]:has(code.language-ts) > :is(pre.vditor-ir__preview, pre.vditor-wysiwyg__preview) > code',
+        preview: 'pre > code.language-ts',
+      },
+    },
     expectMarkers: ['hljs', 'hljs-token'],
   },
   {
     kind: 'code-indented',
     shape: false,
     snippet: 'Text before an indented block.\n\n    PXindent code line',
-    probe: blockProbe('PXindent', 'div[data-type="code-block"]', 'pre'),
+    probe: {
+      select: {
+        edit: 'div[data-type="code-block"]:not(:has([class*="language-"])) > :is(pre.vditor-ir__preview, pre.vditor-wysiwyg__preview) > code',
+        preview: 'pre > code:not([class*="language-"])',
+      },
+    },
     expectMarkers: [],
   },
   {
