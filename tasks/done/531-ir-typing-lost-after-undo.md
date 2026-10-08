@@ -72,3 +72,19 @@ a scroll, buttons act).
 - [x] Fix at the right layer (likely keep the wrapper out of the editable root or out of the undo snapshot / restore
       path), not a symptom patch; red-green-red.
 - [x] Unit + chromium harness coverage where possible; full gates.
+
+## Regression (2026-10-08)
+
+`escape-toolbar.spec.ts` (leg 4: Escape, then Ctrl+Tab must not mutate the document) went red 3/3 from this task's
+commit on. NOT a stale undo snapshot: probes showed the undo chain restored the baseline correctly, and the tab
+appeared only on the Ctrl+Tab keydown itself (`keydown:Tab+ctrl`). Cause: Vditor's Tab handlers (`fixTab`, table cell
+hop, list indent) test `event.key === "Tab"` and ignore modifiers, so Ctrl/Alt/Meta+Tab (a VS Code / OS chord whose
+keydown still reaches the webview) typed a literal `\t`. It was latent: before this task the caret after undo sat on a
+DIV outside the editable root (the very bug fixed here), so the stray insert had nowhere to land and the spec passed by
+accident. The fix made the caret correct, which unmasked a real product bug (Ctrl+Tab in the editor inserted a tab while
+VS Code switched tabs).
+
+Fix: build patch `patchModifiedTabPassthrough` (esbuild-shared.mjs, `editorCommonEvent.ts`) returns early from the
+editor keydown listener for a Tab with ctrl/meta/alt, before any mode handler; bare Tab and Shift+Tab are unchanged.
+Tests: unit (`vditor-source-patches.test.ts`), chromium (`tab.spec.ts` Control/Alt/Meta+Tab), real VS Code
+(`escape-toolbar.spec.ts` 5/5; red again with the patch removed).

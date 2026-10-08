@@ -725,6 +725,27 @@ export function patchIrBlurExpand(code) {
       'expandElement.classList.remove("vditor-ir__node--expand"); } });',
   )
 }
+// Ctrl/Alt/Meta+Tab is a VS Code / OS chord whose keydown still reaches the webview, but Vditor's Tab
+// handlers (fixTab, table cell hop, list indent) ignore modifiers and typed a literal "\t". Bail out of
+// the editor keydown listener after options.keydown and before any mode handler.
+const MODIFIED_TAB_ANCHOR = `        if (!event.isComposing && vditor.options.keydown) {
+            vditor.options.keydown(event);
+        }
+`
+export function patchModifiedTabPassthrough(code) {
+  if (!code.includes(MODIFIED_TAB_ANCHOR)) {
+    throw new Error(
+      'patchModifiedTabPassthrough: options.keydown anchor not found in vditor util/editorCommonEvent.ts (version drift?)',
+    )
+  }
+  return code.replace(
+    MODIFIED_TAB_ANCHOR,
+    MODIFIED_TAB_ANCHOR +
+      '        if (event.key === "Tab" && (event.ctrlKey || event.metaKey || event.altKey)) {\n' +
+      '            return;\n' +
+      '        }\n',
+  )
+}
 // Task 385 — the clipboard on a COLLAPSED caret. Both defects were probe-confirmed in task 191
 // (`media-src/e2e/copy-cut-probes.spec.ts`, PROBE-14/15) and deliberately left in place then,
 // pending a product decision. The decision: a VS Code editor must behave like VS Code.
@@ -2460,7 +2481,9 @@ export const VDITOR_TS_PATCHES = [
     // patch here.
     file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]editorCommonEvent\.ts$/,
     transform: (code) =>
-      patchCutDeleteSync(patchClipboardCollapsed(patchIrBlurExpand(code))),
+      patchModifiedTabPassthrough(
+        patchCutDeleteSync(patchClipboardCollapsed(patchIrBlurExpand(code))),
+      ),
   },
   {
     file: /vditor[/\\]src[/\\]ts[/\\]util[/\\]selection\.ts$/,

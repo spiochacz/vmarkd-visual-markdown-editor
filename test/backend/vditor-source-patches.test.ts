@@ -32,6 +32,7 @@ import {
   patchCodeRenderSkipDiagram,
   patchCodeRenderCopyButton,
   patchIrBlurExpand,
+  patchModifiedTabPassthrough,
   patchSetContentTheme,
   patchCalloutArrowNav,
   patchMarkmapStatic,
@@ -1224,6 +1225,34 @@ describe('patchIrBlurExpand (code-block edit click flash)', () => {
   it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
     expect(() => patchIrBlurExpand('// unrelated source')).toThrow(
       /fixIrBlurExpand/,
+    )
+  })
+})
+
+describe('patchModifiedTabPassthrough (Ctrl/Alt/Meta+Tab must not insert a tab)', () => {
+  const ANCHOR = `        if (!event.isComposing && vditor.options.keydown) {
+            vditor.options.keydown(event);
+        }
+`
+
+  it('Vditor ships the unconditional options.keydown prologue of the editor keydown listener', () => {
+    expect(editorCommonEventSource).toContain(ANCHOR)
+  })
+
+  it('returns early for a modified Tab, right after the options.keydown hook and before any mode handler', () => {
+    const patched = patchModifiedTabPassthrough(editorCommonEventSource)
+    const guard =
+      'event.key === "Tab" && (event.ctrlKey || event.metaKey || event.altKey)'
+    expect(patched).toContain(guard)
+    expect(patched.indexOf(guard)).toBeGreaterThan(patched.indexOf(ANCHOR))
+    expect(patched.indexOf(guard)).toBeLessThan(
+      patched.indexOf('irProcessKeydown(vditor, event)'),
+    )
+  })
+
+  it('throws (fails the build loudly) if the anchor is gone — version-bump guard', () => {
+    expect(() => patchModifiedTabPassthrough('// unrelated source')).toThrow(
+      /patchModifiedTabPassthrough/,
     )
   })
 })

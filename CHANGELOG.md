@@ -17,6 +17,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   to open editors and an open Preview at once, and a toolbar button next to Outline flips it (pressed
   while on, kept in step with the VS Code setting). The instant-paint view shown while a file opens
   is already reflowed, so nothing moves when the editor takes over.
+- **Ctrl+Tab, Alt+Tab and Cmd+Tab reach VS Code untouched**: switching editors or windows from inside
+  vMarkd never types a tab character into the document.
 
 - **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
   selection, copying a partly selected heading keeps its marker, Enter in a list item's quote

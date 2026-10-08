@@ -52,3 +52,21 @@ test('without options.tab, Tab escapes focus out of the editor (the bug)', async
   expect(after.inEditor).toBe(false)
   expect(after.len).toBe(before.len) // nothing inserted
 })
+
+// Ctrl/Alt/Meta+Tab is a VS Code / OS chord (editor switching) whose keydown still reaches the
+// webview; Vditor's Tab handlers ignore modifiers, so it used to type a literal "\t" into the
+// document (build patch patchModifiedTabPassthrough). Bare Tab above must keep indenting.
+for (const chord of ['Control+Tab', 'Alt+Tab', 'Meta+Tab']) {
+  test(`${chord} does not insert a tab character`, async ({ page }) => {
+    await gotoTab(page, true)
+    const before = await state(page)
+    await page.keyboard.press(chord)
+    const after = await state(page)
+    expect(after.len).toBe(before.len)
+    expect(
+      await page.evaluate(() =>
+        (window as any).vditor.getValue().includes('\t'),
+      ),
+    ).toBe(false)
+  })
+}
