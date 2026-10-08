@@ -468,6 +468,20 @@ async function patchVditorIndexCss() {
     '.vditor-tip__close position',
   )
 
+  // 4b. The expanded IR code SOURCE's base text colour (task 532 follow-up). Vditor sets
+  // `.vditor-ir__node--expand .vditor-ir__marker--pre code { color: var(--textarea-text-color) }`
+  // (0,2,1), which out-ranks the active highlight.js style's `.hljs { color }` (0,1,0) that code-source.ts
+  // tags onto the same `<code>`, so the editable source drew the textarea colour (rgb(209,213,218) on
+  // dark) while the rendered half drew the hljs theme's own base colour (rgb(201,209,217) under
+  // github-dark, ...). Scope Vditor's rule to the code that is NOT hljs-tagged, so a tagged source takes
+  // its colour from the hljs theme exactly like the render, and an untagged one keeps Vditor's.
+  css = replaceAnchored(
+    css,
+    '.vditor-ir__node--expand .vditor-ir__marker--pre code {\n  color: var(--textarea-text-color);',
+    '.vditor-ir__node--expand .vditor-ir__marker--pre code:not(.hljs) {\n  color: var(--textarea-text-color);',
+    'IR expanded source code colour',
+  )
+
   // 5. `.vditor-outline` width (task 478 item 2). Vditor hardcodes 250px; main.css used to out-rank
   // it with an identical-selector override that only won on load order. Token-drive it instead of a
   // literal, so `main.ts`'s `--me-outline-width` (from the `outlineWidth` setting) still applies —

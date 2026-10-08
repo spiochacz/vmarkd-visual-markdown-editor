@@ -5,6 +5,7 @@
 
 const CODE_SOURCE_PROPS = [
   'background-color',
+  'color',
   'font-family',
   'font-size',
   'padding-top',

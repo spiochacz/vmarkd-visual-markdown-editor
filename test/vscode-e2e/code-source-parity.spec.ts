@@ -12,7 +12,7 @@ import { applySettings, useSettingsRestore } from './settings-helpers'
 import { wf } from './webview-helpers'
 
 // Task 532 follow-up - the IR code block's EDITABLE SOURCE panel (expanded) has the Preview code
-// block's background, font family/size and padding, driven by the active hljs style, in REAL VS Code.
+// block's background, text colour, font family/size and padding, driven by the active hljs style, in REAL VS Code.
 // The parity matrix parks the caret and so only sees the collapsed render; this covers the source half.
 // One boot per code theme (boot cost is per test - see playwright.config.ts).
 const FIXTURE = path.join(__dirname, 'fixtures', 'parity-canon.md')
@@ -21,6 +21,11 @@ const BASE = PARITY_CONFIGS.find((c) => c.fast)?.settings ?? {}
 const CASES: readonly [string, Record<string, unknown>][] = [
   ['auto code theme, Default Dark Modern', {}],
   ['monokai code theme', { 'vmarkd.theme.code': 'monokai' }],
+  ['auto code theme, Monokai', { 'workbench.colorTheme': 'Monokai' }],
+  [
+    'auto code theme, Default High Contrast',
+    { 'workbench.colorTheme': 'Default High Contrast' },
+  ],
   [
     'a11y-light code theme, Default Light Modern',
     {

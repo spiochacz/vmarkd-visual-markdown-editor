@@ -10,8 +10,8 @@ import {
 import { buildParityPage } from './parity-harness'
 
 // Task 532 follow-up — the IR code block's EDITABLE SOURCE panel (the expanded `pre.vditor-ir__marker--pre
-// > code`, tagged `.hljs` by code-source.ts) has the Preview code block's background, font family, size
-// and padding, for every code theme: both are driven by the active highlight.js style, nothing
+// > code`, tagged `.hljs` by code-source.ts) has the Preview code block's background, text colour, font family,
+// size and padding, for every code theme: both are driven by the active highlight.js style, nothing
 // hardcoded. The parity gate parks the caret so it only sees the collapsed render; this net covers the
 // expanded source half it cannot. Chromium harness only: it needs the production bundle + a code theme
 // per page (one boot each, ~9 s).
@@ -33,6 +33,8 @@ const COMBOS: readonly [string, string, string][] = [
   ['github-dark', 'Default Dark Modern', 'auto'],
   ['material-dark', 'Default Dark Modern', 'auto'],
   ['auto', 'Default Light Modern', 'auto'],
+  ['auto', 'Monokai', 'auto'],
+  ['auto', 'Default High Contrast', 'auto'],
   ['auto', 'Default Dark Modern', 'monokai'],
   ['auto', 'Default Dark Modern', 'github'],
   ['auto', 'Default Light Modern', 'a11y-light'],
