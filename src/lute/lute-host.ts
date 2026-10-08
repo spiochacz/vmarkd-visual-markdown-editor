@@ -27,7 +27,11 @@ import {
 import { repairWysiwygDom, restoreCellGaps } from '../shared/lute-gap-repair'
 import { wrapSoftBreaksInHtml } from '../shared/soft-break-html'
 import { escapeTableSpanPipes } from '../markdown/table-pipe-escape'
-import { newWikiLinkPattern, parseWikiPayload } from '../shared/wiki-core'
+import {
+  newWikiLinkPattern,
+  parseWikiPayload,
+  unescapeHtmlEntities,
+} from '../shared/wiki-core'
 
 const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 
@@ -273,19 +277,9 @@ function escapeWikiHtml(s: string): string {
   )
 }
 
-// The rendered DOM the chip transform sees is ALREADY entity-escaped by Lute (`[[A&B]]` arrives as
-// `[[A&amp;B]]`), while the webview's renderer works on the raw token text. Undo exactly the escapes
-// Lute applies so the chip is escaped ONCE, like the live editor's (a `&` in a page name showed up
-// as a literal `&amp;` in the overlay chip; found by wiki-chip-parity.test.ts). `&amp;` goes last so
-// `&amp;lt;` decodes to `&lt;`, not `<`.
-function unescapeWikiHtml(s: string): string {
-  return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&')
-}
-
+// The rendered DOM the chip transform sees is ALREADY entity-escaped by Lute, while the webview's
+// renderer works on the raw token text: decode (unescapeHtmlEntities) so the chip is escaped ONCE
+// (found by wiki-chip-parity.test.ts).
 // Own instance (see wiki-core.ts's newWikiLinkPattern doc comment) — isolated from the shared
 // WikiLinkPattern that custom-renderer.ts / wiki-serialize.ts / wiki-core.ts's own
 // extractWikiTargets also read; only renderWikiChipsInHtml below ever touches this one.
@@ -301,8 +295,10 @@ export function renderWikiChipsInHtml(html: string): string {
   return html.replace(
     wikiLinkPattern,
     (escapedFull: string, escapedInner: string) => {
-      const full = unescapeWikiHtml(escapedFull)
-      const { target, label } = parseWikiPayload(unescapeWikiHtml(escapedInner))
+      const full = unescapeHtmlEntities(escapedFull)
+      const { target, label } = parseWikiPayload(
+        unescapeHtmlEntities(escapedInner),
+      )
       const display = label || target
       return (
         `<span class="wiki-link-chip" data-wiki-link="1" ` +

@@ -15,6 +15,7 @@
 import {
   newWikiLinkPattern,
   parseWikiPayload,
+  unescapeHtmlEntities,
 } from '../../../src/shared/wiki-core'
 
 // Own instance (see wiki-core.ts's newWikiLinkPattern doc comment) — isolated from the shared
@@ -24,15 +25,6 @@ const wikiLinkPattern = newWikiLinkPattern()
 
 const CHIP_RE =
   /<span\b[^>]*\bclass="[^"]*wiki-link-chip[^"]*"[^>]*\bdata-wiki-source="([^"]*)"[^>]*>.*?<\/span>\u200B?/g
-
-function unescapeAttr(s: string): string {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-}
 
 function escapeAttr(s: string): string {
   return s
@@ -51,8 +43,8 @@ export function rewriteWikiChipsToSource(html: string): string {
   // block start (the "press space → jump to line start" bug).
   return html.replace(CHIP_RE, (full, source) =>
     full.includes('<wbr>')
-      ? `${unescapeAttr(source)}<wbr>`
-      : unescapeAttr(source),
+      ? `${unescapeHtmlEntities(source)}<wbr>`
+      : unescapeHtmlEntities(source),
   )
 }
 
@@ -66,8 +58,13 @@ export function setKnownPagesRef(pages: Set<string> | undefined): void {
 // patchLuteSerialize's SpinVditorIRDOM/SpinVditorDOM wrapping, which needs a live Lute instance.
 export function reintroduceChips(html: string): string {
   wikiLinkPattern.lastIndex = 0
-  return html.replace(wikiLinkPattern, (full, inner) => {
-    const { target, label } = parseWikiPayload(inner)
+  return html.replace(wikiLinkPattern, (escapedFull, escapedInner) => {
+    // The HTML is Lute's Spin output, already entity-escaped (`[[A&B]]` arrives as `[[A&amp;B]]`):
+    // decode first so the chip is escaped ONCE (same as lute-host.ts renderWikiChipsInHtml).
+    const full = unescapeHtmlEntities(escapedFull)
+    const { target, label } = parseWikiPayload(
+      unescapeHtmlEntities(escapedInner),
+    )
     const displayText = label || target
     const isMissing = _knownPages
       ? !_knownPages.has(

@@ -90,3 +90,16 @@ export function extractWikiTargets(markdown: string): string[] {
   }
   return Array.from(keys)
 }
+
+/**
+ * Undo the entity escapes Lute applies to text it renders (`[[A&B]]` arrives as `[[A&amp;B]]`).
+ * `&amp;` goes LAST: `&amp;lt;` is the text `&lt;`, not `<`.
+ */
+export function unescapeHtmlEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+}

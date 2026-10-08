@@ -82,4 +82,24 @@ describe('reintroduceChips', () => {
     expect(html).not.toContain('tabindex')
     expect(html).toContain('data-wiki-target="Page"')
   })
+
+  // Spin output is ALREADY entity-escaped by Lute (`[[A&B]]` arrives as `[[A&amp;B]]`): the chip must
+  // be escaped ONCE, so its source reads back to the original markdown byte-for-byte.
+  it.each([
+    ['A&B', '[[A&amp;B]]', '[[A&B]]'],
+    ['say "hi"', '[[say &quot;hi&quot;]]', '[[say "hi"]]'],
+    ['a<b>', '[[a&lt;b&gt;]]', '[[a<b>]]'],
+  ])(
+    'escapes %s once, and the chip round-trips to its markdown',
+    (target, lute, md) => {
+      const chip = reintroduceChips(`x ${lute} y`)
+      expect(chip).not.toContain('&amp;amp;')
+      expect(chip).not.toContain('&amp;quot;')
+      expect(chip).not.toContain('&amp;lt;')
+      expect(chip).toContain(
+        `data-wiki-target="${target.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}"`,
+      )
+      expect(rewriteWikiChipsToSource(chip)).toBe(`x ${md} y`)
+    },
+  )
 })
