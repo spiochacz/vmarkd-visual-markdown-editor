@@ -17,6 +17,8 @@ import {
 import { DiagramCache } from '../webview-host/diagram-cache-host'
 import { resolveCodeStyle, resolveFontSize } from '../shared/theme-registry'
 import { MarkdownEditorViewType } from '../shared/editor-view-type'
+import { resolveOpenMode, shouldStream } from '../shared/open-mode'
+import { resolveDefaultMode } from '../platform/default-mode'
 import {
   cfgFor,
   effectiveContentTheme,
@@ -187,12 +189,22 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
     const savedOpts = sanitizeVditorOptions(
       this._context.globalState.get(KeyVditorOptions),
     ) as { mode?: string } | undefined
-    const savedMode: EditorMode =
-      savedOpts?.mode === 'wysiwyg'
-        ? 'wysiwyg'
-        : savedOpts?.mode === 'sv'
-          ? 'sv'
-          : 'ir'
+    // Task 532 step 5a: the SAME rule the webview applies when it boots Vditor (resolveOpenMode), so
+    // the overlay is painted in the mode the editor will open in — not the mode the last session
+    // ended in when `vmarkd.editor.defaultMode` says otherwise.
+    const savedMode: EditorMode = resolveOpenMode(
+      savedOpts?.mode,
+      resolveDefaultMode({
+        setting: cfg.get<string>('editor.defaultMode'),
+        byGlob: cfg.get<Record<string, string>>('editor.defaultModeByGlob'),
+        relPath: vscode.workspace.asRelativePath(uri, false),
+      }),
+      // A huge document streams into IR whatever the mode (vditor-init.ts), so the overlay is IR too.
+      shouldStream(
+        content?.length ?? 0,
+        cfg.get<boolean>('performance.streamLargeFiles'),
+      ),
+    )
 
     const contentTheme = effectiveContentTheme(uri)
     return buildWebviewHtml({
@@ -233,6 +245,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               savedMode,
               isWikiFile(uri),
               cfg.get<boolean>('editor.reflowLineBreaks') !== false,
+              // Task 532 step 5c: sizes the webview reported for diagrams it rendered before. The
+              // lookup runs only when the document HAS a diagram, so the cache index is not read
+              // for plain documents.
+              (key) => this.diagramCache.getSize(key),
             )
           : undefined,
       // Gate the hljs preload on the FULL document (not the truncated preRenderedHtml) so a code fence

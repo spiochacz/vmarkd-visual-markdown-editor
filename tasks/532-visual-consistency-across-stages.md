@@ -520,20 +520,61 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       **Found, not fixed:** the live editor's `reintroduceChips` (wiki-serialize.ts) double-escapes `&` in a
       wiki page name the same way the host did.
 - [ ] **5. Overlay fidelity bugs (from the overlay report, separate but small).**
-      - [ ] 5a. **Mode mismatch with `vmarkd.editor.defaultMode`:** `resolveOpenMode(savedMode,
+      - [x] 5a. **Mode mismatch with `vmarkd.editor.defaultMode`:** `resolveOpenMode(savedMode,
             defaultMode)` in `src/shared/` used by BOTH `markdown-editor-provider.ts:189` and
             `vditor-options.ts:95` (`preview` → `ir` overlay); unit test for the 4×4 table;
             `prerender-reflow-parity`'s `openInMode` helper reused in the gate's fast boot with
             `defaultMode: wysiwyg` once per full run.
-      - [ ] 5b. **Transparent overlay background:** `#vmarkd-prerender { background: var(--vmarkd-
+      - [x] 5b. **Transparent overlay background:** `#vmarkd-prerender { background: var(--vmarkd-
             page-bg, var(--vscode-editor-background)) }` in `html-builder.ts`; the gate's overlay
             snapshot adds the root `background-color` (overlay == live `.vditor-reset`'s effective
             page bg).
-      - [ ] 5c. **Diagram placeholder height** from render-cache metadata (`{width,height}` added to
+      - [x] 5c. **Diagram placeholder height** from render-cache metadata (`{width,height}` added to
             the cache entry on PUT, read in `renderForMode`), fixed fallback min-height; delete the
             overlay-diagram allow entry (bounded tolerance for the no-cache case documented in the
             policy, not the allow-list).
       - [ ] 5d. (phase 2, after a size budget decision) inline the cached SVG into the overlay.
+      **Steps 5a-5c done 2026-10-08 (5d open).**
+      5a: `src/shared/open-mode.ts` `resolveOpenMode(saved, default)`, used by `markdown-editor-provider.ts`
+      (overlay mode; the host resolves `vmarkd.editor.defaultMode` + `defaultModeByGlob` with the same
+      `resolveDefaultMode` the webview's option comes from) and `vditor-options.ts`. Unit: 5 x 5 table
+      (`test/backend/open-mode.test.ts`). Real VS Code: `prerender-open-mode.spec.ts` (`defaultMode:
+      wysiwyg` -> the held overlay is `.vditor-wysiwyg`; `preview` -> `.vditor-ir`). RED with the old
+      savedMode logic (wysiwyg case: expected 1, received 0) and with `resolveOpenMode` ignoring the
+      default; GREEN restored. NOT done: the gate's fast boot does not run a `defaultMode: wysiwyg`
+      configuration (the dedicated spec carries it); a >700KB document is forced to IR by the webview's
+      streaming gate while the host may still paint WYSIWYG (pre-existing, not in this step).
+      5b: `#vmarkd-prerender` paints `var(--vmarkd-page-bg, var(--vscode-editor-background))`;
+      `material-dark.css` was the one theme missing `--vmarkd-page-bg` (live page `#282c34`, the
+      overlay would have fallen back to the editor background - the gate caught it), now declared.
+      The snapshot's root cell gains `style.page-bg` (the overlay's own container colour; the live stages
+      walk up to the first painted ancestor, else the editor background). RED = transparent overlay: 8
+      unexplained cells in the harness, 1 in real VS Code (`rgba(0, 0, 0, 0)` vs `rgb(18, 19, 20)`).
+      5c: the theme-independent size key + `annotateDiagramSizes` (`src/shared/diagram-size.ts`), the sizes
+      kept in the render cache's `index.json` under a separate `sizes` map (the host cannot recompute the
+      webview's theme-folding SVG hash at HTML-build time, so the size is NOT a field of the SVG entry;
+      backwards compatible, no cache-format tag bump), the webview reports `{sizeKey, size: [w, h, pad]}`
+      on the `diagram-render-cached` PUT, `renderForMode(..., diagramSize)` tags the overlay's diagram
+      previews, and the `diagram-placeholder` overlay decorator (`editing/diagram-placeholder.ts`) empties
+      the source and reserves `aspect-ratio` at `min(100%, w)` (pad folded into the ratio) - or the fixed
+      `--vmarkd-geo-diagram-min-h` (160px) when uncached. The 14 `532 step 5` allow entries are deleted;
+      the by-design placeholder cells (`marker.svg`, `text.*`, `firstGlyphX` of a diagram kind in
+      `overlay>ir`) are exempted in `policy.ts` (`isOverlayPlaceholderCell`), the uncached contract is
+      pinned by `parity.spec.ts` instead of the allow-list. The gate measures the CACHED open (harness:
+      first open reports the sizes to a stub host, the capture page is rebuilt with them; real VS Code:
+      the matrix spec opens, closes and re-opens the file). Real VS Code, mermaid + d2
+      (`diagram-overlay-height.spec.ts`): first open jump of the block below = 297px (160 + 160 reserved
+      vs 284 + 333 rendered), second open -0.01px. Before: the overlay showed the source (27px per
+      diagram, -257px/-229px vs the render). NOT done: 5d (inline cached SVG); the fixed fallback
+      height is a guess (160px) - a first-ever open still jumps by |rendered - 160|.
+      **Review fixes (2026-10-08):** (A) `STREAM_MIN_CHARS` + `shouldStream()` moved to `src/shared/open-mode.ts`;
+      `resolveOpenMode(saved, default, streamed)` pins IR for a streamed document, used by the host overlay
+      (reads `performance.streamLargeFiles`) and `vditor-init.ts` (`streamActive`) - one rule. Unit: `open-mode.test.ts`;
+      real VS Code: `prerender-open-mode.spec.ts` (>700k doc + `defaultMode: wysiwyg` -> IR overlay), RED with the host
+      arg neutralised. (B) `measureDiagramSize` stores the svg's NATURAL size (absolute width/height attrs, pt->px, else
+      viewBox; live box only as fallback), so a narrow-pane first render no longer under-reserves a wide pane.
+      (C) `reportRenders` keeps a separate `size:<hash>` slot: a zero/hidden measurement posts no size and does not
+      block the later report. Unit tests for both, RED with each fix reverted.
 - [ ] **6. Loose lists survive serialization** (decision 2): `restoreLooseLists` in
       `lute-block-repair.ts` + oracle; `patchGetMarkdownSerialize` seam → `__vmarkdSerializeIr`;
       `edit-sync.ts` incremental path; `reserializeMarkdown` on the host; unit corpus (tight, loose,

@@ -1784,6 +1784,22 @@ body {
   --vmarkd-geo-code-radius: 5px;
   --vmarkd-geo-code-lh: 1.5;
   --vmarkd-geo-hr-gap: 0.5em;
+  /* Height the instant-paint overlay reserves for a diagram it has no recorded size for. */
+  --vmarkd-geo-diagram-min-h: 160px;
+}
+/* The instant-paint overlay's stand-in for a diagram (editing/diagram-placeholder.ts): an empty box,
+   never the fence source. With a recorded size it keeps the diagram's aspect ratio at `min(100%, w)`
+   (the svg is shrink-only), the wrapper's own extra height folded into --vmarkd-dh; without one, a fixed
+   minimum. */
+.vmarkd-diagram-placeholder > [class*="language-"] {
+  display: block;
+  min-height: var(--vmarkd-geo-diagram-min-h, 160px);
+}
+.vmarkd-diagram-placeholder--sized > [class*="language-"] {
+  box-sizing: border-box;
+  width: min(100%, calc(var(--vmarkd-dw) * 1px));
+  aspect-ratio: var(--vmarkd-dw) / var(--vmarkd-dh);
+  min-height: 0;
 }
 /* Rendered diagrams and display math in the PREVIEW get the same TOP margin as the IR/WYSIWYG dual-node
    wrapper (`div[data-type="code-block"]`, `margin: 1em 0` above): Vditor gives them only

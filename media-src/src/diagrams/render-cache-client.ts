@@ -21,6 +21,8 @@
 // half, which is already Lute-invisible; we additionally tag the div `data-render="1"` so
 // getValue()/serializeForHost() are byte-identical present vs absent (belt-and-suspenders,
 // covers the WYSIWYG direct-open flatten path too).
+import { diagramSizeKey, fnv64Hex } from '../../../src/shared/diagram-size'
+import { measureDiagramSize } from '../editing/diagram-placeholder'
 import { engineLangs } from '../diagram-kit/engine-registry'
 import {
   backSpritesIn,
@@ -162,15 +164,6 @@ export function setRenderCacheConfig(next: Partial<RenderCacheConfig>): void {
 // than before and stop matching — they don't collide with anything, they just become unreachable
 // orphans (harmless; bounded by localSvgByHash's own LRU cap, and the host disk store's own cap).
 // No host-side version bump needed for this class of change.
-function fnv1aLane(key: string, offsetBasis: number): number {
-  let h = offsetBasis
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i)
-    // FNV prime multiply via shifts, kept in 32-bit unsigned range.
-    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0
-  }
-  return h
-}
 export function hashOf(lang: string, source: string): string {
   // Task 408 — this engine's OWN configKeys only (empty for an engine with none, e.g. vega/
   // wavedrom/plantuml), so a setting owned by a DIFFERENT engine never appears in this key.
@@ -186,9 +179,7 @@ export function hashOf(lang: string, source: string): string {
   // prevent boundary-shift collisions" regression test, which reproduces the exact collision
   // above if this separator is ever weakened.
   const key = `${lang}\x00${cfg.version}\x00${cfg.themeKey}\x00${engineFragment}\x00${source}`
-  const lo = fnv1aLane(key, 0x811c9dc5) // the standard FNV-1a 32-bit offset basis
-  const hi = fnv1aLane(key, 0x1000193 ^ 0xffffffff) // a distinct seed for the second lane (correlated, not independent — see header)
-  return hi.toString(16).padStart(8, '0') + lo.toString(16).padStart(8, '0')
+  return fnv64Hex(key) // two FNV-1a lanes, distinct seeds (correlated, not independent — see header)
 }
 
 // A stable id for a diagram block within a document: `${lang}#${ordinal}`, ordinal = its index
@@ -205,6 +196,18 @@ function diagramIdFor(
   )
   const ordinal = Math.max(0, all.indexOf(wrapper))
   return `${lang}#${ordinal}`
+}
+
+// The `sizeKey`/`size` pair of a PUT, or nothing while the block has no measurable box.
+function sizeFields(
+  lang: string,
+  el: HTMLElement,
+  source: string,
+): { sizeKey: string; size: [number, number, number] } | undefined {
+  const size = measureDiagramSize(el)
+  return size
+    ? { sizeKey: diagramSizeKey(lang, source), size: [...size] }
+    : undefined
 }
 
 // Post the finished renders we haven't reported yet. Engine-agnostic within CACHEABLE_LANGS:
@@ -275,8 +278,14 @@ function reportRenders(
     // Remember it locally even when the host already has it — the host copy is only readable via
     // an async round-trip that no longer happens after open (task 365).
     rememberLocal(localKey(lang, source), el.innerHTML)
-    if (reported.has(hash)) return
+    // The size can arrive later than the svg: a block measured while hidden/zero-size has none yet.
+    // Such a report must not use up the hash's one slot for the size (`size:` entry), or the overlay
+    // would never learn it this session.
+    const fields = sizeFields(lang, el, source)
+    const sizeSlot = `size:${hash}`
+    if (reported.has(hash) && !(fields && !reported.has(sizeSlot))) return
     reported.add(hash)
+    if (fields) reported.add(sizeSlot)
     post({
       command: 'diagram-render-cached',
       diagramId,
@@ -287,6 +296,8 @@ function reportRenders(
       // visibly, but the markup grew with every mode switch and the two panes stopped being
       // byte-comparable, which is what mode-switch-render-reuse.spec.ts asserts.
       svg: stripSvgIdNamespace(el.innerHTML),
+      // Task 532 step 5c: what the next open's overlay reserves for this diagram.
+      ...fields,
     })
   }
   for (const lang of CACHEABLE_LANGS) {

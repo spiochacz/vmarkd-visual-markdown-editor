@@ -6,6 +6,7 @@ import { isWikiFile } from '../wiki/wiki'
 import { serializeInitPayload } from '../webview-host/html-builder'
 import type { WebviewMessage } from '../shared/protocol'
 import type { DiagramCache } from '../webview-host/diagram-cache-host'
+import { isDiagramSize, isDiagramSizeKey } from '../shared/diagram-size'
 import { WritebackController } from '../writeback/writeback-controller'
 import {
   collectConfigOptions,
@@ -239,6 +240,9 @@ export class EditorSession {
       message.hash,
       message.svg,
     )
+    // Task 532 step 5c: the rendered size, filed under its own theme-independent key for the overlay.
+    if (isDiagramSizeKey(message.sizeKey) && isDiagramSize(message.size))
+      this.diagramCache.putSize(message.sizeKey, message.size)
   }
 
   // The webview reports which large-document helpers are active (content-visibility,

@@ -218,6 +218,27 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
     }
   }
 
+  // Task 532 step 5b — what the user actually SEES behind the content: the first ancestor with a
+  // painted background; a transparent webview body shows the editor background behind it, so that is
+  // the fallback. The held overlay stands ON TOP of the live editor, so a walk that continued past a
+  // transparent overlay would find the live page and agree by accident: for the overlay the walk
+  // stops at its own container, which therefore has to paint the page colour itself.
+  const pageBg = (): string => {
+    const container = root.closest('#vmarkd-prerender')
+    if (container) return getComputedStyle(container).backgroundColor
+    for (let a: Element | null = root; a; a = a.parentElement) {
+      const bg = getComputedStyle(a).backgroundColor
+      if (bg && bg !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(bg)) return bg
+    }
+    const probe = document.createElement('div')
+    probe.style.cssText =
+      'position:absolute;visibility:hidden;background-color:var(--vscode-editor-background, transparent)'
+    document.body.appendChild(probe)
+    const out = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return out
+  }
+
   const rootSnap: CellSnapshot = {
     rect: { width: r2(rootRect.width) },
     style: read(root, [
@@ -235,6 +256,7 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
     marker: {},
     shape: '',
   }
+  rootSnap.style['page-bg'] = pageBg()
 
   const cells: Record<string, CellSnapshot | null> = {}
   let prevBottom: number | null = null

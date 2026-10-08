@@ -179,10 +179,12 @@ function buildPrerenderOverlay(
     `media/vditor/dist/css/content-theme/${theme === 'dark' ? 'dark' : 'light'}.css`,
   )}" rel="stylesheet">`
 
-  // Background is transparent so the (theme-correct) body background shows through:
-  // for a forced GitHub theme (task 82) the body is the GitHub canvas, for `auto`
-  // it's --vscode-editor-background — either way no light/dark flash before swap.
-  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:transparent;}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
+  // Task 532 step 5b: the overlay paints the page colour itself. It used to be transparent, so
+  // while it stood over the booting editor the live text bled through (and a theme whose page colour
+  // is painted by an ancestor other than the body could show a different shade). --vmarkd-page-bg is
+  // the one token every theme sets to the surface its content sits on (a named theme: its own canvas;
+  // `auto`: the editor background), so the overlay and the live editor resolve to the same colour.
+  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vmarkd-page-bg,var(--vscode-editor-background));}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
 
   // Prepaint scroll capture: accumulate the user's wheel/key scroll over the static
   // teaser (before the live editor mounts) so the editor opens at the scrolled

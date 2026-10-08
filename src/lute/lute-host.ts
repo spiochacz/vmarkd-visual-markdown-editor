@@ -17,6 +17,8 @@
 // Loaded in an isolated `vm` context so the GopherJS blob never pollutes the
 // shared extension-host global (`global.Lute` stays undefined elsewhere).
 
+import { annotateDiagramSizes, type DiagramSize } from '../shared/diagram-size'
+import type { EditorMode } from '../shared/open-mode'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vm from 'node:vm'
@@ -63,7 +65,7 @@ const LUTE_REL = 'media/vditor/dist/js/lute/lute.min.js'
 // one-time Lute $init (~150–250 ms) is paid once per session regardless of this cap.
 const MAX_PRERENDER_CHARS = 10_000
 
-export type EditorMode = 'ir' | 'wysiwyg' | 'sv'
+export type { EditorMode }
 
 let lute:
   | {
@@ -230,6 +232,7 @@ export function renderForMode(
   mode: EditorMode,
   wikiEnabled = false,
   reflowLineBreaks = false,
+  diagramSize?: (key: string) => DiagramSize | undefined,
 ): string | undefined {
   if (mode === 'sv') return undefined
   if (!lute) {
@@ -262,9 +265,14 @@ export function renderForMode(
     // text. For a wiki file, rewrite them to the same chip spans the live editor
     // emits so the instant-paint overlay shows styled chips, not raw [[…]].
     const withChips = wikiEnabled ? renderWikiChipsInHtml(html) : html
+    // Task 532 step 5c: tag every diagram we have a recorded size for, so the overlay reserves its
+    // height (editing/diagram-placeholder.ts) instead of showing the raw source in a code-sized box.
+    const sized = diagramSize
+      ? annotateDiagramSizes(withChips, diagramSize)
+      : withChips
     // Task 83: with reflow on the live editor wraps every soft-break newline in a marker span; do the
     // same here so the overlay already has the reflowed layout and nothing moves at the swap.
-    return reflowLineBreaks ? wrapSoftBreaksInHtml(withChips) : withChips
+    return reflowLineBreaks ? wrapSoftBreaksInHtml(sized) : sized
   } catch {
     return undefined
   }

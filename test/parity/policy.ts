@@ -67,3 +67,34 @@ export const isRectProp = (property: string): boolean =>
  * policy does not round them).
  */
 export const NUMERIC_EPSILON = 0.001
+
+/**
+ * Task 532 step 5c — what the instant-paint overlay is allowed NOT to match for a diagram.
+ *
+ * The overlay does not draw the diagram: it reserves its box (media-src/src/editing/diagram-
+ * placeholder.ts) and the live editor paints the SVG at the swap (inlining the cached SVG is step 5d).
+ * So a diagram kind's `marker.svg` is 0 in the overlay by construction, and it has no painted glyph
+ * (the raw source is not shown), hence no `firstGlyphX` and no `text.*` cells. Everything that decides
+ * whether the content below MOVES at the swap — `rect.height`, `gapBefore`, `left`, `width` and the
+ * block styles — stays compared at the overlay's normal tolerance.
+ *
+ * That holds for the CACHED case, which is what the gate measures (the harness reports each render's
+ * size to a stub host and re-opens the page with them; the VS Code spec re-opens the real file in the
+ * same window). UNCACHED, the host has no size and the placeholder is the fixed
+ * `--vmarkd-geo-diagram-min-h`: the jump is bounded by |rendered height - that minimum| and cannot be
+ * asserted against a size nobody knows yet, so it is not in the allow-list either — parity.spec.ts
+ * pins the contract instead (no source text, the placeholder is exactly the minimum high).
+ */
+export const OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT = 160
+
+const OVERLAY_PLACEHOLDER_PROPS = /^(marker\.svg|text\..+|rect\.firstGlyphX)$/
+
+/** True for the cells of a diagram kind that the overlay's placeholder cannot match by design. */
+export const isOverlayPlaceholderCell = (
+  stagePair: StagePair,
+  isDiagramKind: boolean,
+  property: string,
+): boolean =>
+  stagePair === 'overlay>ir' &&
+  isDiagramKind &&
+  OVERLAY_PLACEHOLDER_PROPS.test(property)

@@ -9,6 +9,7 @@
 // stale saved value can't override the current setting — otherwise a setting
 // becomes a one-way switch (e.g. line numbers that turn on but never off).
 
+import { resolveOpenMode } from '../../../src/shared/open-mode'
 import { resolveCodeStyle } from '../../../src/shared/theme-registry'
 import { deepMerge } from '../util/deep-merge'
 
@@ -91,10 +92,13 @@ export function buildVditorOptions(msg: any): any {
   // previous session happened to end in — the setting would look like it did nothing.
   // Absent = 'remember', which is precisely "leave the saved mode alone", so this only ever fires
   // when the user asked for a specific mode. 'preview' is not a Vditor mode: it boots ir and toggles
-  // the Preview overlay after init (vditor-init.ts), so it maps to ir here.
+  // the Preview overlay after init (vditor-init.ts), so it maps to ir here. Task 532 step 5a: the
+  // precedence is the shared resolveOpenMode, the SAME function the host paints the overlay with.
   const openMode = msg.options?.defaultMode
   if (openMode) {
-    opts = deepMerge(opts, { mode: openMode === 'preview' ? 'ir' : openMode })
+    opts = deepMerge(opts, {
+      mode: resolveOpenMode(msg.options?.mode, openMode),
+    })
   }
   return opts
 }

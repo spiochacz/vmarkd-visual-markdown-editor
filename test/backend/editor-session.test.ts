@@ -14,6 +14,7 @@ function makeSession(fsPath = '/ws/note.md', text = '# Hi\n\nbody\n') {
   // injected html builder — stand-in for the provider's _getHtmlForWebview
   const html = (_w: unknown, _u: unknown, content?: string) =>
     `<div id="app"></div>${content ?? ''}`
+  const sizes: [string, number[]][] = []
   // task 184 — a no-op diagram-cache stub (the provider injects the real one).
   const diagramCache = {
     registerDoc() {
@@ -28,6 +29,9 @@ function makeSession(fsPath = '/ws/note.md', text = '# Hi\n\nbody\n') {
     put() {
       /* no-op stub — see comment above */
     },
+    putSize(key: string, size: number[]) {
+      sizes.push([key, size])
+    },
   }
   const session = new EditorSession(
     context as any,
@@ -36,7 +40,7 @@ function makeSession(fsPath = '/ws/note.md', text = '# Hi\n\nbody\n') {
     diagramCache as any,
     html as any,
   )
-  return { session, panel, document }
+  return { session, panel, document, sizes }
 }
 
 describe('EditorSession (constructed directly)', () => {
@@ -58,6 +62,27 @@ describe('EditorSession (constructed directly)', () => {
     )
     expect(init).toBeDefined()
     expect(init.content).toContain('# Title')
+  })
+
+  // Task 532 step 5c — the rendered size rides on the cache PUT and is filed under its own key.
+  it('files a reported diagram size with the cache, and ignores a malformed one', async () => {
+    const { session, panel, sizes } = makeSession()
+    session.start()
+    const put = (extra: object) =>
+      panel._receiveMessage({
+        command: 'diagram-render-cached',
+        diagramId: 'd2#0',
+        hash: 'h',
+        svg: '<svg/>',
+        ...extra,
+      })
+    await put({ sizeKey: '1'.repeat(16), size: [100, 50, 6] })
+    await put({ sizeKey: '2'.repeat(16), size: [0, 50, 6] })
+    await put({ sizeKey: '3'.repeat(16), size: 'big' })
+    await put({ sizeKey: 'not-hex', size: [100, 50, 6] })
+    await put({ size: [100, 50, 6] })
+    await put({})
+    expect(sizes).toEqual([['1'.repeat(16), [100, 50, 6]]])
   })
 
   it('removes its panel from the active-panel registry on dispose', () => {

@@ -26,6 +26,11 @@
 // src/extension.ts.
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {
+  type DiagramSize,
+  isDiagramSize,
+  isDiagramSizeKey,
+} from '../shared/diagram-size'
 
 interface DiagramCacheOptions {
   /** Storage directory (host resolves this to `<globalStorageUri>/diagram-render-cache`). */
@@ -57,6 +62,11 @@ interface Entry {
 }
 
 const DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+// Task 532 step 5c: rendered diagram sizes (a 3-number tuple each, ~60 bytes in index.json) are kept
+// beside the SVGs, in the same index file, under their own theme-independent key (shared/diagram-size).
+// Plain insertion-order bound: they are tiny, and a dropped one only costs a taller jump on that
+// diagram's next cold open.
+const MAX_SIZES = 4000
 const DEFAULT_FLUSH_MS = 750
 // Orphan-blob GC skips blobs younger than this: a concurrently-flushing OTHER window writes
 // blobs BEFORE its index lands, so a fresh unreferenced blob may be about to be referenced.
@@ -83,6 +93,9 @@ export class DiagramCache {
   // Ref-counted because the same render can be the current-set entry of several diagrams
   // (e.g. duplicate diagrams, or the IR preview + the full-Preview overlay of one block).
   private readonly pinCount = new Map<string, number>()
+
+  // Task 532 step 5c — diagram size by `diagramSizeKey(lang, source)`; Map order = recency of write.
+  private readonly sizes = new Map<string, DiagramSize>()
 
   private totalBytes = 0
   private loaded = false
@@ -134,12 +147,16 @@ export class DiagramCache {
       const index = JSON.parse(raw) as {
         version?: string
         entries?: Record<string, { bytes: number; lastUsed: number }>
+        sizes?: Record<string, unknown>
       }
       if (index.version !== this.version) {
         // Engine-version bump → old-version SVGs must not be reused. Wipe + start fresh.
         this.wipeDisk()
         return
       }
+      for (const [key, size] of Object.entries(index.sizes ?? {}))
+        if (isDiagramSizeKey(key) && isDiagramSize(size))
+          this.sizes.set(key, size)
       for (const [hash, meta] of Object.entries(index.entries ?? {})) {
         this.diskOnly.set(hash, { bytes: meta.bytes, lastUsed: meta.lastUsed })
         this.totalBytes += meta.bytes
@@ -278,6 +295,27 @@ export class DiagramCache {
     this.scheduleFlush()
   }
 
+  /** The size a diagram last rendered at (task 532 step 5c), or undefined when never reported. */
+  getSize(key: string): DiagramSize | undefined {
+    this.ensureLoaded()
+    return this.sizes.get(key)
+  }
+
+  /** Remember a diagram's rendered size; a repeat of the stored value is not a write. */
+  putSize(key: string, size: DiagramSize): void {
+    this.ensureLoaded()
+    const prev = this.sizes.get(key)
+    if (prev?.every((n, i) => n === size[i])) return
+    this.sizes.delete(key)
+    this.sizes.set(key, size)
+    while (this.sizes.size > MAX_SIZES) {
+      const oldest = this.sizes.keys().next().value
+      if (oldest === undefined) break
+      this.sizes.delete(oldest)
+    }
+    this.scheduleFlush()
+  }
+
   /** Mark a document open (so its future pins are retained). Optional — `put` registers a
    *  doc implicitly; this lets the host pre-register on open for clarity. */
   registerDoc(docUri: string): void {
@@ -359,7 +397,7 @@ export class DiagramCache {
     }
     try {
       fs.mkdirSync(this.blobsDir, { recursive: true })
-      const rows = this.readDiskRows()
+      const { rows, sizes: diskSizes } = this.readDiskIndex()
       // Heal: another window's eviction may have deleted a blob our entries still cover.
       for (const hash of this.entries.keys()) {
         if (!rows[hash] && !this.pendingWrites.has(hash)) {
@@ -388,10 +426,11 @@ export class DiagramCache {
           lastUsed: disk ? Math.max(disk.lastUsed, e.lastUsed) : e.lastUsed,
         }
       }
+      const sizes = this.mergedSizes(diskSizes)
       const tmp = `${this.indexPath}.${process.pid}.tmp`
       fs.writeFileSync(
         tmp,
-        JSON.stringify({ version: this.version, entries: rows }),
+        JSON.stringify({ version: this.version, entries: rows, sizes }),
         'utf8',
       )
       fs.renameSync(tmp, this.indexPath) // atomic — readers never observe a torn index
@@ -400,18 +439,41 @@ export class DiagramCache {
     }
   }
 
-  // The current on-disk index rows, or {} when absent/corrupt/other-version. A
+  // Task 532 step 5c: the disk's sizes (another window's) with ours on top, newest last, bounded.
+  private mergedSizes(
+    disk: Record<string, DiagramSize>,
+  ): Record<string, DiagramSize> {
+    const sizes = { ...disk, ...Object.fromEntries(this.sizes) }
+    const keys = Object.keys(sizes)
+    for (const k of keys.slice(0, Math.max(0, keys.length - MAX_SIZES)))
+      delete sizes[k]
+    return sizes
+  }
+
+  // The current on-disk index (rows + sizes), or empty when absent/corrupt/other-version. A
   // different-version index (a window that hasn't picked up the new engine pin yet)
   // must not leak old-engine rows into our merged write.
-  private readDiskRows(): IndexRows {
+  private readDiskIndex(): {
+    rows: IndexRows
+    sizes: Record<string, DiagramSize>
+  } {
+    const empty = {
+      rows: {} as IndexRows,
+      sizes: {} as Record<string, DiagramSize>,
+    }
     try {
       const index = JSON.parse(fs.readFileSync(this.indexPath, 'utf8')) as {
         version?: string
         entries?: IndexRows
+        sizes?: Record<string, unknown>
       }
-      return index.version === this.version ? { ...(index.entries ?? {}) } : {}
+      if (index.version !== this.version) return empty
+      const sizes: Record<string, DiagramSize> = {}
+      for (const [k, v] of Object.entries(index.sizes ?? {}))
+        if (isDiagramSizeKey(k) && isDiagramSize(v)) sizes[k] = v
+      return { rows: { ...(index.entries ?? {}) }, sizes }
     } catch {
-      return {}
+      return empty
     }
   }
 

@@ -4,7 +4,9 @@ import { captureStages } from '../../test/parity/capture'
 import type { ParityRun } from '../../test/parity/compare'
 import { PARITY_CONFIGS } from '../../test/parity/configs'
 import { PARITY_MARKERS } from '../../test/parity/elements'
+import { OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT } from '../../test/parity/policy'
 import { judgeRuns } from '../../test/parity/gate'
+import type { DiagramSize } from '../../src/shared/diagram-size'
 import { buildParityPage } from './parity-harness'
 
 // Task 532 — the cross-stage parity gate, chromium layer (CI, every PR). Canonical fixture ×
@@ -21,33 +23,103 @@ test.describe.configure({ mode: 'serial' })
 const runs: ParityRun[] = []
 const ORIGIN = 'http://localhost:9123'
 
+const stubbed = new WeakSet<Page>()
+
 async function open(page: Page, html: string): Promise<void> {
   // The webview talks to the host through acquireVsCodeApi; the inline init payload boots the editor
-  // without a reply, so a no-op stub is enough (same as prerender.spec.ts).
-  await page.addInitScript(() => {
-    ;(window as unknown as { acquireVsCodeApi: unknown }).acquireVsCodeApi =
-      () => ({
-        postMessage: () => undefined,
-        getState: () => undefined,
-        setState: () => undefined,
-      })
-  })
+  // without a reply, so a stub is enough (same as prerender.spec.ts). It keeps what the webview
+  // posts: the first open of a document reports each diagram's rendered size (step 5c).
+  if (!stubbed.has(page)) {
+    stubbed.add(page)
+    await page.addInitScript(() => {
+      const posted: unknown[] = []
+      ;(window as unknown as { __posted: unknown[] }).__posted = posted
+      ;(window as unknown as { acquireVsCodeApi: unknown }).acquireVsCodeApi =
+        () => ({
+          postMessage: (m: unknown) => posted.push(m),
+          getState: () => undefined,
+          setState: () => undefined,
+        })
+    })
+  }
+  await page.unroute('**/parity.html')
   await page.route('**/parity.html', (route) =>
     route.fulfill({ contentType: 'text/html', body: html }),
   )
   await page.goto('/parity.html', { waitUntil: 'domcontentloaded' })
 }
 
+// Task 532 step 5c — the FIRST open of the canon: the overlay has no recorded diagram size, and the
+// webview reports each rendered diagram's `{sizeKey, size}` to the host. Returns those sizes, which
+// the capture open then feeds the overlay exactly the way the host's render cache would.
+async function reportedDiagramSizes(
+  page: Page,
+): Promise<Map<string, DiagramSize>> {
+  await page.waitForFunction(
+    () =>
+      (
+        window as unknown as {
+          __posted: { command: string; size?: unknown }[]
+        }
+      ).__posted.filter((m) => m.command === 'diagram-render-cached' && m.size)
+        .length >= 2,
+    undefined,
+    { timeout: 60_000 },
+  )
+  const posted = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __posted: { command: string; sizeKey?: string; size?: DiagramSize }[]
+        }
+      ).__posted,
+  )
+  const sizes = new Map<string, DiagramSize>()
+  for (const m of posted)
+    if (m.command === 'diagram-render-cached' && m.sizeKey && m.size)
+      sizes.set(m.sizeKey, m.size)
+  return sizes
+}
+
 for (const config of PARITY_CONFIGS) {
   test(`capture ${config.id}`, async ({ page }) => {
     test.setTimeout(240_000)
     await open(page, await buildParityPage(config, ORIGIN))
+    const sizes = await reportedDiagramSizes(page)
+    expect(sizes.size, 'the first open reported both diagrams').toBe(2)
+    await open(page, await buildParityPage(config, ORIGIN, undefined, sizes))
     const stages = await captureStages({
       evaluate: <T>(expr: string) => page.evaluate<T>(expr),
     })
     runs.push({ theme: config.id, stages })
   })
 }
+
+// Task 532 step 5c — the UNCACHED contract (policy.ts OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT): with no
+// recorded size the overlay shows an empty box of the fixed minimum height, never the fence source.
+test('an uncached diagram is an empty box of the fixed minimum height, not its source', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  const config = PARITY_CONFIGS.find((c) => c.fast) ?? PARITY_CONFIGS[0]
+  await open(page, await buildParityPage(config, ORIGIN))
+  await page.waitForSelector('#vmarkd-prerender .vmarkd-diagram-placeholder')
+  const boxes = await page.evaluate(() =>
+    Array.from(
+      document.querySelectorAll(
+        '#vmarkd-prerender .vmarkd-diagram-placeholder > *',
+      ),
+    ).map((e) => ({
+      text: e.textContent,
+      height: e.getBoundingClientRect().height,
+    })),
+  )
+  expect(boxes).toHaveLength(2)
+  for (const b of boxes) {
+    expect(b.text).toBe('')
+    expect(b.height).toBe(OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT)
+  }
+})
 
 test('stages agree across every configuration (modulo the allow-list)', () => {
   expect(runs.length, 'every configuration was captured').toBe(

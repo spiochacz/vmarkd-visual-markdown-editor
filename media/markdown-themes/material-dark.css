@@ -13,6 +13,9 @@
   background-color: #282c34;
   /* native scrollbars + form controls follow this theme, not the VS Code editor */
   color-scheme: dark;
+  /* The surface anything drawn INSIDE the page sits on (d2's edge-label halo, the instant-paint
+     overlay's background — task 532 step 5b). Keep in sync with the background-color above. */
+  --vmarkd-page-bg: #282c34;
 }
 /* base text — also on .vditor-reset (Vditor sets the reset's color directly via
    --textarea-text-color, which beats inheritance from .markdown-body). */

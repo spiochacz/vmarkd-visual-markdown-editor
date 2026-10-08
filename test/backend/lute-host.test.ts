@@ -7,6 +7,7 @@ import {
   renderWikiChipsInHtml,
   reserializeMarkdown,
 } from '../../src/lute/lute-host'
+import { diagramSizeKey } from '../../src/shared/diagram-size'
 import {
   isLuteArtifactBuilt,
   waitForLuteWarm,
@@ -175,6 +176,26 @@ describe('lute-host renderForMode', () => {
         expect(
           on?.replace(/<span class="vmarkd-softbreak"[^>]*>\n<\/span>/g, '\n'),
         ).toBe(off)
+      },
+    )
+
+    // Task 532 step 5c: the overlay reserves a diagram's recorded height. The key must be the one the
+    // webview files the size under (diagramSizeKey of the fence source) for every mode.
+    it.each(['ir', 'wysiwyg'] as const)(
+      'tags a diagram whose size was recorded, keyed by its fence source (%s)',
+      (mode) => {
+        const src = 'graph TD\n  A[X] --> B["a < b & c"]'
+        const md = `before\n\n\`\`\`mermaid\n${src}\n\`\`\`\n\n\`\`\`ts\nconst a = 1\n\`\`\`\n`
+        const seen: string[] = []
+        const html = renderForMode(ROOT, md, mode, false, false, (key) => {
+          seen.push(key)
+          return key === diagramSizeKey('mermaid', src)
+            ? [160, 278, 6]
+            : undefined
+        })
+        expect(seen).toContain(diagramSizeKey('mermaid', src))
+        expect(html?.match(/data-vmarkd-dsize="160,278,6"/g)).toHaveLength(1)
+        expect(renderForMode(ROOT, md, mode)).not.toContain('data-vmarkd-dsize')
       },
     )
 

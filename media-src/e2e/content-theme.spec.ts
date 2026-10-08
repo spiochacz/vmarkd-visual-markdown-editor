@@ -1184,6 +1184,8 @@ for (const [themeFile, pageBg] of [
   ['github-markdown-dark.css', 'rgb(13, 17, 23)'],
   ['vscode-light-2026.css', 'rgb(255, 255, 255)'],
   ['vscode-dark-2026.css', 'rgb(18, 19, 20)'],
+  // Task 532 step 5b: declares the token too (the instant-paint overlay paints it)
+  ['material-dark.css', 'rgb(40, 44, 52)'],
 ] as const) {
   test(`d2 label halo resolves to the page background under ${themeFile} (task 394)`, async ({
     page,
@@ -1235,16 +1237,16 @@ for (const [themeFile, pageBg] of [
   })
 }
 
-// material-dark paints no page background of its own, and `theme.content: auto` adds no
-// markdown-body class at all — in both the webview body stays transparent and VS Code's editor
-// background is genuinely what is behind the label. The token must fall THROUGH to it, not to
-// `transparent` (a transparent halo is no halo, and the line cuts the glyphs again).
+// `theme.content: auto` adds no markdown-body class at all: the webview body stays transparent and
+// VS Code's editor background is genuinely what is behind the label. The token must fall THROUGH to
+// it, not to `transparent` (a transparent halo is no halo, and the line cuts the glyphs again).
+// (material-dark used to be listed here as "paints no page background"; it does, and since task 532
+// step 5b it declares --vmarkd-page-bg like the other named themes - see the loop above.)
 test('d2 label halo falls back to the editor background with no page-painting theme (task 394)', async ({
   page,
 }) => {
   await page.goto('/')
   await page.waitForFunction(() => (window as any).__ready === true)
-  await page.addStyleTag({ path: `${THEME_DIR}/material-dark.css` })
   const got = await page.evaluate((haloToken) => {
     document.documentElement.style.setProperty(
       '--vscode-editor-background',

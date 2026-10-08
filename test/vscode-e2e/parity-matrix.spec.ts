@@ -74,18 +74,38 @@ configs.forEach((config) => {
   test(`parity ${config.id}`, async ({ workbox, evaluateInVSCode }) => {
     test.setTimeout(300_000)
     await applySettings(evaluateInVSCode, config.settings)
-    await evaluateInVSCode(
-      async (vscode, args) => {
-        await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
-        await vscode.commands.executeCommand(
-          'vscode.openWith',
-          vscode.Uri.file(args[0]),
-          'vmarkd.editor',
-        )
-      },
-      [FIXTURE] as [string],
-    )
+    const open = () =>
+      evaluateInVSCode(
+        async (vscode, args) => {
+          await vscode.extensions.getExtension('spiochacz.vmarkd')?.activate()
+          await vscode.commands.executeCommand(
+            'vscode.openWith',
+            vscode.Uri.file(args[0]),
+            'vmarkd.editor',
+          )
+        },
+        [FIXTURE] as [string],
+      )
     const frame = wf(workbox)
+    // Task 532 step 5c: open the file ONCE so the webview reports each diagram's rendered size to
+    // the host cache, close it, and capture the SECOND open - the one whose instant-paint overlay
+    // reserves the diagrams' height, which is what the gate holds to the live editor.
+    await open()
+    await frame
+      .locator('.vditor-ir div.language-d2 svg')
+      .first()
+      .waitFor({ timeout: 90_000 })
+    await frame.locator('.vditor-ir div.language-mermaid svg').first().waitFor()
+    await frame
+      .locator('body')
+      .evaluate(() => new Promise((r) => setTimeout(r, 2000)))
+    await evaluateInVSCode(async (vscode) => {
+      await vscode.commands.executeCommand(
+        'workbench.action.revertAndCloseActiveEditor',
+      )
+    })
+    await new Promise((r) => setTimeout(r, 500))
+    await open()
     await frame
       .locator('.vditor-ir')
       .first()

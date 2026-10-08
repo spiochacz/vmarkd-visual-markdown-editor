@@ -5,12 +5,17 @@
 import { PARITY_ELEMENTS, type ParityStage } from './elements'
 import type { FlatCell, FlatSnapshot } from './snapshot'
 import {
+  isOverlayPlaceholderCell,
   isRectProp,
   NUMERIC_EPSILON,
   PAIR_POLICY,
   STAGE_PAIRS,
   type StagePair,
 } from './policy'
+
+const DIAGRAM_KINDS: ReadonlySet<string> = new Set(
+  PARITY_ELEMENTS.filter((e) => e.engine).map((e) => e.kind),
+)
 
 export interface ParityDiff {
   theme: string
@@ -107,6 +112,20 @@ const diffOf = (
       : null,
 })
 
+/** A cell the policy exempts for this stage pair: unmeasured rects, skipped props, a diagram placeholder. */
+function isUncompared(
+  stagePair: StagePair,
+  kind: string,
+  property: string,
+): boolean {
+  const policy = PAIR_POLICY[stagePair]
+  return (
+    (policy.rectTolerance === null && isRectProp(property)) ||
+    policy.skipProps.some((re) => re.test(property)) ||
+    isOverlayPlaceholderCell(stagePair, DIAGRAM_KINDS.has(kind), property)
+  )
+}
+
 /** The differing properties of one kind that exists in both stages of a pair. */
 function diffProps(
   run: ParityRun,
@@ -120,8 +139,7 @@ function diffProps(
   const props = new Set([...Object.keys(a), ...Object.keys(b)])
   for (const property of [...props].sort(PROPERTY_ORDER)) {
     if (property === 'present') continue
-    if (policy.rectTolerance === null && isRectProp(property)) continue
-    if (policy.skipProps.some((re) => re.test(property))) continue
+    if (isUncompared(stagePair, kind, property)) continue
     const av = a[property]
     const bv = b[property]
     // A property only one side measured (e.g. firstGlyphX of a block with no painted text in just one

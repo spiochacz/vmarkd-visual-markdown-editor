@@ -35,6 +35,7 @@ import {
   highlightPreviewCode,
   renderPreviewMath,
 } from '../editing/overlay-render'
+import { applyDiagramPlaceholders } from '../editing/diagram-placeholder'
 import { observeSoftBreaks } from '../editing/soft-break-observer'
 import { observeWysiwygCodeHighlight } from '../editing/wysiwyg-code-highlight'
 
@@ -144,6 +145,14 @@ export const CONTENT_DECORATORS: readonly ContentDecorator[] = [
     stages: stagesOf('overlay'),
     decorate: (root) => renderPreviewMath(root, globals().katex),
     parityMarkers: ['katex'],
+  },
+  {
+    // Task 532 step 5c: the live editor draws the rendered diagram; the overlay reserves its space
+    // (the host's recorded size, else a fixed minimum) instead of showing the fence source.
+    name: 'diagram-placeholder',
+    stages: stagesOf('overlay'),
+    decorate: (root) => applyDiagramPlaceholders(root),
+    parityMarkers: [],
   },
   {
     // Host-side string transform (lute-host.ts renderWikiChipsInHtml, pinned to the webview renderer

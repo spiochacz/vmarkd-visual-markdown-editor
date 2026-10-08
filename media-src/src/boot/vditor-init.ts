@@ -31,7 +31,8 @@ import {
   showRealToolbarInOverlay,
   showStreamSpinner,
 } from '../chrome/prerender-overlay'
-import { streamRenderIR, STREAM_MIN_CHARS } from '../diagrams/stream-render'
+import { streamRenderIR } from '../diagrams/stream-render'
+import { shouldStream } from '../../../src/shared/open-mode'
 import { setRenderCacheConfig } from '../diagrams/render-cache-client'
 import {
   applyMermaidTheme,
@@ -137,8 +138,7 @@ export function initVditor(msg: InitPayload) {
   const cvActive =
     msg.options?.contentVisibility !== false &&
     docChars >= CONTENT_VIS_MIN_CHARS
-  const streamActive =
-    msg.options?.streamLargeFiles !== false && docChars > STREAM_MIN_CHARS
+  const streamActive = shouldStream(docChars, msg.options?.streamLargeFiles)
   document.body.classList.toggle('vmarkd-large-doc', cvActive)
   // Force the configured mermaid theme (wraps mermaid.initialize before Vditor
   // lazy-loads/renders it). 'auto' follows the content-theme pairing if any, else

@@ -17,6 +17,7 @@ import {
   prewarmLute,
   renderForMode,
 } from '../../src/lute/lute-host'
+import type { DiagramSize } from '../../src/shared/diagram-size'
 import { escapeTableSpanPipes } from '../../src/markdown/table-pipe-escape'
 import {
   resolveCodeStyle,
@@ -87,6 +88,8 @@ export async function buildParityPage(
   config: ParityConfig,
   origin: string,
   markdown = readFileSync(CANON_PATH, 'utf8'),
+  /** Task 532 step 5c: diagram sizes a previous open reported (the "cached" open); none = first open. */
+  diagramSizes: ReadonlyMap<string, DiagramSize> = new Map(),
 ): Promise<string> {
   const r = resolveParityConfig(config)
   await warmLute()
@@ -98,6 +101,7 @@ export async function buildParityPage(
     'ir',
     false,
     reflow,
+    (key) => diagramSizes.get(key),
   )
   if (!preRenderedHtml) throw new Error('parity harness: no overlay HTML')
   const options = {

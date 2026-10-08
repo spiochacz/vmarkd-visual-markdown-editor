@@ -91,6 +91,8 @@ export const HOST_MODULES = {
       // ordinary relationship every module has to it.
       'lute-gap-repair',
       'lute-hard-break', // NEW (task 530) — same shared host+webview Lute repair family as lute-gap-repair
+      'open-mode', // NEW (task 532 step 5a) — resolveOpenMode(saved, default): the overlay mode (host) and the Vditor boot mode (webview) share ONE rule
+      'diagram-size', // NEW (task 532 step 5c) — theme-independent diagram size key + annotateDiagramSizes: the host tags overlay diagrams, the webview reports the sizes
       'soft-break-html', // NEW (task 83) — the soft-break marker rule on an HTML string (open-time overlay); host + webview share the class name
       'lute-block-repair',
       // NEW (task 499) — `clamp(v, lo, hi)`, the one numeric primitive both trees had been
@@ -254,6 +256,7 @@ export const WEBVIEW_MODULES = {
       'spin-strip',
       'wysiwyg-code-highlight',
       'code-source',
+      'diagram-placeholder', // NEW (task 532 step 5c) — the overlay's empty, correctly sized stand-in for a diagram + the size measurement the render cache reports
       'overlay-render', // NEW (task 532 step 4) — synchronous hljs / KaTeX passes for the instant-paint overlay
       'edit-activity',
       'hard-break-key', // NEW (task 530) — Shift+Enter makes a real hard line break in prose (IR + WYSIWYG)

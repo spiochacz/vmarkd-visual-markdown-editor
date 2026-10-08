@@ -40,18 +40,6 @@ import {
   normLabel,
 } from '../util/stream-chunk'
 
-// Only stream documents above this size. Streaming spreads Lute's render across
-// frames, but each per-frame append forces the browser to re-lay-out the growing
-// (4000-block) editor — an O(n²) reflow that dominates wall-clock. Measured in a
-// real Chromium on a 326 KB doc: monolithic ~2.5 s vs streaming ~4.9 s (and in the
-// VS Code webview, ~0.7 s vs ~14 s once the 1.123 update started freezing the whole
-// window). The MONOLITHIC Lute render is ~0.9 s either way (old/new engine alike —
-// the task-66 upgrade did NOT speed it up; it's the streaming reflow that's the
-// problem). So chunking is net-negative until docs are genuinely huge. Threshold
-// raised from 100 KB accordingly. (Streaming's O(n²) reflow remains an open perf
-// issue — see task 49.)
-export const STREAM_MIN_CHARS = 700_000
-
 // Remove the def blocks we injected (by label), leaving the chunk's own in-place
 // defs untouched — DOM surgery, so no regex on nested footnote markup.
 function stripInjectedDefs(

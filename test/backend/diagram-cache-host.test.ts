@@ -310,3 +310,88 @@ describe('DiagramCache — atomic + multi-window disk tier (185/3b)', () => {
     expect(fs.existsSync(path.join(blobs, 'ha.svg'))).toBe(true)
   })
 })
+
+// Task 532 step 5c — rendered diagram sizes ride in the same index file under their own key.
+// A size key is 16 hex chars (shared/diagram-size isDiagramSizeKey); the store rejects anything else.
+const K = (c: string) => c.repeat(16)
+describe('DiagramCache — diagram sizes (task 532 step 5c)', () => {
+  it('stores a size and serves it back; an unknown key has none', () => {
+    const c = makeCache()
+    c.putSize(K('0'), [120, 80, 6])
+    expect(c.getSize(K('0'))).toEqual([120, 80, 6])
+    expect(c.getSize(K('f'))).toBeUndefined()
+  })
+
+  it('survives a restart (disk round trip) next to the SVG rows', () => {
+    const a = makeCache()
+    a.put('doc://a', 'd2#0', 'h1', svgOf('one'))
+    a.putSize(K('0'), [120, 80, 6])
+    a.flushNow()
+    const b = makeCache()
+    expect(b.getSize(K('0'))).toEqual([120, 80, 6])
+    expect(b.get('h1')).toContain('data-t="one"')
+  })
+
+  it('a newer size for the same key replaces the old one', () => {
+    const a = makeCache()
+    a.putSize(K('0'), [120, 80, 6])
+    a.putSize(K('0'), [130, 90, 6])
+    a.flushNow()
+    expect(makeCache().getSize(K('0'))).toEqual([130, 90, 6])
+  })
+
+  it('merges with another window sizes instead of overwriting them', () => {
+    const a = makeCache()
+    const b = makeCache()
+    a.putSize(K('a'), [1, 2, 3])
+    b.putSize(K('b'), [4, 5, 6])
+    a.flushNow()
+    b.flushNow()
+    const c = makeCache()
+    expect(c.getSize(K('a'))).toEqual([1, 2, 3])
+    expect(c.getSize(K('b'))).toEqual([4, 5, 6])
+  })
+
+  it('an engine-version bump wipes the sizes with the SVGs, and a corrupt row is skipped', () => {
+    const a = makeCache()
+    a.putSize(K('0'), [120, 80, 6])
+    a.flushNow()
+    expect(makeCache({ version: 'v2' }).getSize(K('0'))).toBeUndefined()
+    const again = makeCache()
+    again.putSize(K('0'), [9, 9, 9])
+    again.flushNow()
+    const idx = path.join(dir, 'index.json')
+    const body = JSON.parse(fs.readFileSync(idx, 'utf8'))
+    fs.writeFileSync(
+      idx,
+      JSON.stringify({
+        ...body,
+        version: 'v1',
+        sizes: {
+          [K('0')]: [1, 2, 3],
+          [K('1')]: 'x',
+          [K('2')]: [-1, 2, 3],
+          'not-a-key': [1, 2, 3],
+        },
+      }),
+    )
+    const c = makeCache()
+    expect(c.getSize(K('0'))).toEqual([1, 2, 3])
+    expect(c.getSize(K('1'))).toBeUndefined()
+    expect(c.getSize(K('2'))).toBeUndefined()
+    expect(c.getSize('not-a-key')).toBeUndefined()
+    expect(c.getSize('not-a-key')).toBeUndefined()
+  })
+
+  it('an index written before sizes existed loads with none', () => {
+    const a = makeCache()
+    a.put('doc://a', 'd2#0', 'h1', svgOf('one'))
+    a.flushNow()
+    const idx = path.join(dir, 'index.json')
+    const { sizes: _drop, ...legacy } = JSON.parse(fs.readFileSync(idx, 'utf8'))
+    fs.writeFileSync(idx, JSON.stringify(legacy))
+    const b = makeCache()
+    expect(b.getSize(K('0'))).toBeUndefined()
+    expect(b.get('h1')).toContain('data-t="one"')
+  })
+})

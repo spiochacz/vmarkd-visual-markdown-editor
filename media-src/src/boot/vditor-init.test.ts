@@ -23,7 +23,6 @@ vi.mock('vditor/src/index', () => ({ default: class MockVditor {} }))
 // Stub the whole module rather than chase every internal Vditor import transitively.
 vi.mock('../diagrams/stream-render', () => ({
   streamRenderIR: vi.fn(),
-  STREAM_MIN_CHARS: 700_000,
 }))
 // Everything below is a collaborator of `initVditor` (the Vditor-construction/streaming
 // lifecycle we deliberately do NOT unit test — see header) that the two functions under test

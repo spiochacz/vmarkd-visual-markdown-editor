@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import type { WebviewMessage } from '../../../src/shared/protocol'
+import { diagramSizeKey } from '../../../src/shared/diagram-size'
 import {
   clearRenderKey,
   findBlocks,
@@ -891,6 +892,75 @@ describe('reportRenders — a stale render is never filed under a new themeKey',
       'no paint namespace rides into the host cache',
     ).not.toMatch(/-vm\d+/)
     expect(put?.svg, 'the id stem itself survives').toContain('id="lbl"')
+  })
+
+  // Task 532 step 5c: the next open's overlay reserves this diagram's height from the size reported
+  // here (host: DiagramCache.putSize; overlay: editing/diagram-placeholder.ts).
+  it('reports the rendered size under the theme-independent size key', async () => {
+    const app = document.createElement('div')
+    app.id = 'app'
+    app.innerHTML =
+      `<div class="vditor-ir__preview" data-render="2">` +
+      `<div class="language-d2" data-code="size probe -> x" data-processed="true"><svg></svg></div></div>`
+    document.body.replaceChildren(app)
+    // jsdom has no layout; the cache may also rebuild the wrapper's markup, so stub by element kind.
+    const real = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.tagName.toLowerCase() === 'svg')
+        return { width: 117, height: 250 } as DOMRect
+      if (this.classList.contains('language-d2'))
+        return { width: 900, height: 256 } as DOMRect
+      return real.call(this)
+    }
+    const posted: WebviewMessage[] = []
+    installRenderCache(app, (m) => posted.push(m))
+    await flush()
+    const put = posted.find((m) => m.command === 'diagram-render-cached') as
+      | { sizeKey?: string; size?: number[] }
+      | undefined
+    Element.prototype.getBoundingClientRect = real
+    expect(put?.size).toEqual([117, 250, 6])
+    expect(put?.sizeKey).toBe(diagramSizeKey('d2', 'size probe -> x'))
+  })
+
+  it('a hidden (zero-size) first measurement never records a size and does not block the later one', async () => {
+    const app = document.createElement('div')
+    app.id = 'app'
+    app.innerHTML =
+      `<div class="vditor-ir__preview" data-render="2">` +
+      `<div class="language-d2" data-code="hidden probe -> x" data-processed="true"><svg></svg></div></div>`
+    document.body.replaceChildren(app)
+    let visible = false
+    const real = Element.prototype.getBoundingClientRect
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (!visible) return { width: 0, height: 0 } as DOMRect
+      if (this.tagName.toLowerCase() === 'svg')
+        return { width: 117, height: 250 } as DOMRect
+      if (this.classList.contains('language-d2'))
+        return { width: 900, height: 256 } as DOMRect
+      return real.call(this)
+    }
+    try {
+      const posted: WebviewMessage[] = []
+      installRenderCache(app, (m) => posted.push(m))
+      await flush()
+      const puts = () =>
+        posted.filter((m) => m.command === 'diagram-render-cached') as {
+          size?: number[]
+        }[]
+      expect(puts().every((p) => p.size === undefined)).toBe(true)
+      posted.length = 0
+      visible = true
+      app.appendChild(document.createComment('layout became available'))
+      await flush()
+      expect(puts().map((p) => p.size)).toEqual([[117, 250, 6]])
+      posted.length = 0
+      app.appendChild(document.createComment('again'))
+      await flush()
+      expect(puts(), 'the size is reported once').toEqual([])
+    } finally {
+      Element.prototype.getBoundingClientRect = real
+    }
   })
 
   it('reports once under the key it rendered under, then not again after a flip', async () => {

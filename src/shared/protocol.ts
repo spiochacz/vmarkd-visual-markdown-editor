@@ -244,6 +244,11 @@ export type WebviewMessage =
       diagramId: string
       hash: string
       svg: string
+      // Task 532 step 5c — theme-independent key (shared/diagram-size) + the rendered `[w, h, pad]`
+      // so the next open's overlay can reserve the diagram's height. Optional: a hidden or
+      // not-yet-laid-out block has nothing to measure.
+      sizeKey?: string
+      size?: [number, number, number]
     }
 
 // The `acquireVsCodeApi()` handle, typed so every `vscode.postMessage` is checked

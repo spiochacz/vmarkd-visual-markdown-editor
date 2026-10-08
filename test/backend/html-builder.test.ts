@@ -112,6 +112,15 @@ describe('buildWebviewHtml', () => {
       expect(html).toContain('vmarkd-prerender-spinner')
     })
 
+    it('paints the page colour itself (task 532 step 5b), never a transparent overlay', () => {
+      const html = buildWebviewHtml(defaults({ preRenderedHtml: '<p>x</p>' }))
+      const rule = /#vmarkd-prerender\{([^}]*)\}/.exec(html)?.[1] ?? ''
+      expect(rule).toContain(
+        'background:var(--vmarkd-page-bg,var(--vscode-editor-background))',
+      )
+      expect(rule).not.toContain('transparent')
+    })
+
     it('emits the prerender hold only for the real-webview parity test', () => {
       const params = defaults({ preRenderedHtml: '<p>test</p>' })
       expect(buildWebviewHtml(params)).not.toContain('__vmarkdHoldPrerender')

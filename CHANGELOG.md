@@ -14,8 +14,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   use VS Code's built-in preview rhythm, the GitHub themes GitHub's. Switching to the Preview no longer
   shifts the text or changes how tall the document is. The instant-paint view shown while a file opens
   draws callouts, syntax-coloured code, typeset math, comments (for the first two screens of the
-  document) and the collapsed toolbar the way the editor does, so the page no longer jumps when the editor takes over (diagrams still appear as
-  their source until they render); a wiki link whose name contains `&` shows correctly there too.
+  document) and the collapsed toolbar the way the editor does, so the page no longer jumps when the editor takes over; a wiki link whose
+  name contains `&` shows correctly there too. Diagrams keep their space while the file opens: the view
+  shows an empty box of the height the diagram had last time (a fixed height the first time) instead of
+  its source, so the text below stays put. It also follows `vmarkd.editor.defaultMode` (a document set
+  to open in WYSIWYG no longer flashes the IR layout first) and paints the page colour itself.
 
 - **Wrapped lines flow** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph soft-wrapped
   across several source lines reads as one flowing paragraph in the Preview, the split view and the
