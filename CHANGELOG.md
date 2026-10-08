@@ -99,6 +99,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Fixed
 
+- **Task-list checkboxes keep their form**: editing a list with `- [ ]` / `- [x]` items no longer rewrites
+  the checkboxes in the saved file as `[ ]  a` and `[X]` (two spaces, upper-case) — `[x]` and `[X]` stay as
+  written, with one space before the text. A box you tick in the editor is written `[x]`.
+
+- **Split view no longer saves blank-looking padding lines**: editing a list item that has several
+  paragraphs (or a blank line inside its code block) no longer writes whitespace-only lines into the file.
+
 - **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
   exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
   (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are

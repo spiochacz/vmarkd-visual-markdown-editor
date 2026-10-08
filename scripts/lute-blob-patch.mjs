@@ -82,8 +82,69 @@ export const LUTE_LOOSE_LIST_PATCHES = [
   ],
 ]
 
+// Task 532 step 7 — a task-list checkbox keeps its source form through DOM → markdown: `[x]` / `[X]`
+// as written and exactly ONE space before the text (it used to come back `[X]  a` — upper-cased and
+// double-spaced). The AST already records the raw marker rune; three things lost it on the way:
+//   - Effective marker: `x` was reported as `X`, and a checked box without a recorded marker as `X`
+//     (also what the split-view renderer SHOWS — the sv pane displayed `[X]` for a `[x]` source).
+//     Now `x` stays `x`; the canonical checked form is the GitHub-style lowercase `x`.
+//   - the IR / WYSIWYG renderers emit `data-task` on the checkbox only when the marker is `X` (the
+//     one form the DOM `checked` attribute cannot carry); the walkers read it back via
+//     ReviveFromDataTask, which now trusts it only while the box is still `checked` (a toggled-off
+//     box is ` `, a toggled-on one whose attribute says nothing useful is `x`).
+//   - the markdown (format) renderer re-normalised every marker that is not ` ` / `X` to `X`; `x` now passes.
+//   - the IR walker left the text node's leading space (the DOM spells `<input> a`) in place, and the
+//     format renderer writes its own space after the marker → two. The WYSIWYG walker already trims it.
+export const LUTE_TASK_LIST_PATCHES = [
+  [
+    'T1 EffectiveTaskListItemMarker',
+    'if(b.TaskListItemMarker===120){return"X";}return F.EscapeHTMLStr(($encodeRune(b.TaskListItemMarker)));}if(b.TaskListItemChecked){return"X";}return" ";',
+    'if(b.TaskListItemMarker===120){return"x";}return F.EscapeHTMLStr(($encodeRune(b.TaskListItemMarker)));}if(b.TaskListItemChecked){return"x";}return" ";',
+  ],
+  [
+    'T2 ReviveFromDataTask',
+    'if(1===b.length){e=b.charCodeAt(0);}else if(c){e=88;}else{e=32;}d.ReviveFromMarker(e);',
+    'if(c){e=("X"===b)?88:120;}else{e=32;}d.ReviveFromMarker(e);',
+  ],
+  [
+    'T3 ir renderTaskListItemMarker',
+    'prototype.renderTaskListItemMarker=function HD(a,b){var a,b,c,d,e;c=this;if(b){d=DN.nil;if(a.TaskListItemChecked){d=$append(d,new DF(["checked",""]));}d=$append(d,new DF(["type","checkbox"]));if(c.BaseRenderer.Options.DataTask){',
+    'prototype.renderTaskListItemMarker=function HD(a,b){var a,b,c,d,e;c=this;if(b){d=DN.nil;if(a.TaskListItemChecked){d=$append(d,new DF(["checked",""]));}d=$append(d,new DF(["type","checkbox"]));if(c.BaseRenderer.Options.DataTask||88===a.TaskListItemMarker){',
+  ],
+  [
+    'T4 wysiwyg renderTaskListItemMarker',
+    'prototype.renderTaskListItemMarker=function PM(a,b){var a,b,c,d,e;c=this;if(b){d=DN.nil;if(a.TaskListItemChecked){d=$append(d,new DF(["checked",""]));}d=$append(d,new DF(["type","checkbox"]));if(c.BaseRenderer.Options.DataTask){',
+    'prototype.renderTaskListItemMarker=function PM(a,b){var a,b,c,d,e;c=this;if(b){d=DN.nil;if(a.TaskListItemChecked){d=$append(d,new DF(["checked",""]));}d=$append(d,new DF(["type","checkbox"]));if(c.BaseRenderer.Options.DataTask||88===a.TaskListItemMarker){',
+  ],
+  [
+    'T5 ir walker checkbox',
+    'ab.Type=100;ab.ReviveFromDataTask(K.DomAttrValue(a,"data-task"),c.hasAttr(a,"checked"));',
+    'ab.Type=100;if(!(CB.nil===a.NextSibling)&&1===a.NextSibling.Type){a.NextSibling.Data=P.TrimLeft(a.NextSibling.Data," ");}ab.ReviveFromDataTask(K.DomAttrValue(a,"data-task"),c.hasAttr(a,"checked"));',
+  ],
+  [
+    'T6 NormalizedTaskListItemMarker',
+    'if(!(c===" ")&&!(c==="X")){c="X";}',
+    'if(!(c===" ")&&!(c==="X")&&!(c==="x")){c="X";}',
+  ],
+]
+
+// Task 532 step 7 (sv) — the split-view source pane keeps a blank line INSIDE a list item blank. Its
+// list-item renderer prefixes EVERY newline of the item with the item's padding span, so a blank line
+// between two paragraphs of one item (or inside its fenced code) came out as the whitespace-only
+// line "  " (the pane's textContent is what gets saved). The anchor collapses `newline padding
+// [empty padding] newline` back to `newline [empty padding] newline`, looped so a run of blank lines
+// collapses fully: the padding still follows the LAST newline of the run, where the next real
+// line's indentation belongs. Whitespace-only lines with real content (code) are untouched.
+export const LUTE_SV_PADDING_PATCHES = [
+  [
+    'S1 sv renderListItem padding',
+    'g=A.ReplaceAll(g,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,j));',
+    'k=$bytesToString($pkg.NewlineSV);l=$bytesToString(j);n=$bytesToString(g).split(k).join(k+l);m=\'<span data-type="padding"></span>\';while(n.indexOf(k+l+k)>=0||n.indexOf(k+l+m+k)>=0){n=n.split(k+l+k).join(k+k).split(k+l+m+k).join(k+m+k);}g=new DE($stringToBytes(n));',
+  ],
+]
+
 /**
- * Pure string transform: the stock Lute blob → the hard-break- and loose-list-aware one. Idempotent
+ * Pure string transform: the stock Lute blob → the hard-break-, loose-list- and task-list-aware one. Idempotent
  * (an already patched blob is returned unchanged). Throws when an anchor is missing or ambiguous.
  */
 export function patchLuteBlob(src) {
@@ -91,6 +152,8 @@ export function patchLuteBlob(src) {
   for (const [label, find, replace] of [
     ...LUTE_HARD_BREAK_PATCHES,
     ...LUTE_LOOSE_LIST_PATCHES,
+    ...LUTE_TASK_LIST_PATCHES,
+    ...LUTE_SV_PADDING_PATCHES,
   ]) {
     const first = out.indexOf(find)
     if (first === -1 && out.includes(replace)) continue // already patched

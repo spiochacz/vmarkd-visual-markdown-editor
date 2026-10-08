@@ -45,7 +45,7 @@ export const settle = (frame: ReturnType<typeof wf>, ms: number) =>
 export async function openInMode(
   evaluateInVSCode: EvaluateInVSCode,
   file: string,
-  mode: 'ir' | 'wysiwyg',
+  mode: 'ir' | 'wysiwyg' | 'sv',
 ) {
   await evaluateInVSCode(
     async (vscode: typeof import('vscode'), args: string[]) => {

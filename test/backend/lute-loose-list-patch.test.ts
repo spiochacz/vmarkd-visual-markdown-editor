@@ -1,5 +1,3 @@
-import * as fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
 import {
   beforeAll,
   describe as vitestDescribe,
@@ -7,93 +5,34 @@ import {
   it as vitestIt,
 } from 'vitest'
 // @ts-expect-error — plain .mjs build helper, no type declarations
-import {
-  LUTE_LOOSE_LIST_PATCHES,
-  patchLuteBlob,
-} from '../../scripts/lute-blob-patch.mjs'
+import { LUTE_LOOSE_LIST_PATCHES } from '../../scripts/lute-blob-patch.mjs'
 import { prewarmLute, reserializeMarkdown } from '../../src/lute/lute-host'
+import { waitForLuteWarm } from './lute-artifact'
 import {
-  bootLute,
-  isLuteArtifactBuilt,
-  luteArtifactPath,
-  waitForLuteWarm,
-  warnLuteArtifactMissing,
-} from './lute-artifact'
+  type Anchors,
+  bootRealLute,
+  builtSource,
+  describeAnchors,
+  luteBuiltOrWarn,
+  ROOT,
+  type RealLute,
+  vendored,
+} from './lute-patch-kit'
 
 // Task 532 step 6 — a loose list (blank line between items) keeps its looseness through DOM -> markdown.
-// The anchors run on the VENDORED (pristine) blob so a Lute re-pin that moves one fails here with the
-// build's message; the corpus runs the BUILT media/ copy (the one the editor and the host ship) and the
-// stock blob side by side, so each case pins both "patched keeps it" and "stock loses it".
-const ROOT = fileURLToPath(new URL('../..', import.meta.url))
-const vendored = fs.readFileSync(
-  `${ROOT}/media-src/vendor/lute/lute.min.js`,
-  'utf8',
+// Anchors run on the VENDORED (pristine) blob; the corpus runs the BUILT media/ copy and the stock blob
+// side by side, so each case pins both "patched keeps it" and "stock loses it".
+describeAnchors(
+  'loose-list anchors (task 532 step 6)',
+  LUTE_LOOSE_LIST_PATCHES as Anchors,
+  3,
 )
-const patched: string = patchLuteBlob(vendored)
-const ANCHORS = LUTE_LOOSE_LIST_PATCHES as [
-  label: string,
-  find: string,
-  replace: string,
-][]
-const count = (src: string, needle: string) => src.split(needle).length - 1
 
-const LUTE_BUILT = isLuteArtifactBuilt(ROOT)
-if (!LUTE_BUILT) warnLuteArtifactMissing('lute-loose-list (real Lute)', ROOT)
+const LUTE_BUILT = luteBuiltOrWarn('lute-loose-list')
 const describe = LUTE_BUILT ? vitestDescribe : vitestDescribe.skip
 const it = LUTE_BUILT ? vitestIt : vitestIt.skip
 
-describe('loose-list anchors (task 532 step 6)', () => {
-  vitestIt('has three anchors', () => {
-    expect(ANCHORS).toHaveLength(3)
-  })
-
-  vitestDescribe.each(ANCHORS)('anchor %s', (_label, find, replace) => {
-    vitestIt(
-      'occurs once in the vendored blob and its rewrite once in the patched one',
-      () => {
-        expect(count(vendored, find)).toBe(1)
-        expect(count(patched, find)).toBe(0)
-        expect(count(patched, replace)).toBe(1)
-      },
-    )
-    vitestIt('throws a re-derive message when missing', () => {
-      expect(() => patchLuteBlob(vendored.replace(find, 'x'))).toThrow(
-        /Lute changed; re-derive anchors/,
-      )
-    })
-    vitestIt('throws when ambiguous', () => {
-      expect(() => patchLuteBlob(`${vendored}\n${find}`)).toThrow(
-        /matched 2\+ times/,
-      )
-    })
-  })
-
-  it('the built media/ copy is exactly the patched vendored blob', () => {
-    expect(fs.readFileSync(luteArtifactPath(ROOT), 'utf8')).toBe(patched)
-  })
-})
-
-interface RealLute {
-  Md2VditorDOM(md: string): string
-  Md2VditorIRDOM(md: string): string
-  VditorDOM2Md(html: string): string
-  VditorIRDOM2Md(html: string): string
-  SpinVditorDOM(html: string): string
-  SpinVditorIRDOM(html: string): string
-  SpinVditorSVDOM(md: string): string
-  SetVditorWYSIWYG(v: boolean): void
-  SetSpin(v: boolean): void
-}
-
-const boot = (src: string): RealLute => {
-  const l: RealLute = bootLute(src).New()
-  l.SetVditorWYSIWYG(true)
-  l.SetSpin(true)
-  return l
-}
-
-// Hand-written shapes that must come back byte-identical. (Task lists are covered through the host
-// path below: their `[ ]  a` checkbox spacing is normalised by the existing canonical form.)
+// Hand-written shapes that must come back byte-identical.
 const CORPUS: Record<string, string> = {
   loose: '- a\n\n- b\n\n- c\n',
   tight: '- a\n- b\n- c\n',
@@ -111,8 +50,8 @@ describe('loose lists survive DOM -> markdown (task 532 step 6)', () => {
   let stock: RealLute
   let fixed: RealLute
   beforeAll(() => {
-    stock = boot(vendored)
-    fixed = boot(fs.readFileSync(luteArtifactPath(ROOT), 'utf8'))
+    stock = bootRealLute(vendored)
+    fixed = bootRealLute(builtSource())
   })
 
   describe.each(Object.entries(CORPUS))('%s', (_name, md) => {
@@ -187,12 +126,12 @@ describe('host reserializeMarkdown keeps loose lists (task 532 step 6)', () => {
     expect(reserializeMarkdown(ROOT, md)).toBe(md)
   })
 
-  it('a task list keeps its looseness (its checkbox spacing is the existing canonical form, tight or loose)', () => {
+  it('a task list keeps its looseness, tight or loose (checkbox form: lute-task-list-patch.test.ts)', () => {
     expect(reserializeMarkdown(ROOT, '- [ ] a\n- [x] b\n')).toBe(
-      '- [ ]  a\n- [X]  b\n',
+      '- [ ] a\n- [x] b\n',
     )
     expect(reserializeMarkdown(ROOT, '- [ ] a\n\n- [x] b\n')).toBe(
-      '- [ ]  a\n\n- [X]  b\n',
+      '- [ ] a\n\n- [x] b\n',
     )
   })
 })
