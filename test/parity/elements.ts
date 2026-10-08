@@ -102,7 +102,9 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
   {
     kind: 'paragraph',
     snippet:
-      'PXpara first line of a soft-wrapped paragraph\nsecond line of the same paragraph\nthird line closes it.',
+      // Long enough to wrap over several visual lines at every width: step 7 pins that the reflow `↵`
+      // glyph is zero-advance, so the wrap of a reflowed paragraph is the Preview's.
+      'PXpara first line of a soft-wrapped paragraph that keeps going for a while\nsecond line of the same paragraph with a few more words to wrap\nthird line continues the very same paragraph a little longer still\nfourth line adds yet another run of ordinary words to the text\nfifth line closes it.',
     probe: blockProbe('PXpara', 'p'),
     expectMarkers: [],
   },
@@ -190,7 +192,8 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
   },
   {
     kind: 'blockquote',
-    snippet: '> PXquote plain blockquote\n> second line of the quote.',
+    snippet:
+      '> PXquote plain blockquote whose first line is rather long indeed\n> second line of the quote also keeps running past the first wrap\n> third line of the quote.',
     probe: blockProbe('PXquote', 'blockquote'),
     expectMarkers: [],
   },

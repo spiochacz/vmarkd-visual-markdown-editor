@@ -5,7 +5,7 @@
 // returned expression.
 //
 // What it measures, per registry kind and per stage root (see test/parity/elements.ts):
-//   rect     height, left, width, firstGlyphX (x of the first PAINTED glyph, relative to the root),
+//   rect     height, left, width, lastLineRight (right edge of the last text line, prose blocks), firstGlyphX (x of the first PAINTED glyph, relative to the root),
 //            nestedListLeft, and gapBefore — the distance from the previous registered kind's bottom.
 //            gapBefore + height (not an absolute `top`) is what makes one drifting block report ONCE:
 //            an absolute top would repeat the same −16px on every block below a short callout and
@@ -87,6 +87,8 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
   ]
   const STRUCTURAL =
     /^(ul|ol|li|p|blockquote|table|thead|tbody|tr|th|td|pre|hr|h[1-6]|dl|dt|dd|details|summary|input|img)$/
+  // Prose blocks only: a code / html / frontmatter / diagram block lays its text out by other rules.
+  const PROSE_BLOCK = /^(p|blockquote|ul|ol|li|h[1-6])$/i
   const r2 = (n: number) => Math.round(n * 100) / 100
 
   // A box counts as painted only if no overflow-clipping ancestor (up to the stage root) is
@@ -119,20 +121,22 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
     return out
   }
 
-  // One text node's first painted glyph, or null. IR keeps Vditor's syntax markers (`**`, `# `,
-  // fences, the info string) in the DOM and only collapses them; they are not content, so they never
-  // count as "the first glyph".
-  const glyphOf = (n: Text): { x: number; holder: Element } | null => {
+  // The painted boxes of one text node, or none for whitespace and IR's collapsed syntax markers
+  // (`**`, `# `, fences, the info string): those are not content, so they never count as a glyph.
+  const textRects = (n: Text): DOMRect[] => {
     const holder = n.parentElement
-    if (!holder || !/\S/.test(n.nodeValue || '')) return null
+    if (!holder || !/\S/.test(n.nodeValue || '')) return []
     if (holder.closest('[class*="vditor-ir__marker"], [data-type$="-marker"]'))
-      return null
+      return []
     const range = document.createRange()
     range.selectNodeContents(n)
-    const rects = range.getClientRects()
-    for (let i = 0; i < rects.length; i++)
-      if (painted(rects[i], holder)) return { x: rects[i].left, holder }
-    return null
+    return Array.from(range.getClientRects()).filter((r) => painted(r, holder))
+  }
+  const glyphOf = (n: Text): { x: number; holder: Element } | null => {
+    const first = textRects(n)[0]
+    return first && n.parentElement
+      ? { x: first.left, holder: n.parentElement }
+      : null
   }
   // The first text node whose range paints a box: this skips IR's collapsed markers and any hidden
   // dual-node source.
@@ -188,6 +192,21 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
     return null
   }
 
+  // Task 532 step 7 — where the block's LAST line of text ends. Height only moves when the line COUNT
+  // does; a wrap that falls on a different word (the reflow `↵` glyph once took width) leaves the count
+  // and moves this. Same text-node filter as `glyphOf`, so IR's collapsed syntax markers never count.
+  const lastLineRight = (block: Element): number | null => {
+    if (!PROSE_BLOCK.test(block.tagName)) return null
+    const w = document.createTreeWalker(block, NodeFilter.SHOW_TEXT)
+    const all: DOMRect[] = []
+    for (let n = w.nextNode(); n; n = w.nextNode())
+      all.push(...textRects(n as Text))
+    if (!all.length) return null
+    const lastTop = Math.max(...all.map((r) => r.top))
+    const onLast = all.filter((r) => r.top >= lastTop - 2)
+    return Math.max(...onLast.map((r) => r.right)) - rootRect.left
+  }
+
   const cell = (
     el: Element,
     prevBottom: number | null,
@@ -197,6 +216,7 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
     const top = rect.top - rootRect.top + root.scrollTop
     const glyph = firstGlyph(el)
     const nested = el.querySelector('ul ul, ul ol, ol ul, ol ol')
+    const lastRight = lastLineRight(el)
     return {
       bottom: top + rect.height,
       snap: {
@@ -206,6 +226,7 @@ function snapshotStage(arg: SnapshotArg): StageSnapshot {
           left: r2(rect.left - rootRect.left),
           gapBefore: prevBottom === null ? r2(top) : r2(top - prevBottom),
           firstGlyphX: glyph ? r2(glyph.x - rootRect.left) : null,
+          lastLineRight: lastRight === null ? null : r2(lastRight),
           nestedListLeft: nested
             ? r2(nested.getBoundingClientRect().left - rootRect.left)
             : null,

@@ -14,9 +14,11 @@ title: PXfrontmatter
 
 ###### PXh6x heading level 6
 
-PXpara first line of a soft-wrapped paragraph
-second line of the same paragraph
-third line closes it.
+PXpara first line of a soft-wrapped paragraph that keeps going for a while
+second line of the same paragraph with a few more words to wrap
+third line continues the very same paragraph a little longer still
+fourth line adds yet another run of ordinary words to the text
+fifth line closes it.
 
 PXbreak line one  
 line two after a hard break.
@@ -59,8 +61,9 @@ Inline ![PXimg](data:image/gif;base64,R0lGODlhAQABAIAAAMLCwgAAACH5BAAAAAAALAAAAA
 - [ ] PXtask open
 - [x] PXtask done
 
-> PXquote plain blockquote
-> second line of the quote.
+> PXquote plain blockquote whose first line is rather long indeed
+> second line of the quote also keeps running past the first wrap
+> third line of the quote.
 
 > PXqnest outer
 >

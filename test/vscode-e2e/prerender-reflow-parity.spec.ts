@@ -1,7 +1,8 @@
 // Task 83 (increment 5) — open parity for vmarkd.editor.reflowLineBreaks. The instant-paint
 // overlay (host-rendered, painted before any script) must lay out exactly like the live editor
 // that replaces it: with reflow on, soft-wrapped paragraphs are ONE line with a marker per source
-// newline in BOTH, so no block moves, changes height or loses a line at the swap. Same hold hook as
+// newline in BOTH, so no block moves, changes height or loses a line at the swap. WYSIWYG only — the IR
+// open is a cell of the parity gate (parity-matrix.spec.ts). Same hold hook as
 // parity-matrix.spec.ts (VMARKD_PRERENDER_PARITY_HOLD keeps the overlay for the compare).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
@@ -60,7 +61,10 @@ function readBlocks(
   }, rootSelector)
 }
 
-for (const mode of ['ir', 'wysiwyg'] as const) {
+// IR is covered by the cross-stage gate (parity-matrix.spec.ts, `overlay>ir`, the reflow-ON configuration:
+// block heights, gaps, and the marker count compared exactly). The gate only opens in IR, so the
+// WYSIWYG open stays here.
+for (const mode of ['wysiwyg'] as const) {
   for (const reflow of [true, false]) {
     test(`overlay and live ${mode} editor lay out identically at open (reflow ${reflow ? 'on' : 'off'})`, async ({
       workbox,

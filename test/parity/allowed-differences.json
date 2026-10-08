@@ -32,18 +32,6 @@
     ]
   },
   {
-    "theme": "vscode-dark-2026+reflow",
-    "stagePair": "ir>preview",
-    "kind": "blockquote",
-    "property": "marker.softbreak",
-    "reason": "With reflow on, the edit surfaces draw a ↵ marker per soft break (it also has width, so wraps differ); the Preview has plain spaces.",
-    "task": "532 step 7",
-    "delta": [
-      -1,
-      -1
-    ]
-  },
-  {
     "theme": [
       "auto-high-contrast",
       "auto-monokai"
@@ -129,18 +117,6 @@
       "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
       "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
       "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": "vscode-dark-2026+reflow",
-    "stagePair": "ir>preview",
-    "kind": "paragraph",
-    "property": "marker.softbreak",
-    "reason": "With reflow on, the edit surfaces draw a ↵ marker per soft break (it also has width, so wraps differ); the Preview has plain spaces.",
-    "task": "532 step 7",
-    "delta": [
-      -2,
-      -2
     ]
   },
   {

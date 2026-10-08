@@ -596,12 +596,28 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       entries deleted (gate RED before: 4 stale + 1 unexplained `preview>sv`, GREEN after).
       NOT done / residual: task-list items still serialize their checkbox as `[ ]  a` / `[X]` (pre-existing,
       tight or loose, unrelated to looseness).
-- [ ] **7. Reflow marker does not change wraps** (decision 3): `.vmarkd-softbreak::before` →
+- [x] **7. Reflow marker does not change wraps** (decision 3): `.vmarkd-softbreak::before` →
       zero-advance (`display:inline-block; width:0; overflow:visible; margin-left: -0.1em`) so the
       soft-break space is the only wrap opportunity, as in the Preview; the policy marks
       `.vmarkd-softbreak` as `editOnly` for marker COUNT but compares rects exactly (the wrap must
       match). Delete the reflow allow entries; `prerender-reflow-parity.spec.ts` folds into the
       gate's reflow-ON boot and is deleted.
+      DONE (2026-10-08). `::before` is `inline-block; width:0; overflow:visible` moved by a TRANSFORM
+      (`translate(-0.15em, 0.3em)`: centred over the space, dropped below the baseline into the
+      leading) — NOT the `margin-left:-0.1em` written above: a negative margin on a 0-wide box still
+      advances the line, which left the last line 2px short per marker (measured 888.09 vs 891.19).
+      The gate was blind to a wrap on a different word with the same line count (height only moves
+      with the count), so it gained `rect.lastLineRight` (right edge of the last text line, prose
+      blocks `p/blockquote/ul/ol/li/h*`) and the canon's paragraph / blockquote got long soft-wrapped
+      lines. Policy: `isEditOnlyMarkerCell` exempts `marker.softbreak` COUNT on `ir>preview` only.
+      The two reflow allow entries are deleted. RED (old CSS, entries deleted): 2 unexplained
+      `ir>preview` `rect.lastLineRight` (paragraph -21.84px, blockquote -21.83px, reflow config);
+      GREEN after (602/602, 0 unexplained); deliberate restore of the old CSS -> the same 2 RED; md5
+      restored. Real VS Code parity-matrix 10/10, soft-break-reflow, reflow-toolbar, hard-break-roundtrip,
+      reflow-line-breaks green. `prerender-reflow-parity.spec.ts` is NOT deleted: its IR cells are
+      covered by the gate (`overlay>ir`, reflow-ON config: heights, gaps, exact marker count) and
+      dropped, but the gate only opens in IR, so its two WYSIWYG-open tests stay.
+
 - [ ] **9. Link colour across stages (user, 2026-10-08).** Under `theme.content: auto` (and in the
       allow-list wherever measured) link / autolink colour differs IR↔Preview and IR↔WYSIWYG: make
       the link colour one token (`--vmarkd-link`) applied on every stage; delete the `link` /

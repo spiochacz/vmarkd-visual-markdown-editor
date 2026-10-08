@@ -5,6 +5,7 @@
 import { PARITY_ELEMENTS, type ParityStage } from './elements'
 import type { FlatCell, FlatSnapshot } from './snapshot'
 import {
+  isEditOnlyMarkerCell,
   isOverlayPlaceholderCell,
   isRectProp,
   NUMERIC_EPSILON,
@@ -112,7 +113,7 @@ const diffOf = (
       : null,
 })
 
-/** A cell the policy exempts for this stage pair: unmeasured rects, skipped props, a diagram placeholder. */
+/** A cell the policy exempts for this stage pair: unmeasured rects, skipped props, a diagram placeholder, an edit-only marker count. */
 function isUncompared(
   stagePair: StagePair,
   kind: string,
@@ -122,7 +123,8 @@ function isUncompared(
   return (
     (policy.rectTolerance === null && isRectProp(property)) ||
     policy.skipProps.some((re) => re.test(property)) ||
-    isOverlayPlaceholderCell(stagePair, DIAGRAM_KINDS.has(kind), property)
+    isOverlayPlaceholderCell(stagePair, DIAGRAM_KINDS.has(kind), property) ||
+    isEditOnlyMarkerCell(stagePair, property)
   )
 }
 

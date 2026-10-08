@@ -87,7 +87,8 @@ export const NUMERIC_EPSILON = 0.001
  */
 export const OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT = 160
 
-const OVERLAY_PLACEHOLDER_PROPS = /^(marker\.svg|text\..+|rect\.firstGlyphX)$/
+const OVERLAY_PLACEHOLDER_PROPS =
+  /^(marker\.svg|text\..+|rect\.firstGlyphX|rect\.lastLineRight)$/
 
 /** True for the cells of a diagram kind that the overlay's placeholder cannot match by design. */
 export const isOverlayPlaceholderCell = (
@@ -98,3 +99,18 @@ export const isOverlayPlaceholderCell = (
   stagePair === 'overlay>ir' &&
   isDiagramKind &&
   OVERLAY_PLACEHOLDER_PROPS.test(property)
+
+/**
+ * Task 532 step 7 — markers that exist only while editing. The reflow `↵` glyph is drawn per soft break
+ * by the edit surfaces and never by the Preview, so its COUNT differs IR > Preview by construction. The
+ * glyph is zero-advance (main.css `.vmarkd-softbreak::before`), so it must not move anything: every rect
+ * of every block still compares exactly under the pair's tolerance.
+ */
+const EDIT_ONLY_MARKER_PROPS = /^marker\.softbreak$/
+
+/** True for a marker-count cell the Preview legitimately lacks (it never draws edit chrome). */
+export const isEditOnlyMarkerCell = (
+  stagePair: StagePair,
+  property: string,
+): boolean =>
+  stagePair === 'ir>preview' && EDIT_ONLY_MARKER_PROPS.test(property)

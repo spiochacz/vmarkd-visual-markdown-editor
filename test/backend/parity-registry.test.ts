@@ -357,6 +357,29 @@ describe('parity comparator + allow-list semantics', () => {
     expect(diffRun(run(beyond)).map((x) => x.property)).toEqual(['rect.height'])
   })
 
+  it('the edit-only reflow marker COUNT is exempt on ir>preview, while the wrap (lastLineRight) is not', () => {
+    const withMarkers = cell({ marker: { softbreak: 3 } })
+    const plain = cell({ marker: { softbreak: 0 } })
+    const r = {
+      theme: 'T',
+      stages: {
+        ir: flattenSnapshot(snap(withMarkers)),
+        preview: flattenSnapshot(snap(plain)),
+      },
+    }
+    expect(diffRun(r)).toEqual([])
+    const wrapped = cell({ rect: { ...cell().rect, lastLineRight: 600 } })
+    const other = cell({ rect: { ...cell().rect, lastLineRight: 578 } })
+    const w = {
+      theme: 'T',
+      stages: {
+        ir: flattenSnapshot(snap(wrapped)),
+        preview: flattenSnapshot(snap(other)),
+      },
+    }
+    expect(diffRun(w).map((x) => x.property)).toEqual(['rect.lastLineRight'])
+  })
+
   it('does not compare rects for preview>sv', () => {
     const wide = cell({ rect: { ...cell().rect, height: 500, width: 100 } })
     const r = {
