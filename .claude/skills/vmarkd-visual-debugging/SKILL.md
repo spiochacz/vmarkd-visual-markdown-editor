@@ -106,6 +106,15 @@ instead of only by the user.
   not-in-CI package. Do NOT bump it / do NOT hoist it to root. The media-src e2e Playwright (1.60)
   and `@playwright/cli` are SEPARATE installs and unaffected.
 
+## 4. The parity gate's reports (a stage looks different from another)
+
+For "IR vs Preview vs overlay differ by N px", do not hand-measure first: run the gate with
+`VMARKD_PARITY_ALLOW=none VMARKD_PARITY_REPORT=tmp/<x>.json` (harness: `xvfb-run -a npm --prefix
+media-src run test:e2e -- parity.spec.ts`; real VS Code: `parity-matrix.spec.ts`). The JSON lists
+every difference per theme, stage pair, element kind and property; `scripts/pin-parity-allowlist.mjs`
+re-pins the allow-list from those reports (see DEVELOPMENT.md, "Visual parity gate"). Then drill into
+the one element with playwright-cli.
+
 ## When to reach for which
 
 - Tweaking CSS / diagnosing a harness-reproducible layout bug → **playwright-cli** (interactive).

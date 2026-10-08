@@ -1,6 +1,6 @@
 # Task 532 — One content look across all five stages (overlay · IR · WYSIWYG · Preview · split), theme-aware, gated
 
-> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, step 2 (token plumbing) implemented 2026-10-08, step 3 (apply the decision) implemented 2026-10-08 (VSIX install + eyeball pending), steps 4-9 not started.
+> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, step 2 (token plumbing) implemented 2026-10-08, step 3 (apply the decision) implemented 2026-10-08 (VSIX install + eyeball pending), steps 4, 6, 7, 8 and the link-colour step done; 5d deferred by decision; end-of-task gates run, follow-ups open.
 > **Source:** user (2026-10-08): "We need a good mechanism to keep the look of the text consistent
 > between these stages, because it keeps drifting apart — and it must take the colour themes into
 > account." Raised by two analyses done the same day: `tmp/fable-preview/report.md` (Preview toggle
@@ -627,9 +627,15 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
 - **Accepted differences (user, 2026-10-08)** — kept on purpose, tagged `accepted (user, 2026-10-08)` in
   the allow-list: IR vs WYSIWYG frontmatter panel, html blocks, table gap, footnote definitions, the
   2.38px code offset and 1.2px centred-diagram x; the split pane's padding vs the narrow-column Preview.
-- [ ] **8. Nightly matrix + docs.** Full-tier 10-boot matrix wired (it already exists from step 1;
-      this step measures its wall clock on a quiet box and records it in `playwright.config.ts`);
-      `DEVELOPMENT.md` tier table; both skills; `tasks/README.md` only when everything above is done.
+- [x] **8. Nightly matrix + docs.** DONE 2026-10-08. The nightly/tag workflow runs the FULL tier
+      (`npm run test:vscode`, no `VMARKD_FAST`), so `parity-matrix.spec.ts` already runs all 10
+      configurations there - no workflow change needed (verified: `.github/workflows/nightly.yml` +
+      `playwright.config.ts` `testMatch` unset). Measured 6.4 min wall clock for the 10 boots (24-51 s
+      each) at load average ~20 (NOT a quiet box), recorded in `playwright.config.ts` and
+      `DEVELOPMENT.md`. Fast tier keeps 1 matrix boot and gains `list-loose.spec.ts` (2 boots, ~32 s);
+      `diagram-overlay-height` (~21 s) and `prerender-open-mode` (3 boots, ~44 s) stay full-only.
+      Docs: `DEVELOPMENT.md` "Visual parity gate" (allow-list/pinning, new theme, new element) + tier
+      table; skills `vmarkd-testing`, `vmarkd-visual-debugging`, `vmarkd-renderer-theming`.
 - [ ] **9. End-of-task:** simplify pass, `npm run quality`, coverage check on every new TS module,
       `xvfb-run -a npm run test:vscode:fast`, then propose the full suite (do not start it unasked).
 

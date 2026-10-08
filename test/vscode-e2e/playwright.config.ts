@@ -57,6 +57,11 @@ const repoRoot = path.resolve(__dirname, '../..')
 //           suite's wall clock is load-sensitive, not just size-sensitive. Budget accordingly — it
 //           is no longer an after-every-edit run.
 //
+// COST NOTE (task 532 step 8, measured 2026-10-08 at load average ~20, i.e. NOT a quiet box):
+// parity-matrix.spec.ts full = 10 boots, 6.4 min wall clock (24-51 s per configuration, ~29 s median)
+// - this is what the nightly/tag gate pays (it runs the full tier, so the matrix needs no extra
+// wiring); the fast tier runs 1 configuration (~27 s). Number moves with load; re-measure, don't cite.
+//
 // Everything else — diagram engines, themes, parity matrices — only runs in the full suite, because
 // it is slow and rarely what a non-diagram change breaks. Whatever tier you pick, also run the
 // spec(s) covering the surface you actually touched. (Perf probes are a THIRD population, behind
@@ -174,6 +179,14 @@ const FAST_SPECS = [
   // is seen on EVERY open and mode switch; the harness twin (media-src/e2e/parity.spec.ts) cannot
   // see VS Code's injected CSS or the custom-editor pipeline.
   'parity-matrix.spec.ts',
+  // 2026-10-08 (task 532 step 6/8) — a loose list (blank lines between items) must keep them when
+  // edited, in getValue, the saved file and the Preview. Same whitespace-fidelity family as
+  // list-tight.spec.ts just above and a silent on-disk rewrite if it regresses. 2 tests (IR +
+  // WYSIWYG), ~32 s. Deliberately left FULL-only from the same task: diagram-overlay-height.spec.ts
+  // (1 boot, ~21 s) and prerender-open-mode.spec.ts (3 boots, ~44 s) - the overlay-vs-editor drift
+  // they guard is already seen in the fast tier by the parity gate's overlay stage, and their
+  // specific cases (reserved diagram height, open mode) change rarely.
+  'list-loose.spec.ts',
 ]
 const tier = process.env.VMARKD_FAST
   ? FAST_SPECS

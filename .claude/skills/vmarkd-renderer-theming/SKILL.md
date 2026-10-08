@@ -9,6 +9,20 @@ How each rendered block gets its colors, and the traps. vMarkd renders Markdown 
 **Vditor**; Vditor bundles a separate engine per block type. They do **not** share a
 theming mechanism — that's the #1 source of mistakes.
 
+## Content geometry is theme-owned (task 532, ADR-0009)
+
+Indent, block gap, leading, heading rhythm and code leading are NOT per-surface: every stage reads the
+same `--vmarkd-geo-*` custom properties (`GEO_TOKENS` in `scripts/vditor-geometry-patch.mjs`). A theme
+CSS file declares the whole token set (a profile: `vscode-*-2026` = VS Code's rhythm, `github-*` =
+GitHub's) or `@profile: default`, on the body class, never naming a surface; the default profile is
+declared once on `body` in `main.css`. Vditor's own rules are rewritten at build time to
+`var(--vmarkd-geo-*, <Vditor value>)` (`varifyVditorGeometry`, count-asserted, like the palette
+varify); rules Vditor has no counterpart for live in `main.css` section 3a under `.vditor-reset`.
+Links use `--vmarkd-link`. A surface-scoped `main.css` rule that sets a geometry property must carry
+`@surface-only: <why geometry-neutral>`; the tagged count is an exact ratchet that only shrinks
+(`test/backend/parity-geometry-lint.test.ts`). The cross-stage gate (`test/parity/`) judges the
+result - see DEVELOPMENT.md, "Visual parity gate".
+
 ## The three theming models (know which one a renderer uses BEFORE touching it)
 
 1. **DOM + CSS (inherits `currentColor`)** — text, inline code, **KaTeX math**.

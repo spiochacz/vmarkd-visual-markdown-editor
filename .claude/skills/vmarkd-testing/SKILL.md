@@ -53,6 +53,17 @@ call in every measured case so far.
 
 Coverage: `npm run test:coverage`. Lint gate: `npm run lint:ci`. Typecheck: `npm run typecheck`.
 
+### Cross-stage look = the parity gate (task 532), not a new pairwise spec
+
+"Does IR / WYSIWYG / Preview / split / the instant-paint overlay look the same?" is answered by ONE
+layer: `test/parity/` (chromium twin `media-src/e2e/parity.spec.ts`, real VS Code
+`test/vscode-e2e/parity-matrix.spec.ts`; 1 boot in the fast tier, 10 in full/nightly). Extend its
+element registry or allow-list instead of writing another stage-pair spec with its own threshold -
+seven such specs let the drift through, and `prerender-style-parity.spec.ts` was deleted for it. The
+allow-list/pinning workflow, new-theme and new-element steps are in DEVELOPMENT.md ("Visual parity
+gate"). Overlay-only behaviour that is not a style comparison (open mode, reserved diagram height)
+keeps a focused spec: `prerender-open-mode.spec.ts`, `diagram-overlay-height.spec.ts`.
+
 ### Two opt-in populations inside real-VS-Code e2e: `@probe` and `*spike*`
 
 Both are excluded from every tier (smoke/fast/full) by default, and neither's env var runs "just

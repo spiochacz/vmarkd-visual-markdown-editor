@@ -206,12 +206,16 @@ delta). The `~1-2h` range is a derivation, not a measurement (nobody should run 
 to time it): the FAST tier's own measured per-test rate (13–29 s, see below — it swings almost 2×
 with machine load) times the current full-suite count, plus the full suite's ~16 min of static
 sleeps concentrated in specs FAST doesn't run (diagram parity / mode-switch — task 451) plus
-PlantUML/D2 engine renders FAST never touches. Pick a tier:
+PlantUML/D2 engine renders FAST never touches. The visual parity matrix (`parity-matrix.spec.ts`, task 532) is 1 boot in the fast tier and 10 boots
+(~6.4 min measured on 2026-10-08 at load average ~20; 24-51 s per configuration) in the full tier,
+which is what the nightly/tag workflow runs (no separate wiring). `diagram-overlay-height`,
+`prerender-open-mode` (3 boots) and `list-loose` (2 boots) were costed at ~21 s, ~44 s and ~32 s;
+only `list-loose` is in the fast tier. Pick a tier:
 
 | Tier | Command | Size | When |
 |---|---|---|---|
 | **smoke** | `npm run test:vscode:smoke` | 10 tests, **~2 min** | The PR gate (`pr-webview-smoke.yml`). Boot/layout parity, every renderer draws, and the change-stability core: save-to-disk fidelity, undo-to-disk, split editing, scroll preservation, clipboard, upload |
-| **fast** | `npm run test:vscode:fast` | ~39 tests, **8.5–16 min** | **The routine tier — use this while working.** smoke + document sync, mode switching with observers attached, and the whitespace-fidelity nets. Grew from ~20 tests (33 measured 12.8–15.8 min on 2026-07-27) to ~39 (measured 8.5 min on 2026-07-30, a less-contended run) — both numbers are real, keep growing and budget accordingly, it is no longer an after-every-edit run |
+| **fast** | `npm run test:vscode:fast` | ~39 tests, **8.5–16 min** | **The routine tier — use this while working.** Includes 1 boot of the visual parity gate and `list-loose` (task 532). smoke + document sync, mode switching with observers attached, and the whitespace-fidelity nets. Grew from ~20 tests (33 measured 12.8–15.8 min on 2026-07-27) to ~39 (measured 8.5 min on 2026-07-30, a less-contended run) — both numbers are real, keep growing and budget accordingly, it is no longer an after-every-edit run |
 | **full** | `npm run test:vscode` | count moves — `npx playwright test --list`, **~1–2 h** | Before handing work over, and in the nightly/tag gate. Diagram engines, themes, parity matrices — **not** perf probes, task 449 moved those behind `@probe` / `npm --prefix test/vscode-e2e run test:probes` (excluded from every tier including full, by default) |
 
 **Only ONE real-VS-Code run at a time — the tiers refuse to start a second one.** Every script in
@@ -257,6 +261,42 @@ The two membership lists live in `test/vscode-e2e/playwright.config.ts` (`SMOKE_
 `FAST_SPECS`) with the reasoning next to them; the tier is selected by `VMARKD_SMOKE` /
 `VMARKD_FAST`. Leaving both unset runs everything — the nightly gate depends on that, so never make
 a tier the default.
+
+### Visual parity gate (task 532, ADR-0009)
+
+The same document is drawn by five stages (instant-paint overlay, IR, WYSIWYG, full Preview, split
+pane). `test/parity/` is THE net for "does it look the same on every stage": it snapshots every
+element kind (computed style, block rects, decoration markers, DOM shape) in each stage and compares
+the stages pairwise, per theme configuration, never across configurations. Two layers share the
+capture sequence, comparator and allow-list: `media-src/e2e/parity.spec.ts` (chromium harness, whole
+matrix, in the CI gate) and `test/vscode-e2e/parity-matrix.spec.ts` (real VS Code: fast tier = 1
+boot, `auto` under Default Dark Modern; full tier and nightly = the whole 10-configuration matrix,
+one boot each, see `test/parity/configs.ts`). Anything not intended must be listed in
+`test/parity/allowed-differences.json`.
+
+**Allow-list workflow.** Entries are value-pinned (`delta` / `values`) and carry a `reason` and
+`task`; an intended-by-the-user difference is tagged `accepted (user, YYYY-MM-DD)` in the reason. An
+entry that no longer suppresses anything is stale and FAILS the run, so the list only shrinks. To
+(re)pin after an intended change, judge against an empty list on both layers, then pin the union:
+
+```bash
+VMARKD_PARITY_ALLOW=none VMARKD_PARITY_REPORT=tmp/532/red.json xvfb-run -a npm --prefix media-src run test:e2e -- parity.spec.ts
+VMARKD_PARITY_ALLOW=none VMARKD_PARITY_REPORT=tmp/532/red-vs.json xvfb-run -a npm --prefix test/vscode-e2e test -- parity-matrix.spec.ts
+node scripts/pin-parity-allowlist.mjs tmp/532/red.json tmp/532/red-vs.json   # exits 1 on a stale entry
+```
+
+`VMARKD_PARITY_ALLOW=none` is also the RED proof for a new gate rule. Never widen a pin to make a
+run green without asking: a new difference is a bug until the user accepts it.
+
+**New content theme.** Register it in `CONTENT_THEMES` (it joins the matrix automatically), and in
+its CSS file declare the whole `--vmarkd-geo-*` token set (or `@profile: default`) plus
+`--vmarkd-link`, on the body class only, never naming a surface. `test/backend/parity-geometry-lint.test.ts`
+enforces all three. Then run the harness gate and pin or fix what it reports.
+
+**New element kind.** Add a row to `test/parity/elements.ts` (snippet plus probe), run
+`node scripts/gen-parity-fixture.mjs` to regenerate `test/vscode-e2e/fixtures/parity-canon.md`
+(`test/backend/parity-registry.test.ts` fails if it is stale), then run the gate and resolve every
+reported difference (fix, or allow-list with a reason).
 
 ### Running tests headless (xvfb)
 
