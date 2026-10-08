@@ -163,7 +163,11 @@ describe('withSelectionKept', () => {
       const r = root('<p>one\ntwo\nthree</p>')
       caretAt(r, 'one', delta)
       const expected = delta
-      withSelectionKept(r, () => wrapTopBlock(r.firstElementChild as Element))
+      withSelectionKept(
+        r,
+        () => wrapTopBlock(r.firstElementChild as Element),
+        (made) => made > 0,
+      )
       expect(charsBefore(r)).toBe(expected)
       const s = getSelection() as Selection
       expect(
@@ -185,10 +189,14 @@ describe('withSelectionKept', () => {
     const r = root('<p>one\ntwo</p>')
     wrapTopBlock(r.firstElementChild as Element)
     caretAt(r, 'two', 2)
-    withSelectionKept(r, () => {
-      unwrapSoftBreaks(r)
-      r.normalize()
-    })
+    withSelectionKept(
+      r,
+      () => {
+        unwrapSoftBreaks(r)
+        r.normalize()
+      },
+      () => true,
+    )
     const s = getSelection() as Selection
     expect(s.anchorNode?.textContent).toBe('one\ntwo')
     expect(s.anchorOffset).toBe(6)
@@ -232,7 +240,52 @@ describe('withSelectionKept', () => {
 
   it('is a no-op when the selection is elsewhere', () => {
     const r = root('<p>a\nb</p>')
-    expect(withSelectionKept(r, () => 42)).toBe(42)
+    expect(
+      withSelectionKept(
+        r,
+        () => 42,
+        () => true,
+      ),
+    ).toBe(42)
+  })
+
+  // Vditor's undo snapshot (a <wbr> split, never restored) leaves the caret at offset 0 of an EMPTY
+  // text node that sits before the real text of the NEXT item. Its character count equals the end of the
+  // previous item's text, which is where the carry used to put it.
+  function emptyHalfCaret() {
+    const r = root('<ul><li>head<ul><li>tail</li></ul></li></ul>')
+    const tail = (r.querySelector('ul ul li') as HTMLElement).firstChild as Text
+    tail.splitText(0) // "" + "tail"
+    getSelection()?.collapse(tail, 0)
+    return { r, tail }
+  }
+
+  it('carries a caret in an empty text node as that node, not as the previous block end', () => {
+    const { r, tail } = emptyHalfCaret()
+    withSelectionKept(
+      r,
+      () => 0,
+      () => true,
+    ) // a pass reported as mutating: the carry is used
+    const sel = getSelection() as Selection
+    expect([sel.anchorNode, sel.anchorOffset]).toEqual([tail, 0])
+  })
+
+  it('never writes the selection when the pass changed nothing', () => {
+    const { r, tail } = emptyHalfCaret()
+    const spy = vi.spyOn(Selection.prototype, 'setBaseAndExtent')
+    try {
+      withSelectionKept(
+        r,
+        () => 0,
+        () => false,
+      )
+      expect(spy).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+    const sel = getSelection() as Selection
+    expect([sel.anchorNode, sel.anchorOffset]).toEqual([tail, 0])
   })
 })
 

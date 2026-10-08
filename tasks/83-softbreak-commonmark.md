@@ -297,3 +297,19 @@ not stacked lines. Edit + save → the file's line wrapping on disk is unchanged
 ## See also
 - `82-custom-editor-themes.md` — surfaced this while matching GitHub/VS Code render.
 - task 69 — incremental IR serialize (the round-trip path to protect).
+
+## Regression: first keystroke / paste after open landed in the previous block (fixed)
+
+With `reflowLineBreaks` on (the default), `list-tight.spec.ts` "IR list edits preserve tight..." failed:
+a pasted `para one\n\npara two` (caret at the start of a nested list item) ended up outside the list. Root
+cause: Vditor's `undo.recordFirstPosition` (first keydown of a freshly opened document, incl. the Ctrl of
+Ctrl+V) inserts a `<wbr>` at the caret, snapshots, strips it and deliberately does NOT restore the
+selection, so a caret at offset 0 is left in the now-EMPTY pre-split text node. The decorator's observer
+(microtask) then ran `wrapTopBlock` -> `withSelectionKept`, whose character-count carry resolved that empty
+node to the END of the previous item's text (same count), and rewrote the selection there; the paste (and
+any first typed character: "Z" at an item start merged it into the previous item) went to the wrong block.
+Fix: `carry()` in `soft-break.ts` carries a caret in an empty text node as the node itself (wrapping never
+removes a text node). Tests: unit `withSelectionKept` empty-node case, chromium
+`media-src/e2e/soft-break-paste.spec.ts` (paste + typing, reflow on/off; drives the same private
+`undo.addCaret`), real-VS-Code `list-tight.spec.ts` (existing). Red-proved: unfixed -> chromium
+reflow-true cases fail, real spec fails; fix broken again -> same failure.

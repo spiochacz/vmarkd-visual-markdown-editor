@@ -201,6 +201,12 @@ function carry(
   offset: number,
 ): Carried | null {
   if (!node || !scope.contains(node)) return null
+  // An EMPTY text node (Vditor's undo snapshot leaves the caret in one: it splits the text at the caret
+  // for a <wbr> and never restores the selection) has no character position of its own: counted from
+  // the scope start, offset 0 is also "the end of the text before" and resolved there, in the previous
+  // block. Wrapping never removes or fills a text node, so carry it as the node itself.
+  if (node.nodeType === 3 && (node as Text).data.length === 0)
+    return { kind: 'element', parent: node, before: null }
   if (node.nodeType === 3) {
     const r = document.createRange()
     r.setStart(scope, 0)
@@ -208,7 +214,7 @@ function carry(
     return {
       kind: 'text',
       chars: r.toString().length,
-      atStart: offset === 0 && (node as Text).data.length > 0,
+      atStart: offset === 0,
     }
   }
   return {
@@ -258,17 +264,16 @@ function place(scope: Element, c: Carried): Point | null {
 
 /**
  * Run `fn` (which splits / merges text nodes under `scope`) and put the selection's endpoints back
- * where they were. A no-op unless an endpoint is inside `scope`. The selection is written when `fn`
- * moved it, and ALSO whenever `mutated(result)` says the DOM changed even though the stored
- * (node, offset) did not: Chromium keeps a layout-level copy of the caret that goes stale when the
- * nodes around it are split, and the next typed character then lands where the OLD DOM had the caret
- * (measured: Shift+Enter at a paragraph end, then typing, put the letter at the end of line 1).
- * Re-writing the same range makes it recompute.
+ * where they were. A no-op unless an endpoint is inside `scope`. The selection is rewritten only when
+ * `mutated(result)` says the DOM changed: Chromium keeps a layout-level copy of the caret that goes
+ * stale when the nodes around it are split, and the next typed character then lands where the OLD DOM
+ * had the caret (measured: Shift+Enter at a paragraph end, then typing, put the letter at the end of
+ * line 1). Re-writing the range makes it recompute. When nothing changed it is never touched.
  */
 export function withSelectionKept<T>(
   scope: Element,
   fn: () => T,
-  mutated: (result: T) => boolean = () => false,
+  mutated: (result: T) => boolean,
 ): T {
   const sel = window.getSelection()
   if (!sel || sel.rangeCount === 0) return fn()
@@ -276,6 +281,8 @@ export function withSelectionKept<T>(
   const fC = carry(scope, sel.focusNode, sel.focusOffset)
   if (!aC && !fC) return fn()
   const result = fn()
+  // Nothing changed in the DOM: the live selection is still exact, never rewrite it.
+  if (!mutated(result)) return result
   const a = (aC && place(scope, aC)) || {
     node: sel.anchorNode,
     offset: sel.anchorOffset,
@@ -284,16 +291,7 @@ export function withSelectionKept<T>(
     node: sel.focusNode,
     offset: sel.focusOffset,
   }
-  if (
-    a.node &&
-    f.node &&
-    (mutated(result) ||
-      sel.anchorNode !== a.node ||
-      sel.anchorOffset !== a.offset ||
-      sel.focusNode !== f.node ||
-      sel.focusOffset !== f.offset)
-  )
-    sel.setBaseAndExtent(a.node, a.offset, f.node, f.offset)
+  if (a.node && f.node) sel.setBaseAndExtent(a.node, a.offset, f.node, f.offset)
   return result
 }
 
