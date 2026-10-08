@@ -251,6 +251,19 @@ for (const mode of ['ir', 'wysiwyg'] as const) {
           ).content,
       )
       expect(glyph).toContain('↵')
+      // the marker sits at the TOP of the text line (raised, not dropped below the baseline) and takes no room
+      const pseudo = await page.evaluate(() => {
+        const cs = getComputedStyle(
+          document.querySelector('.vmarkd-softbreak')!,
+          '::before',
+        )
+        return { transform: cs.transform, width: cs.width }
+      })
+      const ty = Number(
+        pseudo.transform.replace(/^matrix\((.*)\)$/, '$1').split(',')[5],
+      )
+      expect(ty).toBeLessThan(0)
+      expect(pseudo.width).toBe('0px')
     })
 
     // IR-only: the incremental serializer does not exist for WYSIWYG

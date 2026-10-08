@@ -67,7 +67,7 @@ list harness, `?md=&mode=`, both IR and WYSIWYG; gitignored). Final design that 
 
 - `<span class="vmarkd-softbreak" contenteditable="false">\n</span>` around every soft-break `\n`
   inside a block (not a trailing one), CSS `white-space: normal` on the span (renders as a space) +
-  `::before { content: '↵' }` glyph. **`contenteditable=false` is required:** with an editable span,
+  `::before { content: '↵' }` glyph (zero-advance, raised to the TOP of the text line like a superscript, `translate(-0.15em, -0.7em)`, 2026-10-08; it used to hang below the baseline). **`contenteditable=false` is required:** with an editable span,
   Chromium's whitespace canonicalisation turned the `\n` into `" "` as soon as you typed next to it
   (`one\nXbeta` saved as `one Xbeta` — first run).
 - MutationObserver re-wraps **only the top-level blocks the mutation touched** (whole-root walk cost
@@ -136,8 +136,8 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
       re-renders on a flip. NOTE: the Preview does NOT use `md2html` (previewRender.ts) — it calls the
       editor's `vditor.lute.Md2HTML`, so the patch is on `preview/index.ts` and the option is flipped only
       around that call. Unset flag (a harness that never applies the setting) = stock Lute.
-- [ ] NOT covered, needs a user decision: copy-as-HTML (`getHTML.ts`), Vditor export, and D2 `|md|`
-      labels still render soft breaks as `<br>` (they call Lute `Md2HTML` with the stock option).
+- [x] DECIDED (user, 2026-10-08): copy-as-HTML (`getHTML.ts`), Vditor export and D2 `|md|` labels keep
+      rendering soft breaks as `<br>` for now (they call Lute `Md2HTML` with the stock option); not in scope.
 - [x] Editor-surface decorator (reflow + break markers) in IR and WYSIWYG (increment 3, 2026-10-08):
       `editing/soft-break.ts` (DOM: marker spans, caret-kept wrap/unwrap, idle chunk scheduler) +
       `editing/soft-break-observer.ts` (block-scoped MutationObserver on `#app`, window-capture structural-key

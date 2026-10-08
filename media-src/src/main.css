@@ -2100,9 +2100,10 @@ body.vmarkd-busy * {
   display: inline-block;
   width: 0;
   overflow: visible;
-  /* centred over the space and dropped below the baseline (clear of the neighbouring letters, in the
-     line's leading). A transform, not a negative margin: a margin would still advance the line */
-  transform: translate(-0.15em, 0.3em);
+  /* centred over the space and raised to the TOP of the text line, like a superscript (its top lands at
+     about cap height, inside the line box, clear of the line above). A transform, not a negative margin:
+     a margin would still advance the line */
+  transform: translate(-0.15em, -0.7em);
   color: var(--vscode-editorLineNumber-foreground, #858585);
   font-size: 0.75em;
   opacity: 0.75;
