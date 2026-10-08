@@ -68,7 +68,7 @@ export interface ParityElement {
    */
   shape?: false
   /** Engine id for elements that need an async renderer to settle before the snapshot. */
-  engine?: 'mermaid' | 'd2'
+  engine?: 'mermaid' | 'd2' | 'nomnoml' | 'vega'
 }
 
 const blockProbe = (
@@ -348,6 +348,33 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
     },
     expectMarkers: ['svg'],
     engine: 'd2',
+  },
+  {
+    kind: 'diagram-nomnoml',
+    shape: false,
+    snippet: '```nomnoml\n[PXnomnomlA]->[PXnomnomlB]\n```',
+    probe: {
+      select: {
+        edit: 'div[data-type="code-block"]:has(.language-nomnoml)',
+        preview: 'div.language-nomnoml',
+      },
+    },
+    expectMarkers: ['svg'],
+    engine: 'nomnoml',
+  },
+  {
+    kind: 'diagram-vega',
+    shape: false,
+    snippet:
+      '```vega-lite\n{"$schema":"https://vega.github.io/schema/vega-lite/v5.json","description":"PXvega","data":{"values":[{"a":"A","b":1},{"a":"B","b":2}]},"mark":"bar","encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}}}\n```',
+    probe: {
+      select: {
+        edit: 'div[data-type="code-block"]:has(.language-vega-lite)',
+        preview: 'div.language-vega-lite',
+      },
+    },
+    expectMarkers: ['svg'],
+    engine: 'vega',
   },
   {
     kind: 'closing-paragraph',

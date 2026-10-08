@@ -70,6 +70,46 @@
       "vscode-light-2026"
     ],
     "stagePair": "ir>wysiwyg",
+    "kind": "diagram-nomnoml",
+    "property": "rect.firstGlyphX",
+    "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
+    "task": "532 follow-up",
+    "delta": [
+      1.19,
+      1.19
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "diagram-vega",
+    "property": "rect.firstGlyphX",
+    "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
+    "task": "532 follow-up",
+    "delta": [
+      1.19,
+      1.19
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
     "kind": "diagram-mermaid",
     "property": "rect.firstGlyphX",
     "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
@@ -347,6 +387,30 @@
     ]
   },
   {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-nomnoml",
+    "property": "style.font-family",
+    "reason": "Structural, not the geometry profile: the edit surface renders this kind in a different wrapper/source panel than the Preview (source `pre`/code panel, injected margins, own font stack), so the cell still differs after the --vmarkd-geo-* profile reached every stage in task 532 step 3. Needs a per-kind decision before it can go. (Same custom-engine render as diagram-d2: the Preview probe is the engine's render div inside the `<pre><code>`, so the `pre`/`code` font stack and leading show through.)",
+    "task": "532 follow-up",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-vega",
+    "property": "style.font-family",
+    "reason": "Structural, not the geometry profile: the edit surface renders this kind in a different wrapper/source panel than the Preview (source `pre`/code panel, injected margins, own font stack), so the cell still differs after the --vmarkd-geo-* profile reached every stage in task 532 step 3. Needs a per-kind decision before it can go. (Same custom-engine render as diagram-d2: the Preview probe is the engine's render div inside the `<pre><code>`, so the `pre`/`code` font stack and leading show through.)",
+    "task": "532 follow-up",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
     "theme": [
       "auto-high-contrast",
       "auto-monokai",
@@ -361,6 +425,46 @@
     "kind": "diagram-d2",
     "property": "style.line-height",
     "reason": "Probe level: the edit wrapper div keeps the prose leading (it is not the `pre`) while the Preview probe is the `pre`/diagram div; the code LINES agree (code-fence/code-indented `text.line-height` and `rect.height` are no longer differences after the --vmarkd-geo-code-lh token, task 532 step 3).",
+    "task": "532 follow-up",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-nomnoml",
+    "property": "style.line-height",
+    "reason": "Probe level: the edit wrapper div keeps the prose leading (it is not the `pre`) while the Preview probe is the `pre`/diagram div; the code LINES agree (code-fence/code-indented `text.line-height` and `rect.height` are no longer differences after the --vmarkd-geo-code-lh token, task 532 step 3). (Same custom-engine render as diagram-d2: the Preview probe is the engine's render div inside the `<pre><code>`, so the `pre`/`code` font stack and leading show through.)",
+    "task": "532 follow-up",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-vega",
+    "property": "style.line-height",
+    "reason": "Probe level: the edit wrapper div keeps the prose leading (it is not the `pre`) while the Preview probe is the `pre`/diagram div; the code LINES agree (code-fence/code-indented `text.line-height` and `rect.height` are no longer differences after the --vmarkd-geo-code-lh token, task 532 step 3). (Same custom-engine render as diagram-d2: the Preview probe is the engine's render div inside the `<pre><code>`, so the `pre`/`code` font stack and leading show through.)",
     "task": "532 follow-up",
     "values": [
       "\"22.4px\" -> \"21px\""

@@ -3,7 +3,7 @@ import { expect, test } from './coverage-fixture'
 import { captureStages } from '../../test/parity/capture'
 import type { ParityRun } from '../../test/parity/compare'
 import { PARITY_CONFIGS } from '../../test/parity/configs'
-import { PARITY_MARKERS } from '../../test/parity/elements'
+import { PARITY_ELEMENTS, PARITY_MARKERS } from '../../test/parity/elements'
 import { OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT } from '../../test/parity/policy'
 import { judgeRuns } from '../../test/parity/gate'
 import type { DiagramSize } from '../../src/shared/diagram-size'
@@ -22,6 +22,8 @@ test.describe.configure({ mode: 'serial' })
 
 const runs: ParityRun[] = []
 const ORIGIN = 'http://localhost:9123'
+// Every canon element with an async engine is one diagram the host's render cache sizes.
+const DIAGRAM_COUNT = PARITY_ELEMENTS.filter((e) => e.engine).length
 
 const stubbed = new WeakSet<Page>()
 
@@ -54,16 +56,17 @@ async function open(page: Page, html: string): Promise<void> {
 // the capture open then feeds the overlay exactly the way the host's render cache would.
 async function reportedDiagramSizes(
   page: Page,
+  n = DIAGRAM_COUNT,
 ): Promise<Map<string, DiagramSize>> {
   await page.waitForFunction(
-    () =>
+    (min) =>
       (
         window as unknown as {
           __posted: { command: string; size?: unknown }[]
         }
       ).__posted.filter((m) => m.command === 'diagram-render-cached' && m.size)
-        .length >= 2,
-    undefined,
+        .length >= min,
+    n,
     { timeout: 60_000 },
   )
   const posted = await page.evaluate(
@@ -86,7 +89,9 @@ for (const config of PARITY_CONFIGS) {
     test.setTimeout(240_000)
     await open(page, await buildParityPage(config, ORIGIN))
     const sizes = await reportedDiagramSizes(page)
-    expect(sizes.size, 'the first open reported both diagrams').toBe(2)
+    expect(sizes.size, 'the first open reported every diagram').toBe(
+      DIAGRAM_COUNT,
+    )
     await open(page, await buildParityPage(config, ORIGIN, undefined, sizes))
     const stages = await captureStages({
       evaluate: <T>(expr: string) => page.evaluate<T>(expr),
@@ -114,7 +119,7 @@ test('an uncached diagram is an empty box of the fixed minimum height, not its s
       height: e.getBoundingClientRect().height,
     })),
   )
-  expect(boxes).toHaveLength(2)
+  expect(boxes).toHaveLength(DIAGRAM_COUNT)
   for (const b of boxes) {
     expect(b.text).toBe('')
     expect(b.height).toBe(OVERLAY_DIAGRAM_UNCACHED_MIN_HEIGHT)

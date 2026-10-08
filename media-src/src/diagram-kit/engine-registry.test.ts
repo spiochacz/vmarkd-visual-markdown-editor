@@ -268,3 +268,46 @@ describe('cross-module wiring stays in sync with the registry', () => {
     )
   })
 })
+
+// Task 532 §E 6 - "engine list == placeholder list == main.css list". main.css names the engines in
+// several `:is(.language-x, ...)` groups (panel reset, code-box mirror exclusion, the shared diagram
+// margin). A new engine missed in one of them draws a code panel / loses its margin on some stages
+// only (vega-lite did, before this test). Every group naming six or more engines must name ALL of
+// them; `.language-math` may be absent (the diagram margin rule leaves display math out on purpose).
+describe('main.css engine lists == the engine registry (task 532)', () => {
+  const css = readFileSync(
+    new URL('../main.css', import.meta.url),
+    'utf8',
+  ).replace(/\/\*[\s\S]*?\*\//g, '')
+  const groups = Array.from(css.matchAll(/:is\(([^()]*?)\)/g))
+    .map((m) => Array.from(m[1].matchAll(/\.language-([\w-]+)/g), (x) => x[1]))
+    .filter((langs) => langs.length >= 6)
+
+  test('the scan finds the engine groups (guards against a regex that matches nothing)', () => {
+    expect(groups.length).toBeGreaterThanOrEqual(6)
+  })
+
+  test('every group lists every registry engine (math optional)', () => {
+    const all = sorted(engineLangSet())
+    for (const langs of groups) {
+      const got = sorted(new Set(langs))
+      const withoutMath = all.filter((l) => l !== 'math')
+      expect([all, withoutMath], `group ${langs.join(',')}`).toContainEqual(got)
+    }
+  })
+
+  test('the shared diagram margin rule is one selector carrying both margins', () => {
+    const rule = css.match(
+      /\.vditor-reset\s+div:is\(([^()]*?)\)\s*\{\s*margin-block:\s*1em;\s*\}/,
+    )
+    expect(
+      rule,
+      'one margin-block: 1em rule over the engine list',
+    ).not.toBeNull()
+    const langs = Array.from(
+      rule![1].matchAll(/\.language-([\w-]+)/g),
+      (x) => x[1],
+    )
+    expect(sorted(langs)).toEqual(sorted(engineLangs((e) => e.lang !== 'math')))
+  })
+})

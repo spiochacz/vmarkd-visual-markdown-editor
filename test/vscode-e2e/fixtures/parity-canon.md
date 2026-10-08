@@ -120,6 +120,14 @@ graph TD
 PXd2a -> PXd2b
 ```
 
+```nomnoml
+[PXnomnomlA]->[PXnomnomlB]
+```
+
+```vega-lite
+{"$schema":"https://vega.github.io/schema/vega-lite/v5.json","description":"PXvega","data":{"values":[{"a":"A","b":1},{"a":"B","b":2}]},"mark":"bar","encoding":{"x":{"field":"a","type":"nominal"},"y":{"field":"b","type":"quantitative"}}}
+```
+
 PXclose closing paragraph of the canonical document.
 
 [^pxfn]: PXfndef the footnote definition.

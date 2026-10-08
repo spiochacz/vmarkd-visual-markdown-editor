@@ -150,10 +150,15 @@ describe('parity element registry (§E 4)', () => {
     }
 
     // Elements the WEBVIEW creates at run time in the Preview, so stock Md2HTML cannot contain them:
-    // the custom d2 engine replaces `<pre><code class=language-d2>` with a div, and the comment
+    // the custom engines (d2, nomnoml, vega) replace `<pre><code class=language-x>` with a div, and the comment
     // decorator turns the invisible `<!-- -->` into `.vmarkd-comment`. The gate asserts those against
     // the live stages instead (registryProblems).
-    const RUNTIME_HTML = new Set(['diagram-d2', 'html-comment'])
+    const RUNTIME_HTML = new Set([
+      'diagram-d2',
+      'diagram-nomnoml',
+      'diagram-vega',
+      'html-comment',
+    ])
 
     for (const [label, key, family] of [
       ['IR', 'ir', 'edit'],

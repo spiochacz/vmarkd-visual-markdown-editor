@@ -654,9 +654,33 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       stale (harness) and 9+1 real-VS-Code matrix boots clean. Deliberate break (main.css rule forcing a
       magenta background + serif on the IR rendered code; code-source.ts not tagging `.hljs`): gate RED on
       `style.background-color` / `style.font-family` (every config), harness spec 10/10 RED, real-VS-Code
-      spec RED ("the source <code> lost its .hljs tag"); md5-verified restore. **Known, not changed:**
-      the expanded source's base TEXT colour differs slightly from the rendered half in the monokai /
-      high-contrast pair (`rgb(209,213,218)` vs `rgb(201,209,217)`) - colour was not in scope.
+      spec RED ("the source <code> lost its .hljs tag"); md5-verified restore.
+      **Source text colour - DONE 2026-10-09.** Cause: Vditor's `.vditor-ir__node--expand
+      .vditor-ir__marker--pre code { color: var(--textarea-text-color) }` (0,2,1) out-ranked the hljs
+      theme's `.hljs { color }` (0,1,0) on the `.hljs`-tagged source `<code>` (`rgb(209,213,218)` vs the
+      render's `rgb(201,209,217)` under github-dark/monokai/high-contrast, `rgb(220,220,220)` under vs2015,
+      ...: it differed under ALL pairings but github-light, not only monokai/high-contrast). Fix:
+      `build.mjs` `patchVditorIndexCss` item 4b scopes Vditor's rule to `code:not(.hljs)` (count-asserted
+      anchor), so a tagged source takes its colour from the active hljs style like the render - nothing
+      hardcoded. `color` joined `CODE_SOURCE_PROPS`; combos `auto/Monokai` and `auto/High Contrast` added
+      to the chromium spec (12 combos) and to the real-VS-Code spec (5 boots). RED: chromium 11/12 and
+      real VS Code 5/5 on `color` with the patch made a no-op (md5-verified restore); GREEN 12/12 + 5/5.
+- [x] **Diagram margins for ALL engines - DONE 2026-10-09.** The top/bottom `1em` rules listed 10 of the 17
+      engines. main.css 3a is now ONE `div:is(<all 17 engine classes>) { margin-block: 1em }`, one class-level
+      override cancelling the top margin inside the editors' injected preview (`@surface-only`), and the
+      display-math top margin (math keeps its 16px bottom); d2/vega had no margin rule of their own, no
+      conflict. The same sweep found vega / vega-lite / stl missing from the panel-reset list and from the
+      two code-box-mirror exclusion lists (a vega-lite placeholder was 194px against the 160px minimum, padding
+      16px): added. New canon elements `diagram-nomnoml` and `diagram-vega` (vega-lite) - both render
+      offline in chromium and real VS Code; the capture's settle expression waits for them and the harness
+      counts diagrams from the registry (`DIAGRAM_COUNT`). `engine-registry.test.ts` now pins every
+      `:is(.language-...)` group of 6+ engines in main.css to the registry, and the margin rule to
+      registry-minus-math (§E 6 engine list = CSS list; the placeholder list already derives from the
+      registry). RED: new elements on the old CSS -> `style.margin-top/bottom` expected 14px actual 0px for
+      nomnoml and vega in every config; GREEN after; deliberate break (nomnoml + vega-lite dropped from the
+      margin list, md5-verified restore) -> unit test x2 and the gate RED. Pinned (allow-list, same
+      reasons as d2): nomnoml/vega `ir>preview style.font-family` / `style.line-height` and `ir>wysiwyg
+      rect.firstGlyphX`. 616 measured / 616 allowed / 0 stale on both layers.
 - **Accepted differences (user, 2026-10-08)** — kept on purpose, tagged `accepted (user, 2026-10-08)` in
   the allow-list: IR vs WYSIWYG frontmatter panel, html blocks, table gap, footnote definitions, the
   2.38px code offset and 1.2px centred-diagram x; the split pane's padding vs the narrow-column Preview.

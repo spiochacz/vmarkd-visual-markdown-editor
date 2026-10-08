@@ -684,6 +684,9 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
     .language-nomnoml,
     .language-geojson,
     .language-topojson,
+    .language-vega,
+    .language-vega-lite,
+    .language-stl,
     .language-d2,
     .language-math
   ) {
@@ -1482,6 +1485,9 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
             .language-nomnoml,
             .language-geojson,
             .language-topojson,
+            .language-vega,
+            .language-vega-lite,
+            .language-stl,
             .language-d2,
             .language-math
           )
@@ -1532,6 +1538,9 @@ body[data-content-theme="vscode-dark-2026"] .vditor-reset
             .language-nomnoml,
             .language-geojson,
             .language-topojson,
+            .language-vega,
+            .language-vega-lite,
+            .language-stl,
             .language-d2,
             .language-math
           )
@@ -1555,6 +1564,9 @@ body[data-content-theme="vscode-light-2026"] .vditor-reset
             .language-nomnoml,
             .language-geojson,
             .language-topojson,
+            .language-vega,
+            .language-vega-lite,
+            .language-stl,
             .language-d2,
             .language-math
           )
@@ -1808,16 +1820,17 @@ body {
   aspect-ratio: var(--vmarkd-dw) / var(--vmarkd-dh);
   min-height: 0;
 }
-/* Rendered diagrams and display math in the PREVIEW get the same TOP margin as the IR/WYSIWYG dual-node
-   wrapper (`div[data-type="code-block"]`, `margin: 1em 0` above): Vditor gives them only
-   `margin-bottom: 16px`, so there the gap above was the neighbour's block gap (4.2px less than the
-   editors' under the 0.7em gap). The bottom stays Vditor's 16px, which the editors reach through the
-   same collapse. Inside the editors' injected preview the render must NOT carry it (it would be added
-   on top of the wrapper's — measured +14px), hence the `:not`. Block math is a `div`; inline `$x$` is a `span` and keeps its line. */
-/* @surface-only: Preview diagram/math top margin; the editors' wrapper carries the same 1em */
+/* Rendered diagrams get ONE vertical rhythm on every stage (task 532): `1em` above and below, the
+   value the IR/WYSIWYG dual-node wrapper (`div[data-type="code-block"]`, `margin: 1em 0`) carries.
+   Vditor gives the Preview render only `margin-bottom: 16px` (and the custom engines nothing), so the
+   gap above was the neighbour's block gap (4.2px less than the editors' under the 0.7em gap) and the
+   bottom read 16px against the wrapper's 14px. `1em`, not a literal, so it follows
+   `vmarkd.editor.fontSize`. ONE selector for every engine, so the list cannot drift between top and
+   bottom; engine-registry.test.ts pins it to the engine registry. Display math
+   (`.language-math`) is not here: its bottom is the 16px of the math-node rule in section 3b, only its
+   top margin is set here, just after the list. Block renders are `div`s; inline `$x$` is a `span` and keeps its line. */
 .vditor-reset
   div:is(
-    .language-math,
     .language-echarts,
     .language-mindmap,
     .language-plantuml,
@@ -1827,30 +1840,28 @@ body {
     .language-abc,
     .language-flowchart,
     .language-graphviz,
-    .language-wavedrom
-  ):not(:is(.vditor-ir__preview, .vditor-wysiwyg__preview) > *) {
+    .language-wavedrom,
+    .language-nomnoml,
+    .language-geojson,
+    .language-topojson,
+    .language-vega,
+    .language-vega-lite,
+    .language-stl,
+    .language-d2
+  ) {
+  margin-block: 1em;
+}
+.vditor-reset div.language-math {
   margin-top: 1em;
 }
-/* The diagram BOTTOM margin, one value on every stage (task 532 follow-up): Vditor's literal
-   `margin-bottom: 16px` on the render div vs the IR/WYSIWYG dual-node wrapper's `1em` (14px at the
-   default size; the render inside the wrapper collapses through it, so the editors showed 16px too
-   while the wrapper itself read 14px). 1em everywhere, like the top margin above, so it follows
-   `vmarkd.editor.fontSize`. Display math (`.language-math`) is NOT in this list: its 16px is pinned by
-   the math-node rule in section 3b. */
+/* Inside the editors' injected preview the render must NOT carry the top margin (it would be added on
+   top of the wrapper's: measured +14px). A class-level override of the shared rule above, so it needs
+   no engine list of its own; it also cancels display math's top margin (the rule just above) there. */
+/* @surface-only: cancels the shared top margin inside the editors' injected preview, where the dual-node wrapper already carries it */
 .vditor-reset
-  div:is(
-    .language-echarts,
-    .language-mindmap,
-    .language-plantuml,
-    .language-mermaid,
-    .language-smiles,
-    .language-markmap,
-    .language-abc,
-    .language-flowchart,
-    .language-graphviz,
-    .language-wavedrom
-  ) {
-  margin-bottom: 1em;
+  :is(.vditor-ir__preview, .vditor-wysiwyg__preview)
+  > div[class*="language-"] {
+  margin-top: 0;
 }
 /* Blocks Vditor has no gap rule for. (`li > p`, p, ul/ol, blockquote, table and the `hr` margin and the footnote rule are
    varified at build time.) */

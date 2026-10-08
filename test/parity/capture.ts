@@ -63,6 +63,8 @@ const settledExpr = (root: string): string => `(() => {
   if (!r || !(r.textContent || '').includes('PXfndef')) return false
   if (!r.querySelector('.language-mermaid svg')) return false
   if (!r.querySelector('.language-d2 svg')) return false
+  if (!r.querySelector('.language-nomnoml svg')) return false
+  if (!r.querySelector('.language-vega-lite svg')) return false
   return true
 })()`
 
