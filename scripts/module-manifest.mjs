@@ -216,7 +216,7 @@ export const WEBVIEW_MODULES = {
   },
   boot: {
     module: 'boot', dir: 'boot',
-    ids: ['vditor-theme', 'main', 'preload', 'finish-init', 'init-payload', 'vditor-init', 'vditor-options', 'live-config', 'editor-session-state'],
+    ids: ['vditor-theme', 'main', 'preload', 'finish-init', 'content-decorators', 'init-payload', 'vditor-init', 'vditor-options', 'live-config', 'editor-session-state'],
   },
   bridge: { module: 'bridge', dir: 'bridge', ids: ['message-router', 'edit-sync', 'edit-sync-tuning', 'save-flush', 'pending-edit', 'incremental-md'] },
   editing: {
@@ -254,6 +254,7 @@ export const WEBVIEW_MODULES = {
       'spin-strip',
       'wysiwyg-code-highlight',
       'code-source',
+      'overlay-render', // NEW (task 532 step 4) — synchronous hljs / KaTeX passes for the instant-paint overlay
       'edit-activity',
       'hard-break-key', // NEW (task 530) — Shift+Enter makes a real hard line break in prose (IR + WYSIWYG)
       'reflow-line-breaks', // NEW (task 83) — soft line breaks flow in the Preview (vmarkd.editor.reflowLineBreaks)

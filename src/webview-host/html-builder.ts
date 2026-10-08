@@ -33,6 +33,10 @@ export interface HtmlBuildParams {
   // Whether the FULL document has a code block (computed by the caller from document.getText(), NOT the
   // truncated preRenderedHtml — a fence below MAX_PRERENDER_CHARS must still preload hljs). Task 170 bonus.
   docHasCodeFence?: boolean
+  // Whether the FULL document has math (hasMath). When true the host preloads KaTeX before main.js so
+  // the instant-paint overlay can typeset its formulas synchronously (task 532 step 4) instead of
+  // showing raw TeX until Vditor's lazy mathRender runs. Omitted = no preload.
+  docHasMath?: boolean
   savedMode: 'ir' | 'wysiwyg' | 'sv'
   i18nLang: string
   // Task 38: the initial `update`/init payload, pre-serialized + escaped via serializeInitPayload,
@@ -56,6 +60,18 @@ export function hasCodeFence(markdown: string): boolean {
   return (
     /^[ \t]{0,3}(`{3,}|~{3,})/m.test(markdown) ||
     /<(?:code|pre)[\s>/]/i.test(markdown)
+  )
+}
+
+// Does the markdown source hold math? A `$$` block, an inline `$…$` pair on one line, or a ```math
+// fence. Gates the KaTeX preload over the FULL document (same reasoning as hasCodeFence). Deliberately
+// generous — a false positive costs one ~310 KB script parse, a false negative leaves raw TeX in the
+// overlay, which is only the old behaviour.
+export function hasMath(markdown: string): boolean {
+  return (
+    /\$\$/.test(markdown) ||
+    /\$[^\s$][^\n$]*\$/.test(markdown) ||
+    /^[ \t]{0,3}(`{3,}|~{3,})\s*math\b/m.test(markdown)
   )
 }
 
@@ -178,9 +194,11 @@ function buildPrerenderOverlay(
 
   // Real-VS-Code parity test only: retain the otherwise ephemeral overlay long enough
   // to compare it with the mounted editor. This process variable is never set in a
-  // normal extension host, so it cannot alter a user's open path.
+  // normal extension host, so it cannot alter a user's open path. __vmarkdOverlayDecorateAll lifts
+  // the two-viewport cap of the overlay decoration (content-decorators.ts) so the parity gate
+  // compares every block of the canon, not only the ones a test window shows.
   const testHoldScript = process.env.VMARKD_PRERENDER_PARITY_HOLD
-    ? `<script nonce="${nonce}">window.__vmarkdHoldPrerender=true;</script>`
+    ? `<script nonce="${nonce}">window.__vmarkdHoldPrerender=true;window.__vmarkdOverlayDecorateAll=true;</script>`
     : ''
 
   return {
@@ -272,6 +290,18 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
     ? `<script nonce="${nonce}" id="vditorHljsScript" src="${hljsMain}?v=11.7.0"></script>\n` +
       `\t\t\t\t<script nonce="${nonce}" id="vditorHljsThirdScript" src="${hljsThird}?v=1.0.1"></script>`
     : ''
+  // Task 532 step 4: KaTeX (+ mhchem) preloaded the same way, so main.js can typeset the overlay's math
+  // synchronously. Same ids/URLs as Vditor's mathRender (markdown/mathRender.ts) so its addScript /
+  // addStyle dedupe by id and never fetch a second copy. The stylesheet is a render-blocking <link> in
+  // <head> on purpose: the overlay must not paint typeset math in unstyled KaTeX markup.
+  const katexBase = toUri('media/vditor/dist/js/katex')
+  const katexPreload = params.docHasMath
+    ? `<script nonce="${nonce}" id="vditorKatexScript" src="${katexBase}/katex.min.js?v=0.16.9"></script>\n` +
+      `\t\t\t\t<script nonce="${nonce}" id="vditorKatexChemScript" src="${katexBase}/mhchem.min.js?v=0.16.9"></script>`
+    : ''
+  const katexStyleLink = params.docHasMath
+    ? `<link id="vditorKatexStyle" rel="stylesheet" type="text/css" href="${katexBase}/katex.min.css?v=0.16.9">`
+    : ''
   // Task 38: inline init payload (must precede main.js so it's in the DOM when main.js reads it).
   // type="application/json" → non-executed data island; main.js parses it with JSON.parse.
   const initPayloadTag = params.initPayload
@@ -343,6 +373,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
     // Before the user CSS (which must stay last) and after the content themes — the same slot Vditor's
     // own runtime insertion would land in relative to them (it appends to <head>).
     hljsStyleLink +
+    katexStyleLink +
     cssStyleTags +
     prerender.style +
     `
@@ -355,6 +386,7 @@ export function buildWebviewHtml(params: HtmlBuildParams): string {
 				<script nonce="${nonce}" id="vditorI18nScript${i18nLang}" src="${i18nScript}"></script>
 				<script nonce="${nonce}" id="vditorIconScript" src="${iconScript}"></script>
 				${hljsPreload}
+				${katexPreload}
 				${initPayloadTag}
 				${jsFiles.map((f) => `<script nonce="${nonce}" src="${f}${CACHE_BUST}"></script>`).join('\n')}
 			</body>

@@ -477,7 +477,7 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       light profiles duplicate their `--vmarkd-geo-*` values (themes have no include mechanism; the lint test
       pins the twins equal); left as is.
 
-- [ ] **4. Decorator registry + overlay decoration.** `content-decorators.ts`; `runFinishInit` loops
+- [x] **4. Decorator registry + overlay decoration.** `content-decorators.ts`; `runFinishInit` loops
       it; `main.ts` decorates `#vmarkd-prerender` before `new Vditor()`; toolbar clone after
       overflow; wiki-chip host/webview corpus parity test. Delete the overlay callout / hljs /
       toolbar allow entries. Registry tests 5–6 of §E. `prerender-style-parity.spec.ts` deleted
@@ -485,6 +485,40 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       **Also (user, 2026-10-08): math in the overlay** — the overlay shows raw TeX until KaTeX runs;
       decorate math blocks/inline math in the early overlay pass like hljs/callouts. Removes the
       `math-*` `overlay>ir` allow entries.
+      **Step 4 (2026-10-08, done):** `media-src/src/boot/content-decorators.ts` (in `boot/`, not `editing/`:
+      it wires editing + links + diagrams observers and putting it in `editing/` made a module cycle) is the
+      registry: `{name, stages, decorate?, observe?, parityMarkers}` (`parityMarkers` are NAMES in
+      `PARITY_MARKERS`, the selector stays next to the comparator). `runFinishInit` calls
+      `observeDecorators('edit'|'preview', ctx, register)` (same `observers.set` keys as before, `preview-<name>`
+      for the Preview pane); `main.ts` calls `decorateOverlay(#vmarkd-prerender .vditor-reset)` BEFORE the inline
+      init / `new Vditor()` (try/catch per decorator, elapsed ms in `window.__vmarkdOverlayDecorateMs`).
+      Overlay decorators: callouts, html-comments, code-source (`.hljs` tagging + synchronous `hljs.highlight` on
+      the rendered fences, `editing/overlay-render.ts`), math (KaTeX). Math choice: KaTeX is NOT synchronous
+      today (Vditor `addScript`s it lazily), so the host now PRELOADS katex.min.js + mhchem + katex.min.css before
+      main.js when the document has math (`hasMath` full-doc gate in html-builder.ts, same ids as Vditor's
+      mathRender so it dedupes) — the hljs-preload pattern, not a reserved height. Toolbar clone now runs
+      `installToolbarOverflow` on the clone (disposed with the overlay). Wiki chips: host/webview corpus test
+      (`test/backend/wiki-chip-parity.test.ts`) found a REAL host bug (a `&` in a page name painted as a literal
+      `&amp;`; Lute's escaped HTML was escaped again) — fixed in `renderWikiChipsInHtml`. §E 5: the
+      `PARITY_OBSERVERS` text-scan stand-in is replaced by `BEHAVIOUR_OBSERVERS` + registry tests (hand-written
+      `observers.set` names == behaviour list; none is a decorator; markers registered/reachable; overlay pass
+      adds every overlay-stage marker on the real canon render, idempotent, serialization-neutral).
+      **Gate:** the 52 `532 step 4` allow entries are deleted (0 remain); RED first with the old code: 509
+      unexplained; GREEN: harness and real-VS-Code full matrix 767/767 allowed, 0 unexplained, 0 stale.
+      `prerender-style-parity.spec.ts` + its fixture deleted (its heading/paragraph/list/quote/table/code
+      overlay-vs-IR style + rect cells are the `overlay>ir` cells of the gate for h1/paragraph/ul/blockquote/
+      table/code-fence under `auto`). NOT done: line-number gutter (`codeBlockLineNumbers`) is not reproduced in
+      the overlay highlight (the overlay is decorated before the options are parsed); code-ref chips are not
+      decorated in the overlay (need the host resolve round trip); diagrams in the overlay stay raw (step 5c).
+      **Cold-start cap (2026-10-08, review):** `decorateOverlay` only decorates the top-level blocks that
+      start within TWO viewports (`visibleBlockCount`: one rect-read pass, then the head blocks go into a
+      fragment for the decorators and back) — the overlay is not scrollable before the swap. Cold cost on
+      40/120-fence docs: 97/77 ms before -> 20/22 ms after (chromium harness, production bundle, first
+      load). The parity gate lifts the cap (`window.__vmarkdOverlayDecorateAll`, set by the same
+      `VMARKD_PRERENDER_PARITY_HOLD` hook in html-builder.ts) because a test window shows less than the
+      canon; `parity.spec.ts` "decorates only the first two viewports" pins the cap itself on real layout.
+      **Found, not fixed:** the live editor's `reintroduceChips` (wiki-serialize.ts) double-escapes `&` in a
+      wiki page name the same way the host did.
 - [ ] **5. Overlay fidelity bugs (from the overlay report, separate but small).**
       - [ ] 5a. **Mode mismatch with `vmarkd.editor.defaultMode`:** `resolveOpenMode(savedMode,
             defaultMode)` in `src/shared/` used by BOTH `markdown-editor-provider.ts:189` and

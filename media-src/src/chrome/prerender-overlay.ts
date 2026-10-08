@@ -1,4 +1,5 @@
 import { findScroller } from './toolbar-scroll-guard'
+import { installToolbarOverflow } from './toolbar-overflow'
 
 // Instant-paint overlay (src/lute-host.ts) + streaming spinner + the prepaint
 // scroll bridge. All pure DOM helpers reading window globals — no module state
@@ -12,6 +13,10 @@ import { findScroller } from './toolbar-scroll-guard'
 // placeholder bar: the teaser shows the actual toolbar (exact layout + icons, no
 // host-side replication) during the Lute wait, and it's dropped with the overlay
 // at the swap. Best-effort — a missing element just leaves the empty bar.
+// Disposer of the overflow pass running on the overlay's toolbar clone (see showRealToolbarInOverlay);
+// run when the overlay goes, so its ResizeObserver / resize listener don't outlive the clone.
+let disposeOverlayToolbarOverflow: (() => void) | undefined
+
 export function showRealToolbarInOverlay() {
   // With i18n passed inline (window.VditorI18n, injected by the host before main.js)
   // Vditor builds the toolbar synchronously in its constructor, so the element is
@@ -38,6 +43,15 @@ export function showRealToolbarInOverlay() {
             el.classList.add('vditor-menu--disabled')
           })
         bar.replaceWith(clone)
+        // Task 532 step 4: the live toolbar collapses what doesn't fit into "⋯" (finish-init's
+        // installToolbarOverflow, which runs only AFTER this clone was taken), so a bare clone showed
+        // the full icon row and then jumped at the swap. Run the same pure-DOM pass on the clone, now
+        // that it is laid out inside the overlay: it measures synchronously and decides in the next
+        // rAF — before the next paint. Roving-tabindex refresh is a no-op here (aria-hidden overlay).
+        disposeOverlayToolbarOverflow = installToolbarOverflow(
+          clone,
+          () => undefined,
+        )
       } catch {
         // Best-effort clone (see the function comment): if the overlay was
         // swapped out mid-clone or `bar` got detached between the querySelector
@@ -72,6 +86,8 @@ export function removePrerenderOverlay() {
       }
       return
     }
+    disposeOverlayToolbarOverflow?.()
+    disposeOverlayToolbarOverflow = undefined
     document.getElementById('vmarkd-prerender')?.remove()
   } catch {
     // Never throws (see the function comment) — it may run from a finally as

@@ -44,7 +44,7 @@ useSettingsRestore(test, [
 ])
 
 // The overlay is ephemeral; the hold keeps it after boot so it can be snapshotted (same hook as
-// prerender-style-parity.spec.ts). `delete`, never `= undefined` (that stores the string "undefined").
+// the retired prerender-style-parity.spec.ts). `delete`, never `= undefined` (that stores the string "undefined").
 test.beforeAll(() => {
   process.env.VMARKD_PRERENDER_PARITY_HOLD = '1'
 })

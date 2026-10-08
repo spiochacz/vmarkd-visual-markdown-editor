@@ -13,19 +13,11 @@ import { installPreviewMorph } from '../editing/preview-morph'
 import { reportEditorMode } from '../chrome/toolbar-actions'
 import { setupSplitScrollSync } from '../nav/split-scroll-sync'
 import { setupPreviewScrollPreserve } from '../nav/preview-scroll-preserve'
-import { observeCallouts } from '../editing/callouts'
-import { observeSoftBreaks } from '../editing/soft-break-observer'
 import { observeCaretLink } from '../links/caret-link-decorate'
-import { observeCodeRefs } from '../links/code-ref-decorate'
-import { observeDiagramZoom } from '../diagrams/diagram-zoom'
-import {
-  observeHtmlComments,
-  observePreviewComments,
-} from '../editing/html-comment'
-import { observeCodeSource } from '../editing/code-source'
+import { type ObserveContext, observeDecorators } from './content-decorators'
+import type { WebviewMessage } from '../../../src/shared/protocol'
 import {
   ensureHljsLoaded,
-  observeWysiwygCodeHighlight,
   wrapLuteFlatten,
 } from '../editing/wysiwyg-code-highlight'
 import { observeTrailingParagraph } from '../editing/gap-paragraph'
@@ -91,100 +83,59 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   setupSplitScrollSync()
   // Preserve scroll position when toggling edit (IR/WYSIWYG) ↔ full Preview overlay.
   setupPreviewScrollPreserve()
-  // Callouts / GitHub Alerts (task 106): restyle `[!TYPE]` blockquotes (attribute-only, so it's
-  // safe in the editable IR/WYSIWYG and round-trips). Bind to the STABLE `#app` mount, NOT
-  // activeModeElement: runFinishInit runs once, but the user can be in (or switch to) WYSIWYG, and
-  // toggling the full Preview overlay can make Vditor re-render/replace a mode's editor element — a
-  // mode-specific observer then dies and callouts stop re-colouring on return (reported: WYSIWYG →
-  // Preview → WYSIWYG drops the colours). #app survives every mode switch / element rebuild and
-  // covers IR + WYSIWYG; observeCallouts runs its FIRST batch synchronously before paint (the
-  // no-flash contract — NOT "rAF-debounced", that claim here was stale) and coalesces same-frame
-  // bursts into one trailing rAF pass (coalescePerFrameWithRecords), plus is idempotent AND scoped
-  // to the mutated block since task 173 — so the wider #app binding is cheap. (Same rationale as the
-  // WYSIWYG code-highlight observer below.)
   const app = document.getElementById('app')
   const previewEl = innerVditor()?.preview?.previewElement
   // Debounce diagram re-render while typing in a diagram's source (task 161 step 1): arms a quiet-timer
   // on every editor input and exposes window.__vmarkdDeferIrDiagramRender for the patched ir/input.ts
   // processCodeRender loop (Vditor-native engines) — observeCustomDiagrams (d2/…) consults the same gate.
   observers.set('edit-activity', installEditActivity(app))
-  observers.set('callouts', observeCallouts(app))
-  // Task 83: soft line breaks reflow in the editor (vmarkd.editor.reflowLineBreaks) — wraps each
-  // soft-break newline in a marker span. Bound to #app for the same mode-switch reason as callouts;
-  // registers through the shared registry so a re-init disposes the previous instance.
-  observers.set(
-    'soft-breaks',
-    observeSoftBreaks(app, () => blockModeElement(window.vditor)),
-  )
+  // Task 532 step 4: wrapLuteFlatten MUST precede the wysiwyg-highlight observer (it makes our hljs
+  // token spans invisible to Lute — it reparses the wysiwyg source every keystroke + on getValue — so
+  // the highlighted edit surface round-trips byte-clean). Idempotent per Lute.
+  wrapLuteFlatten(window.vditor)
+  // Every content decorator (callouts, soft breaks, code refs, diagram zoom, html comments, code
+  // source tagging, WYSIWYG live highlight) is a registry entry (content-decorators.ts) — the same
+  // list the instant-paint overlay is decorated from, so a decorator cannot reach one stage and miss
+  // another. The edit pass binds to the STABLE `#app` mount, NOT activeModeElement (runFinishInit runs
+  // once, but the user can switch to WYSIWYG and Preview toggles can replace a mode's editor element —
+  // a mode-specific observer then dies); each entry's own doc says why it is bound where it is. The
+  // preview pass gives the full Preview pane its own instances (a separate DOM tree Lute re-renders
+  // wholesale, which `#app`'s observer never sees). Registry keys: `<name>` / `preview-<name>`.
+  const post = (m: WebviewMessage) => vscode.postMessage(m)
+  const register = (key: string, dispose: () => void) =>
+    observers.set(key, dispose)
+  const decoratorCtx: ObserveContext = {
+    app,
+    previewEl,
+    activeMode: activeModeElement(window.vditor),
+    blockMode: () => blockModeElement(window.vditor),
+    post,
+    getHljs: () => (window as any).hljs,
+  }
+  observeDecorators('edit', decoratorCtx, register)
+  observeDecorators('preview', decoratorCtx, register)
   // Task 457 — caret-targeted link activation (Ctrl/Cmd+Enter, link-click-fix.ts): paint
   // `data-caret-inside` on whatever link-like element (wiki chip, code ref, plain `[text](url)`)
   // the caret currently sits in. Bound to #app only, NOT previewEl — the read-only Preview pane has
-  // no caret, so there's nothing for this to track there (unlike callouts, which decorates content
-  // in both panes).
+  // no caret, so there's nothing for this to track there.
   observers.set('caret-link', observeCaretLink(app))
   // Task 391's `tight-lists` repair observer was RETIRED here by task 461: its only measured trigger
   // (Backspace at the start of a nested item merging into the parent and leaving a lone `<p>`) is now
   // prevented upstream by task 462's `patchFixListOutdent`, which routes every nested case through
   // `listOutdent` — a path that never block-wraps. Nothing left to repair, so the per-mutation
   // observer is gone rather than kept as a no-op.
-  // The full Preview overlay (`.vditor-preview`) is rendered by Lute, which emits `[!TYPE]`
-  // callouts as PLAIN blockquotes — so style them there too (same dual-node: tag + inject the
-  // render). The preview never gets `--expand` (no caret), so it stays "collapsed" → the CSS shows
-  // the injected render + hides the source, identical to a collapsed IR callout (so Edit↔Preview
-  // match in look AND height). The observer re-applies after each preview re-render (fresh innerHTML).
-  observers.set('preview-callouts', observeCallouts(previewEl))
-  // Task 229 — clickable code references (`src/foo.ts:42`). Same dual `#app` + previewEl
-  // binding as callouts, same rationale (survives mode switches; Preview gets its own instance
-  // since it's a separate DOM tree Lute re-renders wholesale, not a mutation `#app` would see).
-  observers.set(
-    'code-refs',
-    observeCodeRefs(app, (m) => vscode.postMessage(m)),
-  )
-  observers.set(
-    'preview-code-refs',
-    observeCodeRefs(previewEl, (m) => vscode.postMessage(m)),
-  )
-  // HTML comments (`<!-- ... -->`): the browser-invisible preview is replaced with visible
-  // styled text (html-comment.ts). Bound to #app (same rationale as callouts — survives mode
-  // switches). Preview pane gets its own walker (Comment nodes, not data-type wrappers).
-  // Inline zoom/pan + ⛶ fullscreen button on rendered static-SVG diagrams (d2/mermaid/flowchart/
-  // graphviz/abc/smiles). Bound to #app (survives mode switches + async/per-keystroke rebuilds), same
-  // pattern as callouts. markmap/mindmap have their own zoom (diagram-zoom-gate.ts) and are excluded.
-  observers.set('diagram-zoom', observeDiagramZoom(app))
-  observers.set('html-comments', observeHtmlComments(app))
-  observers.set('preview-html-comments', observePreviewComments(previewEl))
-  // Code-block edit surface: tag the editable source `<code>` with `.hljs` so the highlight.js
-  // theme styles it like the render (size/padding/bg/base colour) — editing matches preview, no
-  // shift. Survives IR DOM rebuilds via its own observer; round-trips (class is invisible to Lute).
-  observers.set(
-    'code-source',
-    observeCodeSource(activeModeElement(window.vditor)),
-  )
-  // WYSIWYG live code highlighting: while editing a code block in WYSIWYG, paint live syntax
-  // colours onto the editable source via the CSS Custom Highlight API (zero DOM mutation, so
-  // Lute serialisation/typing stay intact — unlike IR, whose source is monochrome). Bound to the
-  // stable `#app` mount (not activeModeElement): the default mode is IR, and runFinishInit runs
-  // once, so we must keep working after a later switch into WYSIWYG. hljs is eager-loaded here so
-  // highlighting is ready from the start instead of lazily on first render.
-  // Make our hljs token spans invisible to Lute (it reparses the wysiwyg source every keystroke +
-  // on getValue) so the highlighted edit surface still round-trips byte-clean. Idempotent per Lute.
-  wrapLuteFlatten(window.vditor)
   // Eager-load hljs for WYSIWYG live code highlighting so it downloads IN PARALLEL with the diagram
   // engines from the start. addScript appends an async <script> — this does NOT block first paint.
   // Do NOT defer it to requestIdleCallback (task 145 item 1 tried that, REVERTED 2026-06-28): on a
   // diagram-heavy doc the main thread stays busy (D2 wasm compile ~470 ms, mermaid/echarts), so the
   // idle callback starves for seconds and code colouring loads LAST, behind the diagrams ("in
-  // sequence"). The observer below reads window.hljs lazily; IR code is highlighted by Vditor's own
-  // lazy hljs load too.
+  // sequence"). The wysiwyg-highlight observer reads window.hljs lazily; IR code is highlighted by
+  // Vditor's own lazy hljs load too.
   // ensureHljsLoaded never rejects (it catches internally, see wysiwyg-code-highlight.ts) — `void`
   // marks this fire-and-forget deliberately, not an oversight (task 482).
   void ensureHljsLoaded(cdn).then(() =>
     // Nudge the highlighter once the script lands, in case a code block is already focused + idle.
     document.dispatchEvent(new Event('selectionchange')),
-  )
-  observers.set(
-    'wysiwyg-highlight',
-    observeWysiwygCodeHighlight(app, () => (window as any).hljs),
   )
   // Trailing-paragraph invariant: a document ending with a block (callout/code/table/…)
   // always offers an empty paragraph below it — without one there is NO caret position

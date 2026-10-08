@@ -31,6 +31,7 @@ import { installFocusRestore } from '../editing/focus-restore'
 import { installSelectedUrl } from '../links/link-url'
 import { installPasteTransform } from '../clipboard/paste-transform'
 import { innerVditor } from '../util/inner-vditor'
+import { decorateOverlay } from './content-decorators'
 import { configureDiagramRetheme } from '../diagrams/diagram-retheme'
 import {
   observeGapParagraphs,
@@ -228,6 +229,15 @@ setupSaveFlushKeybind(window, () => sessionState.editSync?.flush())
 // prerender-first-open.spec.ts; two assignments, no cost.
 ;(window as any).__vmarkdHadTeaser =
   !!document.getElementById('vmarkd-prerender')
+
+// Task 532 step 4 — decorate the instant-paint overlay with the SAME registry the live surfaces use
+// (callouts, syntax colours, typeset math, comments; content-decorators.ts), BEFORE `new Vditor()`
+// below. The overlay paints before this bundle runs and nothing paints in the ~9 ms between (measured,
+// the overlay report), so this pass reaches every frame the user sees. Paint-only: the overlay is
+// dropped at the swap and never serialized. The elapsed ms is exposed for the probes/budget specs.
+;(window as any).__vmarkdOverlayDecorateMs = decorateOverlay(
+  document.querySelector<HTMLElement>('#vmarkd-prerender .vditor-reset'),
+)
 
 const inlineInitEl = document.getElementById('vmark-init')
 if (inlineInitEl?.textContent) {

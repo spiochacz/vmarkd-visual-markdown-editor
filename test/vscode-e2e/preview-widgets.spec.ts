@@ -41,7 +41,7 @@ test('CSP-safe image and code widgets neither lock scrolling nor lose copy', asy
   const frame = frameFor(workbox)
   // Task 516 triage — `#vmarkd-prerender` (html-builder.ts) is a full-viewport
   // `position:absolute;inset:0;z-index:5` instant-paint overlay carrying its OWN copy of
-  // `.vditor-ir img` (same class as the live editor — prerender-style-parity.spec.ts documents the
+  // `.vditor-ir img` (same class as the live editor — parity-matrix.spec.ts documents the
   // mirroring), and it is not `pointer-events:none` — only its spinner is. `.vditor-ir img`'s
   // `.first()` resolves to document order, which lands on the LIVE editor's img (the overlay markup
   // comes later in the body), not the overlay's own copy — so waiting only for that img to be

@@ -356,46 +356,28 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
 ]
 
 /**
- * Every long-lived observer `runFinishInit` registers, classified for the gate. `decorator` entries
- * paint something the plain Lute output lacks (so they are what the overlay can miss) and name the
- * markers they produce; `behaviour` entries are not content (key handlers, toolbars, scroll). A new
- * `observers.set('<name>', …)` in finish-init.ts fails the unit test until it is classified here —
- * the forcing function for "new decorators cannot be added without registering with the gate". Step
- * 4 replaces this table with the real decorator registry (content-decorators.ts).
+ * The observers `runFinishInit` registers BY HAND (`observers.set('<name>', …)`) — none of them
+ * paints content. Every CONTENT decorator is a `CONTENT_DECORATORS` entry
+ * (media-src/src/boot/content-decorators.ts) that the registry loop installs, so the registry
+ * test requires: (a) the hand-written names in finish-init.ts are exactly this list (a new
+ * `observers.set` for a content decorator fails it — register it in the decorator registry instead;
+ * a new behaviour observer must be listed here), and (b) none of these names is a decorator.
  */
-export const PARITY_OBSERVERS: Readonly<
-  Record<
-    string,
-    { role: 'decorator'; markers: readonly string[] } | { role: 'behaviour' }
-  >
-> = {
-  callouts: { role: 'decorator', markers: ['callout-title', 'callout-type'] },
-  'preview-callouts': {
-    role: 'decorator',
-    markers: ['callout-title', 'callout-type'],
-  },
-  'soft-breaks': { role: 'decorator', markers: ['softbreak'] },
-  'code-refs': { role: 'decorator', markers: ['code-ref-chip'] },
-  'preview-code-refs': { role: 'decorator', markers: ['code-ref-chip'] },
-  'html-comments': { role: 'decorator', markers: ['html-comment'] },
-  'preview-html-comments': { role: 'decorator', markers: ['html-comment'] },
-  'code-source': { role: 'decorator', markers: ['hljs', 'hljs-token'] },
-  'wysiwyg-highlight': { role: 'decorator', markers: ['hljs-token'] },
-  'diagram-zoom': { role: 'decorator', markers: [] },
-  'outline-keyboard': { role: 'behaviour' },
-  'edit-activity': { role: 'behaviour' },
-  'caret-link': { role: 'behaviour' },
-  trailing: { role: 'behaviour' },
-  'gated-diagram-zoom-keys': { role: 'behaviour' },
-  'list-backspace': { role: 'behaviour' },
-  'escape-toolbar': { role: 'behaviour' },
-  'format-word-expand': { role: 'behaviour' },
-  'toolbar-overflow': { role: 'behaviour' },
-  'toolbar-submenu-aria': { role: 'behaviour' },
-  'callout-popover-keys': { role: 'behaviour' },
-  'diagram-retheme-gate': { role: 'behaviour' },
-  'dblclick-word-select': { role: 'behaviour' },
-}
+export const BEHAVIOUR_OBSERVERS: readonly string[] = [
+  'outline-keyboard',
+  'edit-activity',
+  'caret-link',
+  'trailing',
+  'gated-diagram-zoom-keys',
+  'list-backspace',
+  'escape-toolbar',
+  'format-word-expand',
+  'toolbar-overflow',
+  'toolbar-submenu-aria',
+  'callout-popover-keys',
+  'diagram-retheme-gate',
+  'dblclick-word-select',
+]
 
 /** The canonical fixture, generated from the registry (one blank line between snippets). */
 export function buildParityFixture(): string {

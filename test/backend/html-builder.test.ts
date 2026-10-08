@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildWebviewHtml,
   hasCodeFence,
+  hasMath,
   sanitizeCss,
   serializeInitPayload,
   type HtmlBuildParams,
@@ -114,9 +115,15 @@ describe('buildWebviewHtml', () => {
     it('emits the prerender hold only for the real-webview parity test', () => {
       const params = defaults({ preRenderedHtml: '<p>test</p>' })
       expect(buildWebviewHtml(params)).not.toContain('__vmarkdHoldPrerender')
+      expect(buildWebviewHtml(params)).not.toContain(
+        '__vmarkdOverlayDecorateAll',
+      )
 
       vi.stubEnv('VMARKD_PRERENDER_PARITY_HOLD', '1')
       expect(buildWebviewHtml(params)).toContain('__vmarkdHoldPrerender=true')
+      expect(buildWebviewHtml(params)).toContain(
+        '__vmarkdOverlayDecorateAll=true',
+      )
     })
 
     it('uses vditor-ir class for IR mode', () => {
@@ -508,5 +515,42 @@ describe('hljs stylesheet link (task 431)', () => {
     expect(html.indexOf('id="vditorHljsStyle"')).toBeLessThan(
       html.indexOf('id="custom-css"'),
     )
+  })
+})
+
+describe('hasMath / KaTeX preload gate (task 532 step 4)', () => {
+  it('matches a $$ block, an inline $…$ pair and a ```math fence', () => {
+    expect(hasMath('before\n\n$$\nE=mc^2\n$$\n')).toBe(true)
+    expect(hasMath('inline $x^2$ here')).toBe(true)
+    expect(hasMath('```math\nx\n```')).toBe(true)
+    expect(hasMath('~~~ math\nx\n~~~')).toBe(true)
+  })
+  it('does NOT match prose, code, or a lone dollar sign', () => {
+    expect(hasMath('# title\n\nplain prose')).toBe(false)
+    expect(hasMath('costs $5')).toBe(false)
+    expect(hasMath('```ts\nconst a = 1\n```')).toBe(false)
+    expect(hasMath('')).toBe(false)
+  })
+  it('finds math far below a 10k-char prefix', () => {
+    const doc = `${'filler paragraph line\n'.repeat(2000)}\n$$\nx\n$$`
+    expect(hasMath(doc)).toBe(true)
+  })
+
+  const hasKatex = (html: string) => html.includes('id="vditorKatexScript"')
+  it('preloads KaTeX (script, mhchem, stylesheet) with the ids Vditor dedupes on when docHasMath', () => {
+    const html = buildWebviewHtml(defaults({ docHasMath: true }))
+    expect(hasKatex(html)).toBe(true)
+    expect(html).toContain('id="vditorKatexChemScript"')
+    expect(html).toContain('id="vditorKatexStyle"')
+    // before main.js, so window.katex exists when the overlay is decorated
+    expect(html.indexOf('id="vditorKatexScript"')).toBeLessThan(
+      html.indexOf('media/dist/main.js'),
+    )
+  })
+  it('omits the KaTeX preload otherwise', () => {
+    expect(hasKatex(buildWebviewHtml(defaults({ docHasMath: false })))).toBe(
+      false,
+    )
+    expect(hasKatex(buildWebviewHtml(defaults()))).toBe(false)
   })
 })

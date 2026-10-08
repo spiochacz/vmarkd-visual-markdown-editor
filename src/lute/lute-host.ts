@@ -273,6 +273,19 @@ function escapeWikiHtml(s: string): string {
   )
 }
 
+// The rendered DOM the chip transform sees is ALREADY entity-escaped by Lute (`[[A&B]]` arrives as
+// `[[A&amp;B]]`), while the webview's renderer works on the raw token text. Undo exactly the escapes
+// Lute applies so the chip is escaped ONCE, like the live editor's (a `&` in a page name showed up
+// as a literal `&amp;` in the overlay chip; found by wiki-chip-parity.test.ts). `&amp;` goes last so
+// `&amp;lt;` decodes to `&lt;`, not `<`.
+function unescapeWikiHtml(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+}
+
 // Own instance (see wiki-core.ts's newWikiLinkPattern doc comment) — isolated from the shared
 // WikiLinkPattern that custom-renderer.ts / wiki-serialize.ts / wiki-core.ts's own
 // extractWikiTargets also read; only renderWikiChipsInHtml below ever touches this one.
@@ -285,15 +298,19 @@ const wikiLinkPattern = newWikiLinkPattern()
 // Pure string transform; exported for unit tests.
 export function renderWikiChipsInHtml(html: string): string {
   wikiLinkPattern.lastIndex = 0
-  return html.replace(wikiLinkPattern, (full: string, inner: string) => {
-    const { target, label } = parseWikiPayload(inner)
-    const display = label || target
-    return (
-      `<span class="wiki-link-chip" data-wiki-link="1" ` +
-      `data-wiki-target="${escapeWikiHtml(target)}" ` +
-      `data-wiki-source="${escapeWikiHtml(full)}" ` +
-      `title="Open wiki page ${escapeWikiHtml(target)}">` +
-      `${escapeWikiHtml(display)}</span>`
-    )
-  })
+  return html.replace(
+    wikiLinkPattern,
+    (escapedFull: string, escapedInner: string) => {
+      const full = unescapeWikiHtml(escapedFull)
+      const { target, label } = parseWikiPayload(unescapeWikiHtml(escapedInner))
+      const display = label || target
+      return (
+        `<span class="wiki-link-chip" data-wiki-link="1" ` +
+        `data-wiki-target="${escapeWikiHtml(target)}" ` +
+        `data-wiki-source="${escapeWikiHtml(full)}" ` +
+        `title="Open wiki page ${escapeWikiHtml(target)}">` +
+        `${escapeWikiHtml(display)}</span>`
+      )
+    },
+  )
 }

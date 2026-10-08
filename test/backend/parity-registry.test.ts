@@ -9,7 +9,7 @@ import {
   buildParityFixture,
   PARITY_ELEMENTS,
   PARITY_MARKERS,
-  PARITY_OBSERVERS,
+  BEHAVIOUR_OBSERVERS,
   type ParityFamily,
   stageFamily,
 } from '../parity/elements'
@@ -21,6 +21,7 @@ import {
   validateAllowList,
 } from '../parity/compare'
 import { PARITY_CONFIGS, resolveParityConfig } from '../parity/configs'
+import { CONTENT_DECORATORS } from '../../media-src/src/boot/content-decorators'
 import { flattenSnapshot, type StageSnapshot } from '../parity/snapshot'
 import { CONTENT_THEMES } from '../../src/shared/theme-registry'
 import {
@@ -200,25 +201,47 @@ describe('parity element registry (§E 4)', () => {
   })
 })
 
-describe('decorator classification (§E 5)', () => {
+describe('decorator registration (§E 5)', () => {
   const finishInit = readFileSync(
     path.join(ROOT, 'media-src/src/boot/finish-init.ts'),
     'utf8',
   )
+  const decoratorNames = CONTENT_DECORATORS.map((d) => d.name)
 
-  it('every observer runFinishInit registers is classified for the gate, and vice versa', () => {
+  it('finish-init installs content decorators ONLY through the registry loop', () => {
     // Same style as probe-tier-convention.test.ts: scan the source text for `observers.set('name'`.
-    const registered = [
+    const handWritten = [
       ...finishInit.matchAll(/observers\.set\(\s*'([\w-]+)'/g),
     ].map((m) => m[1])
-    expect(registered.length).toBeGreaterThan(10)
-    const classified = Object.keys(PARITY_OBSERVERS)
-    expect([...new Set(registered)].sort()).toEqual([...classified].sort())
+    expect(handWritten.length).toBeGreaterThan(8)
+    expect([...new Set(handWritten)].sort()).toEqual(
+      [...BEHAVIOUR_OBSERVERS].sort(),
+    )
+    for (const name of decoratorNames)
+      expect(handWritten, `${name} must not be hand-registered`).not.toContain(
+        name,
+      )
+    expect(finishInit).toContain("observeDecorators('edit'")
+    expect(finishInit).toContain("observeDecorators('preview'")
   })
 
-  const decoratorMarkers = Object.entries(PARITY_OBSERVERS).flatMap(
-    ([name, o]) =>
-      o.role === 'decorator' ? o.markers.map((m) => ({ name, m })) : [],
+  it('registry names are unique and every observing entry targets a live surface', () => {
+    expect(new Set(decoratorNames).size).toBe(decoratorNames.length)
+    for (const d of CONTENT_DECORATORS) {
+      if (d.observe)
+        expect(
+          d.stages.has('edit') || d.stages.has('preview'),
+          `${d.name} observes but names no live stage`,
+        ).toBe(true)
+      if (d.decorate)
+        expect(d.stages.has('overlay'), `${d.name} decorates the overlay`).toBe(
+          true,
+        )
+    }
+  })
+
+  const decoratorMarkers = CONTENT_DECORATORS.flatMap((d) =>
+    d.parityMarkers.map((m) => ({ name: d.name, m })),
   )
 
   it('names only registered markers', () => {
@@ -229,8 +252,9 @@ describe('decorator classification (§E 5)', () => {
   it('every decorator marker the canon can reach is expected by some element', () => {
     // A decorator marker no element expects can never be observed by the gate (a dead check), unless
     // the canon cannot reach the decorator (documented: code-ref chips need a workspace file,
-    // soft-break marks need reflow — covered by the reflow configuration, not an `expect`).
-    const unreachable = new Set(['code-ref-chip', 'softbreak'])
+    // soft-break marks need reflow — covered by the reflow configuration, not an `expect` — and wiki
+    // chips need a wiki file; the wiki-chip corpus test pins the host string transform instead).
+    const unreachable = new Set(['code-ref-chip', 'softbreak', 'wiki-chip'])
     const expected = new Set(PARITY_ELEMENTS.flatMap((e) => e.expectMarkers))
     for (const { m } of decoratorMarkers)
       if (!unreachable.has(m))

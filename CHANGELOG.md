@@ -12,8 +12,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   blocks, display math, diagram blocks and horizontal rules are laid out the same in the IR and WYSIWYG
   editors, the Preview and the split view, per theme — the VS Code themes (and any theme without its own)
   use VS Code's built-in preview rhythm, the GitHub themes GitHub's. Switching to the Preview no longer
-  shifts the text or changes how tall the document is. (The instant-paint view still differs from the
-  editor for callouts, diagrams and math until it is decorated too.)
+  shifts the text or changes how tall the document is. The instant-paint view shown while a file opens
+  draws callouts, syntax-coloured code, typeset math, comments (for the first two screens of the
+  document) and the collapsed toolbar the way the editor does, so the page no longer jumps when the editor takes over (diagrams still appear as
+  their source until they render); a wiki link whose name contains `&` shows correctly there too.
 
 - **Wrapped lines flow** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph soft-wrapped
   across several source lines reads as one flowing paragraph in the Preview, the split view and the

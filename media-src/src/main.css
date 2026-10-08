@@ -1499,7 +1499,7 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
    font, its line-height simply INHERITING `.markdown-body`'s own `line-height: 1.6` (nothing overrides
    it for `.hljs`). Every one of those is a real, independent axis the block visibly snaps to the
    moment highlight.js lands — exactly the jump this file's mirroring exists to prevent (task 516
-   full-suite triage, prerender-style-parity.spec.ts: height 47 → 51 (padding) → 54.39 (+font-family,
+   full-suite triage, the retired prerender-style-parity.spec.ts: height 47 → 51 (padding) → 54.39 (+font-family,
    +line-height:inherit to restore the 1.6 the inline-code rule was overriding) → 56.39 (+border, this
    rule) — matching the settled value at every step confirmed which axis was still open). Scoped via
    `data-content-theme` (html-builder.ts / live-config.ts) because `.markdown-body` alone can't tell

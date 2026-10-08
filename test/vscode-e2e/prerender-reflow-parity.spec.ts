@@ -2,7 +2,7 @@
 // overlay (host-rendered, painted before any script) must lay out exactly like the live editor
 // that replaces it: with reflow on, soft-wrapped paragraphs are ONE line with a marker per source
 // newline in BOTH, so no block moves, changes height or loses a line at the swap. Same hold hook as
-// prerender-style-parity.spec.ts (VMARKD_PRERENDER_PARITY_HOLD keeps the overlay for the compare).
+// parity-matrix.spec.ts (VMARKD_PRERENDER_PARITY_HOLD keeps the overlay for the compare).
 import path from 'node:path'
 import { expect, test } from 'vscode-test-playwright'
 import { applySettings, useSettingsRestore } from './settings-helpers'
@@ -20,7 +20,7 @@ test.beforeAll(() => {
   process.env.VMARKD_PRERENDER_PARITY_HOLD = '1'
 })
 test.afterAll(() => {
-  // `delete`, NOT `= undefined` (see prerender-style-parity.spec.ts)
+  // `delete`, NOT `= undefined` (see parity-matrix.spec.ts)
   delete process.env.VMARKD_PRERENDER_PARITY_HOLD
 })
 

@@ -26,6 +26,7 @@ import {
 import {
   buildWebviewHtml,
   hasCodeFence,
+  hasMath,
   serializeInitPayload,
 } from '../../src/webview-host/html-builder'
 import type { ParityConfig } from '../../test/parity/configs'
@@ -85,8 +86,8 @@ async function warmLute(): Promise<void> {
 export async function buildParityPage(
   config: ParityConfig,
   origin: string,
+  markdown = readFileSync(CANON_PATH, 'utf8'),
 ): Promise<string> {
-  const markdown = readFileSync(CANON_PATH, 'utf8')
   const r = resolveParityConfig(config)
   await warmLute()
   const toUri = (f: string) => `${origin}/${f}`
@@ -155,6 +156,7 @@ export async function buildParityPage(
       },
       preRenderedHtml,
       docHasCodeFence: hasCodeFence(markdown),
+      docHasMath: hasMath(markdown),
       savedMode: 'ir',
       i18nLang: 'en_US',
       initPayload: serializeInitPayload({

@@ -11,6 +11,7 @@ import { isWikiFile } from '../wiki/wiki'
 import {
   buildWebviewHtml,
   hasCodeFence,
+  hasMath,
   sanitizeCss,
 } from '../webview-host/html-builder'
 import { DiagramCache } from '../webview-host/diagram-cache-host'
@@ -237,6 +238,8 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
       // Gate the hljs preload on the FULL document (not the truncated preRenderedHtml) so a code fence
       // below MAX_PRERENDER_CHARS still preloads hljs (task 170 bonus).
       docHasCodeFence: content !== undefined && hasCodeFence(content),
+      // Same full-document gate for the KaTeX preload (task 532 step 4).
+      docHasMath: content !== undefined && hasMath(content),
       savedMode,
       i18nLang: resolveVditorI18nLang(vscode.env?.language),
       initPayload,
