@@ -29,7 +29,7 @@
       // No explicit `entry` needed: knip's default entry heuristic derives it from
       // package.json's `main` (out/app/extension.js → src/app/extension.ts), and the
       // redundant explicit pattern was itself a knip config hint (task 498).
-      "project": ["src/**/*.ts", "test/backend/**/*.ts"],
+      "project": ["src/**/*.ts", "test/backend/**/*.ts", "test/parity/**/*.ts"],
       "ignore": [
         // test/backend/vscode-mock.ts deliberately mirrors the REAL `vscode` namespace shape
         // (DocumentSymbol, languages, SymbolKind, TreeItemCollapsibleState.Collapsed) even where

@@ -1,0 +1,3972 @@
+[
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "autolink",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.69
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "autolink",
+    "property": "style.color",
+    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "autolink",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "autolink",
+    "property": "text.color",
+    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "autolink",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "blockquote-nested",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "blockquote-nested",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -2.56
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "blockquote-nested",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "blockquote-nested",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "blockquote-nested",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "vscode-dark-2026+reflow",
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "marker.softbreak",
+    "reason": "With reflow on, the edit surfaces draw a ↵ marker per soft break (it also has width, so wraps differ); the Preview has plain spaces.",
+    "task": "532 step 7",
+    "delta": [
+      -1,
+      -1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.97,
+      2.25
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "blockquote",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "bold",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "bold",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "bold",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "callout-note",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-note",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.97,
+      2.25
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-note",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "callout-note",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-note",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "callout-titled",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-titled",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.97,
+      2.25
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-titled",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "callout-titled",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "callout-titled",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "github-dark",
+      "github-light"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "closing-paragraph",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.13,
+      1.13
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "closing-paragraph",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "closing-paragraph",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "closing-paragraph",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -2,
+      -2
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "rect.height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "delta": [
+      -6.95,
+      -6.95
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "style.background-color",
+    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
+    "task": "532 follow-up",
+    "values": [
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(0, 0, 0)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(43, 43, 43)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgba(10, 10, 10, 0.4)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "style.font-family",
+    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
+    "task": "532 follow-up",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-fence",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -2,
+      1.13
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "rect.height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "delta": [
+      -1.39,
+      -1.39
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "style.background-color",
+    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
+    "task": "532 follow-up",
+    "values": [
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(0, 0, 0)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(43, 43, 43)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgba(10, 10, 10, 0.4)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "style.font-family",
+    "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
+    "task": "532 follow-up",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-indented",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "code-ref",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.21,
+      -3.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-ref",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"17.85px\" -> \"18.6949px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "code-ref",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"17.85px\" -> \"18.6949px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-d2",
+    "property": "style.font-family",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-d2",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-d2",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-d2",
+    "property": "style.margin-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-d2",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"25.6px\" -> \"24px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-mermaid",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.68
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-mermaid",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "diagram-mermaid",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "diagram-mermaid",
+    "property": "style.margin-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "em",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.69
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "em",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "em",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "rect.firstGlyphX",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "delta": [
+      40,
+      40
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -31.39,
+      -28.02
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "shape",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"p\" -> \"hr,ol(li(p))\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"0px\" -> \"14px\"",
+      "\"0px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "style.margin-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"24px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "style.padding-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"24px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "footnote-def",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-ref",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -14.2,
+      -12.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "footnote-ref",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.98,
+      1.98
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "footnote-ref",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "footnote-ref",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "footnote-ref",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "marker.hljs-token",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "delta": [
+      2,
+      2
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "rect.firstGlyphX",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> 256",
+      "\"(none)\" -> 63.89",
+      "\"(none)\" -> 68",
+      "\"(none)\" -> 69"
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      14,
+      16
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "rect.height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "delta": [
+      -48,
+      -42
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "style.background-color",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(0, 0, 0)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgb(43, 43, 43)\"",
+      "\"rgba(0, 0, 0, 0)\" -> \"rgba(10, 10, 10, 0.4)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "style.font-family",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
+    ]
+  },
+  {
+    "theme": [
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"22.4px\" -> \"21px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"0px\" -> \"14px\"",
+      "\"0px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "style.margin-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"0px\" -> \"14px\"",
+      "\"0px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.color",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"rgb(0, 92, 197)\"",
+      "\"(none)\" -> \"rgb(121, 192, 255)\"",
+      "\"(none)\" -> \"rgb(156, 220, 254)\"",
+      "\"(none)\" -> \"rgb(209, 154, 102)\"",
+      "\"(none)\" -> \"rgb(221, 221, 221)\"",
+      "\"(none)\" -> \"rgb(255, 0, 0)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.font-family",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"\\\"Droid Sans Mono\\\", \\\"monospace\\\", monospace\"",
+      "\"(none)\" -> \"\\\"Droid Sans Mono\\\", monospace\"",
+      "\"(none)\" -> \"mononoki, Consolas, \\\"Liberation Mono\\\", Menlo, Courier, monospace, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\", \\\"Noto Color Emoji\\\", \\\"Segoe UI Symbol\\\", \\\"Android Emoji\\\", EmojiSymbols\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.font-size",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"11.9px\"",
+      "\"(none)\" -> \"14px\"",
+      "\"(none)\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.font-style",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"normal\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.font-weight",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"400\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"17.85px\"",
+      "\"(none)\" -> \"21px\"",
+      "\"(none)\" -> \"24px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "frontmatter",
+    "property": "text.text-decoration-line",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"(none)\" -> \"none\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "hard-break",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "hard-break",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.97,
+      2.25
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "hard-break",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "hard-break",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "hard-break",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "hr",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "hr",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"24px\" -> \"11.2px\"",
+      "\"24px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -8,
+      -7
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "rect.height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "delta": [
+      -5.02,
+      -1.87
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "text.font-family",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"monospace\" -> \"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\"",
+      "\"monospace\" -> \"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "html-block",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "rect.height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "delta": [
+      -5.02,
+      -1.87
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "style.color",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"rgb(171, 178, 191)\" -> \"rgb(110, 118, 129)\"",
+      "\"rgb(171, 178, 191)\" -> \"rgba(128, 128, 128, 0.6)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(110, 118, 129)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgba(128, 128, 128, 0.6)\"",
+      "\"rgb(209, 213, 218)\" -> \"rgb(144, 144, 138)\"",
+      "\"rgb(209, 213, 218)\" -> \"rgb(255, 255, 255)\"",
+      "\"rgb(209, 213, 218)\" -> \"rgba(128, 128, 128, 0.6)\"",
+      "\"rgb(240, 246, 252)\" -> \"rgb(110, 118, 129)\"",
+      "\"rgb(240, 246, 252)\" -> \"rgba(128, 128, 128, 0.6)\"",
+      "\"rgb(31, 35, 40)\" -> \"rgb(110, 118, 129)\"",
+      "\"rgb(31, 35, 40)\" -> \"rgba(128, 128, 128, 0.6)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgb(110, 118, 129)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgba(128, 128, 128, 0.6)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "style.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"14px\" -> \"7px\"",
+      "\"16px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "style.margin-top",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"0px\" -> \"7px\"",
+      "\"0px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "html-comment",
+    "property": "text.line-height",
+    "reason": "Preview code line-height is task-480 `pre, pre code { line-height: 1.5 }` (21px) while the edit code block inherits the theme's 1.6 / the body line-height (22.4px).",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "image",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.69
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "image",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "inline-code",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.68
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "inline-code",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"17.85px\" -> \"18.6949px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "inline-code",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"17.85px\" -> \"18.6949px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "link",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -2.68
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "link",
+    "property": "style.color",
+    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "link",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "link",
+    "property": "text.color",
+    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "link",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "math-block",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -2,
+      -1.33
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "math-block",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -5.69,
+      -2.78
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "math-block",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "math-block",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"0px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "math-inline",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "rect.firstGlyphX",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      2.95,
+      3.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "style.padding-left",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "values": [
+      "\"28px\" -> \"40px\"",
+      "\"32px\" -> \"40px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ol",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "vscode-dark-2026+reflow",
+    "stagePair": "ir>preview",
+    "kind": "paragraph",
+    "property": "marker.softbreak",
+    "reason": "With reflow on, the edit surfaces draw a ↵ marker per soft break (it also has width, so wraps differ); the Preview has plain spaces.",
+    "task": "532 step 7",
+    "delta": [
+      -2,
+      -2
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "paragraph",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      2.95,
+      3.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "paragraph",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "paragraph",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "paragraph",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "root",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "strike",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -3.69
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "strike",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "strike",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "table",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      16,
+      16
+    ]
+  },
+  {
+    "theme": [
+      "github-dark",
+      "github-light"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "table",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      3.38,
+      3.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "table",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "table",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "table",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "rect.firstGlyphX",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.97,
+      2.25
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "style.padding-left",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "values": [
+      "\"28px\" -> \"40px\"",
+      "\"32px\" -> \"40px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "task-list",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "rect.firstGlyphX",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.81
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "rect.height",
+    "reason": "The Preview renders VditorIRDOM2Md(ir DOM) and that serialisation drops looseness: a loose list comes back tight (li without <p>, 99.2px -> 74.2px).",
+    "task": "532 step 6",
+    "delta": [
+      -25,
+      -20.62
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "shape",
+    "reason": "The Preview renders VditorIRDOM2Md(ir DOM) and that serialisation drops looseness: a loose list comes back tight (li without <p>, 99.2px -> 74.2px).",
+    "task": "532 step 6",
+    "values": [
+      "\"ul(li(p),li(p),li(p))\" -> \"ul(li,li,li)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "style.padding-left",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "values": [
+      "\"28px\" -> \"40px\"",
+      "\"32px\" -> \"40px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-loose",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "rect.firstGlyphX",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -2.27
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "rect.nestedListLeft",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "style.padding-left",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "values": [
+      "\"28px\" -> \"40px\"",
+      "\"32px\" -> \"40px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-nested",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "rect.firstGlyphX",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "delta": [
+      8,
+      12
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "rect.gapBefore",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "delta": [
+      -6.2,
+      -4.69
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      2.95,
+      3.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "style.margin-bottom",
+    "reason": "Preview block gap is task-110 0.7em (9.8px at 14px) vs the edit surfaces' 16px margin-bottom (media-src/src/main.css task-110 block).",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "style.padding-left",
+    "reason": "Lists are indented by the task-110 40px (Preview) vs Vditor 2em = 28px (edit): +12px per nesting level.",
+    "task": "532 step 3",
+    "values": [
+      "\"28px\" -> \"40px\"",
+      "\"32px\" -> \"40px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "ul-tight",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "wiki-link",
+    "property": "rect.gapBefore",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      -16,
+      -14
+    ]
+  },
+  {
+    "theme": [
+      "github-dark",
+      "github-light"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "wiki-link",
+    "property": "rect.height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "delta": [
+      1.13,
+      1.13
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "wiki-link",
+    "property": "style.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>preview",
+    "kind": "wiki-link",
+    "property": "style.margin-bottom",
+    "reason": "Preview vs edit block rhythm/structure for this kind (block gap 0.7em vs 16px, wrapper margins, different wrapper element) — see task-110 block; the exact owner is decided when the geometry tokens land.",
+    "task": "532 step 3",
+    "values": [
+      "\"16px\" -> \"11.2px\"",
+      "\"16px\" -> \"9.8px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "material-dark"
+    ],
+    "stagePair": "ir>preview",
+    "kind": "wiki-link",
+    "property": "text.line-height",
+    "reason": "Under NO markdown-body theme the Preview prose line-height is task-110 1.571 while the edit surfaces keep Vditor's 1.5 (under the vscode themes the rule is dead and both are 1.6); block heights follow.",
+    "task": "532 step 3",
+    "values": [
+      "\"21px\" -> \"21.994px\"",
+      "\"24px\" -> \"25.136px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "autolink",
+    "property": "style.color",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "autolink",
+    "property": "text.color",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-fence",
+    "property": "rect.firstGlyphX",
+    "reason": "WYSIWYG code block text starts 2.38px further right than IR (hljs padding vs the wysiwyg pre offset).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "code-indented",
+    "property": "rect.firstGlyphX",
+    "reason": "WYSIWYG code block text starts 2.38px further right than IR (hljs padding vs the wysiwyg pre offset).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "diagram-d2",
+    "property": "rect.firstGlyphX",
+    "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      1.19,
+      1.19
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "diagram-mermaid",
+    "property": "rect.firstGlyphX",
+    "reason": "Centred diagram x differs by 1.2px between IR and WYSIWYG (scrollbar/gutter rounding of the centring box).",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      1.2,
+      1.2
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "footnote-def",
+    "property": "rect.firstGlyphX",
+    "reason": "IR keeps a footnote definition as a paragraph; WYSIWYG renders an ordered list (ol/li) with an indent.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      28,
+      32
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "footnote-def",
+    "property": "rect.height",
+    "reason": "IR keeps a footnote definition as a paragraph; WYSIWYG renders an ordered list (ol/li) with an indent.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      -8,
+      -5
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "footnote-def",
+    "property": "shape",
+    "reason": "IR keeps a footnote definition as a paragraph; WYSIWYG renders an ordered list (ol/li) with an indent.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"p\" -> \"ol(li(p))\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "marker.hljs",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      -1,
+      -1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "rect.firstGlyphX",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> 242",
+      "\"(none)\" -> 55",
+      "\"(none)\" -> 56.75",
+      "\"(none)\" -> 58.39"
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "rect.gapBefore",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      14,
+      16
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "rect.height",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      -80.17,
+      -61.03
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.color",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"rgb(209, 213, 218)\"",
+      "\"(none)\" -> \"rgb(36, 41, 46)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.font-family",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"mononoki, Consolas, \\\"Liberation Mono\\\", Menlo, Courier, monospace, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\", \\\"Noto Color Emoji\\\", \\\"Segoe UI Symbol\\\", \\\"Android Emoji\\\", EmojiSymbols\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.font-size",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"11.9px\"",
+      "\"(none)\" -> \"14px\"",
+      "\"(none)\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.font-style",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"normal\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.font-weight",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"400\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.line-height",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"17.85px\"",
+      "\"(none)\" -> \"18.998px\"",
+      "\"(none)\" -> \"24px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "frontmatter",
+    "property": "text.text-decoration-line",
+    "reason": "IR draws YAML front matter as an always-open source panel (markers + yaml code, hljs), WYSIWYG as a one-line quiet block.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"(none)\" -> \"none\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "html-block",
+    "property": "rect.firstGlyphX",
+    "reason": "IR gives the html-block wrapper a 14px bottom margin and starts text 17px in; WYSIWYG does neither.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "html-block",
+    "property": "style.margin-bottom",
+    "reason": "IR gives the html-block wrapper a 14px bottom margin and starts text 17px in; WYSIWYG does neither.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "html-comment",
+    "property": "rect.firstGlyphX",
+    "reason": "IR gives the html-block wrapper a 14px bottom margin and starts text 17px in; WYSIWYG does neither.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      2.38,
+      2.38
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "html-comment",
+    "property": "style.margin-bottom",
+    "reason": "IR gives the html-block wrapper a 14px bottom margin and starts text 17px in; WYSIWYG does neither.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"14px\" -> \"0px\"",
+      "\"16px\" -> \"0px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "link",
+    "property": "style.color",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai"
+    ],
+    "stagePair": "ir>wysiwyg",
+    "kind": "link",
+    "property": "text.color",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 9",
+    "values": [
+      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
+      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "table",
+    "property": "rect.gapBefore",
+    "reason": "WYSIWYG puts a 14px margin above a table that follows a block with no bottom margin; IR table has none.",
+    "task": "accepted (user, 2026-10-08)",
+    "delta": [
+      14,
+      16
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "ul-loose",
+    "property": "rect.height",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 6",
+    "delta": [
+      -25,
+      -24
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "ir>wysiwyg",
+    "kind": "ul-loose",
+    "property": "shape",
+    "reason": "IR vs WYSIWYG drift.",
+    "task": "532 step 6",
+    "values": [
+      "\"ul(li(p),li(p),li(p))\" -> \"ul(li,li,li)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "marker.callout-title",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "marker.callout-type",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      -4,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "rect.height",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      16,
+      16
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "style.border-left-width",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"3px\" -> \"4px\"",
+      "\"5px\" -> \"4px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "style.padding-bottom",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"0px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "style.padding-left",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"10px\" -> \"12px\"",
+      "\"14px\" -> \"12px\"",
+      "\"16px\" -> \"12px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "style.padding-right",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"14px\" -> \"12px\"",
+      "\"16px\" -> \"12px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "style.padding-top",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"0px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "text.color",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"rgb(127, 132, 142)\" -> \"rgb(68, 147, 248)\"",
+      "\"rgb(145, 152, 161)\" -> \"rgb(68, 147, 248)\"",
+      "\"rgb(185, 185, 185)\" -> \"rgb(68, 147, 248)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(68, 147, 248)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgb(68, 147, 248)\"",
+      "\"rgb(89, 99, 110)\" -> \"rgb(68, 147, 248)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-note",
+    "property": "text.font-weight",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"400\" -> \"600\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "marker.callout-title",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "marker.callout-type",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      -4,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "rect.height",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "delta": [
+      16,
+      16
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "style.border-left-width",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"3px\" -> \"4px\"",
+      "\"5px\" -> \"4px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "style.padding-bottom",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"0px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "style.padding-left",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"10px\" -> \"12px\"",
+      "\"14px\" -> \"12px\"",
+      "\"16px\" -> \"12px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "style.padding-right",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"14px\" -> \"12px\"",
+      "\"16px\" -> \"12px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "style.padding-top",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"0px\" -> \"8px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "text.color",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"rgb(127, 132, 142)\" -> \"rgb(63, 185, 80)\"",
+      "\"rgb(145, 152, 161)\" -> \"rgb(63, 185, 80)\"",
+      "\"rgb(185, 185, 185)\" -> \"rgb(63, 185, 80)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(63, 185, 80)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgb(63, 185, 80)\"",
+      "\"rgb(89, 99, 110)\" -> \"rgb(63, 185, 80)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "callout-titled",
+    "property": "text.font-weight",
+    "reason": "Instant-paint overlay draws a callout as a plain blockquote with the literal [!TYPE] line (the callouts decorator never runs on it): no title, different border/padding, 16px shorter.",
+    "task": "532 step 4",
+    "values": [
+      "\"400\" -> \"600\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "code-fence",
+    "property": "marker.hljs",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "code-fence",
+    "property": "marker.hljs-token",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "delta": [
+      10,
+      10
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "code-fence",
+    "property": "text.color",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "values": [
+      "\"rgb(171, 178, 191)\" -> \"rgb(92, 99, 112)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(117, 113, 94)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(87, 166, 74)\"",
+      "\"rgb(209, 213, 218)\" -> \"rgb(139, 148, 158)\"",
+      "\"rgb(240, 246, 252)\" -> \"rgb(139, 148, 158)\"",
+      "\"rgb(31, 35, 40)\" -> \"rgb(106, 115, 125)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgb(0, 128, 0)\""
+    ]
+  },
+  {
+    "theme": [
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "code-fence",
+    "property": "text.font-style",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "values": [
+      "\"normal\" -> \"italic\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "code-indented",
+    "property": "marker.hljs",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark",
+      "github-light",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "code-indented",
+    "property": "text.color",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "values": [
+      "\"rgb(187, 190, 191)\" -> \"rgb(220, 220, 220)\"",
+      "\"rgb(187, 190, 191)\" -> \"rgb(221, 221, 221)\"",
+      "\"rgb(209, 213, 218)\" -> \"rgb(201, 209, 217)\"",
+      "\"rgb(240, 246, 252)\" -> \"rgb(201, 209, 217)\"",
+      "\"rgb(31, 35, 40)\" -> \"rgb(36, 41, 46)\"",
+      "\"rgb(32, 32, 32)\" -> \"rgb(0, 0, 0)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "marker.svg",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      28.95,
+      46.38
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "rect.gapBefore",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      2,
+      2
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "rect.height",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      185,
+      230
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "text.font-family",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"mononoki, Consolas, \\\"Liberation Mono\\\", Menlo, Courier, monospace, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\", \\\"Noto Color Emoji\\\", \\\"Segoe UI Symbol\\\", \\\"Android Emoji\\\", EmojiSymbols\" -> \"\\\"Source Sans 3\\\", \\\"Source Sans Pro\\\", system-ui, sans-serif\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "text.font-size",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"11.9px\" -> \"16px\"",
+      "\"14px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-d2",
+    "property": "text.line-height",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"17.85px\" -> \"24px\"",
+      "\"18.998px\" -> \"25.6px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "marker.svg",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      156.28,
+      184.57
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "rect.height",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "delta": [
+      257,
+      258
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "github-dark"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "text.color",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"rgb(209, 213, 218)\" -> \"rgb(204, 204, 204)\"",
+      "\"rgb(240, 246, 252)\" -> \"rgb(230, 237, 243)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "text.font-family",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"monospace\" -> \"sans-serif\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "text.font-size",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"14px\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": [
+      "auto-high-contrast",
+      "auto-monokai",
+      "material-dark",
+      "vscode-dark-2026",
+      "vscode-dark-2026+markers+monokai-code",
+      "vscode-dark-2026+narrow",
+      "vscode-dark-2026+reflow",
+      "vscode-light-2026"
+    ],
+    "stagePair": "overlay>ir",
+    "kind": "diagram-mermaid",
+    "property": "text.line-height",
+    "reason": "Instant-paint overlay shows the raw diagram source in a code-sized box, the live editor shows the rendered SVG (large height jump at the swap); needs a reserved placeholder height.",
+    "task": "532 step 5",
+    "values": [
+      "\"21px\" -> \"24px\"",
+      "\"22.4px\" -> \"24px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "frontmatter",
+    "property": "marker.hljs",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "frontmatter",
+    "property": "rect.height",
+    "reason": "Instant-paint overlay code is un-highlighted (no .hljs class, no tokens): colour, font, line-height and the hljs padding differ from the live editor.",
+    "task": "532 step 4",
+    "delta": [
+      20.64,
+      37.39
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "marker.html-comment",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> 239",
+      "\"(none)\" -> 52"
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.color",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"rgb(110, 118, 129)\"",
+      "\"(none)\" -> \"rgb(144, 144, 138)\"",
+      "\"(none)\" -> \"rgb(255, 255, 255)\"",
+      "\"(none)\" -> \"rgba(128, 128, 128, 0.6)\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.font-family",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\"",
+      "\"(none)\" -> \"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.font-size",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"14px\"",
+      "\"(none)\" -> \"16px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.font-style",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"italic\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.font-weight",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"400\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.line-height",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"21px\"",
+      "\"(none)\" -> \"22.4px\"",
+      "\"(none)\" -> \"24px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "html-comment",
+    "property": "text.text-decoration-line",
+    "reason": "Instant-paint overlay shows the HTML comment as un-decorated source (no .vmarkd-comment, no .hljs): the html-comments / code-source decorators never run on it.",
+    "task": "532 step 4",
+    "values": [
+      "\"(none)\" -> \"none\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "marker.katex",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "rect.firstGlyphX",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "delta": [
+      196.91,
+      535.63
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "text.font-family",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"monospace\" -> \"KaTeX_Math\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "text.font-size",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"14px\" -> \"16.94px\"",
+      "\"16px\" -> \"19.36px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "text.font-style",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"normal\" -> \"italic\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-block",
+    "property": "text.line-height",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"21px\" -> \"20.328px\"",
+      "\"22.4px\" -> \"20.328px\"",
+      "\"24px\" -> \"23.232px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "marker.katex",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "delta": [
+      1,
+      1
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "rect.width",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "delta": [
+      13.29,
+      21.59
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "text.font-family",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"KaTeX_Math\"",
+      "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"KaTeX_Math\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "text.font-size",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"14px\" -> \"16.94px\"",
+      "\"16px\" -> \"19.36px\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "text.font-style",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"normal\" -> \"italic\""
+    ]
+  },
+  {
+    "theme": "*",
+    "stagePair": "overlay>ir",
+    "kind": "math-inline",
+    "property": "text.line-height",
+    "reason": "Instant-paint overlay shows raw TeX until the live KaTeX renderer runs; math is not covered by any planned step of 532 — needs a decision (host-side KaTeX or a placeholder).",
+    "task": "532 step 4",
+    "values": [
+      "\"21px\" -> \"20.328px\"",
+      "\"22.4px\" -> \"20.328px\"",
+      "\"24px\" -> \"23.232px\""
+    ]
+  },
+  {
+    "theme": "vscode-dark-2026+narrow",
+    "stagePair": "preview>sv",
+    "kind": "root",
+    "property": "style.padding-left",
+    "reason": "With fullWidth off the full Preview centres a narrow column (239px side padding at this width) but the split-view pane keeps 10px; whether the split pane should centre too is undecided.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"239px\" -> \"10px\"",
+      "\"52px\" -> \"10px\""
+    ]
+  },
+  {
+    "theme": "vscode-dark-2026+narrow",
+    "stagePair": "preview>sv",
+    "kind": "root",
+    "property": "style.padding-right",
+    "reason": "With fullWidth off the full Preview centres a narrow column (239px side padding at this width) but the split-view pane keeps 10px; whether the split pane should centre too is undecided.",
+    "task": "accepted (user, 2026-10-08)",
+    "values": [
+      "\"239px\" -> \"10px\"",
+      "\"52px\" -> \"10px\""
+    ]
+  }
+]

@@ -164,6 +164,16 @@ const FAST_SPECS = [
   // getValue() in the chromium harness — that artefact is precisely why the journey went five
   // weeks unconfirmed. Two tests, ~30 s. Everything else from 516 stays FULL-only.
   'checkbox-toggle.spec.ts',
+  // 2026-10-08 (task 532 step 1) — the cross-stage visual-parity gate, ONE boot in this tier: the
+  // user's own configuration (`auto` under Default Dark Modern = vscode-dark-2026). Captures the
+  // canonical fixture (every element kind) in five stages — held overlay, IR, Preview, WYSIWYG,
+  // split pane — and compares them under test/parity/policy.ts. Cost ~1 boot + ~25-40 s of capture
+  // (stabilisation polls + mermaid/d2 renders); the full tier runs the 10-configuration matrix
+  // (one boot each) from the same file. It belongs here because the drift it guards — list indent,
+  // block gap, code leading, overlay decorations — is invisible to every other spec in this tier and
+  // is seen on EVERY open and mode switch; the harness twin (media-src/e2e/parity.spec.ts) cannot
+  // see VS Code's injected CSS or the custom-editor pipeline.
+  'parity-matrix.spec.ts',
 ]
 const tier = process.env.VMARKD_FAST
   ? FAST_SPECS
