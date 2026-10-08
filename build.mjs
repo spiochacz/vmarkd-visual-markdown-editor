@@ -13,6 +13,7 @@ import * as path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { VENDORED_ASSETS } from './media-src/vendor/vendored-assets.mjs'
+import { varifyGeometryCss } from './scripts/vditor-geometry-patch.mjs'
 import {
   LUTE_HARD_BREAK_PATCHES,
   patchLuteBlob,
@@ -388,6 +389,19 @@ function replaceAnchored(css, anchor, replacement, label) {
   return css.replace(anchor, replacement)
 }
 
+// Task 532 step 2 — rewrite Vditor's content-geometry declarations (leading, block gap, list indent,
+// heading margins, code-box padding) to `var(--vmarkd-geo-*, <Vditor value>)` in the COPIED index.css.
+// The rewrite table + count-asserted apply live in scripts/vditor-geometry-patch.mjs (shared with its
+// unit test). No token set => byte-for-byte the same rendering; themes set the tokens.
+async function varifyVditorGeometry() {
+  const file = path.resolve('media/vditor/dist/index.css')
+  const css = await fs.readFile(file, 'utf8')
+  await fs.writeFile(file, varifyGeometryCss(css))
+  console.log(
+    '[geometry] index.css content geometry → var(--vmarkd-geo-*) applied',
+  )
+}
+
 // Patch Vditor's OWN CSS at the source (we already patch its TS via esbuild; a Vditor fork is on
 // the table) rather than fighting it with a higher-specificity/later-load main.css override — ADR-0003's
 // routing rule and ADR-0004's mechanism. Operates on the COPIED file (post-sync), so every surface that
@@ -595,6 +609,7 @@ await syncVditorAssets()
 await varifyVditorPalette()
 await patchContentThemeIrLink()
 await patchVditorIndexCss()
+await varifyVditorGeometry()
 for (const entry of VENDORED_ASSETS) {
   await syncVendored(entry)
 }

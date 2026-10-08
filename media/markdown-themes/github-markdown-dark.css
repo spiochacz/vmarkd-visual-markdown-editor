@@ -6,6 +6,9 @@
  * `.markdown-body` deltas + a palette var block, no `!important`, no specificity
  * tricks. Mirrors github-markdown-light.css; values are the current Primer dark
  * palette (canvas #0d1117, text #f0f6fc, link #4493f8, …). Applied to body.markdown-body (task 82).
+ *
+ * @profile: default — content geometry tokens (--vmarkd-geo-*) are left unset, so Vditor's own
+ * rhythm applies on every stage (task 532 step 2; the GitHub profile lands in step 3).
  */
 /* color-scheme drives native scrollbars + form controls — without it a dark content
    theme on a LIGHT VS Code editor shows light scrollbars on dark code blocks. */

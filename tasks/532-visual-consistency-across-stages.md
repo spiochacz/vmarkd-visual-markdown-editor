@@ -1,6 +1,6 @@
 # Task 532 — One content look across all five stages (overlay · IR · WYSIWYG · Preview · split), theme-aware, gated
 
-> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, steps 2-9 not started.
+> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, step 2 (token plumbing) implemented 2026-10-08, steps 3-9 not started.
 > **Source:** user (2026-10-08): "We need a good mechanism to keep the look of the text consistent
 > between these stages, because it keeps drifting apart — and it must take the colour themes into
 > account." Raised by two analyses done the same day: `tmp/fable-preview/report.md` (Preview toggle
@@ -391,11 +391,34 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       - The mode-mismatch overlay (5a) and background (5b) are NOT covered yet (overlay is always the
         IR overlay under `defaultMode: ir`); `root.background-color` is snapshotted but the overlay's
         own container is not.
-- [ ] **2. Geometry tokens (part 1 — plumbing, no visible change).** `varifyVditorGeometry` in
-      `build.mjs` (anchor-asserted); `--vmarkd-geo-*` defaults = Vditor's values; the "3a. Content
-      geometry" section in `main.css`; theme files declare the tokens with their CURRENT effective
-      values (vscode: lh 1.6 only — the rest is still per-surface at this point). Gate unchanged (all
-      allow entries still used). Lint tests 1–3 of §E land here with the current rule set tagged.
+- [x] **2. Geometry tokens (part 1 — plumbing, no visible change).** DONE 2026-10-08.
+      `varifyVditorGeometry` in `build.mjs` (thin wrapper; the rewrite table + count-asserted apply live
+      in `scripts/vditor-geometry-patch.mjs`, shared with `test/backend/vditor-geometry-patch.test.ts`:
+      8 anchors, each must match EXACTLY once, throws naming the patch otherwise). Token set (default =
+      Vditor's value, held in the `var()` fallback): `--vmarkd-geo-line-height` 1.5, `-block-gap` 16px
+      (p/ul/ol/blockquote/table margin-bottom, `li p` margin-top), `-list-indent` 2em, `-heading-mt`
+      24px, `-heading-mb` 16px, `-heading-lh` 1.25, `-code-pad` .5em, `-code-radius` 5px (`pre > code`).
+      Themes: `vscode-*-2026` declare the full set on `body.markdown-body` with today's effective values
+      (line-height 1.6, rest = defaults); github/material carry `@profile: default` in the header.
+      `main.css` "3a. Content geometry — ALL stages" is the contract comment (no declarations: a default
+      declared on `.vditor-reset` would SHADOW the theme's body-level token, so defaults live in the
+      fallback); the rules Vditor has no counterpart for arrive in step 3. §E lint tests 1-3 in
+      `test/backend/parity-geometry-lint.test.ts` (+ `test/parity/{css-rules,geometry-lint}.ts`): theme
+      token set / `@profile: default`, twin parity, no surface selector in `markdown-themes/*` and
+      `content-theme/*`, `main.css` surface-scoped geometry rules carry `@surface-only: <reason>` — the 33
+      existing rules are TAGGED in place, with a ratchet (`MAX_TAGGED_SURFACE_RULES = 33`, may only shrink).
+      **Proof of no visible change:** parity gate GREEN, nothing moved: harness 2175/2175 allowed, 0
+      unexplained, 0 stale; real VS Code fast 191/191, full matrix (10 boots) 2175/2175, 0 stale.
+      RED proofs: dropped token / removed `@profile` / surface selector in a theme / untagged rule each
+      turn the lint red; a changed token default (block-gap 16px -> 17px in the patch, rebuilt) turns
+      the harness gate RED (27 unexplained), restored -> GREEN. Not covered in this step (no Vditor
+      declaration to varify; arrive with their consumers in step 3): `--vmarkd-geo-code-lh`,
+      `-bq-pad`/`-bq-border-w`, `-font-family`, `-code-border`, `-diagram-min-h`.
+- Note for step 3 (step-2 review): Vditor content themes `ant-design.css` / `wechat.css` override
+  margins/padding with plain selectors, so the geo tokens have no effect under them; the vscode
+  themes' `body.markdown-body .vditor .vditor-reset { line-height: 1.6 }` duplicates the token. The
+  tagged-rule ratchet is exact (39 today, after the lint learned `.vditor-ir__preview/__node`,
+  min/max-width/height and border shorthands); lower it as rules are deleted.
 - [ ] **3. Geometry tokens (part 2 — apply the decision).** Delete the task-110 block; set the
       vscode profile tokens (40px / 0.7em / 1.25 / code 1.5 / box 16px+1px) and the github profile
       (2em / 16px / 1.5); default profile per decision 1; gutter markers → `calc()`. Delete the

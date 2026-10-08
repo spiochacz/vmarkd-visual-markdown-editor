@@ -120,3 +120,17 @@ body.markdown-body {
   --vmarkd-table-stripe: transparent; /* no zebra */
   --vmarkd-code-bg: #ececec; /* textPreformat.background */
 }
+/* Content geometry tokens (task 532 step 2). The build makes Vditor's rhythm declarations
+   `var(--vmarkd-geo-*, <Vditor value>)`, so a theme profile sets the rhythm of EVERY stage here.
+   Values are today's EFFECTIVE ones (no visible change): only the leading differs from Vditor's
+   defaults (the `body.markdown-body .vditor .vditor-reset` rule above already forces 1.6). */
+body.markdown-body {
+  --vmarkd-geo-line-height: 1.6;
+  --vmarkd-geo-block-gap: 16px;
+  --vmarkd-geo-list-indent: 2em;
+  --vmarkd-geo-heading-mt: 24px;
+  --vmarkd-geo-heading-mb: 16px;
+  --vmarkd-geo-heading-lh: 1.25;
+  --vmarkd-geo-code-pad: 0.5em;
+  --vmarkd-geo-code-radius: 5px;
+}

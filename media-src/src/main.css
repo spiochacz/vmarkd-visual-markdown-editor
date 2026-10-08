@@ -176,6 +176,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    code stays put. Scoped via `:has()` to blocks whose render actually has line numbers, so plain
    code blocks are unaffected. (The numbers themselves aren't drawn while editing — only the column is
    reserved — but the code no longer shifts, which was the reported bug.) */
+/* @surface-only: edit-only source gutter that mirrors the rendered line-number column (no content geometry) */
 .vditor-reset
   .vditor-ir__node:has(> pre.vditor-ir__preview > code.vditor-linenumber)
   > pre.vditor-ir__marker--pre
@@ -289,6 +290,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    value (source pre is `display:none` → excluded). Same `:has(> code)` code-block-only scope as the
    hide rule above — diagram blocks keep their (still-visible) preview, so there is no hidden render
    to compensate for and their source pre keeps Vditor's default margin. Do NOT widen to diagrams. */
+/* @surface-only: edit-only: WYSIWYG source pre of a code block, cancels Vditor negative margin (dual-node anti-jank) */
 .vditor-reset
   .vditor-wysiwyg__block:has(> pre.vditor-wysiwyg__preview > code)
   > pre.vditor-wysiwyg__pre:not([style*="none"]) {
@@ -331,6 +333,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    NOT done by shrinking the glyph: `font-size: 0` has no effect in this webview even as an INLINE
    `!important` declaration (measured — it still computes 14px), so anything relying on font-size to
    hide text here is a dead end. */
+/* @surface-only: edit-only: collapsed IR code source is a zero-size marker (anti-jank) */
 .vditor-ir
   .vditor-reset
   .vditor-ir__node:not(.vditor-ir__node--expand)[data-type='code']
@@ -403,6 +406,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    as Preview's collapsed result) governs; the BOTTOM already matches, so leave it. Only
    `.katex-display` (display math) → inline `$x$` (`.katex`, data-type=inline-node) is untouched;
    only the IR `math-block` node → the Preview pane's own math (a plain div) is untouched. */
+/* @surface-only: IR math-node structure; gives the same collapsed gap as Preview */
 .vditor-reset .vditor-ir__node[data-type="math-block"] .katex-display {
   margin-top: 0;
 }
@@ -428,6 +432,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    its rhythm. Restore the same gap below the Preview's last block so the document doesn't end flush.
    `.vditor-preview .vditor-reset` (0,2,0) + the child (0,3,0) out-ranks the theme; `!important` beats
    its `!important`. 1em ≈ the theme's block margin (github 16px = the measured IR gap). */
+/* @surface-only: Preview last-child bottom margin; the IR equivalent is the trailing paragraph */
 .vditor-preview .vditor-reset > :last-child {
   margin-bottom: 1em !important;
 }
@@ -443,6 +448,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    `.vditor-ir hr`/`.vditor-wysiwyg hr` load later in Vditor's own file and win the tie on
    the editing surface). Patched at the source instead — see build.mjs
    patchVditorIndexCss(). 1em tracks the Preview at any size. */
+/* @surface-only: edit surfaces mirror the Preview pre margin (1em) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset div[data-type="code-block"] {
   margin: 1em 0;
 }
@@ -634,6 +640,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    rule `.vditor--dark .vditor-reset code:not(.hljs)` (0,4,2); padding/radius come from lower-specificity
    inline-code rules → this (0,4,1) wins them. Listed with the other diagram langs for symmetry/future
    safety, though only smiles is `<code>`-wrapped today. */
+/* @surface-only: diagram panel reset, not content geometry */
 .vditor-reset
   :is(
     .vditor-ir__preview,
@@ -683,6 +690,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   :is(.language-flowchart, .language-plantuml, .language-smiles) {
   text-align: center;
 }
+/* @surface-only: diagram sizing (shrink-only svg), not content geometry */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-flowchart, .language-plantuml, .language-smiles)
   > svg {
@@ -696,6 +704,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    constructor `width`/`height` option was measured to have NO effect on the rendered size in how
    this code calls it, do not reintroduce it as "the" size lever). preserveAspectRatio keeps it
    undistorted. */
+/* @surface-only: diagram sizing, identical on every rendered surface (all three preview classes) */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   .language-smiles
   > svg {
@@ -830,6 +839,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview) .language-d2 {
   text-align: center;
 }
+/* @surface-only: diagram sizing (shrink-only svg), not content geometry */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   .language-d2
   > svg {
@@ -846,6 +856,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   :is(.language-vega, .language-vega-lite) {
   text-align: center;
 }
+/* @surface-only: diagram sizing (shrink-only svg), not content geometry */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-vega, .language-vega-lite)
   svg {
@@ -985,6 +996,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   :is(.language-wavedrom, .language-nomnoml) {
   text-align: center;
 }
+/* @surface-only: diagram sizing (shrink-only svg), not content geometry */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-wavedrom, .language-nomnoml)
   > svg {
@@ -995,6 +1007,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
    keeps its intrinsic size when there's room (user: full-width was "za duże") yet must not overflow /
    clip when the column gets narrower than it. `height:auto` keeps the aspect as it shrinks. (abc has
    no viewBox so this is a replaced-element shrink; graphviz has a viewBox so the drawing scales.) */
+/* @surface-only: diagram sizing (shrink-only svg), not content geometry */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-abc, .language-graphviz)
   > svg {
@@ -1004,6 +1017,7 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
 }
 /* ECharts/mindmap canvases resize via JS (echarts-fit.ts) on window-resize, but cap them with CSS
    too so they never overflow the column in the frame before the (debounced) resize fires. */
+/* @surface-only: diagram canvas cap, identical on every rendered surface (all three preview classes) */
 :is(.vditor-ir__preview, .vditor-wysiwyg__preview, .vditor-preview)
   :is(.language-echarts, .language-mindmap)
   > canvas {
@@ -1281,6 +1295,7 @@ body[data-full-width="1"] .vditor {
   border: none !important;
 }
 
+/* @surface-only: full-width/narrow gutter padding, mirrored across surfaces; one --vmarkd-gutter expression is a task 532 follow-up */
 body[data-full-width="1"] .vditor-ir .vditor-reset,
 body[data-full-width="1"] .vditor-ir .vditor-content,
 body[data-full-width="1"] .vditor-sv .vditor-reset,
@@ -1313,6 +1328,7 @@ body[data-full-width="1"] .vditor-wysiwyg .vditor-reset {
    identically and there's no shift at swap. The 100% resolves against the pre's
    containing block = .vditor-ir/.vditor-wysiwyg width, exactly what setPadding reads as
    parentElement.clientWidth. Full-width ON keeps the data-full-width="1" rules above. */
+/* @surface-only: full-width/narrow gutter padding, mirrored across surfaces; one --vmarkd-gutter expression is a task 532 follow-up */
 body[data-full-width="0"] #vmarkd-prerender :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset {
   padding-top: 10px !important;
   padding-bottom: 10px !important;
@@ -1335,11 +1351,17 @@ body[data-full-width="0"] #vmarkd-prerender :is(.vditor-ir, .vditor-wysiwyg) .vd
    horizontal position is unchanged. Both IR and WYSIWYG float the marker at the
    top, so cover both modes — WYSIWYG was missing this, leaving its markers high
    in the line. (task 04) */
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before { line-height: 2.574; }
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before { line-height: 2.279; }
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before { line-height: 2.029; }
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before { line-height: 1.838; }
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h5::before { line-height: 1.662; }
+/* @surface-only: edit-only gutter marker line-height (floated ::before) */
 :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h6::before { line-height: 1.471; }
 
 /* Per-level fine-tuning: some levels read a hair high after the line-height
@@ -1382,6 +1404,7 @@ body[data-heading-markers="0"] :is(.vditor-ir, .vditor-wysiwyg) .vditor-reset .v
    margin than full-width view. Percentages resolve against the pre's containing-block
    width (= the pane width) — the same basis setPadding uses. Vertical padding (10px) is
    left to Vditor's inline shorthand. */
+/* @surface-only: full-width/narrow gutter padding, mirrored across surfaces; one --vmarkd-gutter expression is a task 532 follow-up */
 body[data-full-width="0"] .vditor-ir pre.vditor-reset,
 body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
   padding-left: max(var(--vmarkd-gutter, 52px), calc((100% - 800px) / 2)) !important;
@@ -1421,6 +1444,7 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
    custom-block background rule below. The full 1em (every side, every theme) = the hljs theme's box =
    the settled render AND the standalone Preview pane (no dark-only bottom trim — see note above).
    Covers the overlay automatically (its code is exactly this un-highlighted preview code). */
+/* @surface-only: un-highlighted code-box mirror; becomes a token-driven all-stage rule in step 3 */
 .vditor-reset
   :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
     :has(
@@ -1470,6 +1494,7 @@ body[data-full-width="0"] .vditor-wysiwyg pre.vditor-reset {
    pairing and must not get any of this. Same selector/exclusion list as the rule above, narrowed to
    each theme value (border/background colour differs between the two, so each needs its own
    declaration block) and placed after it so the fixed values win on the themes that need them. */
+/* @surface-only: vscode code-box mirror driven by --vmarkd-code-box-* tokens; generalised in step 3 */
 body[data-content-theme="vscode-dark-2026"] .vditor-reset
   :is(.vditor-ir__preview, .vditor-wysiwyg__preview):not(
     :has(
@@ -1652,6 +1677,7 @@ body.outline-resizing .vditor-sv {
   }
 }
 
+/* @surface-only: full-width/narrow gutter padding, mirrored across surfaces; one --vmarkd-gutter expression is a task 532 follow-up */
 body[data-full-width="1"] .vditor-preview .vditor-reset {
   max-width: none !important;
   width: 100% !important;
@@ -1685,6 +1711,7 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
    enough to overflow the inner reset too (e.g. the github theme's larger Primer heading scale tips
    it over; shorter-headinged themes stayed under, hence the github-only symptom). Padding/centering
    stays per-width (below). */
+/* @surface-only: Preview scroller box, not content geometry */
 .vditor-content:not(:has(.vditor-sv)) > .vditor-preview,
 .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview,
 .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview {
@@ -1695,6 +1722,7 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
    keeps Vditor's own reset overflow + task-48 sync). The other half of the swap: pane hidden
    (above), reset is the single bounded scroller. Width-agnostic — full-width gets it too now
    (was the double-scrollbar bug). */
+/* @surface-only: full Preview inner scroller (scroll container height, not content geometry) */
 .vditor-content:not(:has(.vditor-sv)) > .vditor-preview > .vditor-reset,
 .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview > .vditor-reset,
 .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview > .vditor-reset {
@@ -1709,6 +1737,7 @@ body[data-full-width="1"] .vditor-preview .vditor-reset {
    (no gutter) → toggling Edit→Preview reflowed everything wider, and responsive renders (echarts)
    visibly grew. Mirroring the gutter floor keeps the gutter so the content width — text AND charts —
    is identical edit↔preview. Vertical padding stays 10px (preview-only); overflow handled above. */
+/* @surface-only: full-width/narrow gutter padding, mirrored across surfaces; one --vmarkd-gutter expression is a task 532 follow-up */
 body[data-full-width="0"] .vditor-content:not(:has(.vditor-sv)) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display: none"]) > .vditor-preview > .vditor-reset,
 body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"]) > .vditor-preview > .vditor-reset {
@@ -1719,6 +1748,13 @@ body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"])
   box-sizing: border-box !important;
 }
 
+/* ── 3a. Content geometry — ALL stages (task 532) ───────────────────────────────
+   Geometry belongs to the CONTENT (`.vditor-reset`, present in every stage), not to a surface. It
+   travels as `--vmarkd-geo-*` tokens (the set: scripts/vditor-geometry-patch.mjs GEO_TOKENS):
+   build.mjs varifyVditorGeometry rewrites Vditor's rules to `var(--vmarkd-geo-*, <Vditor value>)`,
+   a theme profile sets the tokens on body.markdown-body. Declare NO default on `.vditor-reset` here:
+   it would shadow the theme's body-level token. Per-surface geometry rules below must carry
+   `@surface-only: <reason>` (test/backend/parity-geometry-lint.test.ts, which also ratchets the count). ── */
 /* Task 110 — block RHYTHM parity with VS Code's own markdown preview, PREVIEW SURFACE ONLY.
    ADR-0003 dropped edit-preview parity on purpose; this closes the OTHER axis (preview vs VS Code),
    leaving the edit surfaces on Vditor's roomier spacing untouched.
@@ -1741,9 +1777,11 @@ body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"])
    two standing regressions guarding it (the collapsed code-block phantom height, and the dark
    bottom-trim that was removed on purpose) — a blanket line-height/margin here would walk straight
    into both. Tables keep their own cell padding; only the block's outer margin moves. */
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview .vditor-reset {
   line-height: 1.571;
 }
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview
   .vditor-reset
   :is(p, ul, ol, table, blockquote, dl, details, hr) {
@@ -1751,14 +1789,17 @@ body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"])
 }
 /* A list item's own paragraph (loose lists) gets the same rhythm, or a loose list stays 16px while
    everything around it moves. */
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview .vditor-reset li > p {
   margin-bottom: 0.7em;
 }
 /* The UA default VS Code keeps. Vditor narrows it to 28px, which reads as a different document
    structure beside the native preview. Nested lists inherit per level, as they do there. */
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview .vditor-reset :is(ul, ol) {
   padding-left: 40px;
 }
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview .vditor-reset :is(h1, h2, h3, h4, h5, h6) {
   line-height: 1.25;
 }
@@ -1774,6 +1815,7 @@ body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"])
    running prose and must keep that paragraph's OWN line-height (1.571, the rule above) so it
    doesn't open a mismatched line box mid-sentence — only the isolated code-BLOCK panel needs to
    match IR's box model. */
+/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
 .vditor-preview .vditor-reset :is(pre, pre code) {
   line-height: 1.5;
 }
@@ -1887,6 +1929,7 @@ body.vmarkd-busy * {
    (rule above), but the raw SOURCE's last block kept the theme's paragraph margin (16px on
    github) — the callout grew on caret-enter. The preview div is always the blockquote's LAST
    child (callouts.ts appends it), so the last *source* block is :nth-last-child(2). */
+/* @surface-only: expanded-callout source keeps the collapsed callout's size */
 .vditor-reset
   blockquote[data-callout].vditor-ir__node--expand
   > :nth-last-child(2) {
@@ -1943,6 +1986,7 @@ body.vmarkd-busy * {
    marker and the first content line inside ONE paragraph, so any title margin changes the box height
    on collapse⇄expand — a stronger constraint than 4px of breathing room. Same argument as that rule:
    the title still reads as a title from its weight and accent colour. */
+/* @surface-only: edit-only: WYSIWYG callout title label (user-select none) */
 .vditor-wysiwyg
   .vditor-reset
   blockquote[data-callout]
@@ -1972,6 +2016,7 @@ body.vmarkd-busy * {
 }
 /* The preview `<pre>` inherits a code font + padding from the html-block defaults; strip it so
    the comment text sits flush like a paragraph, not inside a code panel. */
+/* @surface-only: html-comment host box, same 0.5em in every stage */
 .vditor-ir__preview:has(> .vmarkd-comment),
 .vditor-wysiwyg__preview:has(> .vmarkd-comment) {
   font-family: inherit;
@@ -1990,6 +2035,7 @@ body.vmarkd-busy * {
    a per-block delta that reads worse and trips parity.spec's 8px guard. The visible result is the
    same spacing either way, so prefer the form that keeps per-block heights matching. Scoped to the
    full Preview pane, so IR / WYSIWYG keep taking their space from the rule above, never twice. */
+/* @surface-only: html-comment host box in the full Preview, same 0.5em as the edit surfaces */
 .vditor-preview .vmarkd-comment {
   margin: 0.5em 0;
 }

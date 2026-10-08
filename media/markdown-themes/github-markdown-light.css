@@ -7,6 +7,9 @@
  * tricks. Vditor's LIGHT content-theme default is already github-flavoured, so this
  * mostly nudges it to the current Primer palette (link #0969da, text #1f2328, …).
  * Applied to body.markdown-body (task 82).
+ *
+ * @profile: default — content geometry tokens (--vmarkd-geo-*) are left unset, so Vditor's own
+ * rhythm applies on every stage (task 532 step 2; the GitHub profile lands in step 3).
  */
 /* color-scheme drives native scrollbars + form controls so they match this theme,
    not the (possibly dark) VS Code editor. */
