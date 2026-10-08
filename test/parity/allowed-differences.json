@@ -5,38 +5,6 @@
       "auto-monokai"
     ],
     "stagePair": "ir>preview",
-    "kind": "autolink",
-    "property": "style.color",
-    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "autolink",
-    "property": "text.color",
-    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
     "kind": "code-fence",
     "property": "style.background-color",
     "reason": "Code block background / font-family differ between the IR source panel and the Preview render (needs a user decision).",
@@ -85,70 +53,6 @@
     "values": [
       "\"-apple-system, BlinkMacSystemFont, \\\"Segoe UI\\\", \\\"Noto Sans\\\", Helvetica, Arial, sans-serif, \\\"Apple Color Emoji\\\", \\\"Segoe UI Emoji\\\"\" -> \"monospace\"",
       "\"-apple-system, BlinkMacSystemFont, \\\"Segoe WPC\\\", \\\"Segoe UI\\\", system-ui, Ubuntu, \\\"Droid Sans\\\", sans-serif\" -> \"monospace\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "link",
-    "property": "style.color",
-    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "link",
-    "property": "text.color",
-    "reason": "Preview vs IR drift in link colour/decoration: the IR link span (.vditor-ir__link) uses Vditor's palette, the Preview <a> VS Code's link colour/underline; not owned by a planned step.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>wysiwyg",
-    "kind": "autolink",
-    "property": "style.color",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>wysiwyg",
-    "kind": "autolink",
-    "property": "text.color",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
     ]
   },
   {
@@ -460,38 +364,6 @@
     "values": [
       "\"14px\" -> \"0px\"",
       "\"16px\" -> \"0px\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>wysiwyg",
-    "kind": "link",
-    "property": "style.color",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai"
-    ],
-    "stagePair": "ir>wysiwyg",
-    "kind": "link",
-    "property": "text.color",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 9",
-    "values": [
-      "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
-      "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
     ]
   },
   {

@@ -618,7 +618,7 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       covered by the gate (`overlay>ir`, reflow-ON config: heights, gaps, exact marker count) and
       dropped, but the gate only opens in IR, so its two WYSIWYG-open tests stay.
 
-- [ ] **9. Link colour across stages (user, 2026-10-08).** Under `theme.content: auto` (and in the
+- [x] **9. Link colour across stages (user, 2026-10-08).** Under `theme.content: auto` (and in the
       allow-list wherever measured) link / autolink colour differs IR↔Preview and IR↔WYSIWYG: make
       the link colour one token (`--vmarkd-link`) applied on every stage; delete the `link` /
       `autolink` allow entries.

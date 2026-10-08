@@ -136,6 +136,13 @@ body[data-use-vscode-theme-color="1"] {
    suit instead of Vditor's hardcoded `--ir-bracket-color` + underline. Task 464 (ADR-0003 routing-rule
    audit) moved that fix to the source instead: `build.mjs patchVditorIndexCss` now rewrites Vditor's
    own `.vditor-ir__link` rule directly (same --vmarkd-link value, no underline) — see ADR-0004. */
+/* Task 532 step 9: under `auto` the rendered <a> (WYSIWYG + Preview) kept Vditor's hardcoded #4285f4
+   (index.css / dark.css `.vditor-reset a`) while the IR link span followed textLink. One token, every
+   stage; named themes already set --vmarkd-link and their own `.markdown-body a` to the same value.
+   Wiki chips keep their own textLink styling. */
+body[data-use-vscode-theme-color="1"] .vditor-reset a:not(.wiki-link-chip) {
+  color: var(--vmarkd-link);
+}
 /* These can't flow through a --vmarkd-* var, so they stay explicit overrides:
    - cell borders: the table-border var also feeds Vditor's `tr` border-top, which the
      dark content-theme leaves non-var — keep the cell border explicit for exact parity;

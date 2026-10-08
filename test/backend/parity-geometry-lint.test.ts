@@ -167,3 +167,20 @@ describe('main.css surface-scoped geometry rules are tagged (task 532 §E3)', ()
     expect(surfaceGeometryRules('.vditor-preview a{color:red}')).toEqual([])
   })
 })
+
+// Task 532 step 9 — the link colour is ONE token on every stage: each theme file declares
+// --vmarkd-link, and main.css feeds it to the rendered anchors under `auto` (named themes set their
+// own `.markdown-body a` to the same value).
+describe('link colour is one token (task 532 step 9)', () => {
+  it.each(themeFiles())('%s declares --vmarkd-link', (file) => {
+    expect(read('media', 'markdown-themes', file)).toMatch(
+      /--vmarkd-link\s*:\s*[^;]+;/,
+    )
+  })
+
+  it('main.css applies --vmarkd-link to the rendered anchors under auto', () => {
+    expect(read('media-src', 'src', 'main.css')).toMatch(
+      /body\[data-use-vscode-theme-color="1"\] \.vditor-reset a:not\(\.wiki-link-chip\)\s*\{\s*color:\s*var\(--vmarkd-link\);/,
+    )
+  })
+})
