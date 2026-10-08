@@ -106,6 +106,14 @@ describe('wrapProseBlock', () => {
     )
   })
 
+  it('leaves a lone callout "[!NOTE]\\nbody" as ONE text node (no split at the title line)', () => {
+    const r = root('<blockquote><p>[!NOTE]\nbody text</p></blockquote>')
+    const p = r.querySelector('p') as HTMLElement
+    expect(wrapTopBlock(r.firstElementChild as Element)).toBe(0)
+    expect(p.childNodes.length).toBe(1)
+    expect((p.firstChild as Text).data).toBe('[!NOTE]\nbody text')
+  })
+
   it('does not wrap the newline that belongs to a hard break', () => {
     const r = root('<p>one<br data-marker="\\">\ntwo\nthree</p>')
     wrapTopBlock(r.firstElementChild as Element)

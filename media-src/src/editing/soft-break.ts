@@ -128,18 +128,22 @@ function wrapNewlines(
   let node = text
   let made = 0
   let { skipFirst } = ctx
+  // Where to resume the search. A newline that is NOT wrapped is stepped over by index, never by
+  // splitting the node: callouts.ts (and the editor's own caret code) read the callout's first text
+  // node as "[!TYPE]\nbody", and a gratuitous split at the title line moved typing into the title.
+  let from = 0
   for (;;) {
-    const i = node.data.indexOf('\n')
+    const i = node.data.indexOf('\n', from)
     if (i < 0) break
     if (ctx.isLast && !CONTENT.test(node.data.slice(i + 1))) break
     if (skipFirst || (i === 0 && ctx.afterBr)) {
       // not a soft break (callout title line / the newline of a hard break): leave it as text
       skipFirst = false
-      if (node.data.length === i + 1) break
-      node = node.splitText(i + 1)
+      from = i + 1
       continue
     }
     node = wrapNewlineAt(node, i)
+    from = 0
     made++
   }
   return { made, skipFirst }

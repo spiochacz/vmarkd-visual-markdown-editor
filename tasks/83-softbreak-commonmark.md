@@ -313,3 +313,16 @@ removes a text node). Tests: unit `withSelectionKept` empty-node case, chromium
 `media-src/e2e/soft-break-paste.spec.ts` (paste + typing, reflow on/off; drives the same private
 `undo.addCaret`), real-VS-Code `list-tight.spec.ts` (existing). Red-proved: unfixed -> chromium
 reflow-true cases fail, real spec fails; fix broken again -> same failure.
+
+## Regression: typing in a callout body went into the `[!NOTE]` title line (fixed)
+
+`callout-arrow-nav.spec.ts` / `callout-edit.spec.ts` (real VS Code) failed from 371095c on: the caret was
+placed at the end of the callout paragraph's FIRST text node and typed text came out as
+`[!NOTE]\nXYZeditable body text`. Root cause: `wrapNewlines` in `soft-break.ts` stepped over the callout
+title-line newline (which is deliberately not wrapped) with `node.splitText(i + 1)`, so every callout
+paragraph became two text nodes (`"[!NOTE]\n"` + `"body"`) and everything that treats `p.firstChild` as
+the callout text (callouts.ts, the specs' caret placement, Vditor's caret code) landed on the title node.
+Fix: a newline that is not wrapped is skipped by index (`from`), never by splitting the node, so an
+unwrapped newline leaves the DOM untouched. Tests: unit `soft-break.test.ts` "lone callout ... ONE text
+node" (red on the old code: 2 child nodes), real-VS-Code callout-* / soft-break-reflow / list-tight /
+hard-break-roundtrip / reflow-toolbar specs green.
