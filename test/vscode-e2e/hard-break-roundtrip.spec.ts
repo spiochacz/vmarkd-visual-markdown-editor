@@ -260,7 +260,7 @@ for (const mode of ['ir', 'wysiwyg'] as const) {
     const looseSurface = wf(workbox).locator(`.vditor-${mode}`).first()
     await looseSurface.waitFor({ timeout: 60_000 })
     await settle(frame, 500)
-    // Lute's canonical value of the untouched document (it drops the blank line before `- last`).
+    // The editor's canonical value of the untouched document (task 532 step 6: the loose list keeps its blank lines).
     const looseBefore = await docValue(frame)
     await looseSurface
       .locator('li p')

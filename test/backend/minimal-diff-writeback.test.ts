@@ -170,30 +170,24 @@ describe('mergeTableBlock (task 60 — cell-level preservation)', () => {
 })
 
 describe('isSemanticNoop (task 61 v2 Layer 1)', () => {
-  // Fake WHOLE-DOC reserialize: collapses a loose bullet list to tight (models the IR
-  // round-trip's lossy loose→tight, proven on the real Lute blob) and trims trailing
-  // newlines. Idempotent, so reserialize(reserialize(x)) === reserialize(x).
-  const rt = (md: string): string => {
-    let prev = ''
-    let s = md
-    while (s !== prev) {
-      prev = s
-      s = s.replace(/^(- .*)\n\n(?=- )/gm, '$1\n')
-    }
-    return s.replace(/\n+$/, '')
-  }
+  // Fake WHOLE-DOC reserialize: collapses a bullet's over-wide padding (`-   a` -> `- a`, which the
+  // real IR round-trip does — proven on the real Lute blob) and trims trailing newlines. Idempotent, so
+  // reserialize(reserialize(x)) === reserialize(x). A LOOSE list is NOT collapsed any more: since
+  // task 532 step 6 the patched Lute keeps looseness (lute-loose-list-patch.test.ts).
+  const rt = (md: string): string =>
+    md.replace(/^(- ) +/gm, '$1').replace(/\n+$/, '')
 
   it('detects an identical document as a no-op', () => {
     const d = '# H\n\ntext\n'
     expect(isSemanticNoop(d, d, rt)).toBe(true)
   })
 
-  it('detects a reverted LOOSE list as a no-op despite the lossy round-trip', () => {
-    // The dirty-after-undo case: disk has a hand-written loose list; the editor's
-    // output after undo is the tight canonical form. Bytes differ, but both sides
+  it('detects a reverted over-padded list as a no-op despite the lossy round-trip', () => {
+    // The dirty-after-undo case: disk has a hand-written over-padded list; the editor's
+    // output after undo is the canonical form. Bytes differ, but both sides
     // collapse identically under reserialize → still a no-op → baseline restored.
-    const baseline = '- a\n\n- b\n\n- c\n'
-    const next = rt(baseline) // editor output (tight canonical)
+    const baseline = '-   a\n-   b\n-   c\n'
+    const next = rt(baseline) // editor output (canonical)
     expect(next).not.toEqual(baseline) // bytes genuinely differ
     expect(isSemanticNoop(baseline, next, rt)).toBe(true)
   })

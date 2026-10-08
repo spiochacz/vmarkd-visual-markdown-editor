@@ -575,14 +575,27 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       viewBox; live box only as fallback), so a narrow-pane first render no longer under-reserves a wide pane.
       (C) `reportRenders` keeps a separate `size:<hash>` slot: a zero/hidden measurement posts no size and does not
       block the later report. Unit tests for both, RED with each fix reverted.
-- [ ] **6. Loose lists survive serialization** (decision 2): `restoreLooseLists` in
-      `lute-block-repair.ts` + oracle; `patchGetMarkdownSerialize` seam → `__vmarkdSerializeIr`;
-      `edit-sync.ts` incremental path; `reserializeMarkdown` on the host; unit corpus (tight, loose,
-      nested mixed, ol, task list, list in blockquote, code in loose item) proven on the real Lute
-      blob (`test/backend/lute-*.test.ts` pattern); `minimal-diff-writeback.test.ts:173`'s fake `rt`
-      updated to the new truth. Delete the `ul-loose shape` allow entry. Real-VS-Code: `list-tight
-      .spec.ts` stays green (tight stays tight) + a new `list-loose.spec.ts` (loose stays loose on
-      disk after an edit inside the list).
+- [x] **6. Loose lists survive serialization** (decision 2, DONE 2026-10-08). Layer chosen by measurement:
+      (b), a build-time Lute anchor, NOT the planned string repair `restoreLooseLists`. The walkers already
+      read the DOM's looseness, but `adjustVditorDOMListTight0` overwrote `data-tight` from the structural
+      guess `isTightList` (a list whose items hold at most one `<p>` is "tight" = every loose list), and the
+      format renderer's `renderListItem` always trimmed an item and ended it with ONE newline, so no input
+      could ever produce a blank line between items. Three count-asserted anchors in `scripts/lute-blob-patch.mjs`
+      (`LUTE_LOOSE_LIST_PATCHES`, media/ copy only): L1 `isTightList` (no `data-tight="true"` + an item with a
+      direct `<p>` = loose; a list that declares tight keeps the old verdict, so task 391's repair shape is
+      untouched), L2 format `renderListItem` (a loose list's item ends with a blank line), L3 the sv
+      `renderListItem` (the split-view source pane wrote loose lists tight too; found by the parity gate:
+      `preview>sv`). One fix for every consumer: `getValue`, spin, `serializeForHost` incremental, the Preview,
+      `reserializeMarkdown`/host write-back, sv. Measured: the string-repair route would have needed the oracle
+      round trip at three seams (`getMarkdown.ts` patch, `edit-sync.ts`, `lute-host.ts`) and could not fix the
+      sv path; the anchors are 3 spots in one file. Unit: `test/backend/lute-loose-list-patch.test.ts`
+      (anchors + 10-shape corpus IR/WYSIWYG/spin/host + sv; RED with the anchors dropped, same-way failures);
+      `minimal-diff-writeback.test.ts` fake `rt` updated (it modelled the old loose->tight collapse).
+      Real VS Code: new `list-loose.spec.ts` (IR + WYSIWYG: edit inside a loose list -> getValue, saved file and
+      Preview `<li><p>`; RED with the stock blob), `list-tight.spec.ts` green, the four `ul-loose` allow
+      entries deleted (gate RED before: 4 stale + 1 unexplained `preview>sv`, GREEN after).
+      NOT done / residual: task-list items still serialize their checkbox as `[ ]  a` / `[X]` (pre-existing,
+      tight or loose, unrelated to looseness).
 - [ ] **7. Reflow marker does not change wraps** (decision 3): `.vmarkd-softbreak::before` →
       zero-advance (`display:inline-block; width:0; overflow:visible; margin-left: -0.1em`) so the
       soft-break space is the only wrap opportunity, as in the Preview; the policy marks

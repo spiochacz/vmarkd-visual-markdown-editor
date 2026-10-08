@@ -254,6 +254,12 @@ not by forking. Match an existing patch's anchor-assert style so it fails loud o
   single-item-wrapped list): it flips tightness / renumbers and **drifts the byte round-trip**, not
   just the visual DOM. This is why Vditor widens a list edit's spin to the top-level list — and why any
   block-scoping of the spin/serialize must keep whole lists intact (tasks 69, 177).
+  **Looseness through serialization (task 532 step 6):** the editable DOM carries it (`data-tight="true"`
+  = tight; a loose list has NO `data-tight` and wraps item text in `<p>`), but stock `VditorIRDOM2Md` /
+  `VditorDOM2Md` (walker `adjustVditorDOMListTight0`→`isTightList`, then the format renderer's
+  `renderListItem`) and `SpinVditorSVDOM` (sv `renderListItem`) wrote every list tight. Three
+  count-asserted anchors in `scripts/lute-blob-patch.mjs` (`LUTE_LOOSE_LIST_PATCHES`) fix it at the
+  source for every consumer; tests `test/backend/lute-loose-list-patch.test.ts`.
 - **`sv` mode skips Lute entirely** (raw `textContent`) — features that hook the serializers don't
   apply there; handle or exclude `sv` explicitly.
 - **One blob, three consumers.** The webview, e2e harnesses, and host prerender share the SAME

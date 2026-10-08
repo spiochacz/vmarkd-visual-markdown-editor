@@ -53,19 +53,51 @@ export const LUTE_HARD_BREAK_PATCHES = [
   ],
 ]
 
+// Task 532 step 6 — a loose list (blank line between items) keeps its looseness through DOM → markdown.
+// Lute already marks it in the DOM (`data-tight="true"` on a tight list, item content wrapped in `<p>`
+// with no data-tight on a loose one), but the DOM walkers first run `adjustVditorDOMListTight0`, which
+// OVERWRITES `data-tight` from `isTightList` — a structural guess that calls every list with at most
+// one `<p>` per item tight. L1 amends that guess: a list that does not declare `data-tight="true"`
+// and has an item with a direct `<p>` is loose. A list that DOES declare it keeps the old verdict,
+// so task 391's contradictory DOM (tight list + one wrapped item, from Backspace) is still repaired
+// by list-tight.ts rather than flipped loose here. L2 teaches the markdown (format) renderer to
+// WRITE it (its list item always ended with one newline); L3 does the same for the split-view (sv)
+// renderer, which trimmed every item's trailing newlines. Every consumer (getValue, spin, the
+// incremental serializeForHost path, Preview, host write-back) goes through these walkers.
+export const LUTE_LOOSE_LIST_PATCHES = [
+  [
+    'L1 isTightList',
+    'prototype.isTightList=function DP(a){var a,b,c,d,e,f,g,h,i,j,k,l,m;b=this;c=a.FirstChild;',
+    'prototype.isTightList=function DP(a){var a,b,c,d,e,f,g,h,i,j,k,l,m;b=this;if("true"!==K.DomAttrValue(a,"data-tight")){c=a.FirstChild;while(!(CB.nil===c)){l=c.FirstChild;while(!(CB.nil===l)){if(3073===l.DataAtom){return"false";}l=l.NextSibling;}c=c.NextSibling;}}c=a.FirstChild;',
+  ],
+  [
+    'L2 format renderListItem',
+    'c.BaseRenderer.Write(k);if(!a.ParentIs(109,ET.nil)){c.BaseRenderer.WriteString("\\n");}case 3:$s=-1;return 2;}return;}var $f={$blk:BHI,',
+    'c.BaseRenderer.Write(k);if(!a.ParentIs(109,ET.nil)){c.BaseRenderer.WriteString(!(EH.nil===a.Parent)&&!(FC.nil===a.Parent.ListData)&&!a.Parent.ListData.Tight?"\\n\\n":"\\n");}case 3:$s=-1;return 2;}return;}var $f={$blk:BHI,',
+  ],
+  [
+    'L3 sv renderListItem',
+    'g=c.BaseRenderer.Writer.Bytes();c.BaseRenderer.Writer.Reset();c.Write(g);c.Write($pkg.NewlineSV);}return 2;};$ptrType(Q).prototype.renderTaskListItemMarker=',
+    'g=c.BaseRenderer.Writer.Bytes();c.BaseRenderer.Writer.Reset();c.Write(g);c.Write($pkg.NewlineSV);if(!(EH.nil===a.Next)&&!(EH.nil===a.Parent)&&!(FC.nil===a.Parent.ListData)&&!a.Parent.ListData.Tight){c.Write($pkg.NewlineSV);}}return 2;};$ptrType(Q).prototype.renderTaskListItemMarker=',
+  ],
+]
+
 /**
- * Pure string transform: the stock Lute blob → the hard-break-aware one. Idempotent (an already
- * patched blob is returned unchanged). Throws when an anchor is missing or ambiguous.
+ * Pure string transform: the stock Lute blob → the hard-break- and loose-list-aware one. Idempotent
+ * (an already patched blob is returned unchanged). Throws when an anchor is missing or ambiguous.
  */
 export function patchLuteBlob(src) {
   let out = src
-  for (const [label, find, replace] of LUTE_HARD_BREAK_PATCHES) {
+  for (const [label, find, replace] of [
+    ...LUTE_HARD_BREAK_PATCHES,
+    ...LUTE_LOOSE_LIST_PATCHES,
+  ]) {
     const first = out.indexOf(find)
     if (first === -1 && out.includes(replace)) continue // already patched
     if (first === -1 || out.indexOf(find, first + 1) !== -1) {
       const n = first === -1 ? '0' : '2+'
       throw new Error(
-        `[lute] hard-break anchor "${label}" matched ${n} times (expected 1) — Lute changed; re-derive anchors (see tasks/done/530-hard-line-breaks-lost-on-edit.md)`,
+        `[lute] anchor "${label}" matched ${n} times (expected 1) — Lute changed; re-derive anchors (see tasks/done/530-hard-line-breaks-lost-on-edit.md)`,
       )
     }
     out = out.replace(find, () => replace)

@@ -48,11 +48,10 @@ const TIGHT = `# List
    * second entry
 `
 
-// A list the user genuinely wrote loose — the repair must not touch it. NESTED on purpose: Lute
-// normalises a FLAT loose list to tight on its own round trip (measured: `* one\n\n* two` →
-// `* one\n* two`), so a flat fixture would fail with or without this repair and prove nothing about
-// it. The nested form is stable through the round trip AND the per-keystroke spin, so any change to
-// it is attributable.
+// A list the user genuinely wrote loose — ordinary typing must not tighten it. NESTED on purpose: it
+// pins the blank line under a parent item specifically (the shape task 391 was about). Flat loose
+// lists have their own net, `list-loose.spec.ts` (task 532 step 6 — before it, Lute normalised any
+// loose list to tight on its round trip).
 const LOOSE = `# List
 
 1. Parent

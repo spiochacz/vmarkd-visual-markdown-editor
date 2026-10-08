@@ -144,29 +144,6 @@
     ]
   },
   {
-    "theme": "*",
-    "stagePair": "ir>preview",
-    "kind": "ul-loose",
-    "property": "rect.height",
-    "reason": "The Preview renders VditorIRDOM2Md(ir DOM) and that serialisation drops looseness: a loose list comes back tight (li without <p>, 99.2px -> 74.2px).",
-    "task": "532 step 6",
-    "delta": [
-      -24,
-      -12.6
-    ]
-  },
-  {
-    "theme": "*",
-    "stagePair": "ir>preview",
-    "kind": "ul-loose",
-    "property": "shape",
-    "reason": "The Preview renders VditorIRDOM2Md(ir DOM) and that serialisation drops looseness: a loose list comes back tight (li without <p>, 99.2px -> 74.2px).",
-    "task": "532 step 6",
-    "values": [
-      "\"ul(li(p),li(p),li(p))\" -> \"ul(li,li,li)\""
-    ]
-  },
-  {
     "theme": [
       "auto-high-contrast",
       "auto-monokai"
@@ -539,29 +516,6 @@
       "\"rgb(33, 166, 255)\" -> \"rgb(66, 133, 244)\"",
       "\"rgb(55, 148, 255)\" -> \"rgb(66, 133, 244)\"",
       "\"rgb(77, 170, 252)\" -> \"rgb(66, 133, 244)\""
-    ]
-  },
-  {
-    "theme": "*",
-    "stagePair": "ir>wysiwyg",
-    "kind": "ul-loose",
-    "property": "rect.height",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 6",
-    "delta": [
-      -24,
-      -12.6
-    ]
-  },
-  {
-    "theme": "*",
-    "stagePair": "ir>wysiwyg",
-    "kind": "ul-loose",
-    "property": "shape",
-    "reason": "IR vs WYSIWYG drift.",
-    "task": "532 step 6",
-    "values": [
-      "\"ul(li(p),li(p),li(p))\" -> \"ul(li,li,li)\""
     ]
   },
   {

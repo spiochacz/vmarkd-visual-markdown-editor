@@ -16,6 +16,7 @@ import { VENDORED_ASSETS } from './media-src/vendor/vendored-assets.mjs'
 import { varifyGeometryCss } from './scripts/vditor-geometry-patch.mjs'
 import {
   LUTE_HARD_BREAK_PATCHES,
+  LUTE_LOOSE_LIST_PATCHES,
   patchLuteBlob,
 } from './scripts/lute-blob-patch.mjs'
 
@@ -599,7 +600,7 @@ async function patchLuteHardBreaks() {
   const out = patchLuteBlob(src)
   if (out !== src) await fs.writeFile(file, out)
   console.log(
-    `[lute] hard-break form patch ${out === src ? 'already applied' : `applied (${LUTE_HARD_BREAK_PATCHES.length} anchors)`}`,
+    `[lute] hard-break + loose-list patch ${out === src ? 'already applied' : `applied (${LUTE_HARD_BREAK_PATCHES.length + LUTE_LOOSE_LIST_PATCHES.length} anchors)`}`,
   )
 }
 

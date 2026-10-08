@@ -20,6 +20,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   its source, so the text below stays put. It also follows `vmarkd.editor.defaultMode` (a document set
   to open in WYSIWYG no longer flashes the IR layout first) and paints the page colour itself.
 
+- **Lists with blank lines between items keep them**: a list written with blank lines between its items
+  (a "loose" list) stays loose when you edit it, in the IR, WYSIWYG and split-view editors, in the saved
+  file and in the Preview, which now shows the extra paragraph spacing inside such a list. Tight lists
+  stay tight.
+
 - **Wrapped lines flow** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph soft-wrapped
   across several source lines reads as one flowing paragraph in the Preview, the split view and the
   IR / WYSIWYG editors, like on GitHub and in VS Code's own preview. In the editors every place where
