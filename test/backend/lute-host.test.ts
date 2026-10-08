@@ -160,6 +160,24 @@ describe('lute-host renderForMode', () => {
       expect(html).not.toContain('wiki-link-chip')
     })
 
+    // Task 83 (increment 5): with reflow on the overlay carries the marker spans the live editor will
+    // have (open parity); off / default leaves the Lute output untouched.
+    it.each(['ir', 'wysiwyg'] as const)(
+      'wraps soft-break newlines in marker spans only when reflow is on (%s)',
+      (mode) => {
+        const md = 'one\ntwo\nthree\n\n> q1\n> q2\n'
+        const off = renderForMode(ROOT, md, mode, false, false)
+        const on = renderForMode(ROOT, md, mode, false, true)
+        expect(off).not.toContain('vmarkd-softbreak')
+        expect(renderForMode(ROOT, md, mode)).toBe(off)
+        expect(on?.match(/class="vmarkd-softbreak"/g)).toHaveLength(3)
+        // wrapping only adds markup around the same newlines
+        expect(
+          on?.replace(/<span class="vmarkd-softbreak"[^>]*>\n<\/span>/g, '\n'),
+        ).toBe(off)
+      },
+    )
+
     it('does not leak Lute into the shared host global', () => {
       expect((globalThis as { Lute?: unknown }).Lute).toBeUndefined()
     })

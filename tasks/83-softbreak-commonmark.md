@@ -2,8 +2,8 @@
 
 > **Status:** 🚧 in progress (2026-10-07) — **scope EXTENDED 2026-10-07** (editor reflow + break markers + toolbar
 > toggle, see the first section). The 2026-06-13 preview-only design below is still part of it.
-> Increments 1-4 delivered (setting + Preview, editor decorator, toolbar toggle); static open parity pending
-> (the file sat in `done/` by mistake after a bulk archive; reopened).
+> Increments 1-5 delivered (setting + Preview, editor decorator, toolbar toggle, open parity); remaining: the
+> copy-as-HTML / export / D2 decision below (the file sat in `done/` by mistake after a bulk archive; reopened).
 > **Source:** user request (2026-06-09) — comparing the GitHub/VS Code markdown
 > preview render to vMarkd's render of the same file (task 82 theme work). A
 > paragraph (or blockquote) that is soft-wrapped across several source lines shows
@@ -152,8 +152,14 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
       incl. before the overlay clone, on every effective change, optimistic apply on click); `set-reflow-line-breaks`
       message -> host writes the most specific scope that defines the value (folder > workspace > user); overflow
       cluster added. Real-VS-Code spec `reflow-toolbar.spec.ts` (two editors, More-menu press, Settings-side flip).
-      Open parity (static open) still pending.
-- [ ] Open parity: static prerender overlay at open — increment 5. (Idle chunking of the editor DOM itself is done.)
+- [x] Open parity — increment 5 (2026-10-08): the instant-paint overlay is host HTML painted before any script, so the
+      rule is applied on the HTML string host-side: `src/shared/soft-break-html.ts` (`wrapSoftBreaksInHtml`, same
+      rule as `editing/soft-break.ts`, class name shared) called from `renderForMode(…, reflowLineBreaks)`; the
+      provider passes `vmarkd.editor.reflowLineBreaks`. Marker CSS is in `main.css`, loaded before the overlay
+      paints. Covers IR and WYSIWYG, the streaming large-doc open (same overlay prefix) and the remember /
+      defaultMode path (the overlay follows `savedMode`); SV has no overlay. Reflow off = overlay unchanged.
+      Tests: `test/backend/soft-break-html.test.ts`, `lute-host.test.ts` (flag), `soft-break-html-parity.test.ts`
+      (43 corpus entries, string wrapper == DOM wrapper in jsdom), real-VS-Code `prerender-reflow-parity.spec.ts`.
 - [x] Unit + chromium e2e + real-VS-Code e2e for the editor half, red-green-red (increment 3):
       `soft-break.test.ts`, `soft-break-observer.test.ts`, `caret.test.ts`, `vditor-source-patches.test.ts`,
       `media-src/e2e/soft-break-reflow.spec.ts`, `test/vscode-e2e/soft-break-reflow.spec.ts` (IR + WYSIWYG).
@@ -180,6 +186,17 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
 - Known, accepted: End/Home go to the ends of the VISUAL line, which after reflow is the whole paragraph;
   Backspace/Delete across a break deletes the newline (the "space" disappears), same markdown as with the
   setting off.
+
+### Increment 5 measurements (2026-10-08, real VS Code 1.129, `prerender-reflow-parity.spec.ts`)
+
+Fixture: heading + 3 soft-wrapped paragraphs + blockquote + list with continuation lines + hard break + tail.
+Block top (relative to the root) / height, overlay -> live editor, reflow ON, before the fix (IR and WYSIWYG
+identical): paragraph 1 84 -> 42 px (3 markers), paragraph 2 top 188.97 -> 146.97, blockquote 268.83 -> 184.83
+(63 -> 21 px), list 347.83 -> 221.83 (87.5 -> 45.5 px), last paragraph 530.33 -> 341.33 — a ~190 px jump of the
+bottom of the first screen, and the overlay had no markers at all. Reflow OFF: overlay == live (no mismatch).
+After the fix: all four cases (ir/wysiwyg x on/off) equal, markers present on both sides. Deliberately
+disabling the call in `renderForMode` reproduces exactly the original diff. Cost: `wrapSoftBreaksInHtml` on a
+12 kB overlay prefix (the host cap) ~0.2 ms; a document with no newline in a block returns the same string.
 
 ## Resolved (2026-06-13)
 

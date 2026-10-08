@@ -91,6 +91,7 @@ export const HOST_MODULES = {
       // ordinary relationship every module has to it.
       'lute-gap-repair',
       'lute-hard-break', // NEW (task 530) — same shared host+webview Lute repair family as lute-gap-repair
+      'soft-break-html', // NEW (task 83) — the soft-break marker rule on an HTML string (open-time overlay); host + webview share the class name
       'lute-block-repair',
       // NEW (task 499) — `clamp(v, lo, hi)`, the one numeric primitive both trees had been
       // hand-rolling as `Math.max(lo, Math.min(v, hi))`. Zero imports; lives here rather than in

@@ -231,6 +231,7 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
               content,
               savedMode,
               isWikiFile(uri),
+              cfg.get<boolean>('editor.reflowLineBreaks') !== false,
             )
           : undefined,
       // Gate the hljs preload on the FULL document (not the truncated preRenderedHtml) so a code fence

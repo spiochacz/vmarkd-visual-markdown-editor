@@ -15,7 +15,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   markdown on disk is untouched, typing and arrow keys cross a break like a space, and Shift+Enter
   inserts a real hard break. Turn it off to keep every source line on its own line; a change applies
   to open editors and an open Preview at once, and a toolbar button next to Outline flips it (pressed
-  while on, kept in step with the VS Code setting).
+  while on, kept in step with the VS Code setting). The instant-paint view shown while a file opens
+  is already reflowed, so nothing moves when the editor takes over.
 
 - **Vditor 3.11.3**: list-editing and IR fixes from upstream (bold/italic/strike toggles keep the
   selection, copying a partly selected heading keeps its marker, Enter in a list item's quote

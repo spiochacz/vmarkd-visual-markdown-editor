@@ -13,9 +13,11 @@
 // false` is REQUIRED — next to an editable span, Chromium canonicalised the "\n" to " " as soon as you
 // typed beside it.
 //
-// Pure DOM, no observers: see soft-break-observer.ts for the wiring.
+// Pure DOM, no observers: see soft-break-observer.ts for the wiring. The same rule on an HTML string
+// (the open-time overlay) is src/shared/soft-break-html.ts, which owns the class name.
 
-const SOFTBREAK_CLASS = 'vmarkd-softbreak'
+import { SOFTBREAK_CLASS } from '../../../src/shared/soft-break-html'
+
 export const SOFTBREAK_SELECTOR = `.${SOFTBREAK_CLASS}`
 
 // Prose containers whose direct inline content may hold soft breaks. Headings / table cells cannot

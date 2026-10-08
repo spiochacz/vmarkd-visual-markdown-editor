@@ -25,6 +25,7 @@ import {
   repairWysiwygBlocks,
 } from '../shared/lute-block-repair'
 import { repairWysiwygDom, restoreCellGaps } from '../shared/lute-gap-repair'
+import { wrapSoftBreaksInHtml } from '../shared/soft-break-html'
 import { escapeTableSpanPipes } from '../markdown/table-pipe-escape'
 import { newWikiLinkPattern, parseWikiPayload } from '../shared/wiki-core'
 
@@ -224,6 +225,7 @@ export function renderForMode(
   markdown: string,
   mode: EditorMode,
   wikiEnabled = false,
+  reflowLineBreaks = false,
 ): string | undefined {
   if (mode === 'sv') return undefined
   if (!lute) {
@@ -255,7 +257,10 @@ export function renderForMode(
     // The host Lute has no wiki custom renderer, so [[links]] come back as literal
     // text. For a wiki file, rewrite them to the same chip spans the live editor
     // emits so the instant-paint overlay shows styled chips, not raw [[…]].
-    return wikiEnabled ? renderWikiChipsInHtml(html) : html
+    const withChips = wikiEnabled ? renderWikiChipsInHtml(html) : html
+    // Task 83: with reflow on the live editor wraps every soft-break newline in a marker span; do the
+    // same here so the overlay already has the reflowed layout and nothing moves at the swap.
+    return reflowLineBreaks ? wrapSoftBreaksInHtml(withChips) : withChips
   } catch {
     return undefined
   }
