@@ -901,25 +901,5 @@
       -16,
       -14
     ]
-  },
-  {
-    "theme": [
-      "auto-high-contrast",
-      "auto-monokai",
-      "material-dark",
-      "vscode-dark-2026",
-      "vscode-dark-2026+markers+monokai-code",
-      "vscode-dark-2026+narrow",
-      "vscode-dark-2026+reflow",
-      "vscode-light-2026"
-    ],
-    "stagePair": "ir>preview",
-    "kind": "diagram-mermaid",
-    "property": "style.margin-bottom",
-    "reason": "Wrapper vs render element, not a gap difference: the IR/WYSIWYG dual-node wrapper has `margin-bottom: 1em` (14px) while the Preview's `div.language-mermaid` has Vditor's literal 16px. The 16px reaches the edit surfaces too (the render inside the wrapper has the same margin, which collapses through the wrapper), so the distance to the next block is equal (gated by that block's `rect.gapBefore`). Tokenising the bottom margin is the follow-up.",
-    "task": "532 follow-up",
-    "values": [
-      "\"14px\" -> \"16px\""
-    ]
   }
 ]

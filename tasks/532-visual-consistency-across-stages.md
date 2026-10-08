@@ -449,9 +449,8 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       ADR-0009 + ADR-0003 amendment + task-110 note + CHANGELOG written. Remaining `532 follow-up` entries
       (need a per-kind decision, NOT the profile): IR source panels vs rendered output (frontmatter,
       html-block, html-comment `text.line-height` 21 vs 22.4: the IR source `code` has the code leading),
-      footnote definitions, the mermaid wrapper's `style.margin-bottom` (14px wrapper vs the Preview div's literal
-      16px; the distance to the next block is equal), code/diagram wrapper `style.line-height` (edit wrapper div keeps
-      the prose leading, the code lines agree), wiki-link `gapBefore`. NOT done: VSIX package + install, the
+      footnote definitions, code/diagram wrapper `style.line-height` (edit wrapper div keeps
+      the prose leading, the code lines agree), wiki-link `gapBefore`. DONE since (user decision, 2026-10-08): the diagram bottom margin is `1em` on every stage (main.css §3a rule after the top-margin one; display math keeps its 16px), the `diagram-mermaid style.margin-bottom` allow entry is deleted (gate RED with it deleted on the old CSS, GREEN after; chromium + real VS Code). NOT done: VSIX package + install, the
       `@visual` golden re-base (`npm run test:visual`, local-only), the code-box tokens (`-bq-pad`,
       `-code-border`: the vscode box is still the existing `--vmarkd-code-box-*` + `.hljs` rules, which
       are already identical on every stage).

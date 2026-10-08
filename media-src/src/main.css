@@ -1831,6 +1831,27 @@ body {
   ):not(:is(.vditor-ir__preview, .vditor-wysiwyg__preview) > *) {
   margin-top: 1em;
 }
+/* The diagram BOTTOM margin, one value on every stage (task 532 follow-up): Vditor's literal
+   `margin-bottom: 16px` on the render div vs the IR/WYSIWYG dual-node wrapper's `1em` (14px at the
+   default size; the render inside the wrapper collapses through it, so the editors showed 16px too
+   while the wrapper itself read 14px). 1em everywhere, like the top margin above, so it follows
+   `vmarkd.editor.fontSize`. Display math (`.language-math`) is NOT in this list: its 16px is pinned by
+   the math-node rule in section 3b. */
+.vditor-reset
+  div:is(
+    .language-echarts,
+    .language-mindmap,
+    .language-plantuml,
+    .language-mermaid,
+    .language-smiles,
+    .language-markmap,
+    .language-abc,
+    .language-flowchart,
+    .language-graphviz,
+    .language-wavedrom
+  ) {
+  margin-bottom: 1em;
+}
 /* Blocks Vditor has no gap rule for. (`li > p`, p, ul/ol, blockquote, table and the `hr` margin and the footnote rule are
    varified at build time.) */
 .vditor-reset :is(dl, details) {
