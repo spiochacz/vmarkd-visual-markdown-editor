@@ -1,4 +1,4 @@
-# Preview spacing parity (task 110)
+# Content geometry profile (task 532, was task 110)
 
 A paragraph of ordinary prose to measure block rhythm against.
 
@@ -10,5 +10,5 @@ A paragraph of ordinary prose to measure block rhythm against.
 > A blockquote to measure alongside the paragraph and the list.
 
 ```
-a fenced code block, deliberately excluded from the rhythm rules
+a fenced code block, measured for its own leading (code-lh token)
 ```

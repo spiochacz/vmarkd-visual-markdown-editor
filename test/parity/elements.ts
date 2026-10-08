@@ -327,7 +327,7 @@ export const PARITY_ELEMENTS: readonly ParityElement[] = [
     probe: {
       select: {
         edit: 'div[data-type="code-block"]:has(.language-d2)',
-        preview: 'div.language-d2',
+        preview: 'pre:has(> div.language-d2)',
       },
     },
     expectMarkers: ['svg'],

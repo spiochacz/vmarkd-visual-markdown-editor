@@ -8,6 +8,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Added
 
+- **The editor and the Preview share one layout**: lists, paragraph spacing, line height, headings, code
+  blocks, display math, diagram blocks and horizontal rules are laid out the same in the IR and WYSIWYG
+  editors, the Preview and the split view, per theme — the VS Code themes (and any theme without its own)
+  use VS Code's built-in preview rhythm, the GitHub themes GitHub's. Switching to the Preview no longer
+  shifts the text or changes how tall the document is. (The instant-paint view still differs from the
+  editor for callouts, diagrams and math until it is decorated too.)
+
 - **Wrapped lines flow** (`vmarkd.editor.reflowLineBreaks`, on by default): a paragraph soft-wrapped
   across several source lines reads as one flowing paragraph in the Preview, the split view and the
   IR / WYSIWYG editors, like on GitHub and in VS Code's own preview. In the editors every place where

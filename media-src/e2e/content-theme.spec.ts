@@ -385,19 +385,38 @@ test('IR link-ref-defs-block marker reads the return arrow, not Vditor\'s "A" (t
 // (`:is(.vditor-ir,.vditor-wysiwyg) .vditor-reset hr`) beating Vditor's `.vditor-ir hr`/
 // `.vditor-wysiwyg hr` (inline-block, 12px — NOT `.vditor-reset hr`, see build.mjs's comment on
 // this patch for why). Now patched directly on those two Vditor rules (patchVditorIndexCss).
-test("IR `hr` renders block/24px, matching Preview, not Vditor's inline-block/12px (task 478 item 4)", async ({
+test("IR `hr` renders block with the profile's --vmarkd-geo-hr-gap, not Vditor's inline-block/12px (task 478 item 4, 532)", async ({
   page,
 }) => {
   await page.goto('/')
   await page.waitForFunction(() => (window as any).__ready === true)
-  const style = await page.evaluate(() => {
+  const read = () =>
+    page.evaluate(() => {
+      const hr = document.querySelector('.vditor-ir hr') as HTMLElement
+      const cs = getComputedStyle(hr)
+      return {
+        display: cs.display,
+        marginTop: parseFloat(cs.marginTop),
+        marginBottom: parseFloat(cs.marginBottom),
+        fontSize: parseFloat(cs.fontSize),
+      }
+    })
+  await page.evaluate(() => {
     ;(window as any).vditor.setValue('a\n\n---\n\nb')
-    const hr = document.querySelector('.vditor-ir hr') as HTMLElement
-    const cs = getComputedStyle(hr)
-    return { display: cs.display, marginTop: cs.marginTop }
   })
-  expect(style.display).toBe('block')
-  expect(style.marginTop).toBe('24px') // 1.5rem at the default 16px root size
+  // No content theme: the default (VS Code) profile, 0.5em = VS Code's own preview `hr` margin.
+  const def = await read()
+  expect(def.display).toBe('block')
+  expect(def.marginTop).toBeCloseTo(def.fontSize * 0.5, 1)
+  expect(def.marginBottom).toBeCloseTo(def.fontSize * 0.5, 1)
+  // The GitHub profile sets the token to 24px: both margins follow it (the block gap no longer
+  // overrides the bottom one).
+  await page.evaluate(() => {
+    document.body.style.setProperty('--vmarkd-geo-hr-gap', '24px')
+  })
+  const gh = await read()
+  expect(gh.marginTop).toBe(24)
+  expect(gh.marginBottom).toBe(24)
 })
 
 // Task 82: the Vditor toolbar ("bar") always follows VS Code — even with a GitHub

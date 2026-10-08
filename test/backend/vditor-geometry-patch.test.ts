@@ -43,6 +43,8 @@ describe('varifyGeometryCss (task 532 step 2)', () => {
     expect(out).toContain('line-height: var(--vmarkd-geo-heading-lh, 1.25);')
     expect(out).toContain('padding: var(--vmarkd-geo-code-pad, 0.5em);')
     expect(out).toContain('border-radius: var(--vmarkd-geo-code-radius, 5px);')
+    expect(out).toContain('margin: var(--vmarkd-geo-hr-gap, 24px) 0;')
+    expect(out).toContain('margin-top: var(--vmarkd-geo-hr-gap, 24px);')
   })
 
   it('every token has its Vditor default as the fallback, and is consumed', () => {

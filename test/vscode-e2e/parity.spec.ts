@@ -22,10 +22,12 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'all-renderers.md')
 // and never restore it, so in a full-suite run this one silently inherited e.g. 'github-light'.
 // Under that theme the d2 block at index 96 renders 9px taller in IR than in Preview (133 vs 124) —
 // reproducible in ~1min with `flowchart-theme.spec.ts parity.spec.ts`. That delta is REAL but it is
-// NOT this spec's target (the phantom-height bug it guards was 58–72px, which is why the threshold
-// is >8px); it is a diagram-sizing question, tracked in tasks/362. Pinning the precondition makes the
-// run deterministic WITHOUT masking anything: the 9px case stays reproducible on demand, and the
-// threshold is untouched.
+// NOT this spec's target (the phantom-height bug it guards was 58–72px); it is a diagram-sizing
+// question, tracked in tasks/362. Pinning the precondition makes the run deterministic WITHOUT
+// masking anything: the 9px case stays reproducible on demand. The threshold is 1px (one CSS px of
+// rounding across two scrollers) since task 532 step 3 gave every stage one content geometry; it
+// used to be 8px, tuned for the 58–72px phantom bug and wide enough to hide the 6–26px rhythm
+// deltas of task 110's Preview-only spacing.
 usePinnedSettings(test, { 'vmarkd.theme.content': 'auto' })
 
 // Cross-mode metrics, evaluated against `.vditor-ir .vditor-reset` or `.vditor-preview .vditor-reset`.
@@ -151,7 +153,7 @@ test('IR (collapsed) renders at the same size/spacing as Preview', async ({
   for (let i = 0; i < Math.min(ir.kids.length, pv.kids.length); i++) {
     const k = ir.kids[i]
     if (k.irType !== 'code-block' && k.irType !== 'math-block') continue
-    if (k.h - pv.kids[i].h > 8)
+    if (k.h - pv.kids[i].h > 1)
       taller.push({ i, type: k.irType, ir: k.h, pv: pv.kids[i].h })
   }
   expect(taller, JSON.stringify(taller)).toEqual([])
@@ -171,7 +173,7 @@ test('IR (collapsed) renders at the same size/spacing as Preview', async ({
       type: c.type,
       d: Math.abs(c.h - (pv.callouts[k]?.h ?? 0)),
     }))
-    .filter((c: { d: number }) => c.d > 8)
+    .filter((c: { d: number }) => c.d > 1)
   expect(calloutOffenders, JSON.stringify(calloutOffenders)).toEqual([])
 
   // Inline math stays inline (the block-collapse rule must not match `inline-node`).

@@ -1,5 +1,7 @@
 # Task 110 — Preview spacing parity with VS Code (line-height + block margins), preview surface only
 
+> **Superseded (2026-10-08, task 532 step 3, [ADR-0009](../../docs/adr/0009-content-parity-across-stages.md)):** the Preview-only rhythm block in `main.css` this task shipped is deleted. Its values (40px / 0.7em / 1.6 leading / 1.25 headings / code 1.5) became the VS Code geometry profile (`--vmarkd-geo-*` tokens) and now apply to the overlay, IR, WYSIWYG, Preview and split pane alike; the github themes use GitHub's own rhythm.
+
 > **Status:** ✅ **DONE (2026-07-30)** — option (a) shipped, measured red-then-green in real VS Code.
 > One item of the Verify list is NOT done and is listed explicitly under "What was NOT done" below.
 > Original narrowing preserved for context: A 2026-06-13 full element-by-element audit closed all

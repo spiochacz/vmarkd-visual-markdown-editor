@@ -19,6 +19,11 @@ export const GEO_TOKENS = [
   ['--vmarkd-geo-heading-lh', '1.25'],
   ['--vmarkd-geo-code-pad', '0.5em'],
   ['--vmarkd-geo-code-radius', '5px'],
+  // Code BLOCK leading (pre + pre > code), never inline code. Vditor has no declaration of its own
+  // (the block inherits the prose leading), so the two rules below ADD one.
+  ['--vmarkd-geo-code-lh', '1.5'],
+  // `hr` vertical margin (and the IR/WYSIWYG footnote rule that mimics it): GitHub 24px, VS Code's native preview leaves the UA 0.5em.
+  ['--vmarkd-geo-hr-gap', '24px'],
 ]
 
 /** [label, find, replace] — each `find` must occur exactly once in the stock index.css. */
@@ -61,7 +66,27 @@ export const VDITOR_GEOMETRY_PATCHES = [
   [
     'pre > code box',
     '.vditor-reset pre > code {\n  margin: 0;\n  font-size: 85%;\n  padding: 0.5em;\n  border-radius: 5px;\n',
-    '.vditor-reset pre > code {\n  margin: 0;\n  font-size: 85%;\n  padding: var(--vmarkd-geo-code-pad, 0.5em);\n  border-radius: var(--vmarkd-geo-code-radius, 5px);\n',
+    '.vditor-reset pre > code {\n  margin: 0;\n  font-size: 85%;\n  padding: var(--vmarkd-geo-code-pad, 0.5em);\n  border-radius: var(--vmarkd-geo-code-radius, 5px);\n  line-height: var(--vmarkd-geo-code-lh, 1.5);\n',
+  ],
+  [
+    'hr margin',
+    '.vditor-reset hr {\n  height: 2px;\n  padding: 0;\n  margin: 24px 0;\n',
+    '.vditor-reset hr {\n  height: 2px;\n  padding: 0;\n  margin: var(--vmarkd-geo-hr-gap, 24px) 0;\n',
+  ],
+  [
+    'ir footnotes rule (hr stand-in)',
+    '.vditor-ir div[data-type="footnotes-block"] {\n  border-top: 2px solid var(--heading-border-color);\n  padding-top: 24px;\n  margin-top: 24px;\n}',
+    '.vditor-ir div[data-type="footnotes-block"] {\n  border-top: 2px solid var(--heading-border-color);\n  padding-top: var(--vmarkd-geo-hr-gap, 24px);\n  margin-top: var(--vmarkd-geo-hr-gap, 24px);\n}',
+  ],
+  [
+    'wysiwyg footnotes rule (hr stand-in)',
+    '.vditor-wysiwyg div[data-type="footnotes-block"] {\n  border-top: 2px solid var(--heading-border-color);\n  padding-top: 24px;\n  margin-top: 24px;\n}',
+    '.vditor-wysiwyg div[data-type="footnotes-block"] {\n  border-top: 2px solid var(--heading-border-color);\n  padding-top: var(--vmarkd-geo-hr-gap, 24px);\n  margin-top: var(--vmarkd-geo-hr-gap, 24px);\n}',
+  ],
+  [
+    'pre leading',
+    '.vditor-reset pre {\n  margin: 1em 0;\n}',
+    '.vditor-reset pre {\n  margin: 1em 0;\n  line-height: var(--vmarkd-geo-code-lh, 1.5);\n}',
   ],
 ]
 

@@ -504,13 +504,13 @@ async function patchVditorIndexCss() {
   css = replaceAnchored(
     css,
     '.vditor-ir hr {\n  display: inline-block;\n  margin: 12px 0;\n  width: 100%;\n}',
-    '.vditor-ir hr {\n  display: block;\n  margin: 1.5rem 0;\n  width: 100%;\n}',
+    '.vditor-ir hr {\n  display: block;\n  margin: var(--vmarkd-geo-hr-gap, 1.5rem) 0;\n  width: 100%;\n}',
     '.vditor-ir hr margin/display',
   )
   css = replaceAnchored(
     css,
     '.vditor-wysiwyg hr {\n  display: inline-block;\n  margin: 12px 0;\n  width: 100%;\n}',
-    '.vditor-wysiwyg hr {\n  display: block;\n  margin: 1.5rem 0;\n  width: 100%;\n}',
+    '.vditor-wysiwyg hr {\n  display: block;\n  margin: var(--vmarkd-geo-hr-gap, 1.5rem) 0;\n  width: 100%;\n}',
     '.vditor-wysiwyg hr margin/display',
   )
 

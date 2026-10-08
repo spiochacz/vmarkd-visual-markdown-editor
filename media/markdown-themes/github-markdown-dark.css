@@ -7,8 +7,8 @@
  * tricks. Mirrors github-markdown-light.css; values are the current Primer dark
  * palette (canvas #0d1117, text #f0f6fc, link #4493f8, …). Applied to body.markdown-body (task 82).
  *
- * @profile: default — content geometry tokens (--vmarkd-geo-*) are left unset, so Vditor's own
- * rhythm applies on every stage (task 532 step 2; the GitHub profile lands in step 3).
+ * Geometry profile: GitHub's rhythm (2em lists, 16px block gap, 1.5 leading) via the --vmarkd-geo-*
+ * tokens at the bottom of this file, applied to every stage (task 532 step 3).
  */
 /* color-scheme drives native scrollbars + form controls — without it a dark content
    theme on a LIGHT VS Code editor shows light scrollbars on dark code blocks. */
@@ -57,4 +57,17 @@ body.markdown-body {
   --vmarkd-table-row-bg: #0d1117;
   --vmarkd-table-stripe: #151b23; /* GitHub dark striping */
   --vmarkd-code-bg: #656c7633; /* GitHub dark inline-code bg = rgba(101,108,118,.2) */
+}
+/* Geometry profile: GitHub's rhythm (task 532 step 3); overrides main.css's body-level default. */
+body.markdown-body {
+  --vmarkd-geo-line-height: 1.5;
+  --vmarkd-geo-block-gap: 16px;
+  --vmarkd-geo-list-indent: 2em;
+  --vmarkd-geo-heading-mt: 24px;
+  --vmarkd-geo-heading-mb: 16px;
+  --vmarkd-geo-heading-lh: 1.25;
+  --vmarkd-geo-code-pad: 0.5em;
+  --vmarkd-geo-code-radius: 5px;
+  --vmarkd-geo-code-lh: 1.5;
+  --vmarkd-geo-hr-gap: 24px;
 }

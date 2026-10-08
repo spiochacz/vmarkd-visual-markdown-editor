@@ -397,18 +397,30 @@ body[data-use-vscode-theme-color="1"] .vditor-reset pre code.hljs {
   > .vditor-ir__marker--pre {
   display: block;
 }
-/* Block math top-gap parity. KaTeX gives `.katex-display` `margin: 14px 0`. In the PREVIEW pane
-   that top margin COLLAPSES with the block + the preceding paragraph's bottom margin (normal flow)
-   → the formula sits ~16px below the prior text. In IR the math is wrapped in the injected
-   `.vditor-ir__preview` (contenteditable=false), which blocks that collapse → the 14px is ADDED on
-   top of the 16px gap (formula 30px down, block 14px taller) — it "jumped" vs Preview. Null the
-   display-math TOP margin in the IR math node so the block-level gap (the neighbour's margin, same
-   as Preview's collapsed result) governs; the BOTTOM already matches, so leave it. Only
-   `.katex-display` (display math) → inline `$x$` (`.katex`, data-type=inline-node) is untouched;
-   only the IR `math-block` node → the Preview pane's own math (a plain div) is untouched. */
-/* @surface-only: IR math-node structure; gives the same collapsed gap as Preview */
-.vditor-reset .vditor-ir__node[data-type="math-block"] .katex-display {
-  margin-top: 0;
+/* Display-math block margins, ONE definition on every stage (task 532 step 3b). The Preview's math is
+   `div.language-math` (Vditor: `margin-bottom: 16px`, build-patched to `1em 0 16px`) holding KaTeX's
+   `.katex-display` (`margin: 1em 0`) — all three collapse into one 1em-above / 16px-below gap. In IR and
+   WYSIWYG the same box sits inside the injected `.vditor-*__preview` (a `pre`, Vditor `margin: 1em 0`
+   in WYSIWYG, `min-height: 27px`), where the margins either add up or are swallowed (IR 27px, Preview
+   37.3px, WYSIWYG 41px from the block top to the next block). So the NODE carries the Preview's
+   collapsed margins and the boxes inside carry none; the 27px click-target floor only applies to a
+   preview with nothing rendered in it (no `.katex-display`). Inline math (`$x$`) is a span and does not
+   match. */
+/* @surface-only: IR/WYSIWYG math-node structure; the collapsed margins of the Preview's math div */
+.vditor-reset
+  :is(.vditor-ir__node, .vditor-wysiwyg__block)[data-type="math-block"] {
+  margin: 1em 0 16px;
+}
+/* @surface-only: IR/WYSIWYG math-node structure; boxes inside the node carry no margin of their own */
+.vditor-reset
+  :is(.vditor-ir__node, .vditor-wysiwyg__block)[data-type="math-block"]
+  :is(
+    :is(.vditor-ir__preview, .vditor-wysiwyg__preview):has(.katex-display),
+    .language-math,
+    .katex-display
+  ) {
+  margin: 0;
+  min-height: 0;
 }
 /* EOF trailing paragraph (gap-paragraph.ts `data-vmarkd-trailing`): the maintained empty escape
    paragraph after an atomic last block (table / callout / math / quote) so the caret can land
@@ -1346,23 +1358,24 @@ body[data-full-width="0"] #vmarkd-prerender :is(.vditor-ir, .vditor-wysiwyg) .vd
    TOP of the heading line. Rather than centering on the heading box (which the
    H1/H2 underline makes taller — top:50% then drifts per level), give the
    floated marker a line-height equal to that heading's own line box
-   (`line-height 1.25 × font-size ÷ the marker's 0.85rem`), so its small label
-   centers on the first text line. Keeps the float + the gutter offset set above, so the
+   (`heading-lh token × per-level scale × --me-font-size`, as a length because the marker's own
+   font is a fixed 0.85rem), so its small label centers on the first text line and follows the
+   geometry profile (task 532 step 3). Keeps the float + the gutter offset set above, so the
    horizontal position is unchanged. Both IR and WYSIWYG float the marker at the
    top, so cover both modes — WYSIWYG was missing this, leaving its markers high
    in the line. (task 04) */
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before { line-height: 2.574; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 2 * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before { line-height: 2.279; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.771 * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before { line-height: 2.029; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.577 * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before { line-height: 1.838; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.429 * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h5::before { line-height: 1.662; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h5::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.292 * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h6::before { line-height: 1.471; }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h6::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.143 * var(--me-font-size, 14px)); }
 
 /* Per-level fine-tuning: some levels read a hair high after the line-height
    centering; nudge those down 1px. H5/H6 are already centered. */
@@ -1755,69 +1768,50 @@ body[data-full-width="0"] .vditor-content:has(.vditor-sv[style*="display:none"])
    a theme profile sets the tokens on body.markdown-body. Declare NO default on `.vditor-reset` here:
    it would shadow the theme's body-level token. Per-surface geometry rules below must carry
    `@surface-only: <reason>` (test/backend/parity-geometry-lint.test.ts, which also ratchets the count). ── */
-/* Task 110 — block RHYTHM parity with VS Code's own markdown preview, PREVIEW SURFACE ONLY.
-   ADR-0003 dropped edit-preview parity on purpose; this closes the OTHER axis (preview vs VS Code),
-   leaving the edit surfaces on Vditor's roomier spacing untouched.
-
-   Re-measured 2026-07-30 before writing any of this, because the task's own table was from June and
-   had drifted: it claimed our preview renders at 16px, but `editor.fontSize: editor` now resolves to
-   the VS Code editor size, so BOTH surfaces already measure 14px — the font half of the task is
-   already done. What actually differed (preview measured vs VS Code's markdown.css):
-     line-height 21px (1.5)   vs 22px (1.571)
-     p/ul/ol margin-bottom 16px vs 0.7em (9.8px at 14px)
-     ul/ol padding-left 28px  vs 40px (the UA default VS Code keeps)
-     h2 line-height 1.29      vs 1.25
-   Heading MARGINS (24px top / 16px bottom) already matched and are not touched.
-
-   Option (a) from the task: match the RATIO and use em-relative margins, so the rhythm follows
-   whatever font size the user picked instead of hard-pinning 14px/22px and decoupling the preview
-   from `vmarkd.editor.fontSize`.
-
-   Scoped to text blocks and deliberately NOT to code: `pre`/`code` carry their own box geometry with
-   two standing regressions guarding it (the collapsed code-block phantom height, and the dark
-   bottom-trim that was removed on purpose) — a blanket line-height/margin here would walk straight
-   into both. Tables keep their own cell padding; only the block's outer margin moves. */
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview .vditor-reset {
-  line-height: 1.571;
+/* The default geometry profile (token values) on `body`, one specificity step below the
+   `body.markdown-body` a named theme sets its own profile on. No theme (`auto` under another workbench
+   theme, high contrast, material-dark) therefore gets VS Code's native preview rhythm; em-relative gap
+   so it follows `vmarkd.editor.fontSize`. Vditor-origin rules read these through the build-time
+   `var()` rewrite, nothing here is surface-scoped (task 532 step 3, ADR-0009). */
+body {
+  --vmarkd-geo-line-height: 1.6;
+  --vmarkd-geo-block-gap: 0.7em;
+  --vmarkd-geo-list-indent: 40px;
+  --vmarkd-geo-heading-mt: 24px;
+  --vmarkd-geo-heading-mb: 16px;
+  --vmarkd-geo-heading-lh: 1.25;
+  --vmarkd-geo-code-pad: 0.5em;
+  --vmarkd-geo-code-radius: 5px;
+  --vmarkd-geo-code-lh: 1.5;
+  --vmarkd-geo-hr-gap: 0.5em;
 }
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview
-  .vditor-reset
-  :is(p, ul, ol, table, blockquote, dl, details, hr) {
-  margin-bottom: 0.7em;
+/* Rendered diagrams and display math in the PREVIEW get the same TOP margin as the IR/WYSIWYG dual-node
+   wrapper (`div[data-type="code-block"]`, `margin: 1em 0` above): Vditor gives them only
+   `margin-bottom: 16px`, so there the gap above was the neighbour's block gap (4.2px less than the
+   editors' under the 0.7em gap). The bottom stays Vditor's 16px, which the editors reach through the
+   same collapse. Inside the editors' injected preview the render must NOT carry it (it would be added
+   on top of the wrapper's — measured +14px), hence the `:not`. Block math is a `div`; inline `$x$` is a `span` and keeps its line. */
+/* @surface-only: Preview diagram/math top margin; the editors' wrapper carries the same 1em */
+.vditor-reset
+  div:is(
+    .language-math,
+    .language-echarts,
+    .language-mindmap,
+    .language-plantuml,
+    .language-mermaid,
+    .language-smiles,
+    .language-markmap,
+    .language-abc,
+    .language-flowchart,
+    .language-graphviz,
+    .language-wavedrom
+  ):not(:is(.vditor-ir__preview, .vditor-wysiwyg__preview) > *) {
+  margin-top: 1em;
 }
-/* A list item's own paragraph (loose lists) gets the same rhythm, or a loose list stays 16px while
-   everything around it moves. */
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview .vditor-reset li > p {
-  margin-bottom: 0.7em;
-}
-/* The UA default VS Code keeps. Vditor narrows it to 28px, which reads as a different document
-   structure beside the native preview. Nested lists inherit per level, as they do there. */
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview .vditor-reset :is(ul, ol) {
-  padding-left: 40px;
-}
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview .vditor-reset :is(h1, h2, h3, h4, h5, h6) {
-  line-height: 1.25;
-}
-/* Code keeps Vditor's own line-height: the highlighted block's box height, the collapsed-block
-   guard and the gutter alignment are all computed against it. Re-asserted rather than relying on
-   the selectors above missing it, since `pre > code` sits INSIDE `.vditor-reset`.
-   MUST be the unitless ratio `1.5` (Vditor's own `.vditor-reset` value, `_reset.less`), not the
-   keyword `normal` — `normal` resolves per-font (measured ~14px here, not 1.5×font-size), so a
-   `normal` block was 9-19px SHORTER than its IR twin (task 480, parity.spec.ts `taller[]`: 4-line
-   js block ir=95/pv=80, 5-line python ir=113/pv=94 — a per-LINE deficit, not a one-off). `1.5`
-   reproduces IR's own box (measured 17.85px = 1.5 × 11.9, the 85%-sized code font) exactly.
-   Scoped to `pre`/`pre code` only (not bare `code`): an inline `` `code` `` span sits inside
-   running prose and must keep that paragraph's OWN line-height (1.571, the rule above) so it
-   doesn't open a mismatched line box mid-sentence — only the isolated code-BLOCK panel needs to
-   match IR's box model. */
-/* @surface-only: task-110 Preview-only rhythm; replaced by --vmarkd-geo-* tokens in task 532 step 3 */
-.vditor-preview .vditor-reset :is(pre, pre code) {
-  line-height: 1.5;
+/* Blocks Vditor has no gap rule for. (`li > p`, p, ul/ol, blockquote, table and the `hr` margin and the footnote rule are
+   varified at build time.) */
+.vditor-reset :is(dl, details) {
+  margin-bottom: var(--vmarkd-geo-block-gap, 16px);
 }
 
 /* native <dialog> confirm modal (replaces jquery-confirm) */

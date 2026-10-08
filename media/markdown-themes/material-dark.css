@@ -5,8 +5,9 @@
  * (the upstream file relied on VS Code's dark theme). https://github.com/raycon/vscode-markdown-style
  * Pairs with the atom-one-dark highlight.js code theme.
  *
- * @profile: default — content geometry tokens (--vmarkd-geo-*) are left unset, so Vditor's own
- * rhythm applies on every stage (task 532 step 2; the GitHub profile lands in step 3).
+ * @profile: default — content geometry tokens (--vmarkd-geo-*) are left unset, so the default profile
+ * (main.css `body { --vmarkd-geo-* }`: VS Code's native preview rhythm) applies on every stage
+ * (task 532 step 3).
  */
 .markdown-body {
   background-color: #282c34;

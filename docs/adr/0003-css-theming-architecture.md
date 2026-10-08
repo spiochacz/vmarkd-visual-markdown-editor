@@ -4,6 +4,7 @@
 - **Date:** 2026-06-13
 - **Tags:** css, theming, vditor, build, architecture
 - **Related:** tasks 84/85 (the `--vmarkd-*` palette tokenization), task 109 (tokenize github content themes), `media-src/src/main.css`, `build.mjs` (`varifyVditorPalette`, `patchVditorIndexCss`)
+- **Amended (2026-10-08):** the "drop Edit↔Preview spacing parity" decision (Context) and "Edit and Preview are decoupled" (Consequences) are **superseded by [ADR-0009](0009-content-parity-across-stages.md)** — content geometry is now one theme-owned profile applied to every stage. Mechanism routing and the per-surface *behaviour* contracts (no jank, no glitches) below still hold.
 - **Note:** ADR-0001/0002 cover the Marp feature and currently live on a separate branch; the numbering is project-global.
 
 ## Context

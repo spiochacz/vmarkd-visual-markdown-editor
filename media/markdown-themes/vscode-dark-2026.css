@@ -51,7 +51,6 @@
    content-theme <link> loads AFTER main.css, so an equal-specificity rule here wins. ── */
 body.markdown-body .vditor .vditor-reset {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif !important;
-  line-height: 1.6;
 }
 /* inline code = textPreformat.foreground; background via --vmarkd-code-bg below. */
 .markdown-body code:not(.hljs) { color: #8c8c8c; }
@@ -59,7 +58,6 @@ body.markdown-body .vditor .vditor-reset {
    markdown.css uses border-left 5px + radius 2px; text inherits body colour (NOT muted). */
 .markdown-body blockquote {
   color: #bbbebf;
-  margin: 0 0 16px;
   padding: 0 16px 0 10px;
   border-left: 5px solid #2a2b2c;
   border-radius: 2px;
@@ -122,17 +120,17 @@ body.markdown-body {
   --vmarkd-table-stripe: transparent; /* no zebra */
   --vmarkd-code-bg: #262626; /* textPreformat.background */
 }
-/* Content geometry tokens (task 532 step 2). The build makes Vditor's rhythm declarations
-   `var(--vmarkd-geo-*, <Vditor value>)`, so a theme profile sets the rhythm of EVERY stage here.
-   Values are today's EFFECTIVE ones (no visible change): only the leading differs from Vditor's
-   defaults (the `body.markdown-body .vditor .vditor-reset` rule above already forces 1.6). */
+/* Geometry profile: VS Code's native preview rhythm (task 532 step 3). Same values as main.css's body-level
+   default, spelled out so a change of that default cannot silently move this theme. */
 body.markdown-body {
   --vmarkd-geo-line-height: 1.6;
-  --vmarkd-geo-block-gap: 16px;
-  --vmarkd-geo-list-indent: 2em;
+  --vmarkd-geo-block-gap: 0.7em;
+  --vmarkd-geo-list-indent: 40px;
   --vmarkd-geo-heading-mt: 24px;
   --vmarkd-geo-heading-mb: 16px;
   --vmarkd-geo-heading-lh: 1.25;
   --vmarkd-geo-code-pad: 0.5em;
   --vmarkd-geo-code-radius: 5px;
+  --vmarkd-geo-code-lh: 1.5;
+  --vmarkd-geo-hr-gap: 0.5em;
 }

@@ -1,6 +1,6 @@
 # Task 532 — One content look across all five stages (overlay · IR · WYSIWYG · Preview · split), theme-aware, gated
 
-> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, step 2 (token plumbing) implemented 2026-10-08, steps 3-9 not started.
+> **Status:** 🚧 in progress — decisions taken 2026-10-08; **step 1 (the gate) implemented 2026-10-08**, step 2 (token plumbing) implemented 2026-10-08, step 3 (apply the decision) implemented 2026-10-08 (VSIX install + eyeball pending), steps 4-9 not started.
 > **Source:** user (2026-10-08): "We need a good mechanism to keep the look of the text consistent
 > between these stages, because it keeps drifting apart — and it must take the colour themes into
 > account." Raised by two analyses done the same day: `tmp/fable-preview/report.md` (Preview toggle
@@ -419,7 +419,7 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
   themes' `body.markdown-body .vditor .vditor-reset { line-height: 1.6 }` duplicates the token. The
   tagged-rule ratchet is exact (39 today, after the lint learned `.vditor-ir__preview/__node`,
   min/max-width/height and border shorthands); lower it as rules are deleted.
-- [ ] **3. Geometry tokens (part 2 — apply the decision).** Delete the task-110 block; set the
+- [x] **3. Geometry tokens (part 2 — apply the decision).** Delete the task-110 block; set the
       vscode profile tokens (40px / 0.7em / 1.25 / code 1.5 / box 16px+1px) and the github profile
       (2em / 16px / 1.5); default profile per decision 1; gutter markers → `calc()`. Delete the
       list-indent / block-gap / code-lh / dead-lh allow entries (RED without the CSS change, GREEN
@@ -428,6 +428,55 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       `parity.spec.ts` threshold 8 → 1. ADR-0009 + ADR-0003 amendment + task 110 note. Package +
       install the VSIX and let the user judge by eye before continuing (memory:
       install-vsix-to-see-visual-changes).
+      **DONE 2026-10-08 (VSIX install + the user's eyeball still pending, see below).** Delivered:
+      the task-110 block is gone from `main.css`; the default profile lives on `body { --vmarkd-geo-* }`
+      in section 3a (VS Code rhythm: 1.6 / 0.7em / 40px / 24+16 / 1.25 / code-lh 1.5), `vscode-*-2026`
+      spell the same values out, `github-*` declare GitHub's (1.5 / 16px / 2em / 1.5 code), `material-dark`
+      stays `@profile: default`. New token `--vmarkd-geo-code-lh` (2 more count-asserted patches: `pre`,
+      `pre > code`); `dl/details/hr` margin-bottom in 3a; the vscode themes' duplicated `line-height: 1.6`
+      and blockquote `margin-bottom: 16px` now read the tokens; the six heading gutter markers are
+      `calc(heading-lh token x per-level scale x --me-font-size)` (same px at 14px/1.25); the IR math node
+      carries KaTeX's 1em top margin itself (the Preview collapses it with the neighbour gap; once the
+      gap fell below 14px IR sat 4.2px high). Tagged-rule ratchet 39 -> 34 (six task-110 rules out, one
+      math rule in). **Gate:** allow entries owned by step 3: 167 -> 0 (122 eliminated outright; 45 still
+      differ for structural reasons and 2 new math-block `style.margin-top` cells appeared, all 47 retagged
+      `532 follow-up` with a new reason — see the list below). RED first with the 167 deleted and the old CSS:
+      1257 unexplained (`tmp/532/step3/red-harness.json`); GREEN after: harness 1364/1364 allowed, 0
+      unexplained, 0 stale; real VS Code full matrix (10 boots) 1364/1364, 0 stale. Task-110 block restored
+      -> harness RED (700 unexplained), `preview-spacing` (github profile) and `wysiwyg-parity` RED; md5
+      verified restore. `preview-spacing.spec.ts` rewritten (3 profiles x overlay/IR/WYSIWYG/Preview);
+      `wysiwyg-parity` callouts back to `toEqual`; `parity.spec.ts` threshold 8 -> 1 (blocks and callouts).
+      ADR-0009 + ADR-0003 amendment + task-110 note + CHANGELOG written. Remaining `532 follow-up` entries
+      (need a per-kind decision, NOT the profile): IR source panels vs rendered output (frontmatter,
+      html-block, html-comment `text.line-height` 21 vs 22.4: the IR source `code` has the code leading),
+      footnote definitions, the mermaid wrapper's `style.margin-bottom` (14px wrapper vs the Preview div's literal
+      16px; the distance to the next block is equal), code/diagram wrapper `style.line-height` (edit wrapper div keeps
+      the prose leading, the code lines agree), wiki-link `gapBefore`. NOT done: VSIX package + install, the
+      `@visual` golden re-base (`npm run test:visual`, local-only), the code-box tokens (`-bq-pad`,
+      `-code-border`: the vscode box is still the existing `--vmarkd-code-box-*` + `.hljs` rules, which
+      are already identical on every stage).
+
+      **Step 3b (2026-10-08, the three review fixes):** (1) diagram blocks: the Preview's rendered diagram/math
+      `div` gets the editors' wrapper top margin (`1em`; main.css 3a, Preview only through a `:not` so the
+      render inside the editors' injected preview does not double it), the bottom stays Vditor's 16px, which the
+      editors reach through the same margin collapse; the 4.2px `diagram-mermaid rect.gapBefore` regression and the
+      `style.margin-top` cells are gone, and the d2 Preview probe is the wrapping `pre` (like the editors' wrapper),
+      which removes the d2 margin cells. (2) display math: the IR/WYSIWYG math NODE now carries `margin: 1em 0 16px`
+      and the boxes inside (`pre` preview, `.language-math`, `.katex-display`) none, with the 27px click-target
+      floor only for a preview with nothing rendered — block top to the next block's top is now 37.3px on IR,
+      WYSIWYG and Preview (was 27 / 41 / 37.3, vscode profile); two consecutive math blocks agree by construction (1em / 16px collapse on every stage; the canon fixture has no such pair, so not measured). (3) `hr`:
+      the block gap no longer overrides Vditor's 24px; new token `--vmarkd-geo-hr-gap` (GitHub 24px, VS Code
+      profile and default 0.5em = the user-agent margin VS Code's own `markdown.css` leaves; it drives the Preview,
+      IR and WYSIWYG `hr` and the IR/WYSIWYG footnote rule that stands in for the Preview's `hr`).
+      Allow entries: 11 removed (9 diagram/math + 2 table `gapBefore`), 2 added (`overlay>ir math-block rect.height`,
+      owned by step 4: the overlay shows raw TeX; the mermaid `style.margin-bottom` cell retagged), footnote-def pins
+      re-measured. Tagged-rule ratchet 34 -> 35.
+      **Known, NOT fixed (follow-ups):** (a) the heading-marker offset that predates this task: the `#` marker's
+      line box is 2-5px taller than the heading's line box on every theme, because the per-level marker scales
+      are Vditor's stock sizes x16/14 — needs a per-profile heading-em token; (b) the vscode/github dark and
+      light profiles duplicate their `--vmarkd-geo-*` values (themes have no include mechanism; the lint test
+      pins the twins equal); left as is.
+
 - [ ] **4. Decorator registry + overlay decoration.** `content-decorators.ts`; `runFinishInit` loops
       it; `main.ts` decorates `#vmarkd-prerender` before `new Vditor()`; toolbar clone after
       overflow; wiki-chip host/webview corpus parity test. Delete the overlay callout / hljs /

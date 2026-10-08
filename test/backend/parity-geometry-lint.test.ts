@@ -124,7 +124,7 @@ describe('theme files do not scope to a surface (task 532 §E2)', () => {
 // The tagged set can only SHRINK: step 3 deletes the task-110 rules and generalises the code-box
 // mirror. Lower the number when you remove a tagged rule; never raise it to admit a new one — set a
 // --vmarkd-geo-* token instead (or, for genuinely geometry-neutral edit chrome, tag it AND justify it).
-const MAX_TAGGED_SURFACE_RULES = 39
+const MAX_TAGGED_SURFACE_RULES = 35
 
 describe('main.css surface-scoped geometry rules are tagged (task 532 §E3)', () => {
   const rules = surfaceGeometryRules(read('media-src', 'src', 'main.css'))
