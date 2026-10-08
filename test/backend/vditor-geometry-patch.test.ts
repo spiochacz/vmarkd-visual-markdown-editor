@@ -44,6 +44,8 @@ describe('varifyGeometryCss (task 532 step 2)', () => {
     expect(out).toContain('padding: var(--vmarkd-geo-code-pad, 0.5em);')
     expect(out).toContain('border-radius: var(--vmarkd-geo-code-radius, 5px);')
     expect(out).toContain('margin: var(--vmarkd-geo-hr-gap, 24px) 0;')
+    expect(out).toContain('font-size: calc(var(--vmarkd-geo-h1, 1.75) * 1em);')
+    expect(out).toContain('font-size: calc(var(--vmarkd-geo-h6, 1) * 1em);')
     expect(out).toContain('margin-top: var(--vmarkd-geo-hr-gap, 24px);')
   })
 

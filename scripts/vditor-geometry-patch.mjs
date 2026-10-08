@@ -24,6 +24,15 @@ export const GEO_TOKENS = [
   ['--vmarkd-geo-code-lh', '1.5'],
   // `hr` vertical margin (and the IR/WYSIWYG footnote rule that mimics it): GitHub 24px, VS Code's native preview leaves the UA 0.5em.
   ['--vmarkd-geo-hr-gap', '24px'],
+  // Heading font sizes, h1..h6, as UNITLESS em multipliers (a profile's `2` means `2em`): the heading rule
+  // reads `calc(var(--vmarkd-geo-hN, <stock>) * 1em)` and the gutter markers' line box in main.css reads the
+  // SAME token, so a marker's line box equals its heading's by construction (task 532 step 3b).
+  ['--vmarkd-geo-h1', '1.75'],
+  ['--vmarkd-geo-h2', '1.55'],
+  ['--vmarkd-geo-h3', '1.38'],
+  ['--vmarkd-geo-h4', '1.25'],
+  ['--vmarkd-geo-h5', '1.13'],
+  ['--vmarkd-geo-h6', '1'],
 ]
 
 /** [label, find, replace] — each `find` must occur exactly once in the stock index.css. */
@@ -87,6 +96,36 @@ export const VDITOR_GEOMETRY_PATCHES = [
     'pre leading',
     '.vditor-reset pre {\n  margin: 1em 0;\n}',
     '.vditor-reset pre {\n  margin: 1em 0;\n  line-height: var(--vmarkd-geo-code-lh, 1.5);\n}',
+  ],
+  [
+    'h1 font-size',
+    '.vditor-reset h1 {\n  font-size: 1.75em;\n}',
+    '.vditor-reset h1 {\n  font-size: calc(var(--vmarkd-geo-h1, 1.75) * 1em);\n}',
+  ],
+  [
+    'h2 font-size',
+    '.vditor-reset h2 {\n  font-size: 1.55em;\n}',
+    '.vditor-reset h2 {\n  font-size: calc(var(--vmarkd-geo-h2, 1.55) * 1em);\n}',
+  ],
+  [
+    'h3 font-size',
+    '.vditor-reset h3 {\n  font-size: 1.38em;\n}',
+    '.vditor-reset h3 {\n  font-size: calc(var(--vmarkd-geo-h3, 1.38) * 1em);\n}',
+  ],
+  [
+    'h4 font-size',
+    '.vditor-reset h4 {\n  font-size: 1.25em;\n}',
+    '.vditor-reset h4 {\n  font-size: calc(var(--vmarkd-geo-h4, 1.25) * 1em);\n}',
+  ],
+  [
+    'h5 font-size',
+    '.vditor-reset h5 {\n  font-size: 1.13em;\n}',
+    '.vditor-reset h5 {\n  font-size: calc(var(--vmarkd-geo-h5, 1.13) * 1em);\n}',
+  ],
+  [
+    'h6 font-size',
+    '.vditor-reset h6 {\n  font-size: 1em;\n}',
+    '.vditor-reset h6 {\n  font-size: calc(var(--vmarkd-geo-h6, 1) * 1em);\n}',
   ],
 ]
 

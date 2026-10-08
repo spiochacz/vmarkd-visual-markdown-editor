@@ -1368,34 +1368,25 @@ body[data-full-width="0"] #vmarkd-prerender :is(.vditor-ir, .vditor-wysiwyg) .vd
    TOP of the heading line. Rather than centering on the heading box (which the
    H1/H2 underline makes taller — top:50% then drifts per level), give the
    floated marker a line-height equal to that heading's own line box
-   (`heading-lh token × per-level scale × --me-font-size`, as a length because the marker's own
-   font is a fixed 0.85rem), so its small label centers on the first text line and follows the
+   (`heading-lh × --vmarkd-geo-hN × --me-font-size`; hN is the SAME token the heading's own
+   font-size reads, so both line boxes agree by construction — task 532 step 3b — and it is a length
+   because the marker's own font is a fixed 0.85rem), so its small label centers on the first text line and follows the
    geometry profile (task 532 step 3). Keeps the float + the gutter offset set above, so the
    horizontal position is unchanged. Both IR and WYSIWYG float the marker at the
    top, so cover both modes — WYSIWYG was missing this, leaving its markers high
    in the line. (task 04) */
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 2 * var(--me-font-size, 14px)); }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h1, 1.75) * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.771 * var(--me-font-size, 14px)); }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h2, 1.55) * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.577 * var(--me-font-size, 14px)); }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h3, 1.38) * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.429 * var(--me-font-size, 14px)); }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h4, 1.25) * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h5::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.292 * var(--me-font-size, 14px)); }
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h5::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h5, 1.13) * var(--me-font-size, 14px)); }
 /* @surface-only: edit-only gutter marker line-height (floated ::before) */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h6::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * 1.143 * var(--me-font-size, 14px)); }
-
-/* Per-level fine-tuning: some levels read a hair high after the line-height
-   centering; nudge those down 1px. H5/H6 are already centered. */
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h1::before,
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h2::before,
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h3::before,
-:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h4::before {
-  position: relative;
-  top: 1px;
-}
+:is(.vditor-ir, .vditor-wysiwyg) .vditor-reset > h6::before { line-height: calc(var(--vmarkd-geo-heading-lh, 1.25) * var(--vmarkd-geo-h6, 1) * var(--me-font-size, 14px)); }
 
 /* showHeadingMarkers off: hide ALL the left-gutter markers (heading levels
    H1–H6, the link-reference ↩, footnotes, toc) and tighten the now-empty left
@@ -1803,6 +1794,13 @@ body {
   --vmarkd-geo-code-radius: 5px;
   --vmarkd-geo-code-lh: 1.5;
   --vmarkd-geo-hr-gap: 0.5em;
+  /* Heading sizes = Vditor's stock scale (em multipliers; also what material-dark renders). */
+  --vmarkd-geo-h1: 1.75;
+  --vmarkd-geo-h2: 1.55;
+  --vmarkd-geo-h3: 1.38;
+  --vmarkd-geo-h4: 1.25;
+  --vmarkd-geo-h5: 1.13;
+  --vmarkd-geo-h6: 1;
   /* Height the instant-paint overlay reserves for a diagram it has no recorded size for. */
   --vmarkd-geo-diagram-min-h: 160px;
 }

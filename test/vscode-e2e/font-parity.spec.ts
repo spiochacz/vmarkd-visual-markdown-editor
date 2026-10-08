@@ -217,18 +217,24 @@ for (const contentTheme of ['vscode-dark-2026', 'vscode-light-2026']) {
         px(theirs?.lineHeight),
         1,
       )
-      // The floated gutter marker is centred on the heading's first text line by giving its ::before
-      // a line-height equal to the heading's own line box. main.css does that with six constants that
-      // are all exactly `1.25 × VDITOR's heading scale × 16px ÷ 13.6px` — derived from Vditor's scale
-      // at a 16px base, while these themes set their OWN 2em…0.85em scale at 14px. Only H1 coincides;
-      // H2–H6 markers sit low. That predates task 443 and is NOT asserted (fixing it is a separate,
-      // user-facing visual change) — logged so the numbers stay visible.
+      // The floated gutter marker is centred on the heading's first text line by giving its ::before a
+      // line-height equal to the heading's own line box. Both read the same --vmarkd-geo-hN +
+      // --vmarkd-geo-heading-lh tokens (task 532 step 3b), so they agree at any theme / font size; this pins
+      // it in the real webview (headingMarkers is pinned on above). Chromium twin: heading-marker-align.spec.ts.
       const markerDelta =
         Math.round((px(h.markerLineHeight) - px(h.lineHeight)) * 100) / 100
       console.log(
         `[font-parity/${contentTheme}] ${h.tag} gutter marker line box off by ${markerDelta}px ` +
           `(marker ${h.markerLineHeight} vs heading line box ${h.lineHeight})`,
       )
+      expect(
+        Math.abs(markerDelta),
+        `${h.tag} gutter marker line box vs heading line box`,
+      ).toBeLessThanOrEqual(0.5)
+      expect(
+        Math.abs(Number.parseFloat(h.markerTop) || 0),
+        `${h.tag} gutter marker vertical offset`,
+      ).toBeLessThanOrEqual(0.5)
     }
   })
 }

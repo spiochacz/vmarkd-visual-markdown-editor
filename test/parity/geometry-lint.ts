@@ -34,7 +34,7 @@ export function surfaceScopedRules(css: string): CssRule[] {
 /** Geometry tokens a theme declares (`--vmarkd-geo-x:` custom-property declarations). */
 export function declaredGeoTokens(css: string): Set<string> {
   const out = new Set<string>()
-  for (const m of css.matchAll(/(--vmarkd-geo-[a-z-]+)\s*:/g)) out.add(m[1])
+  for (const m of css.matchAll(/(--vmarkd-geo-[a-z0-9-]+)\s*:/g)) out.add(m[1])
   return out
 }
 

@@ -470,9 +470,17 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       Allow entries: 11 removed (9 diagram/math + 2 table `gapBefore`), 2 added (`overlay>ir math-block rect.height`,
       owned by step 4: the overlay shows raw TeX; the mermaid `style.margin-bottom` cell retagged), footnote-def pins
       re-measured. Tagged-rule ratchet 34 -> 35.
-      **Known, NOT fixed (follow-ups):** (a) the heading-marker offset that predates this task: the `#` marker's
-      line box is 2-5px taller than the heading's line box on every theme, because the per-level marker scales
-      are Vditor's stock sizes x16/14 — needs a per-profile heading-em token; (b) the vscode/github dark and
+      **Step 3b (heading-marker offset) — DONE.** Heading font sizes are now profile tokens `--vmarkd-geo-h1..h6`
+      (unitless em multipliers; vscode + github profiles 2 / 1.5 / 1.25 / 1 / 0.875 / 0.85, default profile and
+      material-dark = Vditor stock 1.75 / 1.55 / 1.38 / 1.25 / 1.13 / 1), applied on every stage by the build-time
+      rewrite of Vditor's `.vditor-reset hN { font-size }` (`calc(var(--vmarkd-geo-hN, <stock>) * 1em)`); the six
+      theme `font-size` rules were deleted. The gutter markers' line box reads the SAME tokens, so it equals the
+      heading's by construction; the old 1px `top` nudge on h1-h4 is gone. Measured before: markers 2.5-10.7px off
+      (IR, 14px: vscode/github h2 4.75, h3 5.72, h4 7.5, h5 7.3, h6 5.13, h1 0 but nudged 1px; Monokai/material
+      3.1-4.4), after: 0 (+-0.01) at 12/14/16/20px, h1-h6, IR + WYSIWYG, 4 themes. Tests: chromium
+      `media-src/e2e/heading-marker-align.spec.ts` (RED before, GREEN after, deliberate break RED);
+      real VS Code `font-parity.spec.ts` now asserts it (vscode dark + light, markers on); unit token/lint tests.
+      **Known, NOT fixed (follow-ups):** (a) ~~the heading-marker offset~~ (fixed by 3b); (b) the vscode/github dark and
       light profiles duplicate their `--vmarkd-geo-*` values (themes have no include mechanism; the lint test
       pins the twins equal); left as is.
 

@@ -55,7 +55,7 @@ describe('theme files declare the geometry token set (task 532 §E1)', () => {
     const geo = (file: string) =>
       [
         ...read('media', 'markdown-themes', file).matchAll(
-          /(--vmarkd-geo-[a-z-]+)\s*:\s*([^;]+);/g,
+          /(--vmarkd-geo-[a-z0-9-]+)\s*:\s*([^;]+);/g,
         ),
       ]
         .map((m) => `${m[1]}:${m[2].trim()}`)
@@ -72,6 +72,43 @@ describe('theme files declare the geometry token set (task 532 §E1)', () => {
       missingGeoTokens('body { --vmarkd-geo-block-gap: 16px }'),
     ).not.toContain('--vmarkd-geo-block-gap')
     expect(missingGeoTokens('/*! x\n * @profile: default\n */ a{}')).toEqual([])
+  })
+})
+
+describe('heading sizes are profile tokens (task 532 step 3b)', () => {
+  const css = read('media-src', 'src', 'main.css')
+
+  it.each([1, 2, 3, 4, 5, 6])(
+    'the h%i gutter marker line box reads the same --vmarkd-geo-hN token as the heading font-size',
+    (n) => {
+      const rule = css
+        .split('\n')
+        .find((l) => l.includes(`> h${n}::before { line-height:`))
+      expect(rule, `h${n} marker rule`).toBeDefined()
+      expect(rule).toContain(`var(--vmarkd-geo-h${n},`)
+      expect(rule).toContain('var(--vmarkd-geo-heading-lh,')
+    },
+  )
+
+  it('heading size tokens are unitless numbers (the patched rule multiplies them by 1em; `2em` would break the calc)', () => {
+    const sources = [
+      ...themeFiles().map((f) => [f, read('media', 'markdown-themes', f)]),
+      ['main.css', css],
+    ]
+    for (const [name, src] of sources)
+      expect(
+        [...src.matchAll(/--vmarkd-geo-h[1-6]\s*:\s*([^;]+);/g)]
+          .map((m) => m[1].trim())
+          .filter((v) => !/^\d*\.?\d+$/.test(v)),
+        name,
+      ).toEqual([])
+  })
+
+  it('no theme file sets a heading font-size directly (the token does)', () => {
+    for (const f of themeFiles())
+      expect(read('media', 'markdown-themes', f), f).not.toMatch(
+        /\bh[1-6]\b[^{]*\{[^}]*font-size/,
+      )
   })
 })
 

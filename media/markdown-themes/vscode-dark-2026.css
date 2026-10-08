@@ -28,14 +28,6 @@
 /* h1/h2 bottom border: markdown.css hardcodes rgba(255,255,255,0.18) per .vscode-dark (NOT a token). */
 .markdown-body h1,
 .markdown-body h2 { padding-bottom: 0.3em; border-bottom: 1px solid rgba(255, 255, 255, 0.18); }
-/* heading scale — markdown.css uses h1 2em … h6 0.85em (identical to GitHub); without it
-   Vditor's structural scale leaks through (h1 too small, h3 too big). */
-.markdown-body h1 { font-size: 2em; }
-.markdown-body h2 { font-size: 1.5em; }
-.markdown-body h3 { font-size: 1.25em; }
-.markdown-body h4 { font-size: 1em; }
-.markdown-body h5 { font-size: 0.875em; }
-.markdown-body h6 { font-size: 0.85em; }
 /* ── Prose typography parity with VS Code's own preview (task 443). The body SIZE already
    matched (both resolve to 14px by default), but two other inputs did not, and together they
    read as "vMarkd's font is bigger" at an identical glyph size:
@@ -133,4 +125,11 @@ body.markdown-body {
   --vmarkd-geo-code-radius: 5px;
   --vmarkd-geo-code-lh: 1.5;
   --vmarkd-geo-hr-gap: 0.5em;
+  /* heading sizes (em multipliers): GitHub Primer / VS Code markdown.css 2em ... 0.85em, mode-independent */
+  --vmarkd-geo-h1: 2;
+  --vmarkd-geo-h2: 1.5;
+  --vmarkd-geo-h3: 1.25;
+  --vmarkd-geo-h4: 1;
+  --vmarkd-geo-h5: 0.875;
+  --vmarkd-geo-h6: 0.85;
 }
