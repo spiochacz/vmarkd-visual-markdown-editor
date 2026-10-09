@@ -689,6 +689,23 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
       margin list, md5-verified restore) -> unit test x2 and the gate RED. Pinned (allow-list, same
       reasons as d2): nomnoml/vega `ir>preview style.font-family` / `style.line-height` and `ir>wysiwyg
       rect.firstGlyphX`. 616 measured / 616 allowed / 0 stale on both layers.
+- [x] **Overlay FOUC (user, Windows, 2026-10-09) - DONE.** The overlay flashed monospace and flush-left
+      (a bare `<pre>`) before the styled view, even with main.js removed. Root cause: VS Code's webview
+      `document.open()/write()/close()`s the page into an already-loaded iframe (workbench
+      `webview/browser/pre/index.html` onFrameLoaded), and a document written that way does NOT block its
+      first paint on `<head>` stylesheet links. MEASURED in real VS Code 1.129 (throwaway probe, 60 extra
+      slow sheets, hold disabled): first visible overlay frames at t=73 ms with `font-family:monospace`,
+      `padding-left:0`, 0 of 64 `link.sheet` loaded; the chromium twin (iframe + document.write) shows the same.
+      Fix (html-builder.ts `buildPrerenderOverlay`): an inline `<style id="vmarkd-prerender-hold">`
+      (`visibility:hidden`) plus a nonce'd inline reveal script that removes it once every enabled head
+      stylesheet fired load/error (or already has a `.sheet`), with a 1.5 s safety timeout; it removes the
+      hold synchronously when everything is already loaded, works without main.js, and leaves the prepaint
+      scroll bridge and `removePrerenderOverlay` untouched. The live editor needed nothing: main.js is a
+      script, which the browser holds behind pending stylesheets (sampled: no unstyled `#app .vditor-reset`
+      frame). Tests: chromium `overlay-fouc.spec.ts` (CSS delayed 1.5 s, per-rAF sampler, with and without
+      main.js); real-VS-Code `prerender-hold-reveal.spec.ts` (hold lifted, overlay visible + styled);
+      unit `html-builder.test.ts`. RED: hold style removed -> 92/91 bad frames (monospace, 0 padding, 0/6
+      sheets); GREEN 0 bad; real-VS-Code probe with the hold: frames hidden while unstyled, 0 visible bad.
 - **Accepted differences (user, 2026-10-08)** — kept on purpose, tagged `accepted (user, 2026-10-08)` in
   the allow-list: IR vs WYSIWYG frontmatter panel, html blocks, table gap, footnote definitions, the
   2.38px code offset and 1.2px centred-diagram x; the split pane's padding vs the narrow-column Preview.

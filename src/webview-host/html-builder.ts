@@ -184,7 +184,18 @@ function buildPrerenderOverlay(
   // is painted by an ancestor other than the body could show a different shade). --vmarkd-page-bg is
   // the one token every theme sets to the surface its content sits on (a named theme: its own canvas;
   // `auto`: the editor background), so the overlay and the live editor resolve to the same colour.
-  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vmarkd-page-bg,var(--vscode-editor-background));}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>`
+  // Hold-until-styled: VS Code document.write()s this page into an already-loaded iframe, and a
+  // document.open()ed document does NOT block its first paint on <head> stylesheets (measured in
+  // Chromium; webview pre/index.html onFrameLoaded). Unstyled, the overlay is a bare `<pre>` —
+  // monospace, flush left — until index.css / main.css / the theme CSS land, then it jumps to the real
+  // layout. So the overlay stays `visibility:hidden` (this <style>) until every enabled head
+  // stylesheet has loaded; the script below removes the hold. Inline, so it works without main.js; a
+  // 1.5 s safety timeout means a stylesheet that never loads cannot hide the content forever. When
+  // every sheet is already loaded (the usual case) the hold is removed before the first paint.
+  const holdStyle = `<style id="vmarkd-prerender-hold">#vmarkd-prerender{visibility:hidden;}</style>`
+  const revealScript = `<script nonce="${nonce}">(function(){var h=document.getElementById('vmarkd-prerender-hold');if(!h)return;var done=false,t=0;function go(){if(done)return;done=true;clearTimeout(t);h.remove();}var L=[].slice.call(document.querySelectorAll('link[rel=stylesheet]:not([disabled])')).filter(function(l){return!l.sheet;}),n=L.length;if(!n)return go();function one(){if(--n<=0)go();}L.forEach(function(l){l.addEventListener('load',one);l.addEventListener('error',one);});t=setTimeout(go,1500);})();</script>`
+
+  const style = `<style>#vmarkd-prerender{position:absolute;inset:0;overflow:hidden;z-index:5;box-sizing:border-box;background:var(--vmarkd-page-bg,var(--vscode-editor-background));}#vmarkd-prerender-spinner{position:absolute;top:9px;right:12px;width:14px;height:14px;box-sizing:border-box;border:2px solid var(--vscode-foreground,#888);border-top-color:transparent;border-radius:50%;opacity:.3;z-index:6;pointer-events:none;animation:vmarkd-spin .8s linear infinite;}@keyframes vmarkd-spin{to{transform:rotate(360deg);}}</style>${holdStyle}`
 
   // Prepaint scroll capture: accumulate the user's wheel/key scroll over the static
   // teaser (before the live editor mounts) so the editor opens at the scrolled
@@ -207,7 +218,7 @@ function buildPrerenderOverlay(
     overlay,
     themeLink,
     style,
-    scrollScript: testHoldScript + scrollScript,
+    scrollScript: testHoldScript + revealScript + scrollScript,
   }
 }
 

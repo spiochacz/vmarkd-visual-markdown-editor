@@ -121,6 +121,31 @@ describe('buildWebviewHtml', () => {
       expect(rule).not.toContain('transparent')
     })
 
+    it('holds the overlay hidden until the head stylesheets loaded, with a safety timeout', () => {
+      const html = buildWebviewHtml(defaults({ preRenderedHtml: '<p>x</p>' }))
+      const head = html.slice(0, html.indexOf('</head>'))
+      expect(head).toContain(
+        '<style id="vmarkd-prerender-hold">#vmarkd-prerender{visibility:hidden;}</style>',
+      )
+      const at = html.indexOf(
+        `<script nonce="${NONCE}">(function(){var h=document.getElementById('vmarkd-prerender-hold')`,
+      )
+      expect(at).toBeGreaterThan(-1)
+      const reveal = html.slice(at, html.indexOf('</script>', at))
+      expect(reveal).toContain("addEventListener('load'")
+      expect(reveal).toContain("addEventListener('error'")
+      expect(reveal).toContain('h.remove()')
+      expect(reveal).toContain('setTimeout(go,1500)')
+      // the reveal sits after the overlay and before main.js, so it works without the bundle
+      expect(at).toBeGreaterThan(html.indexOf('id="vmarkd-prerender"'))
+      expect(at).toBeLessThan(html.indexOf('media/dist/main.js'))
+    })
+
+    it('emits no hold when there is no overlay', () => {
+      const html = buildWebviewHtml(defaults({ preRenderedHtml: undefined }))
+      expect(html).not.toContain('vmarkd-prerender-hold')
+    })
+
     it('emits the prerender hold only for the real-webview parity test', () => {
       const params = defaults({ preRenderedHtml: '<p>test</p>' })
       expect(buildWebviewHtml(params)).not.toContain('__vmarkdHoldPrerender')

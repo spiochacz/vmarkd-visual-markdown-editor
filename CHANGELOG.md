@@ -18,7 +18,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   name contains `&` shows correctly there too. Diagrams keep their space while the file opens: the view
   shows an empty box of the height the diagram had last time (a fixed height the first time) instead of
   its source, so the text below stays put. It also follows `vmarkd.editor.defaultMode` (a document set
-  to open in WYSIWYG no longer flashes the IR layout first) and paints the page colour itself. Links use the same colour in the IR and WYSIWYG
+  to open in WYSIWYG no longer flashes the IR layout first) and paints the page colour itself, and it never flashes unstyled text while the stylesheets load. Links use the same colour in the IR and WYSIWYG
   editors, the Preview and the split view, in every theme. A code block's editable source panel has
   the Preview code block's background and font for every code theme. The left-gutter heading markers
   (H1–H6) sit on their heading's first line at every level, font size and theme.
