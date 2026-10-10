@@ -1,11 +1,11 @@
 {
   "name": "vmarkd",
-  "displayName": "vMarkd \u2014 Visual Markdown Editor",
+  "displayName": "vMarkd — Visual Markdown Editor",
   "icon": "media/logo.png",
-  "description": "vMarkd \u2014 a full-featured visual markdown editor.",
-  "version": "1.2.27",
+  "description": "vMarkd — a full-featured visual markdown editor.",
+  "version": "1.3.0",
   "publisher": "spiochacz",
-  "author": "S\u0142awomir Piochacz",
+  "author": "Sławomir Piochacz",
   "license": "MIT",
   "private": false,
   "engines": {
@@ -293,10 +293,10 @@
             ],
             "enumDescriptions": [
               "Reopen in whatever mode you last used (the previous behaviour).",
-              "Instant Rendering \u2014 markdown syntax reveals itself around the cursor.",
-              "WYSIWYG \u2014 markers stay hidden while you type.",
-              "Split \u2014 source on the left, live preview on the right.",
-              "Preview \u2014 open read-only; switch to editing from the toolbar."
+              "Instant Rendering — markdown syntax reveals itself around the cursor.",
+              "WYSIWYG — markers stay hidden while you type.",
+              "Split — source on the left, live preview on the right.",
+              "Preview — open read-only; switch to editing from the toolbar."
             ],
             "default": "remember",
             "description": "Default mode for opening Markdown files. You can override it per path with Default Mode by Glob. Large files always use Instant Rendering."
@@ -315,7 +315,7 @@
               ]
             },
             "default": {},
-            "markdownDescription": "Per-path overrides for `#vmarkd.editor.defaultMode#`, keyed by glob against the workspace-relative path \u2014 for example `{ \"docs/**\": \"preview\" }`. A matching glob wins over the flat setting. Supports `**`, `*` and `?`.",
+            "markdownDescription": "Per-path overrides for `#vmarkd.editor.defaultMode#`, keyed by glob against the workspace-relative path — for example `{ \"docs/**\": \"preview\" }`. A matching glob wins over the flat setting. Supports `**`, `*` and `?`.",
             "examples": [
               {
                 "docs/**": "preview"
@@ -355,14 +355,14 @@
             "scope": "resource",
             "type": "boolean",
             "default": false,
-            "description": "Apply a themed background to headings (h1\u2013h6) for easier scanning."
+            "description": "Apply a themed background to headings (h1–h6) for easier scanning."
           },
           "vmarkd.editor.codeLineNumbers": {
             "order": 8,
             "scope": "resource",
             "type": "boolean",
             "default": false,
-            "description": "Show line numbers in fenced code blocks (rendered preview). Off by default \u2014 adds a line-number gutter per code block."
+            "description": "Show line numbers in fenced code blocks (rendered preview). Off by default — adds a line-number gutter per code block."
           },
           "vmarkd.editor.modifierClickLinks": {
             "order": 9,
@@ -381,7 +381,7 @@
             ],
             "enumDescriptions": [
               "GitHub's heading-anchor algorithm (github-slugger).",
-              "GitLab's heading-anchor algorithm \u2014 differs from GitHub only for rare Unicode connector-punctuation characters."
+              "GitLab's heading-anchor algorithm — differs from GitHub only for rare Unicode connector-punctuation characters."
             ],
             "default": "github",
             "description": "Heading-anchor format used for #heading links, the outline, and link completion."
@@ -418,7 +418,7 @@
               "off"
             ],
             "enumDescriptions": [
-              "Convert TAB-separated blocks only \u2014 what Excel, Sheets and Numbers put on the clipboard.",
+              "Convert TAB-separated blocks only — what Excel, Sheets and Numbers put on the clipboard.",
               "Also convert comma-separated blocks. Off by default: two lines of comma-ful prose genuinely look like CSV.",
               "Never convert; paste the text as-is."
             ],
@@ -455,8 +455,8 @@
               "Render the markdown like GitHub's light theme, regardless of the VS Code theme.",
               "Render the markdown like GitHub's dark theme, regardless of the VS Code theme.",
               "Material Dark (One Dark) palette, regardless of the VS Code theme.",
-              "VS Code's built-in markdown preview \u2014 Light 2026 (the VS Code 1.123+ light default), regardless of the VS Code theme.",
-              "VS Code's built-in markdown preview \u2014 Dark 2026 (the VS Code 1.123+ dark default), regardless of the VS Code theme."
+              "VS Code's built-in markdown preview — Light 2026 (the VS Code 1.123+ light default), regardless of the VS Code theme.",
+              "VS Code's built-in markdown preview — Dark 2026 (the VS Code 1.123+ dark default), regardless of the VS Code theme."
             ],
             "default": "auto",
             "description": "Rendered Markdown color theme. \"auto\" follows VS Code; named themes use their own palette. Configure code colors separately."
@@ -542,7 +542,7 @@
               "xt256"
             ],
             "enumDescriptions": [
-              "Follow the VS Code light/dark theme \u2014 github in a light theme, github-dark in a dark one."
+              "Follow the VS Code light/dark theme — github in a light theme, github-dark in a dark one."
             ],
             "default": "auto",
             "description": "Syntax-highlight theme for code blocks. \"auto\" follows the VS Code theme; otherwise choose a specific theme."
@@ -562,8 +562,8 @@
               "elk"
             ],
             "enumDescriptions": [
-              "Dagre \u2014 Mermaid's default layered layout (appearance unchanged).",
-              "ELK \u2014 Eclipse Layout Kernel: tighter graphs with orthogonal edge routing. Applies to graph diagrams (flowchart, class, state, ER)."
+              "Dagre — Mermaid's default layered layout (appearance unchanged).",
+              "ELK — Eclipse Layout Kernel: tighter graphs with orthogonal edge routing. Applies to graph diagrams (flowchart, class, state, ER)."
             ],
             "default": "dagre",
             "description": "Layout engine for Mermaid graph diagrams. Use ELK for more compact graphs; other Mermaid diagram types are unaffected."
@@ -597,27 +597,27 @@
               "one-dark"
             ],
             "enumDescriptions": [
-              "Follow the VS Code editor theme \u2014 uses the content theme's paired palette if any (e.g. github-light/dark), else mermaid's own dark/default (a plain flowchart looks mostly monochrome).",
+              "Follow the VS Code editor theme — uses the content theme's paired palette if any (e.g. github-light/dark), else mermaid's own dark/default (a plain flowchart looks mostly monochrome).",
               "Mermaid's default colour palette.",
               "Force the dark palette regardless of the editor theme.",
               "The \"forest\" colour palette (greens).",
               "The \"neutral\" colour palette (greyscale-ish, print-friendly).",
-              "VS Code \u2014 light (matches the vscode-light-2026 content theme).",
-              "VS Code \u2014 dark (matches the vscode-dark-2026 content theme).",
-              "Zinc \u2014 light (neutral greys).",
-              "Zinc \u2014 dark (neutral greys).",
+              "VS Code — light (matches the vscode-light-2026 content theme).",
+              "VS Code — dark (matches the vscode-dark-2026 content theme).",
+              "Zinc — light (neutral greys).",
+              "Zinc — dark (neutral greys).",
               "Tokyo Night (dark, blue/purple).",
               "Tokyo Night Storm (dark, slightly lighter).",
-              "Tokyo Night \u2014 light.",
+              "Tokyo Night — light.",
               "Catppuccin Mocha (dark, pastel).",
               "Catppuccin Latte (light, pastel).",
               "Nord (dark, arctic blue).",
-              "Nord \u2014 light.",
+              "Nord — light.",
               "Dracula (dark, purple/pink).",
-              "GitHub \u2014 light (matches the github-light content theme).",
-              "GitHub \u2014 dark (matches the github-dark content theme).",
-              "Solarized \u2014 light.",
-              "Solarized \u2014 dark.",
+              "GitHub — light (matches the github-light content theme).",
+              "GitHub — dark (matches the github-dark content theme).",
+              "Solarized — light.",
+              "Solarized — dark.",
               "One Dark (Atom)."
             ],
             "default": "auto",
@@ -633,12 +633,12 @@
               "vmarkd"
             ],
             "enumDescriptions": [
-              "Dagre \u2014 hierarchical layout with straight/curved edges.",
-              "ELK (original) \u2014 Eclipse Layout Kernel orthogonal layout.",
+              "Dagre — hierarchical layout with straight/curved edges.",
+              "ELK (original) — Eclipse Layout Kernel orthogonal layout.",
               "Optimised Layout engine for D2 diagrams"
             ],
             "default": "vmarkd",
-            "description": "Layout engine for D2 diagrams \u2014 how the diagrams are drawn."
+            "description": "Layout engine for D2 diagrams — how the diagrams are drawn."
           },
           "vmarkd.diagram.d2.theme": {
             "order": 4,
@@ -658,17 +658,17 @@
               "mono"
             ],
             "enumDescriptions": [
-              "Auto \u2014 pair the palette to the active content theme + editor light/dark, transparent page (blends into the editor, like mermaid/echarts).",
-              "D2 Neutral default \u2014 blue borders/edges, lavender fills, white page (the canonical d2 look).",
-              "D2 Neutral grey \u2014 greyscale borders + fills, white page.",
-              "D2 Cool classics \u2014 vivid blue palette, white page.",
-              "D2 Terminal \u2014 black borders, light fills, white page.",
-              "D2 Dark mauve \u2014 dark page (#1E1E2E) with mauve accents (the dark d2 theme).",
-              "VS Code Light \u2014 subtle accent-tinted fills, transparent page (blends into a light editor, mermaid-style).",
-              "VS Code Dark \u2014 cyan accents, transparent page (blends into a dark editor, mermaid-style).",
-              "GitHub Light \u2014 subtle blue-tinted fills, transparent page (blends into a light editor, mermaid-style).",
-              "GitHub Dark \u2014 blue accents, transparent page (blends into a dark editor, mermaid-style).",
-              "Monochrome \u2014 transparent background, lines follow the editor foreground (currentColor)."
+              "Auto — pair the palette to the active content theme + editor light/dark, transparent page (blends into the editor, like mermaid/echarts).",
+              "D2 Neutral default — blue borders/edges, lavender fills, white page (the canonical d2 look).",
+              "D2 Neutral grey — greyscale borders + fills, white page.",
+              "D2 Cool classics — vivid blue palette, white page.",
+              "D2 Terminal — black borders, light fills, white page.",
+              "D2 Dark mauve — dark page (#1E1E2E) with mauve accents (the dark d2 theme).",
+              "VS Code Light — subtle accent-tinted fills, transparent page (blends into a light editor, mermaid-style).",
+              "VS Code Dark — cyan accents, transparent page (blends into a dark editor, mermaid-style).",
+              "GitHub Light — subtle blue-tinted fills, transparent page (blends into a light editor, mermaid-style).",
+              "GitHub Dark — blue accents, transparent page (blends into a dark editor, mermaid-style).",
+              "Monochrome — transparent background, lines follow the editor foreground (currentColor)."
             ],
             "default": "auto",
             "description": "Color theme for D2 diagrams. \"auto\" follows the render theme; \"mono\" uses the editor foreground."
@@ -697,16 +697,16 @@
               "vintage-dark"
             ],
             "enumDescriptions": [
-              "Follow the rendering theme (vmarkd.theme.content) \u2014 pairs each content theme with a matching palette (e.g. github-light/dark); when the content theme is \"auto\", follows the VS Code editor's own colors.",
+              "Follow the rendering theme (vmarkd.theme.content) — pairs each content theme with a matching palette (e.g. github-light/dark); when the content theme is \"auto\", follows the VS Code editor's own colors.",
               "A neutral light theme (white background).",
               "A neutral dark theme (dark background).",
-              "Vintage \u2014 muted, warm retro palette (light background).",
-              "Macarons \u2014 soft pastel palette.",
-              "Infographic \u2014 bright, high-contrast palette.",
-              "Roma \u2014 earthy red/brown palette.",
-              "Shine \u2014 vivid saturated palette.",
-              "Tech Blue \u2014 cool blue palette.",
-              "Vintage Dark \u2014 the vintage palette on a warm dark background."
+              "Vintage — muted, warm retro palette (light background).",
+              "Macarons — soft pastel palette.",
+              "Infographic — bright, high-contrast palette.",
+              "Roma — earthy red/brown palette.",
+              "Shine — vivid saturated palette.",
+              "Tech Blue — cool blue palette.",
+              "Vintage Dark — the vintage palette on a warm dark background."
             ],
             "default": "auto",
             "description": "Color theme for ECharts charts. \"auto\" follows the rendering theme (and the VS Code editor when that is \"auto\"); otherwise choose a neutral light/dark or one of ECharts' built-in gallery themes."
@@ -722,10 +722,10 @@
               "none"
             ],
             "enumDescriptions": [
-              "Monochrome CARTO basemap (Positron / Dark Matter) that follows the editor's light/dark theme \u2014 a neutral backdrop for your data (the default).",
-              "CARTO Voyager \u2014 a colored street basemap.",
-              "OpenStreetMap standard \u2014 a full-color basemap.",
-              "No basemap \u2014 draw only the GeoJSON/TopoJSON geometry on a transparent canvas."
+              "Monochrome CARTO basemap (Positron / Dark Matter) that follows the editor's light/dark theme — a neutral backdrop for your data (the default).",
+              "CARTO Voyager — a colored street basemap.",
+              "OpenStreetMap standard — a full-color basemap.",
+              "No basemap — draw only the GeoJSON/TopoJSON geometry on a transparent canvas."
             ],
             "default": "auto",
             "description": "Basemap for GeoJSON and TopoJSON maps. Remote tiles require Allow Remote Images; \"none\" works offline."
@@ -826,7 +826,7 @@
             "minimum": 1,
             "maximum": 100,
             "scope": "resource",
-            "markdownDescription": "WebP quality (1\u2013100) when `#vmarkd.image.format#` is `webp`. Higher is larger and sharper; 80 is a good size/quality balance. Ignored for `original`."
+            "markdownDescription": "WebP quality (1–100) when `#vmarkd.image.format#` is `webp`. Higher is larger and sharper; 80 is a good size/quality balance. Ignored for `original`."
           },
           "vmarkd.image.maxWidth": {
             "order": 4,
