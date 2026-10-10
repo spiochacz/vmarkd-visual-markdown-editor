@@ -152,6 +152,9 @@ the words glued: `Hard one  \nhard two\\\nhard three\n\n> q` → `Hard onehard t
       incl. before the overlay clone, on every effective change, optimistic apply on click); `set-reflow-line-breaks`
       message -> host writes the most specific scope that defines the value (folder > workspace > user); overflow
       cluster added. Real-VS-Code spec `reflow-toolbar.spec.ts` (two editors, More-menu press, Settings-side flip).
+      **Inverted 2026-10-10 (user decision):** the button is now "Keep line breaks" — pressed == setting OFF (source
+      line breaks kept), unpressed by default (text flows). Same setting, same `set-reflow-line-breaks` message,
+      same item name; only the pressed state / aria-pressed, tooltip (en + zh_CN) changed; icon kept.
 - [x] Open parity — increment 5 (2026-10-08): the instant-paint overlay is host HTML painted before any script, so the
       rule is applied on the HTML string host-side: `src/shared/soft-break-html.ts` (`wrapSoftBreaksInHtml`, same
       rule as `editing/soft-break.ts`, class name shared) called from `renderForMode(…, reflowLineBreaks)`; the

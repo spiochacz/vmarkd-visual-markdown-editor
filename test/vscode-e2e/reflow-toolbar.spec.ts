@@ -1,6 +1,6 @@
 // Task 83 (increment 4) — the toolbar toggle for vmarkd.editor.reflowLineBreaks, in the real webview.
 // A real click on the button persists the setting in VS Code (host write), the ↵ markers go away and
-// the button un-presses; a second click brings it all back. A change made from the VS Code side
+// the button presses (keep line breaks); a second click brings it all back. A change made from the VS Code side
 // (Settings) moves the button too, and a SECOND open vMarkd editor follows every flip.
 import { rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +23,7 @@ test.afterEach(async ({ evaluateInVSCode }) => {
 const DOC = 'Alpha one\nbeta two\ngamma three\n\nTail.\n'
 const BTN = '.vditor-toolbar [data-type="reflow-line-breaks"]'
 
-test('the toolbar button flips the persisted setting live, shows the pressed state, and every open editor follows', async ({
+test('the toolbar button flips the persisted setting live, shows the inverted pressed state, and every open editor follows', async ({
   workbox,
   evaluateInVSCode,
 }) => {
@@ -81,21 +81,22 @@ test('the toolbar button flips the persisted setting live, shows the pressed sta
       await f.locator(BTN).click()
     }
 
+    // `on` = reflow on. The button is pressed when line breaks are KEPT, i.e. when reflow is OFF.
     const expectAll = async (on: boolean) => {
       for (const f of frames) {
         const btn = f.locator(BTN)
-        await expect(btn).toHaveAttribute('aria-pressed', String(on), {
+        await expect(btn).toHaveAttribute('aria-pressed', String(!on), {
           timeout: 30_000,
         })
-        if (on) await expect(btn).toHaveClass(/vditor-menu--current/)
-        else await expect(btn).not.toHaveClass(/vditor-menu--current/)
+        if (on) await expect(btn).not.toHaveClass(/vditor-menu--current/)
+        else await expect(btn).toHaveClass(/vditor-menu--current/)
         await expect(f.locator('.vmarkd-softbreak')).toHaveCount(on ? 2 : 0, {
           timeout: 30_000,
         })
       }
     }
 
-    // Default (true): pressed, markers on, in both editors.
+    // Default (true): NOT pressed, markers on, in both editors.
     await expectAll(true)
 
     // Real click in the first editor -> the host writes the setting, both editors follow.

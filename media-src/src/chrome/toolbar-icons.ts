@@ -19,7 +19,7 @@ export const backIcon =
 export const outlineIcon =
   '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="currentColor" d="M2 2.25a1 1 0 100 2 1 1 0 000-2zM5 2.5a.75.75 0 000 1.5h9a.75.75 0 000-1.5H5zM4 7a1 1 0 100 2 1 1 0 000-2zM7 7.25a.75.75 0 000 1.5h7a.75.75 0 000-1.5H7zM4 11.75a1 1 0 100 2 1 1 0 000-2zM7 12a.75.75 0 000 1.5h7a.75.75 0 000-1.5H7z"/></svg>'
 
-// Reflow line breaks: a full line, then a line that wraps back with a return arrow — "soft-wrapped
+// Keep line breaks (was "Reflow line breaks"): a full line, then a line that wraps back with a return arrow — "soft-wrapped
 // source lines flow as one paragraph". Stroke-based like the codicon family, currentColor.
 export const reflowIcon =
   '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" width="16" height="16"><path fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" d="M2 3.5h12M2 8h9.5a2.25 2.25 0 010 4.5H7.5M9.25 10.75L7.5 12.5l1.75 1.75M2 12.5h2.5"/></svg>'

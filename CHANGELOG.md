@@ -35,8 +35,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   selected, copied or saved; the
   markdown on disk is untouched, typing and arrow keys cross a break like a space, and Shift+Enter
   inserts a real hard break. Turn it off to keep every source line on its own line; a change applies
-  to open editors and an open Preview at once, and a toolbar button next to Outline flips it (pressed
-  while on, kept in step with the VS Code setting). The instant-paint view shown while a file opens
+  to open editors and an open Preview at once, and a toolbar button next to Outline flips it ("Keep line breaks": pressed
+  while source line breaks are kept, i.e. reflow is off; kept in step with the VS Code setting). The instant-paint view shown while a file opens
   is already reflowed, so nothing moves when the editor takes over.
 - **Ctrl+Tab, Alt+Tab and Cmd+Tab reach VS Code untouched**: switching editors or windows from inside
   vMarkd never types a tab character into the document.

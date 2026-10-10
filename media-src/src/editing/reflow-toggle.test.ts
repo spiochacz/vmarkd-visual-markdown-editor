@@ -45,7 +45,7 @@ describe('toolbar item config', () => {
     expect(names[at - 1]).toBe('outline')
     expect(names[at + 1]).toBe('preview')
     const item = items[at] as Record<string, unknown>
-    expect(item.tip).toBe('Reflow line breaks')
+    expect(item.tip).toBe('Keep line breaks')
     expect(String(item.icon)).toContain('<svg')
     expect(typeof item.click).toBe('function')
   })
@@ -61,14 +61,14 @@ describe('toolbar item config', () => {
 })
 
 describe('pressed state', () => {
-  it('syncReflowToggle mirrors the effective value onto class and aria-pressed', () => {
+  it('syncReflowToggle shows the INVERSE of reflow: pressed means source line breaks are kept', () => {
     const btn = mountButton()
     syncReflowToggle(true)
-    expect(btn.classList.contains('vditor-menu--current')).toBe(true)
-    expect(btn.getAttribute('aria-pressed')).toBe('true')
-    syncReflowToggle(false)
     expect(btn.classList.contains('vditor-menu--current')).toBe(false)
     expect(btn.getAttribute('aria-pressed')).toBe('false')
+    syncReflowToggle(false)
+    expect(btn.classList.contains('vditor-menu--current')).toBe(true)
+    expect(btn.getAttribute('aria-pressed')).toBe('true')
   })
 
   it('also reaches the live Vditor toolbar before it is attached to the document (initUI is later)', () => {
@@ -77,27 +77,27 @@ describe('pressed state', () => {
     h.inner = { toolbar: { element: detached } }
     syncReflowToggle(false)
     const btn = detached.querySelector('button') as HTMLElement
-    expect(btn.getAttribute('aria-pressed')).toBe('false')
+    expect(btn.getAttribute('aria-pressed')).toBe('true')
     syncReflowToggle(true)
-    expect(btn.classList.contains('vditor-menu--current')).toBe(true)
+    expect(btn.classList.contains('vditor-menu--current')).toBe(false)
   })
 
-  it('defaults to pressed when the setting was never applied', () => {
+  it('defaults to NOT pressed when the setting was never applied (reflow is on)', () => {
     const btn = mountButton()
     syncReflowToggle()
-    expect(btn.getAttribute('aria-pressed')).toBe('true')
+    expect(btn.getAttribute('aria-pressed')).toBe('false')
   })
 
   it('follows every effective change once installed (e.g. a VS Code Settings edit)', () => {
     const btn = mountButton()
     installReflowToggleSync()
     applyReflowLineBreaks(true)
-    expect(btn.getAttribute('aria-pressed')).toBe('true')
-    applyReflowLineBreaks(false)
     expect(btn.getAttribute('aria-pressed')).toBe('false')
-    expect(btn.classList.contains('vditor-menu--current')).toBe(false)
-    applyReflowLineBreaks(true)
+    applyReflowLineBreaks(false)
     expect(btn.getAttribute('aria-pressed')).toBe('true')
+    expect(btn.classList.contains('vditor-menu--current')).toBe(true)
+    applyReflowLineBreaks(true)
+    expect(btn.getAttribute('aria-pressed')).toBe('false')
   })
 })
 
