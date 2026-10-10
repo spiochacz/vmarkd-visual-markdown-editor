@@ -540,7 +540,8 @@ The `vmarkd-renderer-theming` skill gains a "geometry tokens — all stages" sec
             the cache entry on PUT, read in `renderForMode`), fixed fallback min-height; delete the
             overlay-diagram allow entry (bounded tolerance for the no-cache case documented in the
             policy, not the allow-list).
-      - [ ] 5d. (phase 2, after a size budget decision) inline the cached SVG into the overlay.
+      - [x] 5d. DROPPED (user, 2026-10-10): inlining the cached SVG into the overlay is not wanted;
+            the reserved placeholder height (5c) is the final behaviour.
       **Steps 5a-5c done 2026-10-08 (5d open).**
       5a: `src/shared/open-mode.ts` `resolveOpenMode(saved, default)`, used by `markdown-editor-provider.ts`
       (overlay mode; the host resolves `vmarkd.editor.defaultMode` + `defaultModeByGlob` with the same
