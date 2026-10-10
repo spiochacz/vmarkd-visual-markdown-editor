@@ -4,7 +4,7 @@ All notable changes to this extension are documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] — 2026-10-10
 
 ### Added
 
@@ -74,103 +74,6 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **D2 code shapes are syntax-coloured**: a `shape: code` (or fenced-code) node draws its
   content with highlight.js tokens in the rendering theme's colours, and re-colours when you
   switch themes, instead of flat monospace text.
-
-### Changed
-
-- **Newer markdown engine (Lute, September 2026).** Pasted or rendered HTML is now stripped of
-  `javascript:` links in `<form action>` and SVG/MathML `xlink:href` attributes (upstream security
-  advisory GHSA-97xv-3v84-h358). Tables keep the spacing around inline code, bold, links and math
-  in a cell exactly as written (including double spaces), a table that directly follows text in a
-  list item is no longer separated by a blank line, and further list/table round-trip fixes come
-  with it. One side effect: a line like ``      - `code` `` indented four or more spaces past its
-  list item's text (continuation text, not a sublist) is now saved with a backslash (`\-`) so it
-  stays text instead of silently becoming a sublist on the next open.
-- **One source of truth for the formatting shortcuts**: the toolbar's tooltips, the keybindings
-  VS Code lists in its Keyboard Shortcuts UI and the code that actually runs on the keypress all
-  come from the same table — so a tooltip can no longer advertise a key that does something else,
-  and no shortcut is handled twice (bold applied and immediately un-applied).
-- **Prose follows VS Code's Markdown-preview font**: on a rendering theme that stays on the
-  variable-driven `auto` path (an unrecognised VS Code theme), the document is set in
-  `markdown.preview.fontFamily` — the same font VS Code's own preview uses — instead of the
-  editor font, which is usually monospace. Code blocks keep their monospace font, and the named
-  themes keep their own stack.
-- **Plainer Settings descriptions**: 19 settings — the paste, diagram, image, theme and
-  performance groups among them — describe what they do in one short sentence instead of a
-  paragraph of implementation detail.
-
-### Fixed
-
-- **Task-list checkboxes keep their form**: editing a list with `- [ ]` / `- [x]` items no longer rewrites
-  the checkboxes in the saved file as `[ ]  a` and `[X]` (two spaces, upper-case) — `[x]` and `[X]` stay as
-  written, with one space before the text. A box you tick in the editor is written `[x]`.
-
-- **Split view no longer saves blank-looking padding lines**: editing a list item that has several
-  paragraphs (or a blank line inside its code block) no longer writes whitespace-only lines into the file.
-
-- **Split view saves exactly what you typed**: editing a document in the split view no longer appends a
-  blank line and an invisible zero-width character to the end of the saved file, and a blank line inside
-  a blockquote is saved as `>` instead of `> ` with a trailing space.
-
-- **A way to type below the last block after switching edit mode**: switching between the edit modes
-  from the toolbar now keeps the empty line below a document's last table, callout or quote in
-  whichever mode you land in (it used to exist only in the mode the editor opened in).
-
-- **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
-  exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
-  (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are
-  left alone. Shift+Enter inside a paragraph, list item or quote now inserts a real hard line break in
-  both modes, written as a trailing backslash by default (`vmarkd.editor.hardBreakStyle` switches it to
-  two trailing spaces); headings, table cells, code and math keep their usual Shift+Enter.
-
-- **The first keystroke after Ctrl+Z is no longer lost in the Instant Rendering mode.** After undoing
-  back to the opening state the caret could end up outside the editable area, so the next typed
-  character vanished; the floating table toolbar no longer lives inside the editable text, so the
-  caret returns to where it was (and the toolbar follows its table when you scroll).
-
-- **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
-  an occasional letter could land in the document instead of the search field (measured about 1 leg
-  in 30). The editor no longer takes focus back while the search box is open.
-- **List editing behaves like a real editor in the corner cases.** Deleting from the end of a
-  list through a nested sublist no longer breaks the formatting: Backspace on an empty item puts
-  the caret at the end of the line above (inside the sublist, if there is one) in a single
-  press, without opening blank lines or turning the list loose. Backspace at the start of an
-  item that follows a sublist turns it into a paragraph without swallowing the items after it
-  (they used to be deleted). An item moved out of a sublist (Backspace on its marker, Shift+Tab)
-  gets the right number straight away. Tab and Shift+Tab indent and outdent an item from
-  anywhere in its text, not only from its first character. Typing `- ` or `1. ` in an empty
-  item switches that item to a bulleted or numbered one instead of nesting a third level. Enter
-  at the end of an item that has a sublist starts a new first item of that sublist, keeping the
-  sublist under its parent.
-- **The Ctrl+F search box keeps focus once it finds something.** Typing a query that matched text in
-  the document handed focus back to the editor mid-word, so the rest of what you typed went into the
-  document instead of the search field. The editor was reclaiming focus on a moment VS Code's find
-  only borrows it for.
-- **An image replaced on disk now repaints in the open editor.** Overwriting a picture the document
-  points at — same file name, new content — left the old one on screen until you reloaded the whole
-  window; closing and reopening the tab was not enough, because the stale copy was held by the
-  webview's own resource cache. The editor now watches the images a document references and refreshes
-  exactly those, without touching the Markdown.
-- **Mermaid C4 diagram labels are readable on every box.** Mermaid's C4 renderer paints all
-  in-box text white, which sits at 2.0:1 on its own light-blue `Component` fill — legible on
-  paper, not on screen. Every box's label is now inked with whichever of white or near-black
-  contrasts better with that box's own fill, and dark pages get a darker box ramp to go with it.
-  Relationship labels, the curved `Rel_Back` / `BiRel` paths and boundary frames follow the
-  page palette instead of staying fixed grey.
-- **Pasting a URL onto an existing link replaces that link** instead of nesting a new link inside
-  it and leaving broken markdown behind. Pasting over a plain selection is unchanged.
-- **The toolbar's More menu reopens after the window is resized.** Once buttons moved in or out
-  of the overflow menu, the next click on **More** closed a menu that was still open behind the
-  scenes, so it took two clicks to see it again — the same for the emoji and headings menus.
-- **Ctrl+] and Ctrl+[ indent a list item straight away.** Pressing them right after placing the
-  caret in a list did nothing; only after about a fifth of a second did the list nest.
-- **A D2 diagram no longer keeps the old palette after a theme switch.** A diagram painted from
-  the render cache could be filed under the new theme before its re-draw had actually happened,
-  so a later switch back showed the previous theme's colours.
-
-## [1.3.0] — 2026-08-01
-
-### Added
-
 - **A caret position between blocks that touch**: you can now put the cursor in the gap between
   any two blocks that leave no room for one — between a horizontal rule and a code block or front
   matter, between two rules, or above a document that starts with a table, a diagram or a fence.
@@ -253,6 +156,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Changed
 
+- **Newer markdown engine (Lute, September 2026).** Pasted or rendered HTML is now stripped of
+  `javascript:` links in `<form action>` and SVG/MathML `xlink:href` attributes (upstream security
+  advisory GHSA-97xv-3v84-h358). Tables keep the spacing around inline code, bold, links and math
+  in a cell exactly as written (including double spaces), a table that directly follows text in a
+  list item is no longer separated by a blank line, and further list/table round-trip fixes come
+  with it. One side effect: a line like ``      - `code` `` indented four or more spaces past its
+  list item's text (continuation text, not a sublist) is now saved with a backslash (`\-`) so it
+  stays text instead of silently becoming a sublist on the next open.
+- **One source of truth for the formatting shortcuts**: the toolbar's tooltips, the keybindings
+  VS Code lists in its Keyboard Shortcuts UI and the code that actually runs on the keypress all
+  come from the same table — so a tooltip can no longer advertise a key that does something else,
+  and no shortcut is handled twice (bold applied and immediately un-applied).
+- **Prose follows VS Code's Markdown-preview font**: on a rendering theme that stays on the
+  variable-driven `auto` path (an unrecognised VS Code theme), the document is set in
+  `markdown.preview.fontFamily` — the same font VS Code's own preview uses — instead of the
+  editor font, which is usually monospace. Code blocks keep their monospace font, and the named
+  themes keep their own stack.
+- **Plainer Settings descriptions**: 19 settings — the paste, diagram, image, theme and
+  performance groups among them — describe what they do in one short sentence instead of a
+  paragraph of implementation detail.
 - **Clearer toolbar labels**: `Line` is now `Horizontal Rule` and `Order List` is `Numbered List`
   (they name what the button inserts), the icons are a uniform size, and the Redo tooltip
   advertises the Shift+Ctrl/Cmd+Z shortcut that already worked. The labels are also what a screen
@@ -316,6 +239,72 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 
 ### Fixed
 
+- **Task-list checkboxes keep their form**: editing a list with `- [ ]` / `- [x]` items no longer rewrites
+  the checkboxes in the saved file as `[ ]  a` and `[X]` (two spaces, upper-case) — `[x]` and `[X]` stay as
+  written, with one space before the text. A box you tick in the editor is written `[x]`.
+
+- **Split view no longer saves blank-looking padding lines**: editing a list item that has several
+  paragraphs (or a blank line inside its code block) no longer writes whitespace-only lines into the file.
+
+- **Split view saves exactly what you typed**: editing a document in the split view no longer appends a
+  blank line and an invisible zero-width character to the end of the saved file, and a blank line inside
+  a blockquote is saved as `>` instead of `> ` with a trailing space.
+
+- **A way to type below the last block after switching edit mode**: switching between the edit modes
+  from the toolbar now keeps the empty line below a document's last table, callout or quote in
+  whichever mode you land in (it used to exist only in the mode the editor opened in).
+
+- **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
+  exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
+  (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are
+  left alone. Shift+Enter inside a paragraph, list item or quote now inserts a real hard line break in
+  both modes, written as a trailing backslash by default (`vmarkd.editor.hardBreakStyle` switches it to
+  two trailing spaces); headings, table cells, code and math keep their usual Shift+Enter.
+
+- **The first keystroke after Ctrl+Z is no longer lost in the Instant Rendering mode.** After undoing
+  back to the opening state the caret could end up outside the editable area, so the next typed
+  character vanished; the floating table toolbar no longer lives inside the editable text, so the
+  caret returns to where it was (and the toolbar follows its table when you scroll).
+
+- **Typing in the Ctrl+F search box no longer slips into the document.** While you typed a query,
+  an occasional letter could land in the document instead of the search field (measured about 1 leg
+  in 30). The editor no longer takes focus back while the search box is open.
+- **List editing behaves like a real editor in the corner cases.** Deleting from the end of a
+  list through a nested sublist no longer breaks the formatting: Backspace on an empty item puts
+  the caret at the end of the line above (inside the sublist, if there is one) in a single
+  press, without opening blank lines or turning the list loose. Backspace at the start of an
+  item that follows a sublist turns it into a paragraph without swallowing the items after it
+  (they used to be deleted). An item moved out of a sublist (Backspace on its marker, Shift+Tab)
+  gets the right number straight away. Tab and Shift+Tab indent and outdent an item from
+  anywhere in its text, not only from its first character. Typing `- ` or `1. ` in an empty
+  item switches that item to a bulleted or numbered one instead of nesting a third level. Enter
+  at the end of an item that has a sublist starts a new first item of that sublist, keeping the
+  sublist under its parent.
+- **The Ctrl+F search box keeps focus once it finds something.** Typing a query that matched text in
+  the document handed focus back to the editor mid-word, so the rest of what you typed went into the
+  document instead of the search field. The editor was reclaiming focus on a moment VS Code's find
+  only borrows it for.
+- **An image replaced on disk now repaints in the open editor.** Overwriting a picture the document
+  points at — same file name, new content — left the old one on screen until you reloaded the whole
+  window; closing and reopening the tab was not enough, because the stale copy was held by the
+  webview's own resource cache. The editor now watches the images a document references and refreshes
+  exactly those, without touching the Markdown.
+- **Mermaid C4 diagram labels are readable on every box.** Mermaid's C4 renderer paints all
+  in-box text white, which sits at 2.0:1 on its own light-blue `Component` fill — legible on
+  paper, not on screen. Every box's label is now inked with whichever of white or near-black
+  contrasts better with that box's own fill, and dark pages get a darker box ramp to go with it.
+  Relationship labels, the curved `Rel_Back` / `BiRel` paths and boundary frames follow the
+  page palette instead of staying fixed grey.
+- **Pasting a URL onto an existing link replaces that link** instead of nesting a new link inside
+  it and leaving broken markdown behind. Pasting over a plain selection is unchanged.
+- **The toolbar's More menu reopens after the window is resized.** Once buttons moved in or out
+  of the overflow menu, the next click on **More** closed a menu that was still open behind the
+  scenes, so it took two clicks to see it again — the same for the emoji and headings menus.
+- **Ctrl+] and Ctrl+[ indent a list item straight away.** Pressing them right after placing the
+  caret in a list did nothing; only after about a fifth of a second did the list nest.
+- **A D2 diagram no longer keeps the old palette after a theme switch.** A diagram painted from
+  the render cache could be filed under the new theme before its re-draw had actually happened,
+  so a later switch back showed the previous theme's colours.
 - **The document no longer sits flush against the top edge in full width.** Full-width mode (the
   default) drew the first line hard against the top of the pane, while the narrow reading column
   had its usual breathing room; both surfaces — the editor and the Preview — now have the same
