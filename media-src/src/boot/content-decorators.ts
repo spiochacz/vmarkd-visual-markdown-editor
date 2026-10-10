@@ -48,8 +48,6 @@ export interface ObserveContext {
   app: HTMLElement | null
   /** The full-Preview pane's element. */
   previewEl: HTMLElement | undefined
-  /** The currently active mode's editable element (IR / WYSIWYG / SV). */
-  activeMode: HTMLElement | null | undefined
   /** The IR/WYSIWYG block surface, or null in SV (read lazily: the mode can change). */
   blockMode: () => HTMLElement | null
   post: (message: WebviewMessage) => void
@@ -128,7 +126,7 @@ export const CONTENT_DECORATORS: readonly ContentDecorator[] = [
       tagCodeSource(root)
       highlightPreviewCode(root, globals().hljs)
     },
-    observe: (_stage, ctx) => observeCodeSource(ctx.activeMode),
+    observe: (_stage, ctx) => observeCodeSource(ctx.app),
     parityMarkers: ['hljs', 'hljs-token'],
   },
   {

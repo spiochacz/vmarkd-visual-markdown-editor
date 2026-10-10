@@ -19,7 +19,7 @@ function irWithTwoBlocks(): {
   nodeB: HTMLElement
 } {
   const ir = document.createElement('pre')
-  ir.className = 'vditor-reset'
+  ir.className = 'vditor-ir vditor-reset'
   const nodeA = document.createElement('div')
   nodeA.className = 'vditor-ir__node'
   nodeA.setAttribute('data-type', 'code-block')
@@ -139,5 +139,35 @@ describe('observeCodeSource (task 173 scoping)', () => {
     const codes = Array.from(ir.querySelectorAll('code'))
     expect(codes).toHaveLength(2)
     for (const code of codes) expect(code.classList.contains('hljs')).toBe(true)
+  })
+
+  // The bug: bound once to the mode element active at init, so a live sv/WYSIWYG -> IR switch (Vditor
+  // rebuilds ir.element.innerHTML) left the IR sources untagged. Bound to the stable root instead.
+  it('tags IR sources rebuilt into the pane AFTER mount when bound to the stable root (mode switch)', async () => {
+    const app = document.createElement('div')
+    app.innerHTML =
+      '<div class="vditor-ir vditor-reset"></div><div class="vditor-sv vditor-reset"></div>'
+    document.body.append(app)
+    dispose = observeCodeSource(app)
+    const ir = app.querySelector('.vditor-ir') as HTMLElement
+    ir.innerHTML =
+      '<div class="vditor-ir__node" data-type="code-block"><pre class="vditor-ir__marker--pre"><code class="language-ts">a</code></pre></div>'
+    await Promise.resolve()
+    fireFrame()
+    expect(ir.querySelector('code')?.classList.contains('hljs')).toBe(true)
+  })
+
+  it('never tags anything outside the IR pane, and does not scan a non-IR block', async () => {
+    const app = document.createElement('div')
+    app.innerHTML =
+      '<div class="vditor-ir vditor-reset"></div><div class="vditor-sv vditor-reset"><div data-block="0"></div></div>'
+    document.body.append(app)
+    dispose = observeCodeSource(app)
+    const sv = app.querySelector('.vditor-sv > div') as HTMLElement
+    sv.innerHTML =
+      '<pre class="vditor-ir__marker--pre"><code class="language-ts">a</code></pre>'
+    await Promise.resolve()
+    fireFrame()
+    expect(sv.querySelector('code')?.classList.contains('hljs')).toBe(false)
   })
 })

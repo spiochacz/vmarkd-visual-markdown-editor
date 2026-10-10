@@ -1,7 +1,7 @@
 import type { InitPayload } from './init-payload'
 import type { Disposables } from '../util/disposables'
 import { innerVditor } from '../util/inner-vditor'
-import { activeModeElement, blockModeElement } from '../util/source-map'
+import { blockModeElement } from '../util/source-map'
 import { fixResponsiveTables } from '../chrome/responsive-tables'
 import { handleToolbarClick } from '../chrome/toolbar-actions'
 import { guardToolbarScroll } from '../chrome/toolbar-scroll-guard'
@@ -107,7 +107,6 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   const decoratorCtx: ObserveContext = {
     app,
     previewEl,
-    activeMode: activeModeElement(window.vditor),
     blockMode: () => blockModeElement(window.vditor),
     post,
     getHljs: () => (window as any).hljs,

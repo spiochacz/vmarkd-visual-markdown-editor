@@ -9,7 +9,7 @@ import {
 } from '../parity/code-source'
 import { PARITY_CONFIGS } from '../parity/configs'
 import { applySettings, useSettingsRestore } from './settings-helpers'
-import { wf } from './webview-helpers'
+import { openInMode, settle, wf } from './webview-helpers'
 
 // Task 532 follow-up - the IR code block's EDITABLE SOURCE panel (expanded) has the Preview code
 // block's background, text colour, font family/size and padding, driven by the active hljs style, in REAL VS Code.
@@ -36,7 +36,7 @@ const CASES: readonly [string, Record<string, unknown>][] = [
 ]
 
 test.describe.configure({ retries: 0 })
-useSettingsRestore(test, Object.keys(BASE))
+useSettingsRestore(test, [...Object.keys(BASE), 'vmarkd.editor.defaultMode'])
 
 test.afterEach(async ({ evaluateInVSCode }) => {
   await evaluateInVSCode(async (vscode) => {
@@ -70,6 +70,52 @@ for (const [label, extra] of CASES) {
     await frame
       .locator('body')
       .evaluate(() => new Promise((r) => setTimeout(r, 1500)))
+    const source = (await frame
+      .locator('body')
+      .evaluate(EXPAND_AND_MEASURE)) as CodeSourceMeasure
+    await frame
+      .locator(PREVIEW_CODE_SELECTOR)
+      .first()
+      .waitFor({ timeout: 30_000 })
+    const preview = (await frame
+      .locator('body')
+      .evaluate(MEASURE_PREVIEW)) as Record<string, string> | null
+    assertSourceMatchesPreview(source, preview)
+  })
+}
+
+// The decorator was bound once at init to the element of the mode active THEN; the toolbar's mode
+// switch does not re-init and Vditor rebuilds ir.element on a switch, so starting in sv / WYSIWYG and
+// switching to IR left the IR code sources without `.hljs` (no code-theme background/colour/font).
+for (const from of ['sv', 'wysiwyg'] as const) {
+  test(`IR code source panel matches the Preview code block after a live switch ${from} -> ir`, async ({
+    workbox,
+    evaluateInVSCode,
+  }) => {
+    test.setTimeout(240_000)
+    await applySettings(evaluateInVSCode, BASE)
+    await openInMode(evaluateInVSCode, FIXTURE, from)
+    const frame = wf(workbox)
+    await frame.locator(`.vditor-${from}`).first().waitFor({ timeout: 90_000 })
+    await settle(frame, 1500)
+    await frame.locator('body').evaluate(() => {
+      const btn = document.querySelector(
+        '.vditor-toolbar button[data-mode="ir"]',
+      )
+      if (!btn) throw new Error('mode button not found: ir')
+      btn.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true }),
+      )
+    })
+    await frame
+      .locator('.vditor-ir.vditor-reset, .vditor-ir .vditor-reset')
+      .first()
+      .waitFor({ state: 'visible', timeout: 30_000 })
+    await frame
+      .locator('.vditor-ir .hljs span[class*="hljs-"]')
+      .first()
+      .waitFor({ timeout: 90_000 })
+    await settle(frame, 1500)
     const source = (await frame
       .locator('body')
       .evaluate(EXPAND_AND_MEASURE)) as CodeSourceMeasure

@@ -252,7 +252,6 @@ describe('observeDecorators (the live stages of the registry)', () => {
   const ctx = (): ObserveContext => ({
     app: document.createElement('div'),
     previewEl: document.createElement('div'),
-    activeMode: document.createElement('div'),
     blockMode: () => null,
     post: () => undefined,
     getHljs: () => undefined,
@@ -285,5 +284,22 @@ describe('observeDecorators (the live stages of the registry)', () => {
         'preview-html-comments',
       ].sort(),
     )
+  })
+
+  it('code-source follows a live mode switch: IR sources rebuilt under #app after install are tagged', async () => {
+    const c = ctx()
+    c.app!.innerHTML =
+      '<div class="vditor-ir vditor-reset"></div><div class="vditor-sv vditor-reset"></div>'
+    document.body.append(c.app!)
+    const disposers: (() => void)[] = []
+    observeDecorators('edit', c, (_k, d) => disposers.push(d))
+    c.app!.querySelector('.vditor-ir')!.innerHTML =
+      '<div data-type="code-block"><pre class="vditor-ir__marker--pre"><code class="language-ts">a</code></pre></div>'
+    await new Promise((r) => setTimeout(r, 50))
+    expect(
+      c.app!.querySelector('.vditor-ir code')?.classList.contains('hljs'),
+    ).toBe(true)
+    for (const d of disposers) d()
+    c.app!.remove()
   })
 })

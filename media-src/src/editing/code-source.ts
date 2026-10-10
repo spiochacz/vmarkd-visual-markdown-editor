@@ -46,7 +46,9 @@ export function tagCodeSource(root: ParentNode | null | undefined): void {
 }
 
 /**
- * Keep code-block sources tagged `.hljs` as the IR editor rebuilds its DOM. The first batch of a
+ * Keep code-block sources tagged `.hljs` as the IR editor rebuilds its DOM. Bind it to the STABLE
+ * `#app` mount, not the mode element active at init: a toolbar mode switch does not re-init and
+ * Vditor rebuilds `ir.element` on it, so an init-time binding left sv/WYSIWYG -> IR untagged. The first batch of a
  * frame runs synchronously (before paint, so no flash) and same-frame bursts coalesce into one
  * pre-paint trailing run (coalescePerFrame, 185/2c); observes childList/characterData only (NOT
  * attributes), so adding the class doesn't re-trigger the observer. Returns a disposer.
@@ -68,6 +70,11 @@ export function observeCodeSource(
     }
   return observeScopedMutations(editorEl, {
     full: tagCodeSource,
-    within: tagCodeSource,
+    // `editorEl` may be the stable `#app` (finish-init), which also holds the sv pane and the
+    // Preview: a block outside the IR surface has nothing to tag, and sv wraps the WHOLE document in
+    // one block, so skipping it keeps sv typing off an O(document) query.
+    within: (block) => {
+      if (block.closest('.vditor-ir')) tagCodeSource(block)
+    },
   })
 }
