@@ -22,7 +22,7 @@ import {
 describeAnchors(
   'lute-sv-padding anchors',
   LUTE_SV_PADDING_PATCHES as Anchors,
-  1,
+  3,
 )
 
 const LUTE_BUILT = luteBuiltOrWarn('lute-sv-padding')
@@ -75,5 +75,41 @@ describe('sv list items keep blank lines blank (task 532 step 7)', () => {
 
   it('the stock blob emits "  " on the blank line (the defect this patch fixes)', () => {
     expect(svText(stock, CORPUS['multi-paragraph item'])).toMatch(/^[ \t]+$/m)
+  })
+})
+
+// A blank line inside a blockquote is `>` in the sv pane, not `> ` (trailing space).
+const QUOTE_CORPUS: Record<string, string> = {
+  'two paragraphs': '> a\n>\n> b',
+  'three paragraphs': '> a\n>\n> b\n>\n> c',
+  'nested quote': '> a\n>\n> > x\n> >\n> > y\n>\n> z',
+  'list inside a quote': '> - a\n>\n>   p\n>\n> - b',
+  'quote inside a list item': '- x\n\n  > q\n  >\n  > r',
+  'blank line inside fenced code in a quote': '> ```\n> a\n>\n> b\n> ```',
+  'heading then paragraph': '> # h\n>\n> t',
+  'no blank line (unchanged)': '> a\n> b',
+}
+
+describe('sv blockquote blank lines carry no trailing space (task 532 step 7)', () => {
+  let stock: RealLute
+  let fixed: RealLute
+  beforeAll(() => {
+    stock = bootRealLute(vendored)
+    fixed = bootRealLute(builtSource())
+  })
+  const quoteText = (l: RealLute, md: string) =>
+    svText(l, md).replace(/&gt;/g, '>')
+
+  it.each(Object.entries(QUOTE_CORPUS))(
+    '%s: the pane text is byte-identical',
+    (_n, md) => {
+      expect(quoteText(fixed, md)).toBe(md)
+    },
+  )
+
+  it('the stock blob writes "> " on the blank line (the defect this patch fixes)', () => {
+    expect(quoteText(stock, QUOTE_CORPUS['two paragraphs'])).toBe(
+      '> a\n> \n> b',
+    )
   })
 })

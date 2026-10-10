@@ -128,6 +128,11 @@ export const LUTE_TASK_LIST_PATCHES = [
   ],
 ]
 
+// Q1/Q2 splice: `buf` is the quote's byte buffer after every line got its marker, `marker` the `> `
+// marker bytes (the minified identifiers differ per GopherJS variant).
+const SV_QUOTE_TRIM = (buf, marker) =>
+  `${buf}=(function(b,m){var t=$bytesToString(m),n=$bytesToString($pkg.NewlineSV),p='<span data-type="padding"></span>',u=t.replace("&gt; ","&gt;");return new DE($stringToBytes($bytesToString(b).split(t+n).join(u+n).split(t+p+n).join(u+p+n)));})(${buf},${marker});`
+
 // Task 532 step 7 (sv) — the split-view source pane keeps a blank line INSIDE a list item blank. Its
 // list-item renderer prefixes EVERY newline of the item with the item's padding span, so a blank line
 // between two paragraphs of one item (or inside its fenced code) came out as the whitespace-only
@@ -140,6 +145,23 @@ export const LUTE_SV_PADDING_PATCHES = [
     'S1 sv renderListItem padding',
     'g=A.ReplaceAll(g,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,j));',
     'k=$bytesToString($pkg.NewlineSV);l=$bytesToString(j);n=$bytesToString(g).split(k).join(k+l);m=\'<span data-type="padding"></span>\';while(n.indexOf(k+l+k)>=0||n.indexOf(k+l+m+k)>=0){n=n.split(k+l+k).join(k+k).split(k+l+m+k).join(k+m+k);}g=new DE($stringToBytes(n));',
+  ],
+  // Task 532 step 7 (sv) — a blank line INSIDE a blockquote is `>`, not `> `. The sv blockquote
+  // renderer prefixes EVERY line of the quote with the `> ` marker span, so the blank line between
+  // two paragraphs of one quote came out as "> " + newline (a trailing space the source did not
+  // have; the pane's textContent is what gets saved). After the prefixing, a marker directly
+  // followed by a newline drops its space. Two anchors: the renderer has two copies of the code
+  // (a plain and a resumable GopherJS variant). Nested quotes compose: the inner `>` is followed by
+  // a span, not a newline, so only the innermost marker of the blank line loses its space.
+  [
+    'Q1 sv renderBlockquote blank line',
+    'g=A.ReplaceAll(g,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,h));f.Reset();f.Write(g);',
+    `g=A.ReplaceAll(g,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,h));${SV_QUOTE_TRIM('g', 'h')}f.Reset();f.Write(g);`,
+  ],
+  [
+    'Q2 sv renderBlockquote blank line (resumable)',
+    'i=A.ReplaceAll(i,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,j));h.Reset();h.Write(i);',
+    `i=A.ReplaceAll(i,$pkg.NewlineSV,$appendSlice($pkg.NewlineSV,j));${SV_QUOTE_TRIM('i', 'j')}h.Reset();h.Write(i);`,
   ],
 ]
 
