@@ -76,11 +76,6 @@ test('sv: editing a multi-paragraph list item saves no whitespace-only line', as
   const onDisk = readFileSync(file, 'utf8')
   const host = await docText(evaluateInVSCode, file)
   rmSync(file, { force: true })
-  // sv appends its trailing-caret ZWSP line to ANY document it saves (pre-existing, unrelated to lists:
-  // a two-paragraph doc does the same) — strip that tail so the assertion is about the list item.
-  const body = (t: string) => t.replace(/\n+\u200b?\n*$/, '\n')
-  expect(body(onDisk), 'the saved file keeps the blank lines blank').toBe(
-    EDITED,
-  )
-  expect(body(host)).toBe(EDITED)
+  expect(onDisk, 'the saved file keeps the blank lines blank').toBe(EDITED)
+  expect(host).toBe(EDITED)
 })

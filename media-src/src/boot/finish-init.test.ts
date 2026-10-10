@@ -17,8 +17,13 @@ vi.mock('../util/inner-vditor', () => ({
     preview: { previewElement: undefined as HTMLElement | undefined },
   }),
 }))
+// `blockModeElement` is null in sv (see source-map.test.ts) — the trailing-paragraph invariant must be
+// bound to it, not to `activeModeElement`, or the sv pane gets a ZWSP paragraph that is saved to disk.
+const blockModeElement = vi.fn((): HTMLElement | null => null)
+const observeTrailingParagraph = vi.fn((_el: HTMLElement | null) => vi.fn())
 vi.mock('../util/source-map', () => ({
   activeModeElement: (): HTMLElement | undefined => undefined,
+  blockModeElement,
 }))
 vi.mock('../chrome/responsive-tables', () => ({ fixResponsiveTables: vi.fn() }))
 vi.mock('../chrome/toolbar-actions', () => ({
@@ -50,9 +55,7 @@ vi.mock('../editing/wysiwyg-code-highlight', () => ({
   observeWysiwygCodeHighlight: () => vi.fn(),
   wrapLuteFlatten: vi.fn(),
 }))
-vi.mock('../editing/gap-paragraph', () => ({
-  observeTrailingParagraph: () => vi.fn(),
-}))
+vi.mock('../editing/gap-paragraph', () => ({ observeTrailingParagraph }))
 vi.mock('../diagrams/diagram-zoom-gate', () => ({ installDiagramZoomGate }))
 // list-backspace imports Vditor internals (constants.ts → the esbuild-defined VDITOR_VERSION global),
 // so it must be mocked here like the other installers — the real thing is covered by list-backspace.spec.
@@ -122,4 +125,22 @@ it('delegates the diagram lifecycle to the phased runtime installer', async () =
   expect(vscode.postMessage).toHaveBeenCalledWith({
     command: 'diagram-cache-get',
   })
+})
+
+it('binds the trailing-paragraph invariant to the block-mode editor only (null in sv)', async () => {
+  const { runFinishInit } = await import('./finish-init')
+  const ir = document.createElement('div')
+  blockModeElement.mockReturnValueOnce(ir).mockReturnValueOnce(null)
+  const run = () =>
+    runFinishInit(
+      { content: '', options: {} } as Parameters<typeof runFinishInit>[0],
+      { observers: new Disposables(), cdn: 'test', reportDocMode: vi.fn() },
+    )
+  observeTrailingParagraph.mockClear()
+  run()
+  run()
+  expect(observeTrailingParagraph.mock.calls.map((c) => c[0])).toEqual([
+    ir,
+    null,
+  ])
 })

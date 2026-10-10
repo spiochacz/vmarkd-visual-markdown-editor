@@ -107,6 +107,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
 - **Split view no longer saves blank-looking padding lines**: editing a list item that has several
   paragraphs (or a blank line inside its code block) no longer writes whitespace-only lines into the file.
 
+- **Split view saves exactly what you typed**: editing a document in the split view no longer appends a
+  blank line and an invisible zero-width character to the end of the saved file, and a blank line inside
+  a blockquote is saved as `>` instead of `> ` with a trailing space.
+
 - **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
   exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
   (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are

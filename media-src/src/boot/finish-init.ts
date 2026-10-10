@@ -141,9 +141,12 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // always offers an empty paragraph below it — without one there is NO caret position
   // after the last block (arrow-down at EOF dropped the selection → caret+view jumped to
   // the top). Tag is serializer-invisible; survives IR rebuilds via its own observer.
+  // Block modes only: sv saves its pane's `textContent`, so a manufactured `<p>` (ZWSP seed) in the sv
+  // pane landed in the file as "\n\n<ZWSP>\n" on every edit — sv has no "below the last block" to
+  // escape to, the pane IS the source.
   observers.set(
     'trailing',
-    observeTrailingParagraph(activeModeElement(window.vditor)),
+    observeTrailingParagraph(blockModeElement(window.vditor)),
   )
   // Task 439: place the caret at offset 0 of the first block on open (Vditor's own init leaves NO
   // selection at all — see initial-caret.ts). Run AFTER observeTrailingParagraph: its install call
