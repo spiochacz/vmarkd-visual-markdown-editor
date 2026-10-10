@@ -150,6 +150,23 @@ function wrapNewlines(
 }
 
 /**
+ * The block's text up to and including its first newline, joined across text nodes. The callout head
+ * must be read from this, not from the first text node: under load the editor's caret code leaves an
+ * EMPTY text node in front (or splits the title from its newline), the old first-node test then failed,
+ * and the title-line newline was wrapped as a soft break - ArrowDown into a collapsed callout landed on
+ * "[!NOTE]" (real-VS-Code callout-arrow-nav flake).
+ */
+function leadingText(items: Item[]): string {
+  let out = ''
+  for (const it of items) {
+    if (!it.text) continue
+    out += it.text.data
+    if (out.includes('\n')) break
+  }
+  return out
+}
+
+/**
  * Wrap the non-trailing "\n" runs of ONE prose block's own inline flow. Returns the number of spans
  * created. Idempotent: an already-wrapped "\n" lives in a skipped span. Does not touch the selection
  * (see `withSelectionKept`).
@@ -162,9 +179,7 @@ export function wrapProseBlock(block: Element): number {
   while (last >= 0 && !items[last].content) last--
   if (last < 0) return 0
   let made = 0
-  let skipFirst = CALLOUT_HEAD.test(
-    items.find((it) => it.text)?.text?.data ?? '',
-  )
+  let skipFirst = CALLOUT_HEAD.test(leadingText(items))
   for (let idx = 0; idx <= last; idx++) {
     const it = items[idx]
     if (!it.text || !it.wrap || !it.text.data.includes('\n')) continue

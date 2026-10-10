@@ -114,3 +114,35 @@ test('ArrowUp from the paragraph below enters the collapsed callout', async ({
   expect(s.anchorOffset).toBe(s.anchorText?.length ?? -1)
   expect(s.anchorOffset).toBeGreaterThan(0)
 })
+
+// Load flake root cause (release 1.3 full-suite failure, reproduced solo under CPU stress): the
+// editor's caret code can leave an EMPTY text node in front of the callout text; the soft-break
+// decorator then failed to recognise the callout head, wrapped the title-line newline in a span,
+// and ArrowDown landed on "[!NOTE]" instead of the body. Force that DOM deterministically.
+test('ArrowDown still enters the callout body when an empty text node precedes the callout text', async ({
+  workbox,
+  evaluateInVSCode,
+}) => {
+  const frame = await open(workbox, evaluateInVSCode)
+
+  await frame.locator('body').evaluate(() => {
+    const p = document.querySelector('.vditor-ir blockquote[data-callout] > p')
+    p?.insertBefore(document.createTextNode(''), p.firstChild)
+  })
+  // let the soft-break observer re-decorate the touched block
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 500)))
+
+  await frame.locator('.vditor-ir').getByText('above the callout').click()
+  await workbox.keyboard.press('End')
+  await workbox.keyboard.press('ArrowDown')
+  await frame
+    .locator('body')
+    .evaluate(() => new Promise((r) => setTimeout(r, 300)))
+
+  const s = await frame.locator('body').evaluate(CALLOUT_STATE)
+  expect(s.caretInCallout).toBe(true)
+  expect(s.anchorText).toContain('callout body text')
+  expect(s.anchorOffset).toBe(0)
+})

@@ -114,6 +114,24 @@ describe('wrapProseBlock', () => {
     expect((p.firstChild as Text).data).toBe('[!NOTE]\nbody text')
   })
 
+  it('still skips the title-line newline when an EMPTY text node precedes the callout text', () => {
+    // Under load the editor's caret code leaves an empty text node before the real one; the
+    // callout head must be read from the first NON-empty text (real-VS-Code callout-arrow-nav flake).
+    const r = root('<blockquote><p>[!NOTE]\nbody text</p></blockquote>')
+    const p = r.querySelector('p') as HTMLElement
+    p.insertBefore(document.createTextNode(''), p.firstChild)
+    expect(wrapTopBlock(r.firstElementChild as Element)).toBe(0)
+    expect(spans(r)).toBe(0)
+  })
+
+  it('still skips the title-line newline when the text is split before the newline', () => {
+    const r = root('<blockquote><p>[!NOTE]\nbody text</p></blockquote>')
+    const p = r.querySelector('p') as HTMLElement
+    ;(p.firstChild as Text).splitText(7)
+    expect(wrapTopBlock(r.firstElementChild as Element)).toBe(0)
+    expect(spans(r)).toBe(0)
+  })
+
   it('does not wrap the newline that belongs to a hard break', () => {
     const r = root('<p>one<br data-marker="\\">\ntwo\nthree</p>')
     wrapTopBlock(r.firstElementChild as Element)
