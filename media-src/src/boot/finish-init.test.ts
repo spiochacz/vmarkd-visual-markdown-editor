@@ -20,7 +20,9 @@ vi.mock('../util/inner-vditor', () => ({
 // `blockModeElement` is null in sv (see source-map.test.ts) — the trailing-paragraph invariant must be
 // bound to it, not to `activeModeElement`, or the sv pane gets a ZWSP paragraph that is saved to disk.
 const blockModeElement = vi.fn((): HTMLElement | null => null)
-const observeTrailingParagraph = vi.fn((_el: HTMLElement | null) => vi.fn())
+const observeTrailingParagraph = vi.fn(
+  (_root: HTMLElement | null, _get?: () => HTMLElement | null) => vi.fn(),
+)
 vi.mock('../util/source-map', () => ({
   activeModeElement: (): HTMLElement | undefined => undefined,
   blockModeElement,
@@ -127,20 +129,27 @@ it('delegates the diagram lifecycle to the phased runtime installer', async () =
   })
 })
 
-it('binds the trailing-paragraph invariant to the block-mode editor only (null in sv)', async () => {
+it('binds the trailing-paragraph invariant to #app with a lazy block-mode getter (null in sv)', async () => {
   const { runFinishInit } = await import('./finish-init')
+  document.body.replaceChildren()
+  const app = document.createElement('div')
+  app.id = 'app'
+  document.body.appendChild(app)
   const ir = document.createElement('div')
-  blockModeElement.mockReturnValueOnce(ir).mockReturnValueOnce(null)
-  const run = () =>
-    runFinishInit(
-      { content: '', options: {} } as Parameters<typeof runFinishInit>[0],
-      { observers: new Disposables(), cdn: 'test', reportDocMode: vi.fn() },
-    )
+  const wysiwyg = document.createElement('div')
+  // The mode changes between runs WITHOUT a re-init: ir -> sv -> wysiwyg.
+  blockModeElement
+    .mockReturnValueOnce(ir)
+    .mockReturnValueOnce(null)
+    .mockReturnValueOnce(wysiwyg)
   observeTrailingParagraph.mockClear()
-  run()
-  run()
-  expect(observeTrailingParagraph.mock.calls.map((c) => c[0])).toEqual([
-    ir,
-    null,
-  ])
+  runFinishInit(
+    { content: '', options: {} } as Parameters<typeof runFinishInit>[0],
+    { observers: new Disposables(), cdn: 'test', reportDocMode: vi.fn() },
+  )
+  const [root, getEditor] = observeTrailingParagraph.mock
+    .calls[0] as unknown as [HTMLElement, () => HTMLElement | null]
+  expect(root).toBe(app)
+  expect([getEditor(), getEditor(), getEditor()]).toEqual([ir, null, wysiwyg])
+  app.remove()
 })

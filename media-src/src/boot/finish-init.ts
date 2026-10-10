@@ -144,9 +144,10 @@ export function runFinishInit(msg: InitPayload, deps: FinishInitDeps): void {
   // Block modes only: sv saves its pane's `textContent`, so a manufactured `<p>` (ZWSP seed) in the sv
   // pane landed in the file as "\n\n<ZWSP>\n" on every edit — sv has no "below the last block" to
   // escape to, the pane IS the source.
+  // Stable #app + lazy block-mode getter: follows a live mode switch, stays off in sv.
   observers.set(
     'trailing',
-    observeTrailingParagraph(blockModeElement(window.vditor)),
+    observeTrailingParagraph(app, () => blockModeElement(window.vditor)),
   )
   // Task 439: place the caret at offset 0 of the first block on open (Vditor's own init leaves NO
   // selection at all — see initial-caret.ts). Run AFTER observeTrailingParagraph: its install call

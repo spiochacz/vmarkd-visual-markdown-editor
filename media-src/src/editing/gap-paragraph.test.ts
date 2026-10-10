@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cleanupGapParagraphs,
   ensureLeadingBlock,
   isThematicBreakParagraph,
+  observeTrailingParagraph,
   promoteThematicBreaks,
 } from './gap-paragraph'
 // ensureTrailingParagraph moved to trailing-paragraph.ts (task 472) along with the rest of its
@@ -235,5 +236,39 @@ describe('promoteThematicBreaks — render a left-behind `---` as an <hr>', () =
     promoteThematicBreaks(el, focused)
     expect(el.querySelectorAll('hr').length).toBe(2) // original + the un-focused promotion
     expect(el.querySelectorAll('p').length).toBe(1) // the focused `---` stays editable
+  })
+})
+
+describe('observeTrailingParagraph follows the active editor (live mode switch)', () => {
+  it('asserts the invariant on whichever element the getter yields, never on null (sv)', async () => {
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => {
+      queueMicrotask(cb)
+      return 1
+    })
+    const app = document.createElement('div')
+    const ir = document.createElement('div')
+    const wys = document.createElement('div')
+    ir.innerHTML = '<blockquote data-block="0">q</blockquote>'
+    wys.innerHTML = '<blockquote data-block="0">q</blockquote>'
+    app.append(ir, wys)
+    document.body.replaceChildren(app)
+    let active: HTMLElement | null = ir
+    const dispose = observeTrailingParagraph(app, () => active)
+    expect(trailingPs(ir).length).toBe(1) // bound mode has it at install
+    expect(trailingPs(wys).length).toBe(0) // the hidden mode is not touched
+
+    active = wys // toolbar switch: no re-init, only a rebuilt DOM in the new mode
+    wys.appendChild(document.createElement('hr'))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(trailingPs(wys).length).toBe(1)
+
+    active = null // sv: nothing may be manufactured
+    const sv = document.createElement('div')
+    sv.innerHTML = '<div data-block="0">text</div>'
+    app.appendChild(sv)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(sv.querySelector(`[${TRAILING}]`)).toBeNull()
+    dispose()
+    vi.unstubAllGlobals()
   })
 })

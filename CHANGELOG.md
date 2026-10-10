@@ -111,6 +111,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/), versions follow
   blank line and an invisible zero-width character to the end of the saved file, and a blank line inside
   a blockquote is saved as `>` instead of `> ` with a trailing space.
 
+- **A way to type below the last block after switching edit mode**: switching between the edit modes
+  from the toolbar now keeps the empty line below a document's last table, callout or quote in
+  whichever mode you land in (it used to exist only in the mode the editor opened in).
+
 - **Hard line breaks survive editing**: a line ending in two or more spaces or a backslash keeps that
   exact form when you type in its paragraph and save, in both the Instant Rendering and WYSIWYG modes
   (including inside lists, quotes and formatted text); breaks inside table cells and code blocks are

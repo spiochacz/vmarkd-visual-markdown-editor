@@ -194,18 +194,26 @@ export function ensureLeadingBlock(editor: HTMLElement): boolean {
 // Keep the invariant as the editor re-renders (Vditor rebuilds the IR DOM on every edit,
 // dropping our model-less paragraph — re-add it). rAF-debounced; idempotent (a run that
 // changes nothing schedules nothing → no observer loop). Returns a disposer.
+//
+// `root` is what the MutationObserver watches; `getEditor` resolves, on every run, WHICH element the
+// invariant is asserted on. finish-init.ts passes the stable `#app` and a lazy block-mode getter so the
+// invariant follows a toolbar mode switch (no re-init) and is a no-op in sv (null: sv saves its pane's
+// textContent, a manufactured ZWSP paragraph would land in the file). Default = `root` itself.
 export function observeTrailingParagraph(
-  editorEl: HTMLElement | null | undefined,
+  root: HTMLElement | null | undefined,
+  getEditor: () => HTMLElement | null | undefined = () => root,
 ): () => void {
-  // No editor root mounted yet — nothing to observe; hand back a no-op
+  // No root mounted yet — nothing to observe; hand back a no-op
   // disposer so callers can always call the returned teardown unconditionally.
-  if (!editorEl)
+  if (!root)
     return () => {
       /* no-op disposer */
     }
   let raf = 0
   const run = () => {
     raf = 0
+    const editorEl = getEditor()
+    if (!editorEl) return
     const sel = window.getSelection()
     const caret = sel?.rangeCount ? sel.getRangeAt(0).startContainer : null
     // Leading BEFORE trailing: on a genuinely empty editor this settles the whole shape in one
@@ -218,7 +226,7 @@ export function observeTrailingParagraph(
     if (!raf) raf = requestAnimationFrame(run)
   }
   const obs = new MutationObserver(schedule)
-  obs.observe(editorEl, {
+  obs.observe(root, {
     childList: true,
     subtree: true,
     characterData: true,
